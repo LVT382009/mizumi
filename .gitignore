@@ -3,4 +3,7 @@ dist/*.js.map
 dist/*.d.ts
 dist/*.d.ts.map
 dist/__tests__/
+dist/main.js
 .DS_Store
+.claude-flow/
+ruvector.db

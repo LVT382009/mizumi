@@ -4,7 +4,7 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 
 ## Features
 
-- **BYOK from day 1** — Bring your own key for Anthropic, OpenAI, Google, NVIDIA NIM, OpenRouter, or any OpenAI-compatible endpoint (Ollama, vLLM, Together)
+- **BYOK from day 1** — Bring your own key for Anthropic, OpenAI, Google, NVIDIA NIM, OpenRouter, or any OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, Fireworks, Ollama, llama.cpp, LM Studio)
 - **Self-learning** — Remembers past review patterns per repository via `.github/mizumi-memory.md`
 - **Deterministic rules** — Catches hardcoded secrets, missing auth middleware, and SQL injection WITHOUT any LLM call
 - **Two-pass review** — LLM review + self-critique on a cheaper model to reduce false positives
@@ -65,10 +65,11 @@ jobs:
 | `google_api_key` | — | Google AI API key |
 | `openrouter_api_key` | — | OpenRouter API key |
 | `nvidia_api_key` | — | NVIDIA NIM API key (`nvapi-*`) |
-| `local_api_key` | `"dummy"` | API key for local/self-hosted model |
+| `local_api_key` | `"dummy"` | API key for local/self-hosted model (Ollama/llama.cpp/LM Studio usually don't need one) |
+| `custom_api_key` | — | API key for custom OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, etc.) |
 | `base_url` | — | Custom base URL for OpenAI-compatible endpoint |
-| `model` | `claude-sonnet-4-6` | Model to use |
-| `provider` | `anthropic` | `anthropic` \| `openai` \| `google` \| `openrouter` \| `nvidia` \| `local` |
+| `model` | `claude-sonnet-4-6` | Model to use (any model ID supported by your provider) |
+| `provider` | `anthropic` | `anthropic` \| `openai` \| `google` \| `openrouter` \| `nvidia` \| `local` \| `custom` |
 | `profile` | `chill` | `chill` (bugs/security) \| `assertive` (+ style) \| `followup` (+ check prior comments) |
 | `max_comments` | `15` | Max inline comments per review |
 | `self_critique` | `true` | Enable two-pass self-critique |
@@ -84,6 +85,7 @@ jobs:
 ```yaml
 llm:
   model: claude-sonnet-4-6
+  # base_url: https://api.together.xyz/v1   # For custom provider
 
 review:
   profile: chill
@@ -139,15 +141,27 @@ When Mizumi detects recurring review patterns, it writes reusable skill files to
     model: meta/llama-3.3-70b-instruct
 ```
 
-## Local Model Setup (Ollama, vLLM, etc.)
+## Local Model Setup (Ollama, llama.cpp, LM Studio)
 
 ```yaml
 - uses: mizumi-dev/mizumi@v0.1
   with:
-    local_api_key: dummy
-    base_url: http://localhost:11434/v1
     provider: local
+    base_url: http://localhost:11434/v1   # Ollama default
+    # base_url: http://localhost:8081/v1  # llama.cpp server
+    # base_url: http://localhost:1234/v1  # LM Studio
     model: llama3
+```
+
+## Custom Provider (Together AI, Groq, DeepSeek, etc.)
+
+```yaml
+- uses: mizumi-dev/mizumi@v0.1
+  with:
+    provider: custom
+    custom_api_key: ${{ secrets.CUSTOM_API_KEY }}
+    base_url: https://api.together.xyz/v1
+    model: meta-llama/llama-3.3-70b-instruct
 ```
 
 ## Outputs
