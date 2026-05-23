@@ -15,6 +15,7 @@ export interface MizumiConfig {
   selfCritique: boolean;
   confidenceThreshold: number;
   autoReview: boolean;
+  autoPauseAfter: number;
   excludePatterns: string[];
 }
 
@@ -40,6 +41,7 @@ export function loadConfig(): MizumiConfig {
   const selfCritique = core.getInput("self_critique") !== "false";
   const confidenceThreshold = parseInt(core.getInput("confidence_threshold") || "80", 10);
   const autoReview = core.getInput("auto_review") !== "false";
+  const autoPauseAfter = parseInt(core.getInput("auto_pause_after") || "5", 10);
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -74,6 +76,7 @@ export function loadConfig(): MizumiConfig {
     selfCritique,
     confidenceThreshold: repoConfidence,
     autoReview,
+    autoPauseAfter,
     excludePatterns,
   };
 }

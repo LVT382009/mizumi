@@ -19,6 +19,7 @@ import { postReview } from "./post.js";
 import { writeMemory } from "./memory.js";
 import { runRules } from "./rules.js";
 
+const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
 
 async function run(): Promise<void> {
@@ -42,8 +43,18 @@ async function run(): Promise<void> {
 
     const owner = ctx.repo.owner;
     const repo = ctx.repo.repo;
+    const isManualTrigger = ctx.eventName === "issue_comment";
 
     core.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+
+    // Auto-pause check: skip review if too many reviews already on this PR
+    if (!isManualTrigger && config.autoPauseAfter > 0) {
+      const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
+      if (reviewCount >= config.autoPauseAfter) {
+        core.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config.autoPauseAfter}). Use /mizumi to resume.`);
+        return;
+      }
+    }
 
     // 1. Fetch and parse diff
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
@@ -139,6 +150,42 @@ function getPrNumber(ctx: typeof github.context): number | null {
   }
 
   return null;
+}
+
+async function countMizumiReviews(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<number> {
+  let count = 0;
+  let page = 1;
+
+  while (true) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+      per_page: 100,
+      page,
+    });
+
+    count += comments.filter((c) => c.body?.includes(MARKER)).length;
+
+    if (comments.length < 100) break;
+    page++;
+  }
+
+  // Also count PR reviews from mizumi
+  const { data: reviews } = await octokit.rest.pulls.listReviews({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+
+  count += reviews.filter((r) => r.body?.includes(MARKER)).length;
+
+  return count;
 }
 
 run();

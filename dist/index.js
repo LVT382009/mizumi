@@ -34793,6 +34793,7 @@ function loadConfig() {
     const selfCritique = getInput("self_critique") !== "false";
     const confidenceThreshold = parseInt(getInput("confidence_threshold") || "80", 10);
     const autoReview = getInput("auto_review") !== "false";
+    const autoPauseAfter = parseInt(getInput("auto_pause_after") || "5", 10);
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
     let repoModel = model;
@@ -34830,6 +34831,7 @@ function loadConfig() {
         selfCritique,
         confidenceThreshold: repoConfidence,
         autoReview,
+        autoPauseAfter,
         excludePatterns,
     };
 }
@@ -72897,7 +72899,7 @@ function filterByConfidence(review, threshold) {
  * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
  * The deprecated `position` parameter is NOT used.
  */
-const MARKER = "<!-- mizumi-review-marker -->";
+const MARKER$1 = "<!-- mizumi-review-marker -->";
 const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
 /**
  * Post the full review to GitHub.
@@ -73007,7 +73009,7 @@ function buildReviewBody(review, overflow) {
     return body;
 }
 function buildSummaryComment(review) {
-    let body = MARKER;
+    let body = MARKER$1;
     body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)`;
     body += `\n\n${screenOutput(review.summary)}`;
     body += `\n\n**Decision:** ${review.decision.toUpperCase()} | **Findings:** ${review.comments.length}`;
@@ -73032,7 +73034,7 @@ async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body
         issue_number: prNumber,
         per_page: 100,
     });
-    const existing = comments.find((c) => c.body?.includes(MARKER));
+    const existing = comments.find((c) => c.body?.includes(MARKER$1));
     if (existing) {
         // Update-in-place (dependency-review-action pattern)
         await octokit.rest.issues.updateComment({
@@ -73142,6 +73144,7 @@ function hasSQLConcat(line) {
  * Philosophy: Exit code 0 always. Build-breaking is opt-in.
  * Error messages belong in the PR, not the Actions log.
  */
+const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
 async function run() {
     try {
@@ -73160,7 +73163,16 @@ async function run() {
         }
         const owner = ctx.repo.owner;
         const repo = ctx.repo.repo;
+        const isManualTrigger = ctx.eventName === "issue_comment";
         info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+        // Auto-pause check: skip review if too many reviews already on this PR
+        if (!isManualTrigger && config.autoPauseAfter > 0) {
+            const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
+            if (reviewCount >= config.autoPauseAfter) {
+                info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config.autoPauseAfter}). Use /mizumi to resume.`);
+                return;
+            }
+        }
         // 1. Fetch and parse diff
         const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
         info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
@@ -73232,6 +73244,31 @@ function getPrNumber(ctx) {
         }
     }
     return null;
+}
+async function countMizumiReviews(octokit, owner, repo, prNumber) {
+    let count = 0;
+    let page = 1;
+    while (true) {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+            page,
+        });
+        count += comments.filter((c) => c.body?.includes(MARKER)).length;
+        if (comments.length < 100)
+            break;
+        page++;
+    }
+    // Also count PR reviews from mizumi
+    const { data: reviews } = await octokit.rest.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: prNumber,
+    });
+    count += reviews.filter((r) => r.body?.includes(MARKER)).length;
+    return count;
 }
 run();
 

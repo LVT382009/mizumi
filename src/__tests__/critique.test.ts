@@ -201,7 +201,7 @@ describe("runCritique", () => {
     profile: "chill" as const,
     maxComments: 15,
     language: "en-US",
-    autoReview: true,
+    autoReview: true, autoPauseAfter: 5,
     excludePatterns: [],
   };
 

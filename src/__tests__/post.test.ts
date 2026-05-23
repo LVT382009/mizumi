@@ -45,7 +45,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     language: "en",
     selfCritique: false,
     confidenceThreshold: 60,
-    autoReview: false,
+    autoReview: false, autoPauseAfter: 5,
     excludePatterns: [],
     ...overrides,
   };

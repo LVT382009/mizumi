@@ -59,6 +59,10 @@ inputs:
     description: Auto-review on PR open/push (false = manual /mizumi trigger only)
     required: false
     default: "true"
+  auto_pause_after:
+    description: Stop auto-reviewing after this many reviews per PR (resume with /mizumi)
+    required: false
+    default: "5"
 
 outputs:
   review_id:

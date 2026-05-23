@@ -1,0 +1,22 @@
+# Mizumi configuration example
+# Place at .github/mizumi.yml in your repository
+
+llm:
+  model: claude-sonnet-4-6
+
+review:
+  profile: chill
+  max_comments: 15
+  confidence_threshold: 80
+
+exclude:
+  - "*.lock"
+  - "package-lock.json"
+  - "yarn.lock"
+  - "pnpm-lock.yaml"
+  - "*.min.js"
+  - "*.min.css"
+  - "dist/**"
+  - "vendor/**"
+  - "node_modules/**"
+  - "generated/**"
