@@ -74,6 +74,11 @@ All Phase 1 items from the implementation plan are now implemented:
 | 3.20 VS Code deep-links | ✅ | `post.ts` — vscodeLink() on every inline comment |
 | 3.16 /mizumi describe | ✅ | `describe.ts` — generates structured PR descriptions via LLM |
 | 3.9 Memory consolidation | ✅ | `memory.ts` — extracts recurring file:category patterns (3x threshold) |
+| 3.10 Auto skill generation | ✅ | `memory.ts` — autoGenerateSkills (3x → SKILL.md), loadSkills (progressive) |
+| 3.11 Progressive skill loading | ✅ | `memory.ts` — loadSkills lazy-loads matching skills, 5 cap / 2KB cap |
+| 3.15 /mizumi improve | ✅ | `improve.ts` — applies suggestion blocks via Git Data API |
+| 3.4 SHA dedup | ✅ | `idempotency.ts` — isReviewedSha + markShaReviewed (flat-file) |
+| 3.5 Webhook idempotency | ✅ | `idempotency.ts` — hashed delivery_id dedup (flat-file, 500 entries) |
 
 ### Bug Fixes (This Cycle)
 
@@ -100,10 +105,10 @@ All Phase 1 items from the implementation plan are now implemented:
 
 ### Build Stats
 
-- 356 tests passing (18 test files + 1 skipped)
-- 2,563 production lines (under 3,000 budget)
+- 379 tests passing (20 test files + 1 skipped)
+- 2,837 production lines (163 under 3,000 budget)
 - Zero TS errors
-- 19 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe)
+- 21 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe, improve, idempotency, context)
 - `dist/index.js` bundle verified
 - 6 providers verified (NVIDIA NIM end-to-end with real API call)
 
