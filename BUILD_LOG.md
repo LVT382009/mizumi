@@ -92,6 +92,9 @@ All Phase 1 items from the implementation plan are now implemented:
 ### New Files This Cycle
 
 - `src/feedback.ts` — Emoji reaction polling + JSON feedback store + acceptance rate calculator
+- `src/testgen.ts` — /mizumi test — LLM-generated vitest skeletons from findings
+- `src/improve.ts` — /mizumi improve — applies suggestion blocks via Git Data API
+- `src/idempotency.ts` — Webhook delivery dedup + SHA-based review dedup
 - `src/slop.ts` — Heuristic slop detector (5 signals, 0-100 score)
 
 - `src/router.ts` — Diff tier routing (light/standard/thorough)
@@ -105,10 +108,10 @@ All Phase 1 items from the implementation plan are now implemented:
 
 ### Build Stats
 
-- 379 tests passing (20 test files + 1 skipped)
-- 2,837 production lines (163 under 3,000 budget)
+- 384 tests passing (21 test files + 1 skipped)
+- 2,942 production lines (58 under 3,000 budget)
 - Zero TS errors
-- 21 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe, improve, idempotency, context)
+- 22 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe, improve, idempotency, testgen, context)
 - `dist/index.js` bundle verified
 - 6 providers verified (NVIDIA NIM end-to-end with real API call)
 
