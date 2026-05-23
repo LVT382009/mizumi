@@ -3,11 +3,12 @@
  * First pass generates review, second pass critically evaluates each finding.
  * Uses cheaper model (haiku) for critique pass.
  */
+import * as core from "@actions/core";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ReviewResponseType, ReviewResponse } from "./review.js";
-import { MizumiConfig, requireApiKey } from "./config.js";
+import { MizumiConfig, getApiKey } from "./config.js";
 
 const CRITIQUE_MODEL = "gpt-4.1-mini"; // Cheap model for critique pass
 
@@ -23,12 +24,37 @@ export async function runCritique(
     return filterByConfidence(review, config.confidenceThreshold);
   }
 
-  // Use a cheap model for critique — reframe as "external reviewer to critically evaluate"
-  // Prefer OpenAI for cheap critique, fall back to the configured provider
-  const openaiKey = requireApiKey("openai");
-  const model = openaiKey
-    ? createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL)
-    : createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5");
+  // Use a cheap model for critique — try OpenAI first, then Anthropic, then configured provider
+  const openaiKey = getApiKey("openai");
+  const anthropicKey = getApiKey("anthropic");
+  let model;
+  if (openaiKey) {
+    model = createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL);
+  } else if (anthropicKey) {
+    model = createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5");
+  } else {
+    // Fall back to the user's configured provider + model for critique
+    const configKey = getApiKey(config.provider);
+    if (!configKey && config.provider !== "local" && config.provider !== "custom") {
+      core.warning("No API key available for critique — skipping self-critique");
+      return filterByConfidence(review, config.confidenceThreshold);
+    }
+    switch (config.provider) {
+      case "anthropic": model = createAnthropic({ apiKey: configKey })(config.model); break;
+      case "openai": model = createOpenAI({ apiKey: configKey })(config.model); break;
+      case "google": {
+        const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+        model = createGoogleGenerativeAI({ apiKey: configKey })(config.model); break;
+      }
+      default: {
+        model = createOpenAI({
+          baseURL: config.baseUrl || (config.provider === "local" ? "http://localhost:11434/v1" : ""),
+          apiKey: configKey || "dummy",
+          name: config.provider,
+        }).chat(config.model); break;
+      }
+    }
+  }
 
   const critiquePrompt = `An external AI reviewer made these findings about a PR:
 

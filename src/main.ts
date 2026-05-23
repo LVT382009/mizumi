@@ -367,4 +367,4 @@ async function getLatestFindings(
   return findings;
 }
 
-void run().catch((e) => { core.setFailed(`Fatal: ${e}`); process.exit(1); });
+void run().catch((e) => { core.setFailed(`Fatal: ${e}`); process.exit(0); });

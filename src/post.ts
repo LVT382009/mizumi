@@ -150,11 +150,7 @@ export async function postReview(
   const summaryBody = buildSummaryComment(review);
   await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
 
-  // 6. Set outputs
-  core.setOutput("review_id", reviewId);
-  core.setOutput("finding_count", review.comments.length);
-  core.setOutput("risk_score", review.riskScore);
-
+  // 6. Return result (orchestrator sets action outputs)
   return { reviewId, findingCount: review.comments.length, riskScore: review.riskScore };
 }
 

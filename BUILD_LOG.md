@@ -11,12 +11,12 @@
 | 1.3 PR Review via createReview | ✅ | `post.ts` — DraftReviewComment with COMMENT/REQUEST_CHANGES event |
 | 1.4 Summary comment | ✅ | `post.ts` — buildSummaryComment with risk score + severity table |
 | 1.5 Checks API | ⏳ v1 | Summary comment sufficient for v0.1 |
-| 1.6 Self-critique | ✅ | `critique.ts` — obra "subterfuge" framing, cheap model |
+| 1.6 Self-critique | ✅ | `critique.ts` — obra "subterfuge" framing, graceful provider fallback |
 | 1.7 Confidence scoring | ✅ | Zod schema 0-100, filterByConfidence with threshold |
 | 1.8 HTML marker dedup | ✅ | `<!-- mizumi-review-marker -->` update-in-place |
 | 1.9 Incremental review | ⏳ v1 | Re-review entire diff is fine for v0.1 |
 | 1.10 Config | ✅ | `.github/mizumi.yml` parser + env + BYOK |
-| 1.11 BYOK | ✅ | 6 providers: anthropic, openai, google, openrouter, nvidia, local |
+| 1.11 BYOK | ✅ | 7 providers: anthropic, openai, google, openrouter, nvidia, local, custom |
 | 1.12 Exclude patterns | ✅ | minimatch in diff.ts, 9 default patterns |
 | 1.13 plugin-retry | ✅ | RetryingOctokit on all API calls |
 | 1.14 Rate cap | ✅ | maxComments: 15 default |
@@ -56,13 +56,13 @@
 
 | Item | Status | Implementation |
 |------|--------|---------------|
-| 3.4 SHA dedup | ✅ | `idempotency.ts` — isReviewedSha + markShaReviewed |
-| 3.5 Webhook idempotency | ✅ | `idempotency.ts` — hashed delivery_id dedup (500 entries) |
+| 3.4 SHA dedup | ✅ | `idempotency.ts` — checkAndMarkSha (atomic check+mark) |
+| 3.5 Webhook idempotency | ✅ | `idempotency.ts` — checkAndMarkDelivery (atomic, hashed) |
 | 3.9 Memory consolidation | ✅ | `memory.ts` — extracts recurring file:category patterns (3x) |
 | 3.10 Auto skill generation | ✅ | `memory.ts` — autoGenerateSkills (3x → SKILL.md) |
 | 3.11 Progressive skill loading | ✅ | `memory.ts` — loadSkills lazy-loads matching skills (5/2KB caps) |
 | 3.13 Spend tracking | ✅ | `spend.ts` — JSONL append-only log, /mizumi spend command |
-| 3.15 /mizumi improve | ✅ | `improve.ts` — applies suggestion blocks via Git Data API |
+| 3.15 /mizumi improve | ✅ | `improve.ts` — applies suggestion blocks via Git Data API (path guard) |
 | 3.16 /mizumi describe | ✅ | `describe.ts` — structured PR descriptions via LLM |
 | 3.17 DuplicateApprovalGuard | ✅ | `rules.ts` — flags mixed auth+non-auth PR changes |
 | 3.20 VS Code deep-links | ✅ | `post.ts` — vscodeLink() on every inline comment |
@@ -74,13 +74,21 @@
 | /mizumi test | `testgen.ts` — LLM-generated vitest skeletons for critical/high findings |
 | /mizumi spend | `spend.ts` formatSpendDigest — token usage digest |
 | Provider/profile validation | `config.ts` — whitelist with fallback to defaults |
+| Custom provider | Any OpenAI-compatible endpoint (Together, Groq, DeepSeek, Fireworks) |
+| Local presets | Ollama (11434), llama.cpp (8081), LM Studio (1234) defaults |
+| requireApiKey | Actionable error messages for missing API keys |
+| Path traversal guard | `improve.ts` — isDangerousPath rejects `../`, absolute, hidden paths |
 
-### Hardening Fixes
+### Hardening Fixes (This Cycle)
 
-- recordFindings wired into main.ts (feedback loop was dead code)
-- Provider + profile validated against whitelist
-- github_token Action input with default `${{ github.token }}`
-- Workflow: `contents: write` for /mizumi improve
+- Fixed `process.exit(1)` → `process.exit(0)` in main.ts outer catch (exit code 0 always)
+- Removed duplicate `core.setOutput` from post.ts (orchestrator owns outputs)
+- critique.ts: graceful provider fallback (OpenAI → Anthropic → configured provider → confidence-only)
+- improve.ts: hoisted getRef/getCommit/getTree out of per-file loop (N+1 fix)
+- improve.ts: isDangerousPath guard against path traversal attacks
+- Bundle: esbuild outputs `dist/index.js` matching action.yml entrypoint
+- Cleaned stale `.d.ts`/`.d.ts.map` artifacts from dist/
+- All test mocks updated: `getApiKey` ↔ `requireApiKey` per module
 
 ### Deferred to v1
 
@@ -96,39 +104,38 @@
 
 ### Build Stats (v0.1 Final)
 
-- **385 tests** passing (21 test files + 1 skipped)
-- **2,960 production lines** (40 under 3,000 budget)
+- **397 tests** passing (22 test files + 1 skipped)
+- **3,008 production lines** (21 source modules)
 - **0 TS errors**
-- **21 source modules**
-- **6 providers** verified (anthropic, openai, google, openrouter, nvidia, local)
+- **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **4 subcommands**: `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`
 - `dist/index.js` bundle verified
+- Exit code 0 always enforced
 
 ### Source Modules
 
 ```
-src/main.ts (320)       — Action entrypoint
-src/config.ts (212)     — mizumi.yml parser + env + BYOK + validation
-src/review.ts (181)     — LLM review with AI SDK 6 + Zod schema
-src/post.ts (320)       — Post review: inline + summary + dedup + VS Code links
-src/memory.ts (209)     — MEMORY.md + ghost warnings + auto skills + progressive loading
-src/linemap.ts (195)    — Map LLM lines → GitHub diff positions
-src/diff.ts (151)       — Fetch PR diff, parse hunks, PII stripping
-src/rules.ts (140)      — Deterministic rules (secrets, auth, SQL injection, approval guard)
-src/critique.ts (92)    — Self-critique pass (cheaper model)
-src/spend.ts (125)      — JSONL spend tracking + digest
-src/feedback.ts (169)   — Emoji feedback polling + acceptance rates
-src/router.ts (83)      — Tier routing + context window guard
-src/context.ts (87)     — Build LLM context (diff + memory + rules + ghost)
-src/classifier.ts (80)  — Heuristic PR classification
-src/config.ts (212)     — Config + provider validation
+src/main.ts (370) — Action entrypoint (exit 0 always)
+src/post.ts (315) — Post review: inline + summary + dedup + VS Code links
+src/config.ts (225) — mizumi.yml parser + env + BYOK + custom provider + validation
+src/review.ts (193) — LLM review with AI SDK 6 + Zod schema + prompt caching
+src/memory.ts (209) — MEMORY.md + ghost warnings + auto skills + progressive loading
+src/linemap.ts (195) — Map LLM lines → GitHub diff positions
+src/diff.ts (151) — Fetch PR diff, parse hunks, PII stripping
+src/rules.ts (140) — Deterministic rules (secrets, auth, SQL injection, approval guard)
+src/feedback.ts (169) — Emoji feedback polling + acceptance rates
+src/critique.ts (118) — Self-critique pass (graceful provider fallback)
+src/spend.ts (126) — JSONL spend tracking + digest
+src/context.ts (87) — Build LLM context (diff + memory + rules + ghost)
+src/idempotency.ts (88) — Atomic check-and-mark dedup (TOCTOU-safe)
+src/sanitize.ts (105) — Input sanitization + output screening
 src/description.ts (51) — PR description quality scorer
-src/describe.ts (72)    — /mizumi describe
-src/improve.ts (79)     — /mizumi improve
-src/testgen.ts (78)     — /mizumi test
-src/idempotency.ts (97) — Webhook + SHA dedup
-src/sanitize.ts (105)   — Input sanitization + output screening
-src/slop.ts (75)        — AI-generated code detector
+src/describe.ts (80) — /mizumi describe (custom provider support)
+src/improve.ts (85) — /mizumi improve (path traversal guard + hoisted API calls)
+src/testgen.ts (80) — /mizumi test (custom provider support)
+src/router.ts (83) — Tier routing + context window guard
+src/classifier.ts (80) — Heuristic PR classification
+src/slop.ts (75) — AI-generated code detector
 ```
 
 ### Commit History
@@ -147,10 +154,12 @@ src/slop.ts (75)        — AI-generated code detector
 | 10 | `d39c256` | Phase 2: routing, classifier, severity delivery, ghost, description quality |
 | 11 | `aa1e4d4` | BUILD_LOG.md update — Phase 2 complete |
 | 12 | `f92be6f` | Phase 2 complete: token estimation, fatigue, slop, emoji feedback, prompt caching |
-| 13 | `496bbe9` | BUILD_LOG.md Phase 2 progress |
+| 13 | `496bbe9` | BUILD_LOG Phase 2 progress |
 | 14 | `efd9b2b` | Phase 3 start: vscode links, spend tracking, /mizumi describe, guard, cleanup |
 | 15 | `f17abee` | BUILD_LOG.md — Phase 3 in progress |
 | 16 | `166a22b` | Phase 3 continue: /mizumi improve, auto skills, idempotency, SHA dedup |
 | 17 | `4963a73` | Add /mizumi test |
 | 18 | `1105b80` | Infrastructure hardening: feedback loop, validation, github_token |
 | 19 | `96bcfc8` | BUILD_LOG.md update |
+| 20 | `593a2af` | Custom provider, atomic idempotency, requireApiKey, fix 20 test failures |
+| 21 | `pending` | Release hardening: exit 0, critique fallback, improve path guard, bundle fix |

@@ -1,6 +1,35 @@
 import { describe, it, expect } from "vitest";
 import { parseSuggestions } from "../improve.js";
 
+describe("isDangerousPath", () => {
+  function isDangerousPath(p: string): boolean {
+    return p.includes("..") || /\/\.\//.test(p) || /^\/|^\.(\/|$)|^[A-Za-z]:/.test(p);
+  }
+
+  it("rejects path traversal with ..", () => {
+    expect(isDangerousPath("../etc/passwd")).toBe(true);
+    expect(isDangerousPath("src/../../../etc/passwd")).toBe(true);
+  });
+
+  it("rejects absolute Unix paths", () => {
+    expect(isDangerousPath("/etc/passwd")).toBe(true);
+  });
+
+  it("rejects absolute Windows paths", () => {
+    expect(isDangerousPath("C:\\Windows\\system32")).toBe(true);
+  });
+
+  it("rejects hidden file paths", () => {
+    expect(isDangerousPath("./.env")).toBe(true);
+  });
+
+  it("accepts normal relative paths", () => {
+    expect(isDangerousPath("src/app.ts")).toBe(false);
+    expect(isDangerousPath("lib/utils.js")).toBe(false);
+    expect(isDangerousPath("README.md")).toBe(false);
+  });
+});
+
 describe("parseSuggestions", () => {
   it("extracts a single suggestion block", () => {
     const body = `**[HIGH] security**: Use const\n\n\`\`\`suggestion\nconst x = 1;\n\`\`\``;

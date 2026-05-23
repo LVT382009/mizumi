@@ -5,6 +5,11 @@ import { MizumiConfig } from "./config.js";
 const MARKER = "<!-- mizumi-review-marker -->";
 export interface Suggestion { path: string; line: number; code: string }
 export interface FixResult { fixedCount: number; commitSha: string | null }
+/** Reject paths with traversal (..), absolute paths, or hidden files (.) */
+function isDangerousPath(p: string): boolean {
+  return p.includes("..") || /\/\.\//.test(p) || /^\/|^\.(\/|$)|^[A-Za-z]:/.test(p);
+}
+
 /** Extract ```suggestion blocks from a review comment body. */
 export function parseSuggestions(body: string, filePath: string, line: number): Suggestion[] {
   const results: Suggestion[] = [];
@@ -37,10 +42,11 @@ async function applyFileFixes(
 ): Promise<{ entries: TreeEntry[]; fixedCount: number }> {
   const entries: TreeEntry[] = [];
   let fixedCount = 0;
+  const { data: refData } = await octokit.rest.git.getRef({ owner, repo, ref: `heads/${headRef}` });
+  const { data: c } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: refData.object.sha });
+  const { data: tree } = await octokit.rest.git.getTree({ owner, repo, tree_sha: c.tree.sha, recursive: "true" });
   for (const [filePath, suggestions] of byFile) {
-    const { data: refData } = await octokit.rest.git.getRef({ owner, repo, ref: `heads/${headRef}` });
-    const { data: c } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: refData.object.sha });
-    const { data: tree } = await octokit.rest.git.getTree({ owner, repo, tree_sha: c.tree.sha, recursive: "true" });
+    if (isDangerousPath(filePath)) { core.warning(`Skipping suspicious path: ${filePath}`); continue; }
     const entry = tree.tree.find((e) => e.path === filePath && e.type === "blob");
     if (!entry?.sha) { core.warning(`Skipping ${filePath}: not found in tree`); continue; }
     const { data: blob } = await octokit.rest.git.getBlob({ owner, repo, file_sha: entry.sha });

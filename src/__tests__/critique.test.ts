@@ -175,7 +175,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("../config.js", () => ({
-  requireApiKey: vi.fn(() => "test-key"),
+  getApiKey: vi.fn(() => "test-key"),
   MizumiConfig: {},
 }));
 
