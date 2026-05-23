@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyDiff } from "../router.js";
+import { classifyDiff, estimateTokens, guardContextWindow } from "../router.js";
 import { MizumiConfig } from "../config.js";
 
 const baseConfig: MizumiConfig = {
@@ -116,5 +116,63 @@ describe("classifyDiff", () => {
     const config = { ...baseConfig, securityPaths: ["**/payment/**"] };
     const result = classifyDiff(100, 2, ["src/auth/login.ts"], config);
     expect(result.tier).toBe("standard");
+  });
+});
+
+describe("estimateTokens", () => {
+  it("estimates ~4 chars per token", () => {
+    expect(estimateTokens("1234")).toBe(1);
+  });
+
+  it("rounds up for partial tokens", () => {
+    expect(estimateTokens("123")).toBe(1);
+  });
+
+  it("estimates longer text", () => {
+    expect(estimateTokens("a".repeat(400))).toBe(100);
+  });
+
+  it("returns 0 for empty string", () => {
+    expect(estimateTokens("")).toBe(0);
+  });
+});
+
+describe("guardContextWindow", () => {
+  it("returns original text when it fits", () => {
+    const short = "hello world";
+    const result = guardContextWindow(short, "anthropic");
+    expect(result.truncated).toBe(false);
+    expect(result.text).toBe(short);
+  });
+
+  it("truncates when text exceeds context limit", () => {
+    // Create text that exceeds local provider's 32k context
+    // 32k limit - 2000 (system) - 2000 (output) = 28000 available tokens
+    // 28000 tokens * 4 chars = 112000 chars
+    const huge = "x".repeat(200_000);
+    const result = guardContextWindow(huge, "local");
+    expect(result.truncated).toBe(true);
+    expect(result.text).toContain("[MIZUMI: diff truncated");
+    expect(result.estimatedTokens).toBeLessThan(30000);
+  });
+
+  it("uses default 120k limit for unknown provider", () => {
+    const result = guardContextWindow("short", "unknown_provider");
+    expect(result.truncated).toBe(false);
+  });
+
+  it("preserves head and tail when truncating", () => {
+    const huge = "A".repeat(200_000) + "TAILMARKER";
+    const result = guardContextWindow(huge, "local");
+    expect(result.truncated).toBe(true);
+    expect(result.text).toContain("TAILMARKER");
+    expect(result.text).toContain("A");
+  });
+
+  it("respects custom systemPromptTokens", () => {
+    const text = "x".repeat(100_000);
+    const normal = guardContextWindow(text, "anthropic", 2000);
+    const largeSystem = guardContextWindow(text, "anthropic", 50000);
+    expect(normal.estimatedTokens).toBeLessThanOrEqual(largeSystem.estimatedTokens);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postReview } from "../post.js";
+import { postReview, buildFatigueWarning, buildReviewBody } from "../post.js";
 import type { ReviewCommentType, ReviewResponseType } from "../review.js";
 import type { LineMap } from "../linemap.js";
 import type { MizumiConfig } from "../config.js";
@@ -714,6 +714,63 @@ describe("postReview", () => {
     const body: string = call.comments[0].body;
     expect(body).toContain("[CRITICAL]");
     expect(body).toContain("SQL injection risk");
+  });
+
+  // -----------------------------------------------------------------------
+  // 13. Review fatigue detection
+  // -----------------------------------------------------------------------
+
+  describe("buildFatigueWarning", () => {
+    it("returns empty string when findingCount is 15 or below", () => {
+      expect(buildFatigueWarning(0)).toBe("");
+      expect(buildFatigueWarning(1)).toBe("");
+      expect(buildFatigueWarning(15)).toBe("");
+    });
+
+    it("returns warning when findingCount exceeds 15", () => {
+      const warning = buildFatigueWarning(20);
+      expect(warning).toContain("Review Fatigue");
+      expect(warning).toContain("20");
+      expect(warning).toContain("splitting this PR");
+      expect(warning).toMatch(/^>/);
+    });
+
+    it("formats as a GitHub blockquote with finding count", () => {
+      const warning = buildFatigueWarning(30);
+      expect(warning).toBe(
+        "> ⚠️ **Review Fatigue**: This review found 30 findings. Consider splitting this PR into smaller, focused changes for better review quality."
+      );
+    });
+  });
+
+  it("includes fatigue warning at the top of review body when findings exceed 15", async () => {
+    const comments = Array.from({ length: 16 }, (_, i) =>
+      makeComment({ file: "src/app.ts", line: i + 1, message: `Finding ${i + 1}` })
+    );
+    const review = makeReview({ comments, riskScore: 2 });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    const body: string = call.body;
+    expect(body).toContain("Review Fatigue");
+    expect(body).toContain("16 findings");
+    // Fatigue warning appears before the risk score section
+    const fatigueIndex = body.indexOf("Review Fatigue");
+    const riskIndex = body.indexOf("## Mizumi Review — Risk:");
+    expect(fatigueIndex).toBeLessThan(riskIndex);
+  });
+
+  it("does not include fatigue warning when findings are 15 or fewer", async () => {
+    const review = makeReview({ comments: [makeComment()], riskScore: 1 });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    const body: string = call.body;
+    expect(body).not.toContain("Review Fatigue");
   });
 
 });

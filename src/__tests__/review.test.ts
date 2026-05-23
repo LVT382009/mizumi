@@ -331,9 +331,9 @@ describe("runReview", () => {
   });
 
   it("passes diff content through wrapDiff", async () => {
-    let capturedPrompt = "";
+    let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
-      capturedPrompt = opts.prompt;
+      capturedMessages = opts.messages;
       return { output: fakeReviewOutput } as any;
     });
 
@@ -341,46 +341,58 @@ describe("runReview", () => {
     await runReview("some diff", "pos", "", "", "", makeConfig());
 
     expect(wrapDiff).toHaveBeenCalledWith("some diff");
-    expect(capturedPrompt).toContain("WRAPPED(some diff)");
+    const userText = typeof capturedMessages[0]?.content === "string"
+      ? capturedMessages[0].content
+      : capturedMessages[0]?.content?.[0]?.text ?? "";
+    expect(userText).toContain("WRAPPED(some diff)");
   });
 
   it("appends memory content to user prompt when provided", async () => {
-    let capturedPrompt = "";
+    let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
-      capturedPrompt = opts.prompt;
+      capturedMessages = opts.messages;
       return { output: fakeReviewOutput } as any;
     });
 
     await runReview("diff", "pos", "past review patterns", "", "", makeConfig());
 
-    expect(capturedPrompt).toContain("Project Memory");
-    expect(capturedPrompt).toContain("past review patterns");
+    const userText = typeof capturedMessages[0]?.content === "string"
+      ? capturedMessages[0].content
+      : capturedMessages[0]?.content?.[0]?.text ?? "";
+    expect(userText).toContain("Project Memory");
+    expect(userText).toContain("past review patterns");
   });
 
   it("appends rules content to user prompt when provided", async () => {
-    let capturedPrompt = "";
+    let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
-      capturedPrompt = opts.prompt;
+      capturedMessages = opts.messages;
       return { output: fakeReviewOutput } as any;
     });
 
     await runReview("diff", "pos", "", "no console.log in production", "", makeConfig());
 
-    expect(capturedPrompt).toContain("Project Rules");
-    expect(capturedPrompt).toContain("no console.log in production");
+    const userText = typeof capturedMessages[0]?.content === "string"
+      ? capturedMessages[0].content
+      : capturedMessages[0]?.content?.[0]?.text ?? "";
+    expect(userText).toContain("Project Rules");
+    expect(userText).toContain("no console.log in production");
   });
 
   it("omits memory and rules sections when not provided", async () => {
-    let capturedPrompt = "";
+    let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
-      capturedPrompt = opts.prompt;
+      capturedMessages = opts.messages;
       return { output: fakeReviewOutput } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig());
 
-    expect(capturedPrompt).not.toContain("Project Memory");
-    expect(capturedPrompt).not.toContain("Project Rules");
+    const userText = typeof capturedMessages[0]?.content === "string"
+      ? capturedMessages[0].content
+      : capturedMessages[0]?.content?.[0]?.text ?? "";
+    expect(userText).not.toContain("Project Memory");
+    expect(userText).not.toContain("Project Rules");
   });
 
   it("calls generateText with maxOutputTokens 4096", async () => {
@@ -391,5 +403,29 @@ describe("runReview", () => {
     expect(mockGenerateText).toHaveBeenCalledOnce();
     const callOpts = mockGenerateText.mock.calls[0][0] as any;
     expect(callOpts.maxOutputTokens).toBe(4096);
+  });
+
+  it("adds Anthropic cacheControl when provider is anthropic", async () => {
+    let capturedMessages: any[] = [];
+    mockGenerateText.mockImplementation(async (opts: any) => {
+      capturedMessages = opts.messages;
+      return { output: fakeReviewOutput } as any;
+    });
+
+    await runReview("diff", "pos", "", "", "", makeConfig({ provider: "anthropic" }));
+
+    expect(capturedMessages[0]?.providerOptions?.anthropic?.cacheControl).toEqual({ type: "ephemeral" });
+  });
+
+  it("does not add cacheControl for non-Anthropic providers", async () => {
+    let capturedMessages: any[] = [];
+    mockGenerateText.mockImplementation(async (opts: any) => {
+      capturedMessages = opts.messages;
+      return { output: fakeReviewOutput } as any;
+    });
+
+    await runReview("diff", "pos", "", "", "", makeConfig({ provider: "openai" }));
+
+    expect(capturedMessages[0]?.providerOptions).toBeUndefined();
   });
 });

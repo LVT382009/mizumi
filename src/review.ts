@@ -156,10 +156,23 @@ export async function runReview(
     userPrompt += `\n\n${ghostContent}`;
   }
 
+  // Build user message — Anthropic gets prompt caching via providerOptions
+  const anthropicCacheOptions = config.provider === "anthropic"
+    ? { anthropic: { cacheControl: { type: "ephemeral" as const } } }
+    : undefined;
+
+  const userMessage = anthropicCacheOptions
+    ? {
+        role: "user" as const,
+        content: [{ type: "text" as const, text: userPrompt }],
+        providerOptions: anthropicCacheOptions,
+      }
+    : { role: "user" as const, content: userPrompt };
+
   const { output } = await generateText({
     model,
     system: systemPrompt,
-    prompt: userPrompt,
+    messages: [userMessage],
     output: Output.object({ schema: ReviewResponse }),
     maxOutputTokens: 4096,
   });

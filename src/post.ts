@@ -114,7 +114,12 @@ export async function postReview(
   // 4. Create PR Review
   let reviewId = 0;
   try {
-    const reviewBody = buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings);
+    const reviewBody = buildReviewBody(
+      inlineFindings, tableFindings, detailsFindings, unmappableFindings,
+      review.riskScore, review.comments.length,
+      mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
+      review.summary
+    );
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
       repo,
@@ -159,15 +164,30 @@ function mapDecision(decision: string): "APPROVE" | "COMMENT" | "REQUEST_CHANGES
   }
 }
 
-function buildReviewBody(
-  review: ReviewResponseType,
+export function buildFatigueWarning(findingCount: number): string {
+  if (findingCount <= 15) return "";
+  return `> ⚠️ **Review Fatigue**: This review found ${findingCount} findings. Consider splitting this PR into smaller, focused changes for better review quality.`;
+}
+
+export function buildReviewBody(
+  _inlineFindings: ReviewCommentType[],
   tableFindings: ReviewCommentType[],
   detailsFindings: ReviewCommentType[],
-  unmappableFindings: ReviewCommentType[]
+  unmappableFindings: ReviewCommentType[],
+  riskScore: number,
+  findingCount: number,
+  _reviewDecision: "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
+  descriptionFeedback?: string
 ): string {
   let body = MARKER;
-  body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
-  body += screenOutput(review.summary) + "\n\n";
+  const fatigueWarning = buildFatigueWarning(findingCount);
+  if (fatigueWarning) {
+    body += `\n${fatigueWarning}\n\n`;
+  }
+  body += `## Mizumi Review — Risk: ${"🔴".repeat(riskScore)}${"⚪".repeat(5 - riskScore)} (${riskScore}/5)\n\n`;
+  if (descriptionFeedback) {
+    body += screenOutput(descriptionFeedback) + "\n\n";
+  }
 
   // Medium findings — summary table
   const allTableFindings = [...tableFindings, ...unmappableFindings];

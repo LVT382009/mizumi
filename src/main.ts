@@ -11,7 +11,7 @@ import { Octokit } from "@octokit/rest";
 import { retry } from "@octokit/plugin-retry";
 import { loadConfig } from "./config.js";
 import { fetchDiff } from "./diff.js";
-import { classifyDiff } from "./router.js";
+import { classifyDiff, guardContextWindow } from "./router.js";
 import { buildLineMapFromRawDiff, buildPositionHint } from "./linemap.js";
 import { buildContext } from "./context.js";
 import { runReview } from "./review.js";
@@ -20,6 +20,7 @@ import { postReview } from "./post.js";
 import { writeMemory } from "./memory.js";
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
+import { detectSlop } from "./slop.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -90,6 +91,15 @@ async function run(): Promise<void> {
   );
   core.info(`Classification: ${classification.tier} (${classification.reason})`);
 
+// 2c. Slop detection — skip deep review for low-quality AI-generated PRs
+const slopResult = detectSlop(
+  diff.rawDiff, diff.totalAdditions, diff.totalDeletions,
+  diff.files.length, diff.files.map((f) => f.path),
+);
+if (slopResult.isSlop) {
+  core.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
+}
+
   // 3. Build line map from raw diff (validates which lines can receive comments)
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
 
@@ -103,6 +113,20 @@ async function run(): Promise<void> {
 
     // 6. Build position hint for LLM
     const positionHint = buildPositionHint(diff.files);
+
+  // 6b. Guard context window — truncate diff if it exceeds model’s limit
+  const guarded = guardContextWindow(context.diffText, config.provider);
+  if (guarded.truncated) {
+    core.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config.provider})`);
+  }
+  context.diffText = guarded.text;
+
+if (slopResult.isSlop) {
+  context.diffText += `
+
+## Slop Detection
+This PR appears to contain low-quality AI-generated code (score: ${slopResult.score}/100). Reasons: ${slopResult.reasons.join("; ")}. Focus review on structural issues rather than line-by-line quality.`;
+}
 
     // 7. Run review (first pass — LLM)
     core.info("Running review pass...");
