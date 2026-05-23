@@ -64,6 +64,17 @@ All Phase 1 items from the implementation plan are now implemented:
 - Review fatigue: buildFatigueWarning in post.ts, appears before risk score
 - Anthropic prompt caching: providerOptions cacheControl ephemeral on user message
 
+### Phase 3 — Make It Remember (In Progress)
+
+| Item | Status | Implementation |
+|------|--------|---------------|
+| 2.12 Outdated comment cleanup | ✅ | `post.ts` — cleanupOutdatedComments deletes stale marked comments |
+| 3.13 Spend tracking | ✅ | `spend.ts` — JSONL append-only log, per-review token usage, formatSpendDigest |
+| 3.17 DuplicateApprovalGuard | ✅ | `rules.ts` — flags mixed auth+non-auth PR changes as security risk |
+| 3.20 VS Code deep-links | ✅ | `post.ts` — vscodeLink() on every inline comment |
+| 3.16 /mizumi describe | ✅ | `describe.ts` — generates structured PR descriptions via LLM |
+| 3.9 Memory consolidation | ✅ | `memory.ts` — extracts recurring file:category patterns (3x threshold) |
+
 ### Bug Fixes (This Cycle)
 
 - MARKER added to buildReviewBody (auto-pause was counting 0 reviews)
@@ -89,10 +100,10 @@ All Phase 1 items from the implementation plan are now implemented:
 
 ### Build Stats
 
-- 326 tests passing (16 test files + 1 skipped)
-- 2,247 production lines (under 3,000 budget)
+- 356 tests passing (18 test files + 1 skipped)
+- 2,563 production lines (under 3,000 budget)
 - Zero TS errors
-- 17 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback)
+- 19 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe)
 - `dist/index.js` bundle verified
 - 6 providers verified (NVIDIA NIM end-to-end with real API call)
 
