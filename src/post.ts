@@ -58,7 +58,7 @@ export async function postReview(
 
     const body = screenOutput(
       finding.suggestion
-        ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n<details><summary>Fix suggestion</summary>\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n</details>`
+        ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\``
         : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}`
     );
 
@@ -146,7 +146,8 @@ function mapDecision(decision: string): "APPROVE" | "COMMENT" | "REQUEST_CHANGES
 }
 
 function buildReviewBody(review: ReviewResponseType, overflow: ReviewCommentType[]): string {
-  let body = `## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
+  let body = MARKER;
+  body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
   body += screenOutput(review.summary) + "\n\n";
 
   if (overflow.length > 0) {

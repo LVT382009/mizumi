@@ -34,6 +34,7 @@ export type ReviewResponseType = z.infer<typeof ReviewResponse>;
 
 /**
  * Create AI SDK model instance for the selected provider.
+ * Non-OpenAI providers use .chat() to hit /chat/completions instead of the Responses API.
  */
 function createModel(config: MizumiConfig) {
   const apiKey = getApiKey(config.provider);
@@ -50,19 +51,19 @@ function createModel(config: MizumiConfig) {
         baseURL: "https://openrouter.ai/api/v1",
         apiKey,
         name: "openrouter",
-      })(config.model);
+      }).chat(config.model);
     case "local":
       return createOpenAI({
         baseURL: config.baseUrl || process.env.MIZUMI_BASE_URL || "http://localhost:11434/v1",
         apiKey: apiKey || "dummy",
         name: "local",
-      })(config.model);
+      }).chat(config.model);
     case "nvidia":
       return createOpenAI({
         baseURL: "https://integrate.api.nvidia.com/v1",
         apiKey,
         name: "nvidia",
-      })(config.model);
+      }).chat(config.model);
   }
 }
 

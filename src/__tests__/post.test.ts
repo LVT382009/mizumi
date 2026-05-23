@@ -567,7 +567,7 @@ describe("postReview", () => {
     expect(body).toContain("XSS vulnerability");
   });
 
-  it("wraps suggestion in collapsible details block", async () => {
+  it("places suggestion at top-level for Commit suggestion button", async () => {
     const review = makeReview({
       comments: [makeComment({
         message: "Use const",
@@ -580,10 +580,9 @@ describe("postReview", () => {
 
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
     const body: string = call.comments[0].body;
-    expect(body).toContain("<details>");
+    expect(body).not.toContain("<details>");
     expect(body).toContain("```suggestion");
     expect(body).toContain("const x = 1;");
-    expect(body).toContain("</details>");
   });
 
   it("omits suggestion block when suggestion is undefined", async () => {

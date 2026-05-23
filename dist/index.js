@@ -34814,8 +34814,16 @@ function loadConfig() {
                 repoMaxComments = Number(review.max_comments);
             if (review?.confidence_threshold)
                 repoConfidence = Number(review.confidence_threshold);
-            if (Array.isArray(parsed.exclude))
+            if (Array.isArray(parsed.exclude)) {
                 excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
+            }
+            else if (parsed.exclude && typeof parsed.exclude === "object") {
+                // parseSimpleYaml nests arrays: { exclude: { exclude: [...] } }
+                const inner = parsed.exclude.exclude;
+                if (Array.isArray(inner)) {
+                    excludePatterns = [...DEFAULT_EXCLUDE, ...inner.map(String)];
+                }
+            }
         }
         catch {
             warning("Failed to parse .github/mizumi.yml, using defaults");
@@ -72698,6 +72706,7 @@ const ReviewResponse = object$1({
 });
 /**
  * Create AI SDK model instance for the selected provider.
+ * Non-OpenAI providers use .chat() to hit /chat/completions instead of the Responses API.
  */
 function createModel(config) {
     const apiKey = getApiKey(config.provider);
@@ -72713,19 +72722,19 @@ function createModel(config) {
                 baseURL: "https://openrouter.ai/api/v1",
                 apiKey,
                 name: "openrouter",
-            })(config.model);
+            }).chat(config.model);
         case "local":
             return createOpenAI({
                 baseURL: config.baseUrl || process.env.MIZUMI_BASE_URL || "http://localhost:11434/v1",
                 apiKey: apiKey || "dummy",
                 name: "local",
-            })(config.model);
+            }).chat(config.model);
         case "nvidia":
             return createOpenAI({
                 baseURL: "https://integrate.api.nvidia.com/v1",
                 apiKey,
                 name: "nvidia",
-            })(config.model);
+            }).chat(config.model);
     }
 }
 /**
@@ -72916,7 +72925,7 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             continue;
         }
         const body = screenOutput(finding.suggestion
-            ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n<details><summary>Fix suggestion</summary>\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n</details>`
+            ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\``
             : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}`);
         const comment = {
             path: finding.file,
@@ -72994,7 +73003,8 @@ function mapDecision(decision) {
     }
 }
 function buildReviewBody(review, overflow) {
-    let body = `## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
+    let body = MARKER$1;
+    body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
     body += screenOutput(review.summary) + "\n\n";
     if (overflow.length > 0) {
         body += `<details><summary>Additional findings (${overflow.length})</summary>\n\n`;
@@ -73165,6 +73175,11 @@ async function run() {
         const repo = ctx.repo.repo;
         const isManualTrigger = ctx.eventName === "issue_comment";
         info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+        // Respect auto_review: false — only run on manual /mizumi trigger
+        if (!config.autoReview && !isManualTrigger) {
+            info("auto_review is false — skipping. Use /mizumi to trigger.");
+            return;
+        }
         // Auto-pause check: skip review if too many reviews already on this PR
         if (!isManualTrigger && config.autoPauseAfter > 0) {
             const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
@@ -73261,7 +73276,7 @@ async function countMizumiReviews(octokit, owner, repo, prNumber) {
             break;
         page++;
     }
-    // Also count PR reviews from mizumi
+    // Also count PR reviews that contain mizumi marker
     const { data: reviews } = await octokit.rest.pulls.listReviews({
         owner,
         repo,

@@ -47,6 +47,12 @@ async function run(): Promise<void> {
 
     core.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
 
+    // Respect auto_review: false — only run on manual /mizumi trigger
+    if (!config.autoReview && !isManualTrigger) {
+      core.info("auto_review is false — skipping. Use /mizumi to trigger.");
+      return;
+    }
+
     // Auto-pause check: skip review if too many reviews already on this PR
     if (!isManualTrigger && config.autoPauseAfter > 0) {
       const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
@@ -176,7 +182,7 @@ async function countMizumiReviews(
     page++;
   }
 
-  // Also count PR reviews from mizumi
+  // Also count PR reviews that contain mizumi marker
   const { data: reviews } = await octokit.rest.pulls.listReviews({
     owner,
     repo,

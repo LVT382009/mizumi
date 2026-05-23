@@ -60,7 +60,15 @@ export function loadConfig(): MizumiConfig {
       if (review?.profile) repoProfile = String(review.profile) as Profile;
       if (review?.max_comments) repoMaxComments = Number(review.max_comments);
       if (review?.confidence_threshold) repoConfidence = Number(review.confidence_threshold);
-      if (Array.isArray(parsed.exclude)) excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
+      if (Array.isArray(parsed.exclude)) {
+        excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
+      } else if (parsed.exclude && typeof parsed.exclude === "object") {
+        // parseSimpleYaml nests arrays: { exclude: { exclude: [...] } }
+        const inner = (parsed.exclude as Record<string, unknown>).exclude;
+        if (Array.isArray(inner)) {
+          excludePatterns = [...DEFAULT_EXCLUDE, ...inner.map(String)];
+        }
+      }
     } catch {
       core.warning("Failed to parse .github/mizumi.yml, using defaults");
     }
