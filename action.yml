@@ -1,0 +1,70 @@
+name: Mizumi Review
+description: Self-learning PR review agent with BYOK, multi-provider support, and memory
+branding:
+  icon: eye
+  color: purple
+
+inputs:
+  anthropic_api_key:
+    description: Anthropic API key (recommended: use MIZUMI_ANTHROPIC_API_KEY secret to avoid credential collisions)
+    required: false
+  openai_api_key:
+    description: OpenAI API key
+    required: false
+  google_api_key:
+    description: Google AI API key
+    required: false
+  openrouter_api_key:
+    description: OpenRouter API key
+    required: false
+  local_api_key:
+    description: API key for local/self-hosted model (optional, e.g. for Ollama)
+    required: false
+    default: "dummy"
+  base_url:
+    description: Custom base URL for OpenAI-compatible endpoint (Ollama, vLLM, Together, etc.)
+    required: false
+  model:
+    description: Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)
+    required: false
+    default: "claude-sonnet-4-6"
+  provider:
+    description: LLM provider (anthropic | openai | google | openrouter | local)
+    required: false
+    default: "anthropic"
+  profile:
+    description: Review profile — chill (bugs/security only) | assertive (+ style/docs) | followup (+ check previous comments)
+    required: false
+    default: "chill"
+  max_comments:
+    description: Maximum inline review comments per PR
+    required: false
+    default: "15"
+  language:
+    description: Review comment language (ISO locale code, e.g. en-US, ja-JP)
+    required: false
+    default: "en-US"
+  self_critique:
+    description: Enable two-pass self-critique (recommended)
+    required: false
+    default: "true"
+  confidence_threshold:
+    description: Filter findings with confidence below this value (0-100)
+    required: false
+    default: "80"
+  auto_review:
+    description: Auto-review on PR open/push (false = manual /mizumi trigger only)
+    required: false
+    default: "true"
+
+outputs:
+  review_id:
+    description: ID of the posted PR review
+  finding_count:
+    description: Number of findings posted
+  risk_score:
+    description: Risk score 1-5
+
+runs:
+  using: node24
+  main: dist/index.js

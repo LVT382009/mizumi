@@ -1,0 +1,37 @@
+{
+  "name": "mizumi",
+  "version": "0.1.0",
+  "description": "Self-learning PR review agent — BYOK, multi-provider, memory",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rollup -c rollup.config.ts --configPlugin typescript",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^3.0",
+    "@actions/github": "^9.0",
+    "@octokit/rest": "^22.0",
+    "@octokit/plugin-retry": "^8.0",
+    "ai": "^6.0",
+    "@ai-sdk/anthropic": "^3.0",
+    "@ai-sdk/openai": "^3.0",
+    "@ai-sdk/google": "^3.0",
+    "zod": "^4.0",
+    "parse-diff": "^0.12",
+    "minimatch": "^10.2.3",
+    "strip-ansi": "^7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "rollup": "^4.59.0",
+    "@rollup/plugin-typescript": "^12.0",
+    "@rollup/plugin-node-resolve": "^16.0",
+    "@rollup/plugin-commonjs": "^28.0",
+    "tslib": "^2.8",
+    "vitest": "^3.0",
+    "@types/node": "^24.0"
+  }
+}

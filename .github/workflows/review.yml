@@ -1,0 +1,42 @@
+name: Mizumi Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       startsWith(github.event.comment.body, '/mizumi'))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      checks: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Run Mizumi Review
+        uses: ./
+        with:
+          anthropic_api_key: ${{ secrets.MIZUMI_ANTHROPIC_API_KEY || secrets.ANTHROPIC_API_KEY }}
+          # openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          # google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          model: claude-sonnet-4-6
+          provider: anthropic
+          profile: chill
+          max_comments: "15"
+          self_critique: "true"
