@@ -38,22 +38,58 @@ All Phase 1 items from the implementation plan are now implemented:
 | 1.28 SECURITY.md + PRIVACY.md | ✅ | Created with threat model, GDPR compliance |
 | 1.29 ToS disclaimer | ✅ | README.md includes BYOK liability notice |
 
+### Phase 2 — Smart Features (In Progress)
+
+| Item | Status | Implementation |
+|------|--------|---------------|
+| 2.1 Model tier routing | ✅ | `router.ts` — classifyDiff (light/standard/thorough), selectModel for haiku routing |
+| 2.2 Diff classifier | ✅ | `classifier.ts` — heuristic PR classification (docs/cosmetic/tests/config/security/logic) |
+| 2.4 Severity-delivered output | ✅ | `post.ts` — critical/high → inline, medium → table, low/nitpick → details |
+| 2.14 Review Ghost | ✅ | `memory.ts` ghostWarnings + context.ts injection |
+| 2.15 PR description quality | ✅ | `description.ts` — score 0-4 with missing elements feedback |
+| 2.5 Emoji feedback | ⏳ Next cycle | |
+| 2.6 Feedback tracker (SQLite) | ⏳ Deferred | v1 feature |
+| 2.11 Fuzzy dedup | ⏳ Deferred | rapid-fuzzy dependency |
+| 2.12 Outdated comment cleanup | ⏳ Deferred | |
+
+### Bug Fixes (This Cycle)
+
+- MARKER added to buildReviewBody (auto-pause was counting 0 reviews)
+- Exclude patterns fix from mizumi.yml (double-nested YAML parser)
+- Suggestion blocks moved to top-level for "Commit suggestion" button
+- auto_review: false early return added in main.ts
+- NVIDIA NIM + OpenRouter + Local: switched to `.chat()` for /chat/completions
+- post.test.ts updated for severity-delivered output
+
 ### New Files This Cycle
-- `SECURITY.md` — Vulnerability disclosure, threat model, mitigations
-- `PRIVACY.md` — Data handling transparency, GDPR compliance
-- `README.md` — Quick start, all inputs, provider setup guides
-- `.github/mizumi.yml` — Example per-repo configuration
+
+- `src/router.ts` — Diff tier routing (light/standard/thorough)
+- `src/classifier.ts` — PR type classification (heuristic, zero LLM cost)
+- `src/description.ts` — PR description quality scorer
+- `src/__tests__/router.test.ts` — 18 tests
+- `src/__tests__/classifier.test.ts` — 17 tests
+- `src/__tests__/description.test.ts` — 10 tests
+- `src/__tests__/ghost.test.ts` — 6 tests
+- `src/__tests__/nvidia-integration.test.ts` — 1 integration test (verified with real API)
 
 ### Build Stats
-- 207 tests passing (9 test files)
-- 1,580 production lines (under 3,000 budget)
-- Zero TS errors
-- `dist/index.js` 2.5MB bundle verified
 
-### Commit History (this repo)
+- 289 tests passing (14 test files + 1 skipped)
+- 1,901 production lines (under 3,000 budget)
+- Zero TS errors
+- 15 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description)
+- `dist/index.js` bundle verified
+- 6 providers verified (NVIDIA NIM end-to-end with real API call)
+
+### Commit History (This Repo)
+
 1. `64c64cb` — Phase 0 scaffold
 2. `0088c14` — Research integration
 3. `7462bba` — Phase 0 complete
 4. `7b86c3d` — Line-based comments migration + 206 tests
 5. `16b47aa` — NVIDIA NIM provider
 6. `327ad56` — Phase 1 complete
+7. `7281334` — BUILD_LOG.md update
+8. `352fa37` — Bug fixes + NVIDIA .chat() + integration test
+9. `9645102` — review.ts unit tests (25 new)
+10. `d39c256` — Phase 2: routing, classifier, severity delivery, ghost, description quality
