@@ -133,33 +133,6 @@ export async function parseDiff(
   return { files, totalAdditions, totalDeletions, rawDiff: diffText };
 }
 
-/**
- * Build a valid-position map from parsed diff.
- * This is THE hard problem — mapping LLM output lines to GitHub diff positions.
- */
-export function buildPositionMap(files: DiffFile[]): Map<string, Map<number, number>> {
-  // filePath → (newFileLineNumber → gitDiffPosition)
-  const positionMap = new Map<string, Map<number, number>>();
-
-  for (const file of files) {
-    const lineMap = new Map<number, number>();
-    let position = 0; // GitHub diff position is 1-based index in the diff
-
-    for (const hunk of file.hunks) {
-      for (const change of hunk.changes) {
-        position++;
-        if (change.type === "add" || change.type === "normal") {
-          lineMap.set(change.line, position);
-        }
-      }
-    }
-
-    positionMap.set(file.path, lineMap);
-  }
-
-  return positionMap;
-}
-
 function shouldExclude(filePath: string, patterns: string[]): boolean {
   return patterns.some((p) => minimatch(filePath, p));
 }

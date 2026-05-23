@@ -62,7 +62,7 @@ Return the filtered list as JSON with the same schema.`;
   }
 }
 
-function parseCritiqueOutput(text: string, original: ReviewResponseType): ReviewResponseType {
+export function parseCritiqueOutput(text: string, original: ReviewResponseType): ReviewResponseType {
   try {
     let jsonStr = text.trim();
     const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
@@ -76,7 +76,7 @@ function parseCritiqueOutput(text: string, original: ReviewResponseType): Review
   }
 }
 
-function filterByConfidence(review: ReviewResponseType, threshold: number): ReviewResponseType {
+export function filterByConfidence(review: ReviewResponseType, threshold: number): ReviewResponseType {
   const filtered = review.comments.filter((c) => c.confidence >= threshold);
   return {
     ...review,

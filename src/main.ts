@@ -54,7 +54,7 @@ async function run(): Promise<void> {
       return;
     }
 
-    // 2. Build line map from raw diff (diff0 pattern — most accurate)
+    // 2. Build line map from raw diff (validates which lines can receive comments)
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
 
     // 3. Run deterministic rules (zero LLM cost, never hallucinates)

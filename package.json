@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "rollup -c rollup.config.ts --configPlugin typescript",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"
   },
   "license": "MIT",

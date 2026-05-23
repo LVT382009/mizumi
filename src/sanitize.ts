@@ -70,6 +70,9 @@ export function sanitizeInput(raw: string): string {
  * Prevents secret exfiltration via review comments.
  */
 export function screenOutput(text: string): string {
+  // 0. Anti-CamoLeak: strip <img> tags FIRST (before URL redaction)
+  text = text.replace(/<img\b[^>]*>/gi, "[REDACTED:IMG_TAG]");
+
   // 1. Secret patterns
   text = text.replace(/sk-[a-zA-Z0-9]{20,}/g, "[REDACTED:API_KEY]");
   text = text.replace(/sk-ant-api[a-zA-Z0-9_-]{20,}/g, "[REDACTED:ANTHROPIC_KEY]");
@@ -86,9 +89,6 @@ export function screenOutput(text: string): string {
 
   // 3. Shell command patterns (exfiltration vectors)
   text = text.replace(/(?:curl|wget|nc|ncat|bash|sh|python3?|node|ruby|perl)\s+[^\n]+/g, "[REDACTED:SHELL_CMD]");
-
-  // 4. Anti-CamoLeak: strip <img> tags (covert channel via image URLs)
-  text = text.replace(/<img\b[^>]*>/gi, "[REDACTED:IMG_TAG]");
 
   return text;
 }

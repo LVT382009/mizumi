@@ -10,6 +10,7 @@ export default defineConfig({
     format: "esm",
     entryFileNames: "index.js",
     sourcemap: true,
+    inlineDynamicImports: true,
   },
   plugins: [
     nodeResolve({

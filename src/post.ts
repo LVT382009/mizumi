@@ -1,11 +1,15 @@
 /**
  * Post review — inline suggestions + summary + Check Run + HTML marker dedup.
- * reviewdog pattern: Checks API as primary, PR Review API for final state, summary comment update-in-place.
+ * reviewdog pattern: Checks API as primary, PR Review API for final state,
+ * summary comment update-in-place.
+ *
+ * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
+ * The deprecated `position` parameter is NOT used.
  */
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
 import { ReviewCommentType, ReviewResponseType } from "./review.js";
-import { resolvePosition } from "./linemap.js";
+import { LineMap, resolveLine } from "./linemap.js";
 import { screenOutput } from "./sanitize.js";
 import { MizumiConfig } from "./config.js";
 
@@ -28,25 +32,26 @@ export async function postReview(
   prNumber: number,
   headSha: string,
   review: ReviewResponseType,
-  lineMap: Map<string, Map<number, number>>,
+  lineMap: LineMap,
   config: MizumiConfig
 ): Promise<PostResult> {
 
-  // 1. Build inline comments with valid positions
+  // 1. Build inline comments with valid line numbers
   const inlineComments: Array<{
     path: string;
-    position: number;
+    line: number;
+    side: "RIGHT";
     body: string;
     start_line?: number;
-    start_position?: number;
+    start_side?: "RIGHT";
   }> = [];
 
   const overflowComments: ReviewCommentType[] = [];
 
   for (const finding of review.comments.slice(0, config.maxComments)) {
-    const position = resolvePosition(lineMap, finding.file, finding.line);
-    if (position === null) {
-      // Can't map to diff position — goes to overflow
+    const resolvedLine = resolveLine(lineMap, finding.file, finding.line);
+    if (resolvedLine === null) {
+      // Can't map to a valid diff line — goes to overflow
       overflowComments.push(finding);
       continue;
     }
@@ -57,14 +62,20 @@ export async function postReview(
         : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}`
     );
 
-    const comment: (typeof inlineComments)[number] = { path: finding.file, position, body };
+    const comment: (typeof inlineComments)[number] = {
+      path: finding.file,
+      line: resolvedLine,
+      side: "RIGHT",
+      body,
+    };
 
     // Multi-line suggestion support
     if (finding.endLine && finding.endLine > finding.line) {
-      const endPosition = resolvePosition(lineMap, finding.file, finding.endLine);
-      if (endPosition !== null && endPosition > position) {
-        comment.start_position = endPosition; // GitHub swaps these
-        comment.start_line = finding.endLine;
+      const resolvedEndLine = resolveLine(lineMap, finding.file, finding.endLine);
+      if (resolvedEndLine !== null && resolvedEndLine > resolvedLine) {
+        comment.start_line = resolvedLine;
+        comment.line = resolvedEndLine;
+        comment.start_side = "RIGHT";
       }
     }
 
@@ -73,6 +84,18 @@ export async function postReview(
 
   // 2. Slice to GitHub's 30-comment limit
   const postedInline = inlineComments.slice(0, MAX_INLINE_COMMENTS);
+  const extraOverflow = inlineComments.slice(MAX_INLINE_COMMENTS);
+  // Comments that exceeded the 30-comment limit join overflow
+  for (const c of extraOverflow) {
+    overflowComments.push({
+      file: c.path,
+      line: c.start_line || c.line,
+      severity: "medium",
+      category: "style",
+      message: c.body.replace(/\*\*\[.*?\]\s*.*?\*\*:\s*/, "").split("\n")[0],
+      confidence: 100,
+    });
+  }
 
   // 3. Create PR Review
   let reviewId = 0;
@@ -89,7 +112,7 @@ export async function postReview(
     });
     reviewId = createdReview.id;
   } catch (error: any) {
-    // 422 = invalid positions — fall back to summary-only (diff0 pattern)
+    // 422 = invalid line numbers — fall back to summary-only
     if (error?.status === 422) {
       core.warning("422 on createReview — falling back to summary-only comment");
       const summaryBody = buildSummaryComment(review);

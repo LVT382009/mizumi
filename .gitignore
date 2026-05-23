@@ -1,4 +1,6 @@
 node_modules/
-dist/
-*.js.map
+dist/*.js.map
+dist/*.d.ts
+dist/*.d.ts.map
+dist/__tests__/
 .DS_Store

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   buildLineMapFromRawDiff,
-  resolvePosition,
+  isValidLine,
+  resolveLine,
   buildPositionHint,
 } from "../linemap.js";
 import type { DiffFile } from "../diff.js";
@@ -26,40 +27,31 @@ describe("buildLineMapFromRawDiff", () => {
     " // end",
   ].join("\n");
 
-  it("correctly maps added lines to positions", () => {
+  it("maps added and context lines to valid line numbers", () => {
     const map = buildLineMapFromRawDiff(SAMPLE_DIFF);
     const fileMap = map.get("src/foo.ts");
     expect(fileMap).toBeDefined();
 
-    // "import { z }" is at the 7th diff line => position 7
-    // It's the 2nd new-file line after the @@ header starts at newLineNumber=1
-    // After header: line 1 is context("import { x }") => newLine=1, pos=6
-    //   Wait — let me trace precisely:
-    //   Line 1: "diff --git..." => position++ => pos=1, skip
-    //   Line 2: "index ..."     => position++ => pos=2, skip
-    //   Line 3: "--- ..."       => position++ => pos=3, skip
-    //   Line 4: "+++ ..."       => position++ => pos=4, skip
-    //   Line 5: "@@ ..."        => position++ => pos=5, set newLineNumber=0
-    //   Line 6: " import { x }" => position++ => pos=6, context=>newLine=1, set(1,6)
-    //   Line 7: "+import { z }" => position++ => pos=7, add=>newLine=2, set(2,7)
-    //   Line 8: "+import { a }" => position++ => pos=8, add=>newLine=3, set(3,8)
-    //   Line 9: " "             => position++ => pos=9, context=>newLine=4, set(4,9)
-    //   Line 10:"-const old..."  => position++ => pos=10, delete=>no new FileLine
-    //   Line 11:"+const new..."  => position++ => pos=11, add=>newLine=5, set(5,11)
-    //   Line 12:" // end"        => position++ => pos=12, context=>newLine=6, set(6,12)
-
-    expect(fileMap!.get(2)).toBe(7); // first added line
-    expect(fileMap!.get(3)).toBe(8); // second added line
-    expect(fileMap!.get(5)).toBe(11); // added "const new" line
+    // Line 1: context "import { x }" → newLineNumber=1
+    // Line 2: added "+import { z }" → newLineNumber=2
+    // Line 3: added "+import { a }" → newLineNumber=3
+    // Line 4: context " " → newLineNumber=4
+    // Line 5: added "+const new = 2" → newLineNumber=5
+    // Line 6: context "// end" → newLineNumber=6
+    expect(fileMap!.has(1)).toBe(true);
+    expect(fileMap!.has(2)).toBe(true);
+    expect(fileMap!.has(3)).toBe(true);
+    expect(fileMap!.has(4)).toBe(true);
+    expect(fileMap!.has(5)).toBe(true);
+    expect(fileMap!.has(6)).toBe(true);
   });
 
-  it("counts position across ALL diff lines including metadata and hunk headers", () => {
+  it("does NOT include deleted lines in the line map", () => {
     const map = buildLineMapFromRawDiff(SAMPLE_DIFF);
     const fileMap = map.get("src/foo.ts");
-
-    // Context line at newLineNumber=1 should have position 6
-    // (positions 1-4 were metadata, 5 was hunk header)
-    expect(fileMap!.get(1)).toBe(6);
+    // The "-const old = 1;" line is a deletion — no new-file line number
+    // Only valid new-file lines should be in the set
+    expect(fileMap!.size).toBe(6); // 4 context + 3 added - 1 deletion offset
   });
 
   it("handles a diff with two files", () => {
@@ -73,7 +65,7 @@ describe("buildLineMapFromRawDiff", () => {
       "+new",
       "diff --git a/b.ts b/b.ts",
       "index ccc..ddd 100644",
-      "--- a/b.ts",
+      "--- b/b.ts",
       "+++ b/b.ts",
       "@@ -1 +1 @@",
       "-old2",
@@ -83,8 +75,8 @@ describe("buildLineMapFromRawDiff", () => {
     const map = buildLineMapFromRawDiff(multiDiff);
     expect(map.has("a.ts")).toBe(true);
     expect(map.has("b.ts")).toBe(true);
-    expect(map.get("a.ts")!.get(1)).toBe(7); // "+new" is line 7 in the diff
-    expect(map.get("b.ts")!.get(1)).toBe(14); // "+new2" is line 14 in the diff
+    expect(map.get("a.ts")!.has(1)).toBe(true); // "+new" is new line 1
+    expect(map.get("b.ts")!.has(1)).toBe(true); // "+new2" is new line 1
   });
 
   it("returns empty map for empty diff", () => {
@@ -104,7 +96,7 @@ describe("buildLineMapFromRawDiff", () => {
       " line2",
       "diff --git a/second.txt b/second.txt",
       "index ccc..ddd 100644",
-      "--- a/second.txt",
+      "--- b/second.txt",
       "+++ b/second.txt",
       "@@ -5,2 +5,3 @@",
       " context5",
@@ -114,71 +106,107 @@ describe("buildLineMapFromRawDiff", () => {
 
     const map = buildLineMapFromRawDiff(multiFileDiff);
 
-    // first.txt: line 2 ("+added early") maps correctly
+    // first.txt: lines 1-3 are in the set
     const firstMap = map.get("first.txt");
-    expect(firstMap!.get(2)).toBeDefined();
+    expect(firstMap!.has(1)).toBe(true);
+    expect(firstMap!.has(2)).toBe(true);
+    expect(firstMap!.has(3)).toBe(true);
 
-    // second.txt: the @@ header says +5 so newLineNumber should start from 4 (5-1)
-    // context5 => newLine=5, "+added later" => newLine=6
+    // second.txt: @@ -5,2 +5,3 @@ means context starts at newLineNumber=5
+    // context5 → line 5, "+added later" → line 6, context6 → line 7
     const secondMap = map.get("second.txt");
-    expect(secondMap!.get(6)).toBeDefined();
+    expect(secondMap!.has(5)).toBe(true);
+    expect(secondMap!.has(6)).toBe(true);
+    expect(secondMap!.has(7)).toBe(true);
+  });
+
+  it("returns a Set not a Map (position-free)", () => {
+    const map = buildLineMapFromRawDiff(SAMPLE_DIFF);
+    const fileMap = map.get("src/foo.ts");
+    expect(fileMap).toBeInstanceOf(Set);
   });
 });
 
 // ---------------------------------------------------------------------------
-// resolvePosition
+// isValidLine
 // ---------------------------------------------------------------------------
 
-describe("resolvePosition", () => {
+describe("isValidLine", () => {
+  it("returns true for an exact match", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10, 20, 30]));
+    expect(isValidLine(map, "src/app.ts", 10)).toBe(true);
+    expect(isValidLine(map, "src/app.ts", 20)).toBe(true);
+  });
+
+  it("returns false for an invalid line", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10, 20, 30]));
+    expect(isValidLine(map, "src/app.ts", 15)).toBe(false);
+  });
+
+  it("returns false for an unknown file", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10]));
+    expect(isValidLine(map, "src/other.ts", 10)).toBe(false);
+  });
+
+  it("returns false for empty set", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set());
+    expect(isValidLine(map, "src/app.ts", 1)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveLine
+// ---------------------------------------------------------------------------
+
+describe("resolveLine", () => {
   function makeMap(
-    entries: Array<[string, Array<[number, number]>]>
-  ): Map<string, Map<number, number>> {
-    const map = new Map<string, Map<number, number>>();
+    entries: Array<[string, number[]]>
+  ): Map<string, Set<number>> {
+    const map = new Map<string, Set<number>>();
     for (const [file, lines] of entries) {
-      const inner = new Map<number, number>();
-      for (const [line, pos] of lines) {
-        inner.set(line, pos);
-      }
-      map.set(file, inner);
+      map.set(file, new Set(lines));
     }
     return map;
   }
 
-  it("returns exact match when line exists", () => {
-    const map = makeMap([["src/app.ts", [[10, 42], [20, 55]]]]);
-    expect(resolvePosition(map, "src/app.ts", 10)).toBe(42);
-    expect(resolvePosition(map, "src/app.ts", 20)).toBe(55);
+  it("returns exact line number when it exists", () => {
+    const map = makeMap([["src/app.ts", [10, 20, 30]]]);
+    expect(resolveLine(map, "src/app.ts", 10)).toBe(10);
+    expect(resolveLine(map, "src/app.ts", 20)).toBe(20);
   });
 
-  it("falls back to nearest line within plus/minus 5 when exact line is missing", () => {
-    const map = makeMap([["src/app.ts", [[10, 42], [16, 58]]]]);
+  it("falls back to nearest line within ±5 when exact line is missing", () => {
+    const map = makeMap([["src/app.ts", [10, 16]]]);
     // Line 12 is not in the map, but 10 is within 5 lines
-    const result = resolvePosition(map, "src/app.ts", 12);
-    expect(result).toBe(42); // closest to 12 is line 10 (distance 2)
+    const result = resolveLine(map, "src/app.ts", 12);
+    expect(result).toBe(10); // 10 is distance 2, 16 is distance 4
   });
 
   it("picks the closer line when two candidates are equidistant", () => {
     // Line 12 requested; line 10 (dist 2) and line 14 (dist 2) both within 5
-    // When tied, sort is stable-by-order; the filter preserves insertion order
-    const map = makeMap([["src/app.ts", [[10, 42], [14, 99]]]]);
-    const result = resolvePosition(map, "src/app.ts", 12);
-    // Either 42 or 99 is acceptable; must be one of them
-    expect([42, 99]).toContain(result);
+    const map = makeMap([["src/app.ts", [10, 14]]]);
+    const result = resolveLine(map, "src/app.ts", 12);
+    // Either 10 or 14 is acceptable; must be one of them
+    expect([10, 14]).toContain(result);
   });
 
   it("returns null when no file match exists", () => {
-    const map = makeMap([["src/app.ts", [[10, 42]]]]);
-    expect(resolvePosition(map, "src/other.ts", 10)).toBeNull();
+    const map = makeMap([["src/app.ts", [10]]]);
+    expect(resolveLine(map, "src/other.ts", 10)).toBeNull();
   });
 
   it("returns null when the nearest line is more than 5 lines away", () => {
-    const map = makeMap([["src/app.ts", [[10, 42]]]]);
-    expect(resolvePosition(map, "src/app.ts", 20)).toBeNull(); // distance 10 > 5
+    const map = makeMap([["src/app.ts", [10]]]);
+    expect(resolveLine(map, "src/app.ts", 20)).toBeNull(); // distance 10 > 5
   });
 
-  it("returns null when the file map is empty", () => {
+  it("returns null when the file set is empty", () => {
     const map = makeMap([["src/app.ts", []]]);
-    expect(resolvePosition(map, "src/app.ts", 1)).toBeNull();
+    expect(resolveLine(map, "src/app.ts", 1)).toBeNull();
   });
 });
 
