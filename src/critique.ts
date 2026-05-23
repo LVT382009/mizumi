@@ -24,9 +24,10 @@ export async function runCritique(
   }
 
   // Use a cheap model for critique — reframe as "external reviewer to critically evaluate"
-  const apiKey = getApiKey("openai"); // Use OpenAI for critique (cheaper)
-  const model = apiKey
-    ? createOpenAI({ apiKey })(CRITIQUE_MODEL)
+  // Prefer OpenAI for cheap critique, fall back to the configured provider
+  const openaiKey = getApiKey("openai");
+  const model = openaiKey
+    ? createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL)
     : createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5");
 
   const critiquePrompt = `An external AI reviewer made these findings about a PR:

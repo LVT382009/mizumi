@@ -34911,6 +34911,8 @@ function getApiKey(provider) {
             return getInput("openrouter_api_key") || process.env.OPENROUTER_API_KEY || "";
         case "local":
             return getInput("local_api_key") || process.env.LOCAL_API_KEY || "dummy";
+        case "nvidia":
+            return getInput("nvidia_api_key") || process.env.NVIDIA_NIM_API_KEY || "";
     }
 }
 
@@ -72716,6 +72718,12 @@ function createModel(config) {
                 apiKey: apiKey || "dummy",
                 name: "local",
             })(config.model);
+        case "nvidia":
+            return createOpenAI({
+                baseURL: "https://integrate.api.nvidia.com/v1",
+                apiKey,
+                name: "nvidia",
+            })(config.model);
     }
 }
 /**
@@ -72817,9 +72825,10 @@ async function runCritique(review, config) {
         return filterByConfidence(review, config.confidenceThreshold);
     }
     // Use a cheap model for critique — reframe as "external reviewer to critically evaluate"
-    const apiKey = getApiKey("openai"); // Use OpenAI for critique (cheaper)
-    const model = apiKey
-        ? createOpenAI({ apiKey })(CRITIQUE_MODEL)
+    // Prefer OpenAI for cheap critique, fall back to the configured provider
+    const openaiKey = getApiKey("openai");
+    const model = openaiKey
+        ? createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL)
         : createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5");
     const critiquePrompt = `An external AI reviewer made these findings about a PR:
 

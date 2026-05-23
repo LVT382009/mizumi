@@ -17,6 +17,9 @@ inputs:
   openrouter_api_key:
     description: OpenRouter API key
     required: false
+  nvidia_api_key:
+    description: NVIDIA NIM API key (nvapi-*)
+    required: false
   local_api_key:
     description: API key for local/self-hosted model (optional, e.g. for Ollama)
     required: false
@@ -29,7 +32,7 @@ inputs:
     required: false
     default: "claude-sonnet-4-6"
   provider:
-    description: LLM provider (anthropic | openai | google | openrouter | local)
+    description: LLM provider (anthropic | openai | google | openrouter | nvidia | local)
     required: false
     default: "anthropic"
   profile:

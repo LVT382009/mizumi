@@ -57,6 +57,12 @@ function createModel(config: MizumiConfig) {
         apiKey: apiKey || "dummy",
         name: "local",
       })(config.model);
+    case "nvidia":
+      return createOpenAI({
+        baseURL: "https://integrate.api.nvidia.com/v1",
+        apiKey,
+        name: "nvidia",
+      })(config.model);
   }
 }
 

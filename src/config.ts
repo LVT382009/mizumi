@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export type Profile = "chill" | "assertive" | "followup";
-export type Provider = "anthropic" | "openai" | "google" | "openrouter" | "local";
+export type Provider = "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "local";
 
 export interface MizumiConfig {
   provider: Provider;
@@ -159,5 +159,7 @@ export function getApiKey(provider: Provider): string {
       return core.getInput("openrouter_api_key") || process.env.OPENROUTER_API_KEY || "";
     case "local":
       return core.getInput("local_api_key") || process.env.LOCAL_API_KEY || "dummy";
+    case "nvidia":
+      return core.getInput("nvidia_api_key") || process.env.NVIDIA_NIM_API_KEY || "";
   }
 }
