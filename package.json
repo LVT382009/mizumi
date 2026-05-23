@@ -4,6 +4,7 @@
   "description": "Self-learning PR review agent — BYOK, multi-provider, memory",
   "type": "module",
   "main": "dist/index.js",
+  "exports": { ".": { "import": "./dist/index.js" } },
   "scripts": {
     "build": "rollup -c rollup.config.ts --configPlugin typescript",
     "check": "tsc --noEmit -p tsconfig.test.json",
