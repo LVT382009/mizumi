@@ -20,7 +20,7 @@ import { postReview, cleanupOutdatedComments } from "./post.js";
 import { writeMemory, readMemory, autoGenerateSkills, loadSkills } from "./memory.js";
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
-import { createSpendEntry, appendSpendEntry } from "./spend.js";
+import { createSpendEntry, appendSpendEntry, readSpendLog, formatSpendDigest } from "./spend.js";
 import { recordFindings } from "./feedback.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
@@ -89,6 +89,13 @@ async function run(): Promise<void> {
       const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
       const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindings, config);
       await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: testOutput });
+      return;
+    }
+    if (cmd?.command === "spend") {
+      core.info("Running /mizumi spend...");
+      const workspace = process.env.GITHUB_WORKSPACE || ".";
+      const entries = readSpendLog(workspace);
+      await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
       return;
     }
   }

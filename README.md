@@ -122,6 +122,7 @@ Comment `/mizumi` on any PR to trigger a review on demand. This bypasses the `au
 |---|---|
 | `/mizumi describe` | Generates a structured PR description from diff analysis |
 | `/mizumi improve` | Applies ```suggestion blocks from review comments via Git Data API (one-click fix) |
+| `/mizumi spend` | Shows token usage digest across reviews |
 | `/mizumi test` | Generates vitest test skeletons for critical/high findings |
 
 ### Auto Skill Generation

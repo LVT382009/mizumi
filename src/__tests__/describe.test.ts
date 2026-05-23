@@ -24,4 +24,9 @@ describe("parseCommand", () => {
     const result = parseCommand("/mizumi improve");
     expect(result?.command).toBe("improve");
   });
+
+  it("parses /mizumi spend", () => {
+    const result = parseCommand("/mizumi spend");
+    expect(result?.command).toBe("spend");
+  });
 });
