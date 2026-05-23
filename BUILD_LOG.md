@@ -45,12 +45,24 @@ All Phase 1 items from the implementation plan are now implemented:
 | 2.1 Model tier routing | ✅ | `router.ts` — classifyDiff (light/standard/thorough), selectModel for haiku routing |
 | 2.2 Diff classifier | ✅ | `classifier.ts` — heuristic PR classification (docs/cosmetic/tests/config/security/logic) |
 | 2.4 Severity-delivered output | ✅ | `post.ts` — critical/high → inline, medium → table, low/nitpick → details |
+| 2.9 Token estimation | ✅ | `router.ts` — estimateTokens (4 chars/token), guardContextWindow with head/tail truncation |
 | 2.14 Review Ghost | ✅ | `memory.ts` ghostWarnings + context.ts injection |
 | 2.15 PR description quality | ✅ | `description.ts` — score 0-4 with missing elements feedback |
-| 2.5 Emoji feedback | ⏳ Next cycle | |
+| 2.16 Review fatigue | ✅ | `post.ts` — buildFatigueWarning for >15 findings, suggests PR splitting |
+| 2.17 Slop detection | ✅ | `slop.ts` — 5 heuristics (addition ratio, density, repetition, boilerplate, numeric-suffix), score >=60 = slop |
+| 2.8 Prompt caching | ✅ | `review.ts` — Anthropic cacheControl ephemeral via providerOptions |
+| 2.5 Emoji feedback | ✅ | `feedback.ts` — emoji reaction polling, JSON feedback store, category acceptance rates |
 | 2.6 Feedback tracker (SQLite) | ⏳ Deferred | v1 feature |
-| 2.11 Fuzzy dedup | ⏳ Deferred | rapid-fuzzy dependency |
-| 2.12 Outdated comment cleanup | ⏳ Deferred | |
+| 2.11 Fuzzy dedup | ⏳ Deferred | v1 dependency: rapid-fuzzy |
+| 2.12 Outdated comment cleanup | ⏳ Deferred | v1 feature |
+
+### Enhancements (This Cycle)
+
+- Token estimation: estimateTokens + guardContextWindow in router.ts, wired into main.ts
+- Slop detection: detectSlop in slop.ts with 5 heuristics, context injection into review
+- Emoji feedback: feedback.ts with reaction polling, JSON store, category acceptance rates
+- Review fatigue: buildFatigueWarning in post.ts, appears before risk score
+- Anthropic prompt caching: providerOptions cacheControl ephemeral on user message
 
 ### Bug Fixes (This Cycle)
 
@@ -63,6 +75,9 @@ All Phase 1 items from the implementation plan are now implemented:
 
 ### New Files This Cycle
 
+- `src/feedback.ts` — Emoji reaction polling + JSON feedback store + acceptance rate calculator
+- `src/slop.ts` — Heuristic slop detector (5 signals, 0-100 score)
+
 - `src/router.ts` — Diff tier routing (light/standard/thorough)
 - `src/classifier.ts` — PR type classification (heuristic, zero LLM cost)
 - `src/description.ts` — PR description quality scorer
@@ -74,10 +89,10 @@ All Phase 1 items from the implementation plan are now implemented:
 
 ### Build Stats
 
-- 289 tests passing (14 test files + 1 skipped)
-- 1,901 production lines (under 3,000 budget)
+- 326 tests passing (16 test files + 1 skipped)
+- 2,247 production lines (under 3,000 budget)
 - Zero TS errors
-- 15 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description)
+- 17 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback)
 - `dist/index.js` bundle verified
 - 6 providers verified (NVIDIA NIM end-to-end with real API call)
 
