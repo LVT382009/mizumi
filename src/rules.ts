@@ -3,6 +3,7 @@
  * Phase 1 stub: regex-based checks only. Full Danger integration deferred to Phase 2.
  */
 import { DiffFile, DiffHunk } from "./diff.js";
+import { minimatch } from "minimatch";
 
 export interface RuleFinding {
   file: string;
@@ -75,7 +76,40 @@ export function runRules(files: DiffFile[]): RuleFinding[] {
     }
   }
 
+  const dup = checkDuplicateApprovalGuard(files);
+  if (dup) findings.push(dup);
+
   return findings;
+}
+
+/** Approval-path glob patterns — files that control authorization. */
+const APPROVAL_PATTERNS = [
+  "**/auth/**",
+  "**/permission*",
+  "**/rbac/**",
+  "**/policy*",
+  "**/access*",
+  "**/middleware/auth*",
+  "**/guard/**",
+];
+
+function isApprovalFile(filePath: string): boolean {
+  return APPROVAL_PATTERNS.some((p) => minimatch(filePath, p));
+}
+
+/** Phase 3.17 — flag PRs that mix approval/auth changes with unrelated code. */
+export function checkDuplicateApprovalGuard(files: DiffFile[]): RuleFinding | null {
+  const hasApproval = files.some((f) => isApprovalFile(f.path));
+  const hasNonApproval = files.some((f) => !isApprovalFile(f.path));
+  if (!hasApproval || !hasNonApproval) return null;
+  return {
+    file: files.find((f) => isApprovalFile(f.path))!.path,
+    line: 0,
+    severity: "high",
+    category: "security",
+    message: "This PR modifies approval logic alongside non-approval changes — potential authorization bypass. Consider splitting into separate PRs.",
+    rule: "duplicate-approval-guard",
+  };
 }
 
 function isRouteDefinition(line: string): boolean {

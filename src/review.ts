@@ -138,7 +138,7 @@ export async function runReview(
   ghostContent: string,
   config: MizumiConfig,
   classification?: DiffClassification
-): Promise<ReviewResponseType> {
+): Promise<{ output: ReviewResponseType; usage: { inputTokens: number; outputTokens: number; cachedInputTokens: number } }> {
   const model = classification ? selectModel(config, classification) : createModel(config);
   const systemPrompt = buildSystemPrompt(validPositions, config);
 
@@ -169,7 +169,7 @@ export async function runReview(
       }
     : { role: "user" as const, content: userPrompt };
 
-  const { output } = await generateText({
+  const { output, usage } = await generateText({
     model,
     system: systemPrompt,
     messages: [userMessage],
@@ -177,5 +177,5 @@ export async function runReview(
     maxOutputTokens: 4096,
   });
 
-  return output;
+  return { output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postReview, buildFatigueWarning, buildReviewBody } from "../post.js";
+import { postReview, buildFatigueWarning, vscodeLink, cleanupOutdatedComments } from "../post.js";
 import type { ReviewCommentType, ReviewResponseType } from "../review.js";
 import type { LineMap } from "../linemap.js";
 import type { MizumiConfig } from "../config.js";
@@ -773,4 +773,122 @@ describe("postReview", () => {
     expect(body).not.toContain("Review Fatigue");
   });
 
+  it("includes VS Code deep link in inline comment bodies", async () => {
+    const review = makeReview({
+      comments: [makeComment({ file: "src/auth.ts", line: 10, severity: "high" })],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    const comment = call.comments[0];
+    expect(comment.body).toContain("vscode://file/src/auth.ts:10");
+  });
+
 });
+
+// -----------------------------------------------------------------------
+// 14. VS Code deep links
+// -----------------------------------------------------------------------
+
+describe("vscodeLink", () => {
+  it("generates a vscode:// deep link", () => {
+    const link = vscodeLink("src/auth.ts", 42);
+    expect(link).toContain("vscode://file/src/auth.ts:42");
+    expect(link).toContain("Open in VS Code");
+  });
+
+  it("handles paths with spaces", () => {
+    const link = vscodeLink("src/my file.ts", 10);
+    expect(link).toContain("vscode://file/src/my file.ts:10");
+  });
+});
+
+// -----------------------------------------------------------------------
+// 15. Outdated comment cleanup (reviewdog stale-cleanup pattern)
+// -----------------------------------------------------------------------
+
+describe("cleanupOutdatedComments", () => {
+  const MARKER = "<!-- mizumi-review-marker -->";
+
+  function makeCleanupOctokit(reviewComments: any[]) {
+    const listReviewComments = vi.fn().mockResolvedValue({ data: reviewComments });
+    const deleteReviewComment = vi.fn().mockResolvedValue({});
+    return {
+      rest: {
+        pulls: { listReviewComments, deleteReviewComment },
+      },
+    } as any;
+  }
+
+  it("returns 0 when there are no outdated comments", async () => {
+    const octokit = makeCleanupOctokit([
+      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Finding A` },
+    ]);
+    const currentFindings = [{ file: "src/app.ts", line: 10, message: "Finding A" }];
+
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(0);
+    expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
+  });
+
+  it("deletes marked comments whose file+line is not in current findings", async () => {
+    const octokit = makeCleanupOctokit([
+      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Old finding` },
+      { id: 2, path: "src/app.ts", line: 20, body: `${MARKER} Another old` },
+    ]);
+    const currentFindings = [{ file: "src/app.ts", line: 10, message: "Still here" }];
+
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(1);
+    expect(octokit.rest.pulls.deleteReviewComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 2 })
+    );
+  });
+
+  it("does not delete comments without the marker", async () => {
+    const octokit = makeCleanupOctokit([
+      { id: 1, path: "src/app.ts", line: 10, body: "Human review comment" },
+    ]);
+    const currentFindings: Array<{ file: string; line: number; message: string }> = [];
+
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(0);
+    expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when deletion fails — skips gracefully", async () => {
+    const octokit = makeCleanupOctokit([
+      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Stale` },
+    ]);
+    octokit.rest.pulls.deleteReviewComment.mockRejectedValue(new Error("GitHub API error"));
+    const currentFindings: Array<{ file: string; line: number; message: string }> = [];
+
+    // Must not throw
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(0);
+  });
+
+  it("keeps comments that match a current finding by file and line", async () => {
+    const octokit = makeCleanupOctokit([
+      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Still valid` },
+      { id: 2, path: "src/util.ts", line: 5, body: `${MARKER} Also valid` },
+    ]);
+    const currentFindings = [
+      { file: "src/app.ts", line: 10, message: "Still valid" },
+      { file: "src/util.ts", line: 5, message: "Also valid" },
+    ];
+
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(0);
+    expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
+  });
+});
+
+

@@ -16,10 +16,12 @@ import { buildLineMapFromRawDiff, buildPositionHint } from "./linemap.js";
 import { buildContext } from "./context.js";
 import { runReview } from "./review.js";
 import { runCritique } from "./critique.js";
-import { postReview } from "./post.js";
+import { postReview, cleanupOutdatedComments } from "./post.js";
 import { writeMemory } from "./memory.js";
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
+import { createSpendEntry, appendSpendEntry } from "./spend.js";
+import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
@@ -49,6 +51,24 @@ async function run(): Promise<void> {
     const isManualTrigger = ctx.eventName === "issue_comment";
 
     core.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+
+  // Handle /mizumi subcommands
+  if (isManualTrigger) {
+    const cmd = parseCommand(ctx.payload.comment?.body || "");
+    if (cmd?.command === "describe") {
+      core.info("Running /mizumi describe...");
+      const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
+      const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      const description = await generateDescription(
+        diff.rawDiff.slice(0, 50000), pr.title || "", pr.body || "", config
+      );
+      await octokit.rest.issues.createComment({
+        owner, repo, issue_number: prNumber, body: description,
+      });
+      core.info("Description posted");
+      return;
+    }
+  }
 
     // Respect auto_review: false — only run on manual /mizumi trigger
     if (!config.autoReview && !isManualTrigger) {
@@ -130,7 +150,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
 
     // 7. Run review (first pass — LLM)
     core.info("Running review pass...");
-    const review = await runReview(
+    const { output: review, usage: reviewUsage } = await runReview(
       context.diffText,
       positionHint,
       context.memoryContent,
@@ -139,7 +159,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       config,
       classification
     );
-    core.info(`First pass: ${review.comments.length} findings, decision=${review.decision}`);
+  core.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
 
     // 8. Self-critique (second pass — cheaper model)
     core.info("Running self-critique pass...");
@@ -163,13 +183,31 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
 
     const mergedReview = { ...filtered, comments: mergedComments };
 
-    // 10. Post review
+    // 9b. Cleanup outdated bot comments (reviewdog stale-comment pattern)
+  const currentFindings = mergedReview.comments.map((c) => ({
+    file: c.file, line: c.line, message: c.message,
+  }));
+  const deletedCount = await cleanupOutdatedComments(
+    octokit, owner, repo, prNumber, currentFindings
+  );
+  if (deletedCount > 0) core.info(`Cleaned up ${deletedCount} outdated comment(s)`);
+
+  // 10. Post review
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     core.info("Posting review...");
     const result = await postReview(
       octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+
+// 10b. Track spend
+const spendEntry = createSpendEntry(
+  `${owner}/${repo}`, prNumber,
+  config.provider, config.model,
+  { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier,
+  result.findingCount, result.riskScore
+);
+appendSpendEntry(workspace, spendEntry);
 
     // 11. Update memory — learn from this review
     const memoryUpdate = filtered.comments

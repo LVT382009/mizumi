@@ -219,7 +219,7 @@ describe("profile instructions in system prompt", () => {
     let capturedSystem = "";
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "chill" }));
@@ -233,7 +233,7 @@ describe("profile instructions in system prompt", () => {
     let capturedSystem = "";
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "assertive" }));
@@ -247,7 +247,7 @@ describe("profile instructions in system prompt", () => {
     let capturedSystem = "";
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "followup" }));
@@ -269,7 +269,7 @@ describe("system prompt build", () => {
     let capturedSystem = "";
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     const positions = "src/app.ts:10,src/app.ts:15";
@@ -283,7 +283,7 @@ describe("system prompt build", () => {
     let capturedSystem = "";
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig());
@@ -321,20 +321,21 @@ describe("runReview", () => {
       decision: "request_changes",
     };
 
-    mockGenerateText.mockResolvedValue({ output: expected } as any);
+    mockGenerateText.mockResolvedValue({ output: expected, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
 
-    const result = await runReview("diff content", "src/util.ts:42", "", "", "", makeConfig());
+    const { output: result, usage } = await runReview("diff content", "src/util.ts:42", "", "", "", makeConfig());
 
     expect(result).toEqual(expected);
     expect(result.decision).toBe("request_changes");
     expect(result.comments).toHaveLength(1);
+    expect(usage.inputTokens).toBe(1000);
   });
 
   it("passes diff content through wrapDiff", async () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     const { wrapDiff } = await import("../sanitize.js");
@@ -351,7 +352,7 @@ describe("runReview", () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "past review patterns", "", "", makeConfig());
@@ -367,7 +368,7 @@ describe("runReview", () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "no console.log in production", "", makeConfig());
@@ -383,7 +384,7 @@ describe("runReview", () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig());
@@ -396,7 +397,7 @@ describe("runReview", () => {
   });
 
   it("calls generateText with maxOutputTokens 4096", async () => {
-    mockGenerateText.mockResolvedValue({ output: fakeReviewOutput } as any);
+    mockGenerateText.mockResolvedValue({ output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
 
     await runReview("diff", "pos", "", "", "", makeConfig());
 
@@ -409,7 +410,7 @@ describe("runReview", () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "anthropic" }));
@@ -421,7 +422,7 @@ describe("runReview", () => {
     let capturedMessages: any[] = [];
     mockGenerateText.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput } as any;
+      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "openai" }));

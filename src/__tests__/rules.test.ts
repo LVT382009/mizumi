@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runRules } from "../rules.js";
+import { runRules, checkDuplicateApprovalGuard } from "../rules.js";
 import { DiffFile } from "../diff.js";
 
 // ---------------------------------------------------------------------------
@@ -485,5 +485,91 @@ describe("cross-cutting and edge cases", () => {
     expect(authFinding.line).toBe(42);
     const secretFinding = findings.find((f) => f.rule === "no-hardcoded-secrets")!;
     expect(secretFinding.line).toBe(43);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 4: duplicate-approval-guard
+// ---------------------------------------------------------------------------
+
+describe("duplicate-approval-guard", () => {
+  it("returns null when only auth files are changed", () => {
+    const files = [addFile("src/auth/login.ts", ["export function login() {}"])];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when only non-auth files are changed", () => {
+    const files = [addFile("src/utils/helpers.ts", ["export function trim(s: string) { return s.trim(); }"])];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).toBeNull();
+  });
+
+  it("flags when auth and non-auth files are both changed", () => {
+    const files = [
+      addFile("src/auth/login.ts", ["export function login() {}"]),
+      addFile("src/utils/format.ts", ["export function format() {}"]),
+    ];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).not.toBeNull();
+    expect(result!.rule).toBe("duplicate-approval-guard");
+    expect(result!.severity).toBe("high");
+    expect(result!.category).toBe("security");
+    expect(result!.file).toBe("src/auth/login.ts");
+  });
+
+  it("detects rbac/ path as approval file", () => {
+    const files = [
+      addFile("src/rbac/roles.ts", ["export const ADMIN = 'admin';"]),
+      addFile("src/components/Button.tsx", ["export function Button() {}"]),
+    ];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).not.toBeNull();
+    expect(result!.rule).toBe("duplicate-approval-guard");
+  });
+
+  it("detects middleware/auth* path as approval file", () => {
+    const files = [
+      addFile("src/middleware/authMiddleware.ts", ["export function auth() {}"]),
+      addFile("src/pages/Home.tsx", ["export function Home() {}"]),
+    ];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).not.toBeNull();
+    expect(result!.rule).toBe("duplicate-approval-guard");
+  });
+
+  it("detects guard/ path as approval file", () => {
+    const files = [
+      addFile("src/guard/canActivate.ts", ["export function canActivate() {}"]),
+      addFile("src/styles/main.css", ["body { margin: 0; }"]),
+    ];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).not.toBeNull();
+    expect(result!.rule).toBe("duplicate-approval-guard");
+  });
+
+  it("detects permission* path as approval file", () => {
+    const files = [
+      addFile("src/permissions.ts", ["export const READ = 'read';"]),
+      addFile("src/lib/db.ts", ["export function query() {}"]),
+    ];
+    const result = checkDuplicateApprovalGuard(files);
+    expect(result).not.toBeNull();
+    expect(result!.rule).toBe("duplicate-approval-guard");
+  });
+
+  it("returns null for empty file list", () => {
+    expect(checkDuplicateApprovalGuard([])).toBeNull();
+  });
+
+  it("is integrated into runRules — mixed PR produces the finding", () => {
+    const files = [
+      addFile("src/auth/verify.ts", ["export function verify() {}"]),
+      addFile("src/ui/Header.tsx", ["export function Header() {}"]),
+    ];
+    const findings = runRules(files);
+    const guard = findings.find((f) => f.rule === "duplicate-approval-guard");
+    expect(guard).toBeDefined();
+    expect(guard!.message).toContain("authorization bypass");
   });
 });
