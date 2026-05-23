@@ -105,7 +105,7 @@ async function run(): Promise<void> {
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     core.info("Posting review...");
     const result = await postReview(
-      octokit, owner, repo, prNumber, headSha, mergedReview, diff.files, config
+      octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
 

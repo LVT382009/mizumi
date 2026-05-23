@@ -5,8 +5,7 @@
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
 import { ReviewCommentType, ReviewResponseType } from "./review.js";
-import { buildLineMap, resolvePosition } from "./linemap.js";
-import { DiffFile } from "./diff.js";
+import { resolvePosition } from "./linemap.js";
 import { screenOutput } from "./sanitize.js";
 import { MizumiConfig } from "./config.js";
 
@@ -29,10 +28,9 @@ export async function postReview(
   prNumber: number,
   headSha: string,
   review: ReviewResponseType,
-  diffFiles: DiffFile[],
+  lineMap: Map<string, Map<number, number>>,
   config: MizumiConfig
 ): Promise<PostResult> {
-  const lineMap = buildLineMap(diffFiles);
 
   // 1. Build inline comments with valid positions
   const inlineComments: Array<{
@@ -75,12 +73,11 @@ export async function postReview(
 
   // 2. Slice to GitHub's 30-comment limit
   const postedInline = inlineComments.slice(0, MAX_INLINE_COMMENTS);
-  const extraOverflow = inlineComments.slice(MAX_INLINE_COMMENTS);
 
   // 3. Create PR Review
   let reviewId = 0;
   try {
-    const reviewBody = buildReviewBody(review, [...overflowComments, ...extraOverflow]);
+    const reviewBody = buildReviewBody(review, [...overflowComments]);
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
       repo,
@@ -95,7 +92,7 @@ export async function postReview(
     // 422 = invalid positions — fall back to summary-only (diff0 pattern)
     if (error?.status === 422) {
       core.warning("422 on createReview — falling back to summary-only comment");
-      const summaryBody = buildSummaryComment(review, [...review.comments]);
+      const summaryBody = buildSummaryComment(review);
       await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
       return { reviewId: 0, findingCount: review.comments.length, riskScore: review.riskScore };
     }
@@ -103,7 +100,7 @@ export async function postReview(
   }
 
   // 4. Post/update summary comment with HTML marker dedup
-  const summaryBody = buildSummaryComment(review, overflowComments);
+  const summaryBody = buildSummaryComment(review);
   await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
 
   // 5. Set outputs
@@ -116,9 +113,12 @@ export async function postReview(
 
 function mapDecision(decision: string): "APPROVE" | "COMMENT" | "REQUEST_CHANGES" {
   switch (decision) {
-    case "approve": return "APPROVE";
-    case "request_changes": return "REQUEST_CHANGES";
-    default: return "COMMENT";
+    case "approve":
+      return "APPROVE";
+    case "request_changes":
+      return "REQUEST_CHANGES";
+    default:
+      return "COMMENT";
   }
 }
 
@@ -141,7 +141,7 @@ function buildReviewBody(review: ReviewResponseType, overflow: ReviewCommentType
   return body;
 }
 
-function buildSummaryComment(review: ReviewResponseType, overflow: ReviewCommentType[]): string {
+function buildSummaryComment(review: ReviewResponseType): string {
   let body = MARKER;
   body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)`;
   body += `\n\n${screenOutput(review.summary)}`;

@@ -7,7 +7,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, Provider, getApiKey } from "./config.js";
+import { MizumiConfig, getApiKey } from "./config.js";
 import { wrapDiff } from "./sanitize.js";
 
 // Zod v4 schemas for structured output
@@ -151,7 +151,7 @@ export async function runReview(
     system: systemPrompt,
     prompt: userPrompt,
     output: Output.object({ schema: ReviewResponse }),
-    maxTokens: 4096,
+    maxOutputTokens: 4096,
   });
 
   return output;

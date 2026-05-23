@@ -2,7 +2,7 @@
  * Deterministic rule engine — runs before LLM, never hallucinates.
  * Phase 1 stub: regex-based checks only. Full Danger integration deferred to Phase 2.
  */
-import { DiffFile } from "./diff.js";
+import { DiffFile, DiffHunk } from "./diff.js";
 
 export interface RuleFinding {
   file: string;
@@ -84,14 +84,14 @@ function isRouteDefinition(line: string): boolean {
 
 function callsAuthMiddleware(block: string[]): boolean {
   const authPatterns = /auth|authenticate|verify(token|jwt|session)|requireAuth|isAuth/i;
-  return block.some((l) => authPatterns.test(l));
+  return block.some((l: string) => authPatterns.test(l));
 }
 
-function getSurroundingBlock(hunk: typeof hunk, line: number): string[] {
+function getSurroundingBlock(hunk: DiffHunk, line: number): string[] {
   // Get ±10 lines around the target line
   return hunk.changes
-    .filter((c) => Math.abs(c.line - line) <= 10 && c.type !== "delete")
-    .map((c) => c.content);
+    .filter((c: { line: number; type: string }) => Math.abs(c.line - line) <= 10 && c.type !== "delete")
+    .map((c: { content: string }) => c.content);
 }
 
 function hasHardcodedSecret(line: string): boolean {
