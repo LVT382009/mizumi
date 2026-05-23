@@ -1,7 +1,10 @@
 /**
- * Post review — inline suggestions + summary + Check Run + HTML marker dedup.
- * reviewdog pattern: Checks API as primary, PR Review API for final state,
- * summary comment update-in-place.
+ * Post review — severity-delivered output + summary + HTML marker dedup.
+ *
+ * Delivery tiers (Phase 2.4 — CodeRabbit pattern):
+ *   Critical/High → inline suggestions (with "Commit suggestion" button)
+ *   Medium        → summary table in review body
+ *   Low/Nitpick   → collapsible <details> in review body
  *
  * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
  * The deprecated `position` parameter is NOT used.
@@ -23,7 +26,7 @@ export interface PostResult {
 }
 
 /**
- * Post the full review to GitHub.
+ * Post the full review to GitHub with severity-based delivery.
  */
 export async function postReview(
   octokit: Octokit,
@@ -36,7 +39,23 @@ export async function postReview(
   config: MizumiConfig
 ): Promise<PostResult> {
 
-  // 1. Build inline comments with valid line numbers
+  // 1. Partition findings by severity
+  const inlineFindings: ReviewCommentType[] = [];
+  const tableFindings: ReviewCommentType[] = [];
+  const detailsFindings: ReviewCommentType[] = [];
+  const unmappableFindings: ReviewCommentType[] = [];
+
+  for (const finding of review.comments.slice(0, config.maxComments)) {
+    if (finding.severity === "critical" || finding.severity === "high") {
+      inlineFindings.push(finding);
+    } else if (finding.severity === "medium") {
+      tableFindings.push(finding);
+    } else {
+      detailsFindings.push(finding);
+    }
+  }
+
+  // 2. Build inline comments (critical + high only)
   const inlineComments: Array<{
     path: string;
     line: number;
@@ -46,13 +65,10 @@ export async function postReview(
     start_side?: "RIGHT";
   }> = [];
 
-  const overflowComments: ReviewCommentType[] = [];
-
-  for (const finding of review.comments.slice(0, config.maxComments)) {
+  for (const finding of inlineFindings) {
     const resolvedLine = resolveLine(lineMap, finding.file, finding.line);
     if (resolvedLine === null) {
-      // Can't map to a valid diff line — goes to overflow
-      overflowComments.push(finding);
+      unmappableFindings.push(finding);
       continue;
     }
 
@@ -69,7 +85,6 @@ export async function postReview(
       body,
     };
 
-    // Multi-line suggestion support
     if (finding.endLine && finding.endLine > finding.line) {
       const resolvedEndLine = resolveLine(lineMap, finding.file, finding.endLine);
       if (resolvedEndLine !== null && resolvedEndLine > resolvedLine) {
@@ -82,12 +97,11 @@ export async function postReview(
     inlineComments.push(comment);
   }
 
-  // 2. Slice to GitHub's 30-comment limit
+  // 3. Slice to GitHub's 30-comment limit; overflow joins table
   const postedInline = inlineComments.slice(0, MAX_INLINE_COMMENTS);
   const extraOverflow = inlineComments.slice(MAX_INLINE_COMMENTS);
-  // Comments that exceeded the 30-comment limit join overflow
   for (const c of extraOverflow) {
-    overflowComments.push({
+    tableFindings.push({
       file: c.path,
       line: c.start_line || c.line,
       severity: "medium",
@@ -97,10 +111,10 @@ export async function postReview(
     });
   }
 
-  // 3. Create PR Review
+  // 4. Create PR Review
   let reviewId = 0;
   try {
-    const reviewBody = buildReviewBody(review, [...overflowComments]);
+    const reviewBody = buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings);
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
       repo,
@@ -122,11 +136,11 @@ export async function postReview(
     throw error;
   }
 
-  // 4. Post/update summary comment with HTML marker dedup
+  // 5. Post/update summary comment with HTML marker dedup
   const summaryBody = buildSummaryComment(review);
   await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
 
-  // 5. Set outputs
+  // 6. Set outputs
   core.setOutput("review_id", reviewId);
   core.setOutput("finding_count", review.comments.length);
   core.setOutput("risk_score", review.riskScore);
@@ -145,16 +159,34 @@ function mapDecision(decision: string): "APPROVE" | "COMMENT" | "REQUEST_CHANGES
   }
 }
 
-function buildReviewBody(review: ReviewResponseType, overflow: ReviewCommentType[]): string {
+function buildReviewBody(
+  review: ReviewResponseType,
+  tableFindings: ReviewCommentType[],
+  detailsFindings: ReviewCommentType[],
+  unmappableFindings: ReviewCommentType[]
+): string {
   let body = MARKER;
   body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
   body += screenOutput(review.summary) + "\n\n";
 
-  if (overflow.length > 0) {
-    body += `<details><summary>Additional findings (${overflow.length})</summary>\n\n`;
+  // Medium findings — summary table
+  const allTableFindings = [...tableFindings, ...unmappableFindings];
+  if (allTableFindings.length > 0) {
+    body += `### Medium Findings (${allTableFindings.length})\n\n`;
+    body += "| File | Line | Category | Message |\n";
+    body += "|------|------|----------|--------|\n";
+    for (const f of allTableFindings) {
+      body += `| \`${f.file}\` | ${f.line} | ${f.category} | ${screenOutput(f.message)} |\n`;
+    }
+    body += "\n";
+  }
+
+  // Low/nitpick findings — collapsible details
+  if (detailsFindings.length > 0) {
+    body += `<details><summary>Low/Nitpick findings (${detailsFindings.length})</summary>\n\n`;
     body += "| File | Line | Severity | Category | Message |\n";
     body += "|------|------|----------|----------|--------|\n";
-    for (const f of overflow) {
+    for (const f of detailsFindings) {
       body += `| \`${f.file}\` | ${f.line} | ${f.severity} | ${f.category} | ${screenOutput(f.message)} |\n`;
     }
     body += "\n</details>\n";
@@ -194,7 +226,6 @@ async function createOrUpdateSummaryComment(
   prNumber: number,
   body: string
 ): Promise<void> {
-  // Find existing comment with our marker
   const { data: comments } = await octokit.rest.issues.listComments({
     owner,
     repo,
@@ -205,7 +236,6 @@ async function createOrUpdateSummaryComment(
   const existing = comments.find((c) => c.body?.includes(MARKER));
 
   if (existing) {
-    // Update-in-place (dependency-review-action pattern)
     await octokit.rest.issues.updateComment({
       owner,
       repo,

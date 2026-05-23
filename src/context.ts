@@ -1,11 +1,13 @@
 /**
- * Build review context — diff + file contents + MEMORY.md + rules.
+ * Build review context — diff + file contents + MEMORY.md + rules + ghost + description quality.
  * Assembles everything the LLM needs for a thorough review.
  */
 import { Octokit } from "@octokit/rest";
 import { DiffFile, ParsedDiff } from "./diff.js";
-import { readMemory, readRules } from "./memory.js";
+import { readMemory, readRules, ghostWarnings } from "./memory.js";
 import { stripPatchPII } from "./diff.js";
+import { ClassificationResult } from "./classifier.js";
+import { scorePRDescription, formatDescriptionFeedback } from "./description.js";
 import stripAnsi from "strip-ansi";
 
 export interface ReviewContext {
@@ -13,9 +15,12 @@ export interface ReviewContext {
   files: DiffFile[];
   memoryContent: string;
   rulesContent: string;
+  ghostContent: string;
+  descriptionFeedback: string;
   prTitle: string;
   prDescription: string;
   changedFiles: string[];
+  classification?: ClassificationResult;
 }
 
 /**
@@ -27,9 +32,9 @@ export async function buildContext(
   repo: string,
   prNumber: number,
   diff: ParsedDiff,
-  workspace: string
+  workspace: string,
+  classification?: ClassificationResult
 ): Promise<ReviewContext> {
-  // Fetch PR metadata
   const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
 
   // Build diff text (PII-stripped, ANSI-cleaned)
@@ -47,17 +52,36 @@ export async function buildContext(
 
   diffText = stripPatchPII(stripAnsi(diffText));
 
+  if (classification) {
+    diffText += `\n\n## PR Classification\nThis PR appears to be primarily about: ${classification.category} (${classification.reason})\nAdjust review focus accordingly.`;
+  }
+
   // Read memory + rules
   const memoryContent = readMemory(workspace);
   const rulesContent = readRules(workspace);
+
+  // Review Ghost
+  const changedFiles = diff.files.map((f: DiffFile) => f.path);
+  const warnings = ghostWarnings(memoryContent, changedFiles);
+  let ghostContent = "";
+  if (warnings.length > 0) {
+    ghostContent = `## Past Issues in These Files (Review Ghost)\nThe following issues were found in previous reviews of these files:\n${warnings.map((w) => `- ${w}`).join("\n")}\nPay extra attention to whether these issues have reappeared.`;
+  }
+
+  // PR description quality feedback
+  const descQuality = scorePRDescription(pr.title || "", pr.body || "");
+  const descriptionFeedback = formatDescriptionFeedback(descQuality);
 
   return {
     diffText,
     files: diff.files,
     memoryContent,
     rulesContent,
+    ghostContent,
+    descriptionFeedback,
     prTitle: pr.title || "",
     prDescription: pr.body || "",
-    changedFiles: diff.files.map((f) => f.path),
+    changedFiles,
+    classification,
   };
 }

@@ -22,6 +22,9 @@ skipIfNoKey("NVIDIA NIM integration", () => {
     autoReview: true,
     autoPauseAfter: 5,
     excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**", "**/secret*", "**/password*"],
   };
 
   it("calls NVIDIA NIM and returns structured review output", async () => {
@@ -38,6 +41,7 @@ skipIfNoKey("NVIDIA NIM integration", () => {
     const result = await runReview(
       simpleDiff,
       "src/hello.ts: lines 1-5",
+      "",
       "",
       "",
       config

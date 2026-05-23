@@ -47,6 +47,9 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     confidenceThreshold: 60,
     autoReview: false, autoPauseAfter: 5,
     excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**"],
     ...overrides,
   };
 }
@@ -69,7 +72,7 @@ function makeComment(overrides?: Partial<ReviewCommentType>): ReviewCommentType 
   return {
     file: "src/app.ts",
     line: 10,
-    severity: "medium",
+    severity: "high",
     category: "bug",
     message: "Potential null dereference",
     confidence: 90,
@@ -174,18 +177,17 @@ describe("postReview", () => {
 
     // Review body contains overflow table
     const body: string = call.body;
-    expect(body).toContain("Additional findings");
+    expect(body).toContain("Medium Findings");
     expect(body).toContain("Unresolved finding");
   });
 
-  it("includes overflow entries in a markdown table with file, line, severity, category, message", async () => {
+  it("includes overflow entries in a markdown table with file, line, category, message", async () => {
     mockedResolveLine.mockReturnValue(null);
     const review = makeReview({
       comments: [
         makeComment({
           file: "src/util.ts",
           line: 50,
-          severity: "high",
           category: "security",
           message: "SQL injection risk",
         }),
@@ -198,7 +200,6 @@ describe("postReview", () => {
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
     const body: string = call.body;
     expect(body).toContain("src/util.ts");
-    expect(body).toContain("high");
     expect(body).toContain("security");
     expect(body).toContain("SQL injection risk");
   });
@@ -219,7 +220,7 @@ describe("postReview", () => {
 
     // Review body mentions overflow
     const body: string = call.body;
-    expect(body).toContain("Additional findings");
+    expect(body).toContain("Medium Findings");
   });
 
   // -----------------------------------------------------------------------
@@ -636,4 +637,83 @@ describe("postReview", () => {
     expect(body).toContain("REQUEST_CHANGES");
     expect(body).toContain("**Findings:** 1");
   });
+
+  // -----------------------------------------------------------------------
+  // 12. Severity-delivered output routing
+  // -----------------------------------------------------------------------
+
+  it("routes medium findings to review body table, not inline", async () => {
+    const review = makeReview({
+      comments: [
+        makeComment({ severity: "medium", category: "style", message: "Consider using const" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    // Medium findings go to body table, not inline
+    expect(call.comments).toHaveLength(0);
+    const body: string = call.body;
+    expect(body).toContain("Medium Findings");
+    expect(body).toContain("Consider using const");
+  });
+
+  it("routes low findings to collapsible details block", async () => {
+    const review = makeReview({
+      comments: [
+        makeComment({ severity: "low", category: "style", message: "Missing semicolon" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    // Low findings go to collapsible block, not inline
+    expect(call.comments).toHaveLength(0);
+    const body: string = call.body;
+    expect(body).toContain("<details>");
+    expect(body).toContain("Low/Nitpick findings");
+    expect(body).toContain("Missing semicolon");
+  });
+
+  it("routes nitpick findings to collapsible details block", async () => {
+    const review = makeReview({
+      comments: [
+        makeComment({ severity: "nitpick", category: "style", message: "Prefer single quotes" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    // Nitpick findings go to collapsible block, not inline
+    expect(call.comments).toHaveLength(0);
+    const body: string = call.body;
+    expect(body).toContain("<details>");
+    expect(body).toContain("Low/Nitpick findings");
+    expect(body).toContain("Prefer single quotes");
+  });
+
+  it("routes critical findings as inline comments", async () => {
+    const review = makeReview({
+      comments: [
+        makeComment({ severity: "critical", category: "security", message: "SQL injection risk" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    // Critical findings still go inline
+    expect(call.comments).toHaveLength(1);
+    const body: string = call.comments[0].body;
+    expect(body).toContain("[CRITICAL]");
+    expect(body).toContain("SQL injection risk");
+  });
+
 });

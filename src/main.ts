@@ -11,6 +11,7 @@ import { Octokit } from "@octokit/rest";
 import { retry } from "@octokit/plugin-retry";
 import { loadConfig } from "./config.js";
 import { fetchDiff } from "./diff.js";
+import { classifyDiff } from "./router.js";
 import { buildLineMapFromRawDiff, buildPositionHint } from "./linemap.js";
 import { buildContext } from "./context.js";
 import { runReview } from "./review.js";
@@ -18,6 +19,7 @@ import { runCritique } from "./critique.js";
 import { postReview } from "./post.js";
 import { writeMemory } from "./memory.js";
 import { runRules } from "./rules.js";
+import { classifyPR } from "./classifier.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -71,37 +73,56 @@ async function run(): Promise<void> {
       return;
     }
 
-    // 2. Build line map from raw diff (validates which lines can receive comments)
+    // 2. Classify PR type (heuristic — zero LLM cost)
+  const prClassification = classifyPR(
+    diff.files.map((f) => ({ from: f.path, additions: f.additions, deletions: f.deletions })),
+    diff.totalAdditions,
+    diff.totalDeletions
+  );
+  core.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
+
+  // 2b. Classify diff tier for model routing (light/standard/thorough)
+  const classification = classifyDiff(
+    diff.totalAdditions + diff.totalDeletions,
+    diff.files.length,
+    diff.files.map((f) => f.path),
+    config
+  );
+  core.info(`Classification: ${classification.tier} (${classification.reason})`);
+
+  // 3. Build line map from raw diff (validates which lines can receive comments)
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
 
-    // 3. Run deterministic rules (zero LLM cost, never hallucinates)
+    // 4. Run deterministic rules (zero LLM cost, never hallucinates)
     const ruleFindings = runRules(diff.files);
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
 
-    // 4. Build context (diff + memory + rules + PR metadata)
+    // 5. Build context (diff + memory + rules + PR metadata + classification)
     const workspace = process.env.GITHUB_WORKSPACE || ".";
-    const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace);
+    const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
 
-    // 5. Build position hint for LLM
+    // 6. Build position hint for LLM
     const positionHint = buildPositionHint(diff.files);
 
-    // 6. Run review (first pass — LLM)
+    // 7. Run review (first pass — LLM)
     core.info("Running review pass...");
     const review = await runReview(
       context.diffText,
       positionHint,
       context.memoryContent,
       context.rulesContent,
-      config
+      context.ghostContent,
+      config,
+      classification
     );
     core.info(`First pass: ${review.comments.length} findings, decision=${review.decision}`);
 
-    // 7. Self-critique (second pass — cheaper model)
+    // 8. Self-critique (second pass — cheaper model)
     core.info("Running self-critique pass...");
     const filtered = await runCritique(review, config);
     core.info(`After critique: ${filtered.comments.length} findings (threshold=${config.confidenceThreshold})`);
 
-    // 8. Merge deterministic rule findings into LLM findings
+    // 9. Merge deterministic rule findings into LLM findings
     // Rule findings are always posted — they're deterministic and high-confidence
     const mergedComments = [
       ...ruleFindings.map((r) => ({
@@ -118,7 +139,7 @@ async function run(): Promise<void> {
 
     const mergedReview = { ...filtered, comments: mergedComments };
 
-    // 9. Post review
+    // 10. Post review
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     core.info("Posting review...");
     const result = await postReview(
@@ -126,7 +147,7 @@ async function run(): Promise<void> {
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
 
-    // 10. Update memory — learn from this review
+    // 11. Update memory — learn from this review
     const memoryUpdate = filtered.comments
       .filter((c) => c.severity === "critical" || c.severity === "high")
       .map((c) => `- [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message}`)

@@ -8,9 +8,9 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { MizumiConfig, getApiKey } from "./config.js";
+import { DiffClassification } from "./router.js";
 import { wrapDiff } from "./sanitize.js";
 
-// Zod v4 schemas for structured output
 export const ReviewComment = z.object({
   file: z.string().describe("File path relative to repo root"),
   line: z.number().describe("Line number in the new version of the file"),
@@ -32,10 +32,6 @@ export const ReviewResponse = z.object({
 export type ReviewCommentType = z.infer<typeof ReviewComment>;
 export type ReviewResponseType = z.infer<typeof ReviewResponse>;
 
-/**
- * Create AI SDK model instance for the selected provider.
- * Non-OpenAI providers use .chat() to hit /chat/completions instead of the Responses API.
- */
 function createModel(config: MizumiConfig) {
   const apiKey = getApiKey(config.provider);
 
@@ -68,8 +64,16 @@ function createModel(config: MizumiConfig) {
 }
 
 /**
- * Profile-specific review dimensions.
+ * Select model based on diff classification tier.
+ * Light tier → cheaper model (haiku for anthropic), else configured model.
  */
+export function selectModel(config: MizumiConfig, classification: DiffClassification): ReturnType<typeof createModel> {
+  if (classification.tier === "light" && config.provider === "anthropic") {
+    return createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5-20251001");
+  }
+  return createModel(config);
+}
+
 function getProfileInstructions(profile: MizumiConfig["profile"]): string {
   switch (profile) {
     case "chill":
@@ -85,9 +89,6 @@ Cross-reference with any prior bot comments on this PR.`;
   }
 }
 
-/**
- * Build the system prompt for the review LLM call.
- */
 function buildSystemPrompt(validPositions: string, config: MizumiConfig): string {
   return `You are Mizumi, a self-learning PR review agent. Your job is to find real issues in code changes.
 
@@ -129,20 +130,18 @@ NEVER make up line numbers — only use lines from the valid positions list.
 - Never say "always" or "never" — allow for context you might not see`;
 }
 
-/**
- * Run the review LLM call.
- */
 export async function runReview(
   diffContent: string,
   validPositions: string,
   memoryContent: string,
   rulesContent: string,
-  config: MizumiConfig
+  ghostContent: string,
+  config: MizumiConfig,
+  classification?: DiffClassification
 ): Promise<ReviewResponseType> {
-  const model = createModel(config);
+  const model = classification ? selectModel(config, classification) : createModel(config);
   const systemPrompt = buildSystemPrompt(validPositions, config);
 
-  // Build user prompt with diff + memory + rules
   let userPrompt = wrapDiff(diffContent);
 
   if (memoryContent) {
@@ -151,6 +150,10 @@ export async function runReview(
 
   if (rulesContent) {
     userPrompt += `\n\n## Project Rules (coding standards)\n${rulesContent}`;
+  }
+
+  if (ghostContent) {
+    userPrompt += `\n\n${ghostContent}`;
   }
 
   const { output } = await generateText({

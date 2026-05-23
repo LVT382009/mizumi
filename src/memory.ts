@@ -101,6 +101,34 @@ function hardCap(memory: string, maxBytes: number): string {
 }
 
 /**
+ * Review Ghost — extract memory warnings for specific files.
+ * Surfaces past issues in files being touched, e.g.
+ * "Last time auth/login.ts was touched, there was a critical security issue."
+ */
+export function ghostWarnings(memoryContent: string, changedFiles: string[]): string[] {
+  if (!memoryContent || changedFiles.length === 0) return [];
+
+  const warnings: string[] = [];
+  const lines = memoryContent.split("\n");
+
+  for (const line of lines) {
+    for (const file of changedFiles) {
+      // Match memory lines that reference this file (e.g. "- [high] src/auth.ts:12 — security: ...")
+      const basename = path.basename(file);
+      if (line.includes(file) || line.includes(basename)) {
+        // Don't repeat identical warnings
+        const summary = line.replace(/^[-*]\s*/, "").trim();
+        if (summary && !warnings.includes(summary)) {
+          warnings.push(summary);
+        }
+      }
+    }
+  }
+
+  return warnings.slice(0, 5); // Cap at 5 to save tokens
+}
+
+/**
  * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
  */
 export function readRules(workspace: string): string {

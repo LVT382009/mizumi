@@ -56,6 +56,9 @@ function makeConfig(overrides: Partial<Record<string, any>> = {}) {
     autoReview: true,
     autoPauseAfter: 5,
     excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**"],
     ...overrides,
   };
 }
@@ -219,7 +222,7 @@ describe("profile instructions in system prompt", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "positions", "", "", makeConfig({ profile: "chill" }));
+    await runReview("diff", "positions", "", "", "", makeConfig({ profile: "chill" }));
 
     expect(capturedSystem).toContain("bugs");
     expect(capturedSystem).toContain("security");
@@ -233,7 +236,7 @@ describe("profile instructions in system prompt", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "positions", "", "", makeConfig({ profile: "assertive" }));
+    await runReview("diff", "positions", "", "", "", makeConfig({ profile: "assertive" }));
 
     expect(capturedSystem).toContain("style");
     expect(capturedSystem).toContain("naming");
@@ -247,7 +250,7 @@ describe("profile instructions in system prompt", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "positions", "", "", makeConfig({ profile: "followup" }));
+    await runReview("diff", "positions", "", "", "", makeConfig({ profile: "followup" }));
 
     expect(capturedSystem).toContain("previous review");
   });
@@ -270,7 +273,7 @@ describe("system prompt build", () => {
     });
 
     const positions = "src/app.ts:10,src/app.ts:15";
-    await runReview("diff", positions, "", "", makeConfig());
+    await runReview("diff", positions, "", "", "", makeConfig());
 
     expect(capturedSystem).toContain(positions);
     expect(capturedSystem).toContain("Valid comment positions");
@@ -283,7 +286,7 @@ describe("system prompt build", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "positions", "", "", makeConfig());
+    await runReview("diff", "positions", "", "", "", makeConfig());
 
     expect(capturedSystem).toContain("critical");
     expect(capturedSystem).toContain("security vulnerabilities");
@@ -320,7 +323,7 @@ describe("runReview", () => {
 
     mockGenerateText.mockResolvedValue({ output: expected } as any);
 
-    const result = await runReview("diff content", "src/util.ts:42", "", "", makeConfig());
+    const result = await runReview("diff content", "src/util.ts:42", "", "", "", makeConfig());
 
     expect(result).toEqual(expected);
     expect(result.decision).toBe("request_changes");
@@ -335,7 +338,7 @@ describe("runReview", () => {
     });
 
     const { wrapDiff } = await import("../sanitize.js");
-    await runReview("some diff", "pos", "", "", makeConfig());
+    await runReview("some diff", "pos", "", "", "", makeConfig());
 
     expect(wrapDiff).toHaveBeenCalledWith("some diff");
     expect(capturedPrompt).toContain("WRAPPED(some diff)");
@@ -348,7 +351,7 @@ describe("runReview", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "pos", "past review patterns", "", makeConfig());
+    await runReview("diff", "pos", "past review patterns", "", "", makeConfig());
 
     expect(capturedPrompt).toContain("Project Memory");
     expect(capturedPrompt).toContain("past review patterns");
@@ -361,7 +364,7 @@ describe("runReview", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "pos", "", "no console.log in production", makeConfig());
+    await runReview("diff", "pos", "", "no console.log in production", "", makeConfig());
 
     expect(capturedPrompt).toContain("Project Rules");
     expect(capturedPrompt).toContain("no console.log in production");
@@ -374,7 +377,7 @@ describe("runReview", () => {
       return { output: fakeReviewOutput } as any;
     });
 
-    await runReview("diff", "pos", "", "", makeConfig());
+    await runReview("diff", "pos", "", "", "", makeConfig());
 
     expect(capturedPrompt).not.toContain("Project Memory");
     expect(capturedPrompt).not.toContain("Project Rules");
@@ -383,7 +386,7 @@ describe("runReview", () => {
   it("calls generateText with maxOutputTokens 4096", async () => {
     mockGenerateText.mockResolvedValue({ output: fakeReviewOutput } as any);
 
-    await runReview("diff", "pos", "", "", makeConfig());
+    await runReview("diff", "pos", "", "", "", makeConfig());
 
     expect(mockGenerateText).toHaveBeenCalledOnce();
     const callOpts = mockGenerateText.mock.calls[0][0] as any;

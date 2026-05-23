@@ -203,6 +203,9 @@ describe("runCritique", () => {
     language: "en-US",
     autoReview: true, autoPauseAfter: 5,
     excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**", "**/secret*", "**/password*"],
   };
 
   const reviewWithComments: ReviewResponseType = {

@@ -12,6 +12,7 @@ const mockOctokit = {
 vi.mock("../memory.js", () => ({
   readMemory: vi.fn().mockReturnValue("# Memory patterns\n- Use parameterized queries"),
   readRules: vi.fn().mockReturnValue("# Rules\n- No hardcoded secrets"),
+  ghostWarnings: vi.fn().mockReturnValue([]),
 }));
 
 // Mock diff.stripPatchPII to pass through
@@ -152,5 +153,36 @@ describe("buildContext", () => {
     );
 
     expect(ctx.diffText).toContain("(modified, +5/-2)");
+  });
+
+  it("includes classification in diff text when provided", async () => {
+    const classification = { category: "security" as const, confidence: 75, reason: "security-sensitive file: src/auth.ts" };
+    const ctx = await buildContext(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      42,
+      sampleDiff,
+      "/workspace",
+      classification
+    );
+
+    expect(ctx.diffText).toContain("PR Classification");
+    expect(ctx.diffText).toContain("security");
+    expect(ctx.classification).toBe(classification);
+  });
+
+  it("omits classification from diff text when not provided", async () => {
+    const ctx = await buildContext(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      42,
+      sampleDiff,
+      "/workspace"
+    );
+
+    expect(ctx.diffText).not.toContain("PR Classification");
+    expect(ctx.classification).toBeUndefined();
   });
 });

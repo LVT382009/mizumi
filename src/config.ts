@@ -17,6 +17,9 @@ export interface MizumiConfig {
   autoReview: boolean;
   autoPauseAfter: number;
   excludePatterns: string[];
+  tierRouting: boolean;
+  smallDiffThreshold: number;
+  securityPaths: string[];
 }
 
 const DEFAULT_EXCLUDE = [
@@ -31,6 +34,14 @@ const DEFAULT_EXCLUDE = [
   "node_modules/**",
 ];
 
+const DEFAULT_SECURITY_PATHS = [
+  "**/auth/**",
+  "**/crypto/**",
+  "**/sql/**",
+  "**/secret*",
+  "**/password*",
+];
+
 export function loadConfig(): MizumiConfig {
   const provider = (core.getInput("provider") || "anthropic") as Provider;
   const model = core.getInput("model") || "claude-sonnet-4-6";
@@ -43,12 +54,18 @@ export function loadConfig(): MizumiConfig {
   const autoReview = core.getInput("auto_review") !== "false";
   const autoPauseAfter = parseInt(core.getInput("auto_pause_after") || "5", 10);
 
+  const tierRouting = core.getInput("tier_routing") !== "false";
+  const smallDiffThreshold = parseInt(core.getInput("small_diff_threshold") || "50", 10);
+  let securityPaths = [...DEFAULT_SECURITY_PATHS];
+
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
   let repoModel = model;
   let repoProfile = profile;
   let repoMaxComments = maxComments;
   let repoConfidence = confidenceThreshold;
+  let repoTierRouting = tierRouting;
+  let repoSmallDiffThreshold = smallDiffThreshold;
 
   if (fs.existsSync(configPath)) {
     try {
@@ -60,6 +77,16 @@ export function loadConfig(): MizumiConfig {
       if (review?.profile) repoProfile = String(review.profile) as Profile;
       if (review?.max_comments) repoMaxComments = Number(review.max_comments);
       if (review?.confidence_threshold) repoConfidence = Number(review.confidence_threshold);
+      if (review?.tier_routing === false) repoTierRouting = false;
+      if (review?.small_diff_threshold) repoSmallDiffThreshold = Number(review.small_diff_threshold);
+      // security_paths from yml
+      const sp = parsed.security_paths as Record<string, unknown> | undefined;
+      const spInner = sp?.security_paths;
+      if (Array.isArray(spInner)) {
+        securityPaths = spInner.map(String);
+      } else if (Array.isArray(parsed.security_paths)) {
+        securityPaths = (parsed.security_paths as unknown[]).map(String);
+      }
       if (Array.isArray(parsed.exclude)) {
         excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
       } else if (parsed.exclude && typeof parsed.exclude === "object") {
@@ -86,6 +113,9 @@ export function loadConfig(): MizumiConfig {
     autoReview,
     autoPauseAfter,
     excludePatterns,
+    tierRouting: repoTierRouting,
+    smallDiffThreshold: repoSmallDiffThreshold,
+    securityPaths,
   };
 }
 

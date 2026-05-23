@@ -63,6 +63,14 @@ inputs:
     description: Stop auto-reviewing after this many reviews per PR (resume with /mizumi)
     required: false
     default: "5"
+  tier_routing:
+    description: Enable model tier routing (small diffs use cheaper model, security files get thorough review)
+    required: false
+    default: "true"
+  small_diff_threshold:
+    description: Line count threshold below which a diff is considered "small" for tier routing
+    required: false
+    default: "50"
 
 outputs:
   review_id:

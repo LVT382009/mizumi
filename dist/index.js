@@ -34783,6 +34783,13 @@ const DEFAULT_EXCLUDE = [
     "vendor/**",
     "node_modules/**",
 ];
+const DEFAULT_SECURITY_PATHS = [
+    "**/auth/**",
+    "**/crypto/**",
+    "**/sql/**",
+    "**/secret*",
+    "**/password*",
+];
 function loadConfig() {
     const provider = (getInput("provider") || "anthropic");
     const model = getInput("model") || "claude-sonnet-4-6";
@@ -34794,12 +34801,17 @@ function loadConfig() {
     const confidenceThreshold = parseInt(getInput("confidence_threshold") || "80", 10);
     const autoReview = getInput("auto_review") !== "false";
     const autoPauseAfter = parseInt(getInput("auto_pause_after") || "5", 10);
+    const tierRouting = getInput("tier_routing") !== "false";
+    const smallDiffThreshold = parseInt(getInput("small_diff_threshold") || "50", 10);
+    let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
     let repoModel = model;
     let repoProfile = profile;
     let repoMaxComments = maxComments;
     let repoConfidence = confidenceThreshold;
+    let repoTierRouting = tierRouting;
+    let repoSmallDiffThreshold = smallDiffThreshold;
     if (fs$1.existsSync(configPath)) {
         try {
             const raw = fs$1.readFileSync(configPath, "utf-8");
@@ -34814,6 +34826,19 @@ function loadConfig() {
                 repoMaxComments = Number(review.max_comments);
             if (review?.confidence_threshold)
                 repoConfidence = Number(review.confidence_threshold);
+            if (review?.tier_routing === false)
+                repoTierRouting = false;
+            if (review?.small_diff_threshold)
+                repoSmallDiffThreshold = Number(review.small_diff_threshold);
+            // security_paths from yml
+            const sp = parsed.security_paths;
+            const spInner = sp?.security_paths;
+            if (Array.isArray(spInner)) {
+                securityPaths = spInner.map(String);
+            }
+            else if (Array.isArray(parsed.security_paths)) {
+                securityPaths = parsed.security_paths.map(String);
+            }
             if (Array.isArray(parsed.exclude)) {
                 excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
             }
@@ -34841,6 +34866,9 @@ function loadConfig() {
         autoReview,
         autoPauseAfter,
         excludePatterns,
+        tierRouting: repoTierRouting,
+        smallDiffThreshold: repoSmallDiffThreshold,
+        securityPaths,
     };
 }
 /**
@@ -37428,6 +37456,28 @@ function stripPatchPII(diffText) {
 }
 
 /**
+ * Classify diff into a review tier based on size and file sensitivity.
+ * - thorough: security-sensitive files always get full review
+ * - light: small diffs use a cheaper/faster model
+ * - standard: everything else uses the configured model
+ */
+function classifyDiff(totalLines, fileCount, changedFiles, config) {
+    if (!config.tierRouting) {
+        return { tier: "standard", reason: "tier routing disabled" };
+    }
+    if (matchesSecurityPath(changedFiles, config.securityPaths)) {
+        return { tier: "thorough", reason: "security-sensitive files detected" };
+    }
+    if (totalLines < config.smallDiffThreshold && fileCount < 3) {
+        return { tier: "light", reason: `small diff (${totalLines} lines, ${fileCount} files)` };
+    }
+    return { tier: "standard", reason: "normal diff" };
+}
+function matchesSecurityPath(files, patterns) {
+    return files.some((f) => patterns.some((p) => minimatch(f, p)));
+}
+
+/**
  * Line mapping — validates LLM output lines against the diff.
  *
  * GitHub deprecated the `position` param for review comments in favor of
@@ -37626,6 +37676,31 @@ function hardCap(memory, maxBytes) {
     return [...header, ...tail].join("\n");
 }
 /**
+ * Review Ghost — extract memory warnings for specific files.
+ * Surfaces past issues in files being touched, e.g.
+ * "Last time auth/login.ts was touched, there was a critical security issue."
+ */
+function ghostWarnings(memoryContent, changedFiles) {
+    if (!memoryContent || changedFiles.length === 0)
+        return [];
+    const warnings = [];
+    const lines = memoryContent.split("\n");
+    for (const line of lines) {
+        for (const file of changedFiles) {
+            // Match memory lines that reference this file (e.g. "- [high] src/auth.ts:12 — security: ...")
+            const basename = path$1.basename(file);
+            if (line.includes(file) || line.includes(basename)) {
+                // Don't repeat identical warnings
+                const summary = line.replace(/^[-*]\s*/, "").trim();
+                if (summary && !warnings.includes(summary)) {
+                    warnings.push(summary);
+                }
+            }
+        }
+    }
+    return warnings.slice(0, 5); // Cap at 5 to save tokens
+}
+/**
  * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
  */
 function readRules(workspace) {
@@ -37644,6 +37719,48 @@ function readRules(workspace) {
         }
     }
     return parts.join("\n\n");
+}
+
+/**
+ * PR description quality check — score on completeness.
+ * Encourages: why explanation, linked issues, test plan, breaking change notes.
+ */
+function scorePRDescription(title, body) {
+    if (!body && !title) {
+        return { score: 0, missing: ["PR description", "explanation of why", "linked issues", "test plan"] };
+    }
+    const text = `${title} ${body}`.toLowerCase();
+    const missing = [];
+    // Check for "why" explanation — look for causal language
+    const hasWhy = /\b(because|since|reason|why|motivat|purpose|goal|fix|resolv|address)\b/.test(text)
+        || body.length > 100; // Long descriptions likely explain why
+    if (!hasWhy)
+        missing.push("explanation of why this change is needed");
+    // Check for linked issues (#123, closes #, fixes #, relates #)
+    const hasLinkedIssue = /(?:closes?|fixes?|resolves?|addresses?|relates?|refs?|see)\s+#\d+|#\d+/.test(text);
+    if (!hasLinkedIssue)
+        missing.push("linked issue or ticket reference");
+    // Check for test plan
+    const hasTestPlan = /\b(test\s*plan|how\s+to\s+test|test\s+steps|verified|testing)\b/i.test(text);
+    if (!hasTestPlan)
+        missing.push("test plan or verification steps");
+    // Check for breaking change notes
+    const hasBreakingNote = /\b(breaking\s+change|breaking\s+api|incompatible|migration|upgrade\s+guide|deprecat)\b/i.test(text);
+    // Only flag if the diff seems significant (large changes without breaking notes)
+    // We don't have diff size here, so just note it as optional
+    if (!hasBreakingNote && body.length > 0) {
+        missing.push("breaking change notes (if applicable)");
+    }
+    const score = 4 - missing.length;
+    return { score: Math.max(0, score), missing };
+}
+/**
+ * Format description quality as prompt context for the LLM.
+ */
+function formatDescriptionFeedback(quality) {
+    if (quality.score >= 3)
+        return ""; // Good enough, don't clutter
+    return `## PR Description Quality (${quality.score}/4)\nThis PR description is missing:\n${quality.missing.map((m) => `- ${m}`).join("\n")}\nConsider suggesting the author improve the PR description.`;
 }
 
 function ansiRegex({onlyFirst = false} = {}) {
@@ -37682,8 +37799,7 @@ function stripAnsi(string) {
 /**
  * Build the full review context for the LLM.
  */
-async function buildContext(octokit, owner, repo, prNumber, diff, workspace) {
-    // Fetch PR metadata
+async function buildContext(octokit, owner, repo, prNumber, diff, workspace, classification) {
     const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
     // Build diff text (PII-stripped, ANSI-cleaned)
     let diffText = "";
@@ -37698,17 +37814,33 @@ async function buildContext(octokit, owner, repo, prNumber, diff, workspace) {
         }
     }
     diffText = stripPatchPII(stripAnsi(diffText));
+    if (classification) {
+        diffText += `\n\n## PR Classification\nThis PR appears to be primarily about: ${classification.category} (${classification.reason})\nAdjust review focus accordingly.`;
+    }
     // Read memory + rules
     const memoryContent = readMemory(workspace);
     const rulesContent = readRules(workspace);
+    // Review Ghost
+    const changedFiles = diff.files.map((f) => f.path);
+    const warnings = ghostWarnings(memoryContent, changedFiles);
+    let ghostContent = "";
+    if (warnings.length > 0) {
+        ghostContent = `## Past Issues in These Files (Review Ghost)\nThe following issues were found in previous reviews of these files:\n${warnings.map((w) => `- ${w}`).join("\n")}\nPay extra attention to whether these issues have reappeared.`;
+    }
+    // PR description quality feedback
+    const descQuality = scorePRDescription(pr.title || "", pr.body || "");
+    const descriptionFeedback = formatDescriptionFeedback(descQuality);
     return {
         diffText,
         files: diff.files,
         memoryContent,
         rulesContent,
+        ghostContent,
+        descriptionFeedback,
         prTitle: pr.title || "",
         prDescription: pr.body || "",
-        changedFiles: diff.files.map((f) => f.path),
+        changedFiles,
+        classification,
     };
 }
 
@@ -72687,7 +72819,6 @@ ${sanitized}
  * LLM review — structured output via Vercel AI SDK 6.
  * BYOK from day 1: any provider, same code path.
  */
-// Zod v4 schemas for structured output
 const ReviewComment = object$1({
     file: string().describe("File path relative to repo root"),
     line: number$1().describe("Line number in the new version of the file"),
@@ -72704,10 +72835,6 @@ const ReviewResponse = object$1({
     comments: array$1(ReviewComment).describe("Review findings"),
     decision: _enum(["approve", "comment", "request_changes"]),
 });
-/**
- * Create AI SDK model instance for the selected provider.
- * Non-OpenAI providers use .chat() to hit /chat/completions instead of the Responses API.
- */
 function createModel(config) {
     const apiKey = getApiKey(config.provider);
     switch (config.provider) {
@@ -72738,8 +72865,15 @@ function createModel(config) {
     }
 }
 /**
- * Profile-specific review dimensions.
+ * Select model based on diff classification tier.
+ * Light tier → cheaper model (haiku for anthropic), else configured model.
  */
+function selectModel(config, classification) {
+    if (classification.tier === "light" && config.provider === "anthropic") {
+        return createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5-20251001");
+    }
+    return createModel(config);
+}
 function getProfileInstructions(profile) {
     switch (profile) {
         case "chill":
@@ -72754,9 +72888,6 @@ Be thorough but fair. Distinguish between real issues and preferences.`;
 Cross-reference with any prior bot comments on this PR.`;
     }
 }
-/**
- * Build the system prompt for the review LLM call.
- */
 function buildSystemPrompt(validPositions, config) {
     return `You are Mizumi, a self-learning PR review agent. Your job is to find real issues in code changes.
 
@@ -72797,19 +72928,18 @@ NEVER make up line numbers — only use lines from the valid positions list.
 - If uncertain, set confidence below 80 and it will be filtered
 - Never say "always" or "never" — allow for context you might not see`;
 }
-/**
- * Run the review LLM call.
- */
-async function runReview(diffContent, validPositions, memoryContent, rulesContent, config) {
-    const model = createModel(config);
+async function runReview(diffContent, validPositions, memoryContent, rulesContent, ghostContent, config, classification) {
+    const model = classification ? selectModel(config, classification) : createModel(config);
     const systemPrompt = buildSystemPrompt(validPositions, config);
-    // Build user prompt with diff + memory + rules
     let userPrompt = wrapDiff(diffContent);
     if (memoryContent) {
         userPrompt += `\n\n## Project Memory (past review patterns for this repo)\n${memoryContent}`;
     }
     if (rulesContent) {
         userPrompt += `\n\n## Project Rules (coding standards)\n${rulesContent}`;
+    }
+    if (ghostContent) {
+        userPrompt += `\n\n${ghostContent}`;
     }
     const { output } = await generateText({
         model,
@@ -72901,9 +73031,12 @@ function filterByConfidence(review, threshold) {
 }
 
 /**
- * Post review — inline suggestions + summary + Check Run + HTML marker dedup.
- * reviewdog pattern: Checks API as primary, PR Review API for final state,
- * summary comment update-in-place.
+ * Post review — severity-delivered output + summary + HTML marker dedup.
+ *
+ * Delivery tiers (Phase 2.4 — CodeRabbit pattern):
+ *   Critical/High → inline suggestions (with "Commit suggestion" button)
+ *   Medium        → summary table in review body
+ *   Low/Nitpick   → collapsible <details> in review body
  *
  * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
  * The deprecated `position` parameter is NOT used.
@@ -72911,17 +73044,31 @@ function filterByConfidence(review, threshold) {
 const MARKER$1 = "<!-- mizumi-review-marker -->";
 const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
 /**
- * Post the full review to GitHub.
+ * Post the full review to GitHub with severity-based delivery.
  */
 async function postReview(octokit, owner, repo, prNumber, headSha, review, lineMap, config) {
-    // 1. Build inline comments with valid line numbers
-    const inlineComments = [];
-    const overflowComments = [];
+    // 1. Partition findings by severity
+    const inlineFindings = [];
+    const tableFindings = [];
+    const detailsFindings = [];
+    const unmappableFindings = [];
     for (const finding of review.comments.slice(0, config.maxComments)) {
+        if (finding.severity === "critical" || finding.severity === "high") {
+            inlineFindings.push(finding);
+        }
+        else if (finding.severity === "medium") {
+            tableFindings.push(finding);
+        }
+        else {
+            detailsFindings.push(finding);
+        }
+    }
+    // 2. Build inline comments (critical + high only)
+    const inlineComments = [];
+    for (const finding of inlineFindings) {
         const resolvedLine = resolveLine(lineMap, finding.file, finding.line);
         if (resolvedLine === null) {
-            // Can't map to a valid diff line — goes to overflow
-            overflowComments.push(finding);
+            unmappableFindings.push(finding);
             continue;
         }
         const body = screenOutput(finding.suggestion
@@ -72933,7 +73080,6 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             side: "RIGHT",
             body,
         };
-        // Multi-line suggestion support
         if (finding.endLine && finding.endLine > finding.line) {
             const resolvedEndLine = resolveLine(lineMap, finding.file, finding.endLine);
             if (resolvedEndLine !== null && resolvedEndLine > resolvedLine) {
@@ -72944,12 +73090,11 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
         }
         inlineComments.push(comment);
     }
-    // 2. Slice to GitHub's 30-comment limit
+    // 3. Slice to GitHub's 30-comment limit; overflow joins table
     const postedInline = inlineComments.slice(0, MAX_INLINE_COMMENTS);
     const extraOverflow = inlineComments.slice(MAX_INLINE_COMMENTS);
-    // Comments that exceeded the 30-comment limit join overflow
     for (const c of extraOverflow) {
-        overflowComments.push({
+        tableFindings.push({
             file: c.path,
             line: c.start_line || c.line,
             severity: "medium",
@@ -72958,10 +73103,10 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             confidence: 100,
         });
     }
-    // 3. Create PR Review
+    // 4. Create PR Review
     let reviewId = 0;
     try {
-        const reviewBody = buildReviewBody(review, [...overflowComments]);
+        const reviewBody = buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings);
         const { data: createdReview } = await octokit.rest.pulls.createReview({
             owner,
             repo,
@@ -72983,10 +73128,10 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
         }
         throw error;
     }
-    // 4. Post/update summary comment with HTML marker dedup
+    // 5. Post/update summary comment with HTML marker dedup
     const summaryBody = buildSummaryComment(review);
     await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
-    // 5. Set outputs
+    // 6. Set outputs
     setOutput("review_id", reviewId);
     setOutput("finding_count", review.comments.length);
     setOutput("risk_score", review.riskScore);
@@ -73002,15 +73147,27 @@ function mapDecision(decision) {
             return "COMMENT";
     }
 }
-function buildReviewBody(review, overflow) {
+function buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings) {
     let body = MARKER$1;
     body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
     body += screenOutput(review.summary) + "\n\n";
-    if (overflow.length > 0) {
-        body += `<details><summary>Additional findings (${overflow.length})</summary>\n\n`;
+    // Medium findings — summary table
+    const allTableFindings = [...tableFindings, ...unmappableFindings];
+    if (allTableFindings.length > 0) {
+        body += `### Medium Findings (${allTableFindings.length})\n\n`;
+        body += "| File | Line | Category | Message |\n";
+        body += "|------|------|----------|--------|\n";
+        for (const f of allTableFindings) {
+            body += `| \`${f.file}\` | ${f.line} | ${f.category} | ${screenOutput(f.message)} |\n`;
+        }
+        body += "\n";
+    }
+    // Low/nitpick findings — collapsible details
+    if (detailsFindings.length > 0) {
+        body += `<details><summary>Low/Nitpick findings (${detailsFindings.length})</summary>\n\n`;
         body += "| File | Line | Severity | Category | Message |\n";
         body += "|------|------|----------|----------|--------|\n";
-        for (const f of overflow) {
+        for (const f of detailsFindings) {
             body += `| \`${f.file}\` | ${f.line} | ${f.severity} | ${f.category} | ${screenOutput(f.message)} |\n`;
         }
         body += "\n</details>\n";
@@ -73037,7 +73194,6 @@ function buildSummaryComment(review) {
     return body;
 }
 async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body) {
-    // Find existing comment with our marker
     const { data: comments } = await octokit.rest.issues.listComments({
         owner,
         repo,
@@ -73046,7 +73202,6 @@ async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body
     });
     const existing = comments.find((c) => c.body?.includes(MARKER$1));
     if (existing) {
-        // Update-in-place (dependency-review-action pattern)
         await octokit.rest.issues.updateComment({
             owner,
             repo,
@@ -73148,6 +73303,56 @@ function hasSQLConcat(line) {
 }
 
 /**
+ * Heuristic PR classifier — categorizes a diff by file patterns and change stats.
+ * Zero LLM calls. Used to adjust review focus before the full review pass.
+ */
+const DOCS_RE = /^(\.md|\.txt|\.rst|docs\/)/i;
+const DOCS_EXT_RE = /\.(md|txt|rst)$/i;
+const TEST_FILE_RE = /(\.(test|spec)\.|^[\\/](test|tests|__tests__)[\\/])/i;
+const TEST_PATH_RE = /^(test|tests|__tests__)[\\/]/i;
+const CONFIG_RE = /\.(ya?ml|json)$/i;
+const CONFIG_PATH_RE = /^(\.[^/]*|\.github[\\/]|Dockerfile)/i;
+const SECURITY_RE = /(auth|crypto|sql|secret|password|permission|token)/i;
+const COSMETIC_RE = /\.(css|scss|html|svg|png|jpg|gif|webp|ico)$/i;
+function classifyPR(changedFiles, totalAdditions, totalDeletions, _prTitle, _prBody) {
+    if (changedFiles.length === 0) {
+        return { category: "logic", confidence: 30, reason: "no files to classify" };
+    }
+    const paths = changedFiles.map((f) => f.from);
+    // docs: ALL files are documentation
+    if (paths.every((p) => DOCS_EXT_RE.test(p) || DOCS_RE.test(p))) {
+        return { category: "docs", confidence: 95, reason: "all files are documentation" };
+    }
+    // tests: ONLY additions and only in test files
+    const allAdditions = changedFiles.every((f) => f.deletions === 0);
+    const allTestFiles = paths.every((p) => TEST_FILE_RE.test(p) || TEST_PATH_RE.test(p));
+    if (allAdditions && allTestFiles) {
+        return { category: "tests", confidence: 90, reason: "only additions in test files" };
+    }
+    // config: ALL files match config patterns
+    if (paths.every((p) => CONFIG_RE.test(p) || CONFIG_PATH_RE.test(p))) {
+        return { category: "config", confidence: 90, reason: "all files are configuration" };
+    }
+    // security: ANY file touches security-sensitive areas
+    const securityFile = paths.find((p) => SECURITY_RE.test(p));
+    if (securityFile) {
+        return {
+            category: "security",
+            confidence: 75,
+            reason: `security-sensitive file: ${securityFile}`,
+        };
+    }
+    // cosmetic: high add/del ratio in style/image files
+    const allCosmetic = paths.every((p) => COSMETIC_RE.test(p));
+    if (allCosmetic &&
+        totalDeletions > 0 &&
+        totalAdditions / totalDeletions > 5) {
+        return { category: "cosmetic", confidence: 80, reason: "high add/rm ratio in style/image files" };
+    }
+    return { category: "logic", confidence: 60, reason: "general code changes" };
+}
+
+/**
  * Mizumi — Self-Learning PR Review Agent
  * Action entrypoint: parse event → rules → review → critique → post → memory
  *
@@ -73195,25 +73400,31 @@ async function run() {
             info("No changed files after exclusions — skipping review");
             return;
         }
-        // 2. Build line map from raw diff (validates which lines can receive comments)
+        // 2. Classify PR type (heuristic — zero LLM cost)
+        const prClassification = classifyPR(diff.files.map((f) => ({ from: f.path, additions: f.additions, deletions: f.deletions })), diff.totalAdditions, diff.totalDeletions);
+        info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
+        // 2b. Classify diff tier for model routing (light/standard/thorough)
+        const classification = classifyDiff(diff.totalAdditions + diff.totalDeletions, diff.files.length, diff.files.map((f) => f.path), config);
+        info(`Classification: ${classification.tier} (${classification.reason})`);
+        // 3. Build line map from raw diff (validates which lines can receive comments)
         const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
-        // 3. Run deterministic rules (zero LLM cost, never hallucinates)
+        // 4. Run deterministic rules (zero LLM cost, never hallucinates)
         const ruleFindings = runRules(diff.files);
         info(`Rules: ${ruleFindings.length} deterministic findings`);
-        // 4. Build context (diff + memory + rules + PR metadata)
+        // 5. Build context (diff + memory + rules + PR metadata + classification)
         const workspace = process.env.GITHUB_WORKSPACE || ".";
-        const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace);
-        // 5. Build position hint for LLM
+        const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
+        // 6. Build position hint for LLM
         const positionHint = buildPositionHint(diff.files);
-        // 6. Run review (first pass — LLM)
+        // 7. Run review (first pass — LLM)
         info("Running review pass...");
-        const review = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, config);
+        const review = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, context.ghostContent, config, classification);
         info(`First pass: ${review.comments.length} findings, decision=${review.decision}`);
-        // 7. Self-critique (second pass — cheaper model)
+        // 8. Self-critique (second pass — cheaper model)
         info("Running self-critique pass...");
         const filtered = await runCritique(review, config);
         info(`After critique: ${filtered.comments.length} findings (threshold=${config.confidenceThreshold})`);
-        // 8. Merge deterministic rule findings into LLM findings
+        // 9. Merge deterministic rule findings into LLM findings
         // Rule findings are always posted — they're deterministic and high-confidence
         const mergedComments = [
             ...ruleFindings.map((r) => ({
@@ -73228,12 +73439,12 @@ async function run() {
             ...filtered.comments,
         ];
         const mergedReview = { ...filtered, comments: mergedComments };
-        // 9. Post review
+        // 10. Post review
         const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
         info("Posting review...");
         const result = await postReview(octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config);
         info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
-        // 10. Update memory — learn from this review
+        // 11. Update memory — learn from this review
         const memoryUpdate = filtered.comments
             .filter((c) => c.severity === "critical" || c.severity === "high")
             .map((c) => `- [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message}`)
