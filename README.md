@@ -11,6 +11,11 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Noise control** — `chill` profile (default) only flags bugs and security issues. `assertive` adds style/docs
 - **Input sanitization** — Defends against prompt injection from malicious PR content
 - **Output screening** — Redacts secrets, external URLs, and shell commands from review output
+- **Spend tracking** — JSONL append-only log with token usage per review
+- **Webhook idempotency + SHA dedup** — Prevents duplicate reviews from webhook retries
+- **Slop detection** — Skips deep review for low-quality AI-generated PRs
+- **VS Code deep-links** — Each review comment includes a `vscode://file/` link
+- **Tier routing** — Small diffs route to a cheaper model to reduce cost
 
 ## Quick Start
 
@@ -32,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
+      contents: write
       issues: write
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +76,8 @@ jobs:
 | `auto_review` | `true` | Auto-review on PR events |
 | `auto_pause_after` | `5` | Stop auto-reviewing after N reviews per PR |
 | `language` | `en-US` | Review comment language |
+| `tier_routing` | `true` | Route small diffs to a cheaper model |
+| `small_diff_threshold` | `50` | Line count threshold for tier routing |
 
 ### Per-Repository Config (`.github/mizumi.yml`)
 
@@ -108,6 +115,18 @@ Mizumi writes to `.github/mizumi-memory.md` after each review, capturing pattern
 ### Manual Trigger
 
 Comment `/mizumi` on any PR to trigger a review on demand. This bypasses the `auto_pause_after` limit.
+
+### Subcommands
+
+| Command | Description |
+|---|---|
+| `/mizumi describe` | Generates a structured PR description from diff analysis |
+| `/mizumi improve` | Applies ```suggestion blocks from review comments via Git Data API (one-click fix) |
+| `/mizumi test` | Generates vitest test skeletons for critical/high findings |
+
+### Auto Skill Generation
+
+When Mizumi detects recurring review patterns, it writes reusable skill files to `.github/mizumi-skills/`. These skills are injected into future reviews, letting Mizumi apply learned patterns deterministically without re-discovering them. You can edit or delete skill files at any time.
 
 ## NVIDIA NIM Setup
 

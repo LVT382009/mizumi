@@ -5,6 +5,10 @@ branding:
   color: purple
 
 inputs:
+  github_token:
+    description: GitHub token for API access (default: automatically provided by Actions)
+    required: false
+    default: ${{ github.token }}
   anthropic_api_key:
     description: Anthropic API key (recommended: use MIZUMI_ANTHROPIC_API_KEY secret to avoid credential collisions)
     required: false

@@ -17,6 +17,7 @@ import 'child_process';
 import 'timers';
 import * as fs$1 from 'node:fs';
 import * as path$1 from 'node:path';
+import * as crypto$1 from 'node:crypto';
 
 function _mergeNamespaces(n, m) {
     m.forEach(function (e) {
@@ -34790,11 +34791,15 @@ const DEFAULT_SECURITY_PATHS = [
     "**/secret*",
     "**/password*",
 ];
+const VALID_PROVIDERS = ["anthropic", "openai", "google", "openrouter", "nvidia", "local"];
+const VALID_PROFILES = ["chill", "assertive", "followup"];
 function loadConfig() {
-    const provider = (getInput("provider") || "anthropic");
+    const rawProvider = getInput("provider") || "anthropic";
+    const provider = (VALID_PROVIDERS.includes(rawProvider) ? rawProvider : "anthropic");
     const model = getInput("model") || "claude-sonnet-4-6";
     const baseUrl = getInput("base_url") || "";
-    const profile = (getInput("profile") || "chill");
+    const rawProfile = getInput("profile") || "chill";
+    const profile = (VALID_PROFILES.includes(rawProfile) ? rawProfile : "chill");
     const maxComments = parseInt(getInput("max_comments") || "15", 10);
     const language = getInput("language") || "en-US";
     const selfCritique = getInput("self_critique") !== "false";
@@ -37457,9 +37462,6 @@ function stripPatchPII(diffText) {
 
 /**
  * Classify diff into a review tier based on size and file sensitivity.
- * - thorough: security-sensitive files always get full review
- * - light: small diffs use a cheaper/faster model
- * - standard: everything else uses the configured model
  */
 function classifyDiff(totalLines, fileCount, changedFiles, config) {
     if (!config.tierRouting) {
@@ -37475,6 +37477,42 @@ function classifyDiff(totalLines, fileCount, changedFiles, config) {
 }
 function matchesSecurityPath(files, patterns) {
     return files.some((f) => patterns.some((p) => minimatch(f, p)));
+}
+/**
+ * Estimate token count from text length.
+ * ~4 chars per token is a reliable heuristic for code.
+ */
+function estimateTokens(text) {
+    return Math.ceil(text.length / 4);
+}
+/** Context limits per provider (conservative estimates, leaving room for system prompt) */
+const CONTEXT_LIMITS = {
+    anthropic: 180000,
+    openai: 120000,
+    google: 1000000,
+    openrouter: 120000,
+    nvidia: 120000,
+    local: 32000,
+};
+/**
+ * Check if diff text fits within the model's context window.
+ * Returns truncated text if needed, or the original if it fits.
+ */
+function guardContextWindow(diffText, provider, systemPromptTokens = 2000) {
+    const tokens = estimateTokens(diffText);
+    const limit = CONTEXT_LIMITS[provider] || 120000;
+    const available = limit - systemPromptTokens - 2000; // reserve for output
+    if (tokens <= available) {
+        return { text: diffText, truncated: false, estimatedTokens: tokens };
+    }
+    // Truncate: keep beginning (file headers + first hunks) and end (latest changes)
+    const charLimit = available * 4;
+    const headChars = Math.floor(charLimit * 0.7);
+    const tailChars = charLimit - headChars;
+    const truncated = diffText.slice(0, headChars) +
+        "\n\n... [MIZUMI: diff truncated to fit context window] ...\n\n" +
+        diffText.slice(-tailChars);
+    return { text: truncated, truncated: true, estimatedTokens: estimateTokens(truncated) };
 }
 
 /**
@@ -37699,6 +37737,70 @@ function ghostWarnings(memoryContent, changedFiles) {
         }
     }
     return warnings.slice(0, 5); // Cap at 5 to save tokens
+}
+/**
+ * Auto Skill Generation — when a file+category combo appears 3+ times in
+ * memory, create a SKILL.md under .github/mizumi-skills/.
+ */
+function autoGenerateSkills(memoryContent, workspace) {
+    if (!memoryContent)
+        return [];
+    const patternRe = /^[-*]\s+\[[^\]]+\]\s+(\S+):(\d+)\s+—\s+(\w+)/gm;
+    const counts = new Map();
+    let m;
+    while ((m = patternRe.exec(memoryContent)) !== null) {
+        const key = `${m[1]}|${m[3]}`;
+        const existing = counts.get(key);
+        if (existing)
+            existing.count++;
+        else
+            counts.set(key, { file: m[1], category: m[3], count: 1 });
+    }
+    const skillsDir = path$1.join(workspace, ".github", "mizumi-skills");
+    const generated = [];
+    for (const [, v] of counts) {
+        if (v.count < 3)
+            continue;
+        if (!fs$1.existsSync(skillsDir))
+            fs$1.mkdirSync(skillsDir, { recursive: true });
+        const basename = path$1.basename(v.file, path$1.extname(v.file));
+        const skillName = `${v.category}-${basename}`;
+        const skillPath = path$1.join(skillsDir, `${skillName}.md`);
+        const body = `When reviewing ${v.file}, pay attention to ${v.category} issues.`;
+        const content = `---\nname: ${skillName}\ndescription: ${v.category} patterns for ${v.file}\nfile_pattern: "${v.file}"\n---\n${body}\n`;
+        fs$1.writeFileSync(skillPath, content, "utf-8");
+        generated.push(skillPath);
+    }
+    return generated;
+}
+/**
+ * Progressive Skill Loading — scan skill names first, then lazy-load
+ * only those matching changed files. Returns names + loaded content.
+ */
+function loadSkills(workspace, changedFiles) {
+    const skillsDir = path$1.join(workspace, ".github", "mizumi-skills");
+    if (!fs$1.existsSync(skillsDir))
+        return { names: [], loaded: "" };
+    const allFiles = fs$1.readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
+    const names = allFiles.map((f) => f.replace(/\.md$/, ""));
+    const fmRe = /^---\n[\s\S]*?file_pattern:\s*"([^"]+)"[\s\S]*?---\n([\s\S]*)$/;
+    let loaded = "";
+    let skillCount = 0;
+    for (const f of allFiles) {
+        if (skillCount >= 5)
+            break;
+        const raw = fs$1.readFileSync(path$1.join(skillsDir, f), "utf-8");
+        const fm = raw.match(fmRe);
+        if (!fm || !changedFiles.some((cf) => cf === fm[1] || cf.endsWith(fm[1])))
+            continue;
+        loaded += `\n${fm[2].trim()}\n`;
+        skillCount++;
+        if (loaded.length > 2000) {
+            loaded = loaded.slice(0, 2000);
+            break;
+        }
+    }
+    return { names, loaded: loaded.trim() };
 }
 /**
  * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
@@ -72835,7 +72937,7 @@ const ReviewResponse = object$1({
     comments: array$1(ReviewComment).describe("Review findings"),
     decision: _enum(["approve", "comment", "request_changes"]),
 });
-function createModel(config) {
+function createModel$2(config) {
     const apiKey = getApiKey(config.provider);
     switch (config.provider) {
         case "anthropic":
@@ -72872,7 +72974,7 @@ function selectModel(config, classification) {
     if (classification.tier === "light" && config.provider === "anthropic") {
         return createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5-20251001");
     }
-    return createModel(config);
+    return createModel$2(config);
 }
 function getProfileInstructions(profile) {
     switch (profile) {
@@ -72929,7 +73031,7 @@ NEVER make up line numbers — only use lines from the valid positions list.
 - Never say "always" or "never" — allow for context you might not see`;
 }
 async function runReview(diffContent, validPositions, memoryContent, rulesContent, ghostContent, config, classification) {
-    const model = classification ? selectModel(config, classification) : createModel(config);
+    const model = classification ? selectModel(config, classification) : createModel$2(config);
     const systemPrompt = buildSystemPrompt(validPositions, config);
     let userPrompt = wrapDiff(diffContent);
     if (memoryContent) {
@@ -72941,14 +73043,25 @@ async function runReview(diffContent, validPositions, memoryContent, rulesConten
     if (ghostContent) {
         userPrompt += `\n\n${ghostContent}`;
     }
-    const { output } = await generateText({
+    // Build user message — Anthropic gets prompt caching via providerOptions
+    const anthropicCacheOptions = config.provider === "anthropic"
+        ? { anthropic: { cacheControl: { type: "ephemeral" } } }
+        : undefined;
+    const userMessage = anthropicCacheOptions
+        ? {
+            role: "user",
+            content: [{ type: "text", text: userPrompt }],
+            providerOptions: anthropicCacheOptions,
+        }
+        : { role: "user", content: userPrompt };
+    const { output, usage } = await generateText({
         model,
         system: systemPrompt,
-        prompt: userPrompt,
+        messages: [userMessage],
         output: output_exports.object({ schema: ReviewResponse }),
         maxOutputTokens: 4096,
     });
-    return output;
+    return { output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
 }
 
 /**
@@ -73034,15 +73147,18 @@ function filterByConfidence(review, threshold) {
  * Post review — severity-delivered output + summary + HTML marker dedup.
  *
  * Delivery tiers (Phase 2.4 — CodeRabbit pattern):
- *   Critical/High → inline suggestions (with "Commit suggestion" button)
- *   Medium        → summary table in review body
- *   Low/Nitpick   → collapsible <details> in review body
+ * Critical/High → inline suggestions (with "Commit suggestion" button)
+ * Medium → summary table in review body
+ * Low/Nitpick → collapsible <details> in review body
  *
  * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
  * The deprecated `position` parameter is NOT used.
  */
-const MARKER$1 = "<!-- mizumi-review-marker -->";
+const MARKER$2 = "<!-- mizumi-review-marker -->";
 const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
+function vscodeLink(file, line) {
+    return `[Open in VS Code](vscode://file/${file}:${line})`;
+}
 /**
  * Post the full review to GitHub with severity-based delivery.
  */
@@ -73071,9 +73187,10 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             unmappableFindings.push(finding);
             continue;
         }
+        const link = vscodeLink(finding.file, resolvedLine);
         const body = screenOutput(finding.suggestion
-            ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\``
-            : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}`);
+            ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n${link}`
+            : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n${link}`);
         const comment = {
             path: finding.file,
             line: resolvedLine,
@@ -73106,7 +73223,7 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
     // 4. Create PR Review
     let reviewId = 0;
     try {
-        const reviewBody = buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings);
+        const reviewBody = buildReviewBody(inlineFindings, tableFindings, detailsFindings, unmappableFindings, review.riskScore, review.comments.length, mapDecision(review.decision), review.summary);
         const { data: createdReview } = await octokit.rest.pulls.createReview({
             owner,
             repo,
@@ -73147,10 +73264,21 @@ function mapDecision(decision) {
             return "COMMENT";
     }
 }
-function buildReviewBody(review, tableFindings, detailsFindings, unmappableFindings) {
-    let body = MARKER$1;
-    body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)\n\n`;
-    body += screenOutput(review.summary) + "\n\n";
+function buildFatigueWarning(findingCount) {
+    if (findingCount <= 15)
+        return "";
+    return `> ⚠️ **Review Fatigue**: This review found ${findingCount} findings. Consider splitting this PR into smaller, focused changes for better review quality.`;
+}
+function buildReviewBody(_inlineFindings, tableFindings, detailsFindings, unmappableFindings, riskScore, findingCount, _reviewDecision, descriptionFeedback) {
+    let body = MARKER$2;
+    const fatigueWarning = buildFatigueWarning(findingCount);
+    if (fatigueWarning) {
+        body += `\n${fatigueWarning}\n\n`;
+    }
+    body += `## Mizumi Review — Risk: ${"🔴".repeat(riskScore)}${"⚪".repeat(5 - riskScore)} (${riskScore}/5)\n\n`;
+    if (descriptionFeedback) {
+        body += screenOutput(descriptionFeedback) + "\n\n";
+    }
     // Medium findings — summary table
     const allTableFindings = [...tableFindings, ...unmappableFindings];
     if (allTableFindings.length > 0) {
@@ -73176,7 +73304,7 @@ function buildReviewBody(review, tableFindings, detailsFindings, unmappableFindi
     return body;
 }
 function buildSummaryComment(review) {
-    let body = MARKER$1;
+    let body = MARKER$2;
     body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)`;
     body += `\n\n${screenOutput(review.summary)}`;
     body += `\n\n**Decision:** ${review.decision.toUpperCase()} | **Findings:** ${review.comments.length}`;
@@ -73193,6 +73321,39 @@ function buildSummaryComment(review) {
     body += "\n\n---\n*This review was AI-generated by Mizumi. Always verify findings before acting. Not a substitute for human security review.*";
     return body;
 }
+/**
+ * Delete Mizumi's own inline review comments whose file+line no longer
+ * appears in the current findings (reviewdog stale-cleanup pattern).
+ * Returns the number of comments deleted. Never throws.
+ */
+async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFindings) {
+    const currentKeys = new Set(currentFindings.map((f) => `${f.file}:${f.line}`));
+    let deleted = 0;
+    let page = 1;
+    while (true) {
+        const { data: comments } = await octokit.rest.pulls.listReviewComments({
+            owner, repo, pull_number: prNumber, per_page: 100, page,
+        });
+        for (const comment of comments) {
+            if (!comment.body?.includes(MARKER$2))
+                continue;
+            const key = `${comment.path}:${comment.line}`;
+            if (currentKeys.has(key))
+                continue;
+            try {
+                await octokit.rest.pulls.deleteReviewComment({
+                    owner, repo, comment_id: comment.id,
+                });
+                deleted++;
+            }
+            catch { /* never fail the review for a cleanup error */ }
+        }
+        if (comments.length < 100)
+            break;
+        page++;
+    }
+    return deleted;
+}
 async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body) {
     const { data: comments } = await octokit.rest.issues.listComments({
         owner,
@@ -73200,7 +73361,7 @@ async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body
         issue_number: prNumber,
         per_page: 100,
     });
-    const existing = comments.find((c) => c.body?.includes(MARKER$1));
+    const existing = comments.find((c) => c.body?.includes(MARKER$2));
     if (existing) {
         await octokit.rest.issues.updateComment({
             owner,
@@ -73277,7 +73438,38 @@ function runRules(files) {
             }
         }
     }
+    const dup = checkDuplicateApprovalGuard(files);
+    if (dup)
+        findings.push(dup);
     return findings;
+}
+/** Approval-path glob patterns — files that control authorization. */
+const APPROVAL_PATTERNS = [
+    "**/auth/**",
+    "**/permission*",
+    "**/rbac/**",
+    "**/policy*",
+    "**/access*",
+    "**/middleware/auth*",
+    "**/guard/**",
+];
+function isApprovalFile(filePath) {
+    return APPROVAL_PATTERNS.some((p) => minimatch(filePath, p));
+}
+/** Phase 3.17 — flag PRs that mix approval/auth changes with unrelated code. */
+function checkDuplicateApprovalGuard(files) {
+    const hasApproval = files.some((f) => isApprovalFile(f.path));
+    const hasNonApproval = files.some((f) => !isApprovalFile(f.path));
+    if (!hasApproval || !hasNonApproval)
+        return null;
+    return {
+        file: files.find((f) => isApprovalFile(f.path)).path,
+        line: 0,
+        severity: "high",
+        category: "security",
+        message: "This PR modifies approval logic alongside non-approval changes — potential authorization bypass. Consider splitting into separate PRs.",
+        rule: "duplicate-approval-guard",
+    };
 }
 function isRouteDefinition(line) {
     return /\.(get|post|put|delete|patch|route)\s*\(/i.test(line);
@@ -73353,6 +73545,482 @@ function classifyPR(changedFiles, totalAdditions, totalDeletions, _prTitle, _prB
 }
 
 /**
+ * Spend tracking — per-review token usage logging.
+ * Writes to .github/mizumi-spend.jsonl (append-only, one JSON line per review).
+ */
+const SPEND_FILENAME = "mizumi-spend.jsonl";
+const MAX_SPEND_ENTRIES = 500;
+function createSpendEntry(repo, pr, provider, model, usage, tier, findingCount, riskScore) {
+    const inputTokens = usage.inputTokens ?? 0;
+    const outputTokens = usage.outputTokens ?? 0;
+    const cachedTokens = usage.cachedInputTokens ?? 0;
+    return {
+        timestamp: new Date().toISOString(),
+        repo,
+        pr,
+        provider,
+        model,
+        inputTokens,
+        outputTokens,
+        cachedTokens,
+        totalTokens: inputTokens + outputTokens,
+        tier,
+        findingCount,
+        riskScore,
+    };
+}
+function appendSpendEntry(workspace, entry) {
+    const dir = path$1.join(workspace, ".github");
+    const filePath = path$1.join(dir, SPEND_FILENAME);
+    try {
+        if (!fs$1.existsSync(dir))
+            fs$1.mkdirSync(dir, { recursive: true });
+        fs$1.appendFileSync(filePath, JSON.stringify(entry) + "\n", "utf-8");
+        info(`Spend: ${entry.totalTokens} tokens (${entry.provider}/${entry.model})`);
+        // Rotate if too large — keep last MAX_SPEND_ENTRIES lines
+        truncateIfNeeded(filePath);
+    }
+    catch (error) {
+        warning(`Failed to write spend entry: ${error}`);
+    }
+}
+function truncateIfNeeded(filePath) {
+    try {
+        const stat = fs$1.statSync(filePath);
+        if (stat.size < 500_000)
+            return; // Under 500KB — no rotation needed
+        const lines = fs$1.readFileSync(filePath, "utf-8").trim().split("\n");
+        if (lines.length > MAX_SPEND_ENTRIES) {
+            const kept = lines.slice(-MAX_SPEND_ENTRIES);
+            fs$1.writeFileSync(filePath, kept.join("\n") + "\n", "utf-8");
+        }
+    }
+    catch {
+        // Non-critical
+    }
+}
+
+/**
+ * Emoji feedback — polls reactions on Mizumi review comments.
+ * 👍 / ❤️ = helpful, 👎 / ❌ = unhelpful.
+ * Results stored in .github/mizumi-feedback.json for self-learning.
+ */
+const FEEDBACK_FILENAME = "mizumi-feedback.json";
+const MAX_FEEDBACK_ENTRIES = 200;
+/** Hash a message to a short fingerprint for dedup matching. */
+function hashMessage(message) {
+    let hash = 0;
+    for (let i = 0; i < message.length; i++) {
+        const chr = message.charCodeAt(i);
+        hash = ((hash << 5) - hash + chr) | 0;
+    }
+    return Math.abs(hash).toString(36);
+}
+/** Read feedback store from disk. Returns empty store if missing. */
+function readFeedbackStore(workspace) {
+    const filePath = path$1.join(workspace, ".github", FEEDBACK_FILENAME);
+    if (!fs$1.existsSync(filePath))
+        return { entries: [] };
+    try {
+        const content = fs$1.readFileSync(filePath, "utf-8");
+        return JSON.parse(content);
+    }
+    catch {
+        return { entries: [] };
+    }
+}
+/** Write feedback store to disk, capping at MAX_FEEDBACK_ENTRIES. */
+function writeFeedbackStore(workspace, store) {
+    const dir = path$1.join(workspace, ".github");
+    const filePath = path$1.join(dir, FEEDBACK_FILENAME);
+    // Cap entries — keep most recent
+    if (store.entries.length > MAX_FEEDBACK_ENTRIES) {
+        store.entries = store.entries.slice(-MAX_FEEDBACK_ENTRIES);
+    }
+    try {
+        if (!fs$1.existsSync(dir))
+            fs$1.mkdirSync(dir, { recursive: true });
+        fs$1.writeFileSync(filePath, JSON.stringify(store, null, 2), "utf-8");
+        info(`Feedback: wrote ${store.entries.length} entries`);
+    }
+    catch (error) {
+        warning(`Failed to write feedback: ${error}`);
+    }
+}
+/**
+ * Record initial feedback entries for a review's findings.
+ * Called after posting a review so future reaction polls can update these.
+ */
+function recordFindings(workspace, repo, pr, findings) {
+    const store = readFeedbackStore(workspace);
+    for (const f of findings) {
+        store.entries.push({
+            repo,
+            pr,
+            commentId: f.commentId ?? 0,
+            file: f.file,
+            line: f.line,
+            category: f.category,
+            severity: f.severity,
+            messageHash: hashMessage(f.message),
+            outcome: "pending",
+            createdAt: new Date().toISOString(),
+        });
+    }
+    writeFeedbackStore(workspace, store);
+}
+
+/**
+ * PR description generator — analyzes diff and produces a structured description.
+ * Triggered via `/mizumi describe` command.
+ */
+const DescriptionSchema = object$1({
+    title: string().describe("Concise PR title in imperative mood"),
+    summary: string().describe("1-2 sentence summary of what this PR does and why"),
+    changes: array$1(string()).describe("Bullet list of key changes"),
+    testing: string().describe("How to verify these changes work"),
+    breaking: string().optional().describe("Breaking changes if any, or 'None'"),
+});
+function createModel$1(config) {
+    const apiKey = getApiKey(config.provider);
+    switch (config.provider) {
+        case "anthropic": return createAnthropic({ apiKey })(config.model);
+        case "openai": return createOpenAI({ apiKey })(config.model);
+        case "google": return createGoogleGenerativeAI({ apiKey })(config.model);
+        case "openrouter": return createOpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey, name: "openrouter" }).chat(config.model);
+        case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey: apiKey || "dummy", name: "local" }).chat(config.model);
+        case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
+    }
+}
+async function generateDescription(diffText, prTitle, prBody, config) {
+    const model = createModel$1(config);
+    const { output } = await generateText({
+        model,
+        system: "You generate clear, structured PR descriptions from diff content. Use imperative mood. Be concise.",
+        prompt: `Generate a PR description for this diff.
+
+Current title: ${prTitle || "(none)"}
+Current body: ${prBody || "(none)"}
+
+Diff:
+${diffText.slice(0, 50000)}
+
+Respond with structured JSON matching the schema.`,
+        output: output_exports.object({ schema: DescriptionSchema }),
+        maxOutputTokens: 2048,
+    });
+    const desc = output;
+    let body = `## ${desc.title}\n\n${desc.summary}\n\n### Changes\n`;
+    for (const c of desc.changes) {
+        body += `- ${c}\n`;
+    }
+    body += `\n### Testing\n${desc.testing}\n`;
+    if (desc.breaking && desc.breaking !== "None") {
+        body += `\n### Breaking Changes\n${desc.breaking}\n`;
+    }
+    body += "\n---\n*Generated by Mizumi. Verify before using.*";
+    return body;
+}
+function parseCommand(body) {
+    const match = body.match(/^\/mizumi\s+(\w+)(?:\s+(.+))?/);
+    if (!match)
+        return null;
+    return { command: match[1], args: match[2] || "" };
+}
+
+/**
+ * Slop detection — heuristic check for low-quality AI-generated PRs.
+ * Pattern: high addition count, low semantic density, repetitive structures.
+ */
+const BOILERPLATE_RES = [
+    /\/\/ Copyright\b/i,
+    /\/\/ Auto-generated\b/i,
+    /\/\/ Generated by\b/i,
+    /@Generated\b/,
+    /DO NOT EDIT\b/,
+];
+const NUMERIC_SUFFIX_RE = /^(.+?)(\d+)\.\w+$/;
+function detectSlop(diffText, totalAdditions, totalDeletions, _fileCount, changedFiles) {
+    let score = 0;
+    const reasons = [];
+    if (diffText.length === 0)
+        return { isSlop: false, score: 0, reasons };
+    // High addition ratio: additions > 500 and additions/deletions > 10
+    if (totalAdditions > 500 && (totalDeletions === 0 || totalAdditions / totalDeletions > 10)) {
+        score += 30;
+        reasons.push("high addition ratio");
+    }
+    // Low semantic density: average added-line length > 120 chars
+    const addedLines = diffText.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+    if (addedLines.length > 0) {
+        const avgLen = addedLines.reduce((s, l) => s + l.length, 0) / addedLines.length;
+        if (avgLen > 120) {
+            score += 25;
+            reasons.push("low semantic density");
+        }
+    }
+    // Repetitive structures: >20% duplicate lines in additions
+    if (addedLines.length > 0) {
+        const seen = new Map();
+        for (const line of addedLines) {
+            seen.set(line, (seen.get(line) ?? 0) + 1);
+        }
+        const dupes = [...seen.values()].filter((c) => c > 1).reduce((s, c) => s + c, 0);
+        if (dupes / addedLines.length > 0.2) {
+            score += 30;
+            reasons.push("repetitive code");
+        }
+    }
+    // Boilerplate patterns: +20 per unique match, max +40
+    const matched = new Set();
+    for (const re of BOILERPLATE_RES) {
+        if (re.test(diffText))
+            matched.add(re.source);
+    }
+    if (matched.size > 0) {
+        score += Math.min(matched.size * 20, 40);
+        reasons.push("boilerplate markers");
+    }
+    // Many similar filenames: >5 files with same prefix + numeric suffix
+    const prefixCounts = new Map();
+    for (const f of changedFiles) {
+        const m = f.match(NUMERIC_SUFFIX_RE);
+        if (m)
+            prefixCounts.set(m[1], (prefixCounts.get(m[1]) ?? 0) + 1);
+    }
+    if ([...prefixCounts.values()].some((c) => c > 5)) {
+        score += 20;
+        reasons.push("numeric-suffix file pattern");
+    }
+    return { isSlop: score >= 60, score, reasons };
+}
+
+/** /mizumi improve — apply ```suggestion blocks from review comments. v0.1: no LLM call. */
+const MARKER$1 = "<!-- mizumi-review-marker -->";
+/** Extract ```suggestion blocks from a review comment body. */
+function parseSuggestions(body, filePath, line) {
+    const results = [];
+    const regex = /```suggestion\n([\s\S]*?)```/g;
+    let m;
+    while ((m = regex.exec(body)) !== null) {
+        results.push({ path: filePath, line, code: m[1].replace(/\n$/, "") });
+    }
+    return results;
+}
+/** Fetch Mizumi review comments containing suggestion blocks. */
+async function fetchSuggestions(octokit, owner, repo, pr) {
+    const out = [];
+    let page = 1;
+    while (true) {
+        const { data: comments } = await octokit.rest.pulls.listReviewComments({ owner, repo, pull_number: pr, per_page: 100, page });
+        for (const c of comments) {
+            if (!c.body?.includes(MARKER$1))
+                continue;
+            out.push(...parseSuggestions(c.body, c.path, c.line ?? 0));
+        }
+        if (comments.length < 100)
+            break;
+        page++;
+    }
+    return out;
+}
+/** Apply file suggestions via Git Data API, returning tree entries and fix count. */
+async function applyFileFixes(octokit, owner, repo, headRef, byFile) {
+    const entries = [];
+    let fixedCount = 0;
+    for (const [filePath, suggestions] of byFile) {
+        const { data: refData } = await octokit.rest.git.getRef({ owner, repo, ref: `heads/${headRef}` });
+        const { data: c } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: refData.object.sha });
+        const { data: tree } = await octokit.rest.git.getTree({ owner, repo, tree_sha: c.tree.sha, recursive: "true" });
+        const entry = tree.tree.find((e) => e.path === filePath && e.type === "blob");
+        if (!entry?.sha) {
+            warning(`Skipping ${filePath}: not found in tree`);
+            continue;
+        }
+        const { data: blob } = await octokit.rest.git.getBlob({ owner, repo, file_sha: entry.sha });
+        const lines = Buffer.from(blob.content, "base64").toString("utf-8").split("\n");
+        for (const s of [...suggestions].sort((a, b) => b.line - a.line)) {
+            const idx = s.line - 1;
+            if (idx >= 0 && idx < lines.length) {
+                lines[idx] = s.code;
+                fixedCount++;
+            }
+        }
+        const { data: newBlob } = await octokit.rest.git.createBlob({ owner, repo, content: lines.join("\n"), encoding: "utf-8" });
+        entries.push({ path: filePath, mode: "100644", type: "blob", sha: newBlob.sha });
+    }
+    return { entries, fixedCount };
+}
+/** Apply suggestion blocks from Mizumi review comments and commit to the PR branch. */
+async function generateFix(octokit, owner, repo, prNumber, _config) {
+    const suggestions = await fetchSuggestions(octokit, owner, repo, prNumber);
+    if (suggestions.length === 0) {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: "No fixable suggestions found" });
+        return { fixedCount: 0, commitSha: null };
+    }
+    const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    const byFile = new Map();
+    for (const s of suggestions) {
+        const l = byFile.get(s.path) || [];
+        l.push(s);
+        byFile.set(s.path, l);
+    }
+    const { entries, fixedCount } = await applyFileFixes(octokit, owner, repo, pr.head.ref, byFile);
+    if (fixedCount === 0) {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: "No fixable suggestions found" });
+        return { fixedCount: 0, commitSha: null };
+    }
+    const { data: newTree } = await octokit.rest.git.createTree({ owner, repo, base_tree: pr.head.sha, tree: entries });
+    const { data: nc } = await octokit.rest.git.createCommit({ owner, repo, message: `mizumi: apply ${fixedCount} suggestion(s)`, tree: newTree.sha, parents: [pr.head.sha] });
+    await octokit.rest.git.updateRef({ owner, repo, ref: `heads/${pr.head.ref}`, sha: nc.sha });
+    info(`Applied ${fixedCount} suggestion(s): ${nc.sha}`);
+    return { fixedCount, commitSha: nc.sha };
+}
+
+/**
+ * /mizumi test — generate test skeletons for critical/high findings.
+ * Uses LLM to produce test code from review findings + diff context.
+ */
+const TestSchema = object$1({
+    tests: array$1(object$1({
+        file: string().describe("Test file path, e.g. src/__tests__/foo.test.ts"),
+        code: string().describe("Complete test code block"),
+    })).describe("Generated test files"),
+});
+function createModel(config) {
+    const apiKey = getApiKey(config.provider);
+    switch (config.provider) {
+        case "anthropic": return createAnthropic({ apiKey })(config.model);
+        case "openai": return createOpenAI({ apiKey })(config.model);
+        case "google": return createGoogleGenerativeAI({ apiKey })(config.model);
+        case "openrouter": return createOpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey, name: "openrouter" }).chat(config.model);
+        case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey: apiKey || "dummy", name: "local" }).chat(config.model);
+        case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
+    }
+}
+async function generateTests(diffText, findings, config) {
+    if (findings.length === 0)
+        return "No critical/high findings to generate tests for.";
+    const criticalFindings = findings
+        .filter((f) => f.severity === "critical" || f.severity === "high")
+        .slice(0, 5);
+    if (criticalFindings.length === 0)
+        return "No critical/high findings to generate tests for.";
+    const model = createModel(config);
+    const findingsSummary = criticalFindings
+        .map((f) => `- [${f.severity}] ${f.file}:${f.line} (${f.category}): ${f.message}${f.suggestion ? ` — Suggestion: ${f.suggestion}` : ""}`)
+        .join("\n");
+    const { output } = await generateText({
+        model,
+        system: "You generate vitest test code that would catch the specific bugs/security issues described in review findings. Write focused, minimal tests — one test per finding. Use vitest describe/it/expect syntax.",
+        prompt: `Generate vitest tests for these review findings:
+
+${findingsSummary}
+
+Changed code diff (for context):
+${diffText.slice(0, 30000)}
+
+Respond with structured JSON matching the schema.`,
+        output: output_exports.object({ schema: TestSchema }),
+        maxOutputTokens: 2048,
+    });
+    const result = output;
+    if (result.tests.length === 0)
+        return "LLM did not generate any test files.";
+    let body = "## Generated Tests\n\n";
+    for (const t of result.tests) {
+        body += `### ${t.file}\n\`\`\`typescript\n${t.code}\n\`\`\`\n\n`;
+    }
+    body += "---\n*Generated by Mizumi. Review before committing.*";
+    return body;
+}
+
+/**
+ * Webhook idempotency + SHA dedup — prevent duplicate reviews.
+ * Flat-file store (no SQLite for v0.1 bundling simplicity).
+ */
+const IDEM_FILENAME = "mizumi-idempotency.json";
+const MAX_ENTRIES = 500;
+const MAX_FILE_BYTES = 100_000;
+function storePath(workspace) {
+    return path$1.join(workspace, ".github", IDEM_FILENAME);
+}
+function readStore(workspace) {
+    const p = storePath(workspace);
+    if (!fs$1.existsSync(p))
+        return { deliveryIds: {}, reviewedShas: {} };
+    try {
+        const raw = fs$1.readFileSync(p, "utf-8");
+        return JSON.parse(raw);
+    }
+    catch {
+        return { deliveryIds: {}, reviewedShas: {} };
+    }
+}
+function writeStore(workspace, store) {
+    const p = storePath(workspace);
+    const dir = path$1.dirname(p);
+    if (!fs$1.existsSync(dir))
+        fs$1.mkdirSync(dir, { recursive: true });
+    // Prune oldest entries if over limit
+    const delEntries = Object.entries(store.deliveryIds).sort(([, a], [, b]) => a - b);
+    const shaEntries = Object.entries(store.reviewedShas).sort(([, a], [, b]) => a - b);
+    while (delEntries.length > MAX_ENTRIES) {
+        const [key] = delEntries.shift();
+        delete store.deliveryIds[key];
+    }
+    while (shaEntries.length > MAX_ENTRIES) {
+        const [key] = shaEntries.shift();
+        delete store.reviewedShas[key];
+    }
+    const json = JSON.stringify(store);
+    if (Buffer.byteLength(json, "utf-8") > MAX_FILE_BYTES) {
+        // Hard truncation: keep only newer half
+        const half = Math.floor(MAX_ENTRIES / 2);
+        const delKeep = Object.entries(store.deliveryIds).sort(([, a], [, b]) => b - a).slice(0, half);
+        const shaKeep = Object.entries(store.reviewedShas).sort(([, a], [, b]) => b - a).slice(0, half);
+        store.deliveryIds = Object.fromEntries(delKeep);
+        store.reviewedShas = Object.fromEntries(shaKeep);
+    }
+    fs$1.writeFileSync(p, JSON.stringify(store), "utf-8");
+}
+/** Hash a delivery ID for storage (defend against injection). */
+function hashDeliveryId(deliveryId) {
+    return crypto$1.createHash("sha256").update(deliveryId).digest("hex").slice(0, 16);
+}
+/** Check if a webhook delivery was already processed. Returns true if duplicate. */
+function isDuplicateDelivery(workspace, deliveryId) {
+    if (!deliveryId)
+        return false;
+    const store = readStore(workspace);
+    const key = hashDeliveryId(deliveryId);
+    return key in store.deliveryIds;
+}
+/** Mark a webhook delivery as processed. */
+function markDeliveryProcessed(workspace, deliveryId) {
+    if (!deliveryId)
+        return;
+    const store = readStore(workspace);
+    store.deliveryIds[hashDeliveryId(deliveryId)] = Date.now();
+    writeStore(workspace, store);
+}
+/** Check if a head_sha was already reviewed. Returns true if duplicate. */
+function isReviewedSha(workspace, headSha) {
+    if (!headSha)
+        return false;
+    const store = readStore(workspace);
+    return headSha in store.reviewedShas;
+}
+/** Mark a head_sha as reviewed. */
+function markShaReviewed(workspace, headSha) {
+    if (!headSha)
+        return;
+    const store = readStore(workspace);
+    store.reviewedShas[headSha] = Date.now();
+    writeStore(workspace, store);
+}
+
+/**
  * Mizumi — Self-Learning PR Review Agent
  * Action entrypoint: parse event → rules → review → critique → post → memory
  *
@@ -73380,6 +74048,40 @@ async function run() {
         const repo = ctx.repo.repo;
         const isManualTrigger = ctx.eventName === "issue_comment";
         info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+        // Handle /mizumi subcommands
+        if (isManualTrigger) {
+            const cmd = parseCommand(ctx.payload.comment?.body || "");
+            if (cmd?.command === "describe") {
+                info("Running /mizumi describe...");
+                const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
+                const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+                const description = await generateDescription(diff.rawDiff.slice(0, 50000), pr.title || "", pr.body || "", config);
+                await octokit.rest.issues.createComment({
+                    owner, repo, issue_number: prNumber, body: description,
+                });
+                info("Description posted");
+                return;
+            }
+            if (cmd?.command === "improve") {
+                info("Running /mizumi improve...");
+                const result = await generateFix(octokit, owner, repo, prNumber, config);
+                await octokit.rest.issues.createComment({
+                    owner, repo, issue_number: prNumber,
+                    body: result.fixedCount > 0
+                        ? `Applied ${result.fixedCount} suggestion(s) (${result.commitSha?.slice(0, 7)})`
+                        : "No fixable suggestions found",
+                });
+                return;
+            }
+            if (cmd?.command === "test") {
+                info("Running /mizumi test...");
+                const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
+                const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
+                const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindings, config);
+                await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: testOutput });
+                return;
+            }
+        }
         // Respect auto_review: false — only run on manual /mizumi trigger
         if (!config.autoReview && !isManualTrigger) {
             info("auto_review is false — skipping. Use /mizumi to trigger.");
@@ -73392,6 +74094,18 @@ async function run() {
                 info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config.autoPauseAfter}). Use /mizumi to resume.`);
                 return;
             }
+        }
+        // 0. Workspace + idempotency checks
+        const workspace = process.env.GITHUB_WORKSPACE || ".";
+        const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
+        const deliveryId = ctx.payload.delivery_id || "";
+        if (isDuplicateDelivery(workspace, deliveryId)) {
+            info("Duplicate webhook delivery — skipping");
+            return;
+        }
+        if (!isManualTrigger && isReviewedSha(workspace, headSha)) {
+            info(`Already reviewed SHA ${headSha.slice(0, 7)} — skipping. Use /mizumi to force.`);
+            return;
         }
         // 1. Fetch and parse diff
         const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
@@ -73406,20 +74120,43 @@ async function run() {
         // 2b. Classify diff tier for model routing (light/standard/thorough)
         const classification = classifyDiff(diff.totalAdditions + diff.totalDeletions, diff.files.length, diff.files.map((f) => f.path), config);
         info(`Classification: ${classification.tier} (${classification.reason})`);
+        // 2c. Slop detection — skip deep review for low-quality AI-generated PRs
+        const slopResult = detectSlop(diff.rawDiff, diff.totalAdditions, diff.totalDeletions, diff.files.length, diff.files.map((f) => f.path));
+        if (slopResult.isSlop) {
+            info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
+        }
         // 3. Build line map from raw diff (validates which lines can receive comments)
         const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
         // 4. Run deterministic rules (zero LLM cost, never hallucinates)
         const ruleFindings = runRules(diff.files);
         info(`Rules: ${ruleFindings.length} deterministic findings`);
         // 5. Build context (diff + memory + rules + PR metadata + classification)
-        const workspace = process.env.GITHUB_WORKSPACE || ".";
         const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
+        // 5b. Progressive skill loading — inject matching skills into rules context
+        const skills = loadSkills(workspace, diff.files.map((f) => f.path));
+        if (skills.loaded)
+            context.rulesContent += `
+
+## Project Skills
+${skills.loaded}`;
         // 6. Build position hint for LLM
         const positionHint = buildPositionHint(diff.files);
+        // 6b. Guard context window — truncate diff if it exceeds model’s limit
+        const guarded = guardContextWindow(context.diffText, config.provider);
+        if (guarded.truncated) {
+            warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config.provider})`);
+        }
+        context.diffText = guarded.text;
+        if (slopResult.isSlop) {
+            context.diffText += `
+
+## Slop Detection
+This PR appears to contain low-quality AI-generated code (score: ${slopResult.score}/100). Reasons: ${slopResult.reasons.join("; ")}. Focus review on structural issues rather than line-by-line quality.`;
+        }
         // 7. Run review (first pass — LLM)
         info("Running review pass...");
-        const review = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, context.ghostContent, config, classification);
-        info(`First pass: ${review.comments.length} findings, decision=${review.decision}`);
+        const { output: review, usage: reviewUsage } = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, context.ghostContent, config, classification);
+        info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
         // 8. Self-critique (second pass — cheaper model)
         info("Running self-critique pass...");
         const filtered = await runCritique(review, config);
@@ -73439,17 +74176,36 @@ async function run() {
             ...filtered.comments,
         ];
         const mergedReview = { ...filtered, comments: mergedComments };
+        // 9b. Cleanup outdated bot comments (reviewdog stale-comment pattern)
+        const currentFindings = mergedReview.comments.map((c) => ({
+            file: c.file, line: c.line, message: c.message,
+        }));
+        const deletedCount = await cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFindings);
+        if (deletedCount > 0)
+            info(`Cleaned up ${deletedCount} outdated comment(s)`);
         // 10. Post review
-        const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
         info("Posting review...");
         const result = await postReview(octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config);
         info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+        // 10c. Mark idempotency — prevent duplicate reviews for this SHA/delivery
+        markShaReviewed(workspace, headSha);
+        markDeliveryProcessed(workspace, deliveryId);
+        // 10b. Track spend
+        const spendEntry = createSpendEntry(`${owner}/${repo}`, prNumber, config.provider, config.model, { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier, result.findingCount, result.riskScore);
+        appendSpendEntry(workspace, spendEntry);
+        // 10d. Record findings for emoji feedback tracking
+        recordFindings(workspace, `${owner}/${repo}`, prNumber, mergedReview.comments.map((c) => ({ file: c.file, line: c.line, category: c.category, severity: c.severity, message: c.message })));
         // 11. Update memory — learn from this review
         const memoryUpdate = filtered.comments
             .filter((c) => c.severity === "critical" || c.severity === "high")
             .map((c) => `- [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message}`)
             .join("\n");
         writeMemory(workspace, context.memoryContent, memoryUpdate);
+        // 11b. Auto-generate skills from recurring patterns
+        const updatedMemory = readMemory(workspace);
+        const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
+        if (generatedSkills.length > 0)
+            info(`Auto-generated ${generatedSkills.length} skill(s)`);
         // Always exit 0 — never fail the build by default
         info("Mizumi review complete");
     }
@@ -73495,6 +74251,27 @@ async function countMizumiReviews(octokit, owner, repo, prNumber) {
     });
     count += reviews.filter((r) => r.body?.includes(MARKER)).length;
     return count;
+}
+async function getLatestFindings(octokit, owner, repo, prNumber) {
+    const findings = [];
+    const { data: comments } = await octokit.rest.pulls.listReviewComments({
+        owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
+    });
+    for (const c of comments.slice(0, 20)) {
+        if (!c.body?.includes(MARKER))
+            continue;
+        const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
+        const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
+        const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
+        findings.push({
+            file: c.path, line: c.line ?? 0,
+            severity: seveMatch?.[1]?.toLowerCase() || "medium",
+            category: catMatch?.[1]?.toLowerCase() || "bug",
+            message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
+            suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+        });
+    }
+    return findings;
 }
 run();
 

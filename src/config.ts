@@ -42,11 +42,16 @@ const DEFAULT_SECURITY_PATHS = [
   "**/password*",
 ];
 
+const VALID_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "openrouter", "nvidia", "local"];
+const VALID_PROFILES: Profile[] = ["chill", "assertive", "followup"];
+
 export function loadConfig(): MizumiConfig {
-  const provider = (core.getInput("provider") || "anthropic") as Provider;
+  const rawProvider = core.getInput("provider") || "anthropic";
+  const provider = (VALID_PROVIDERS.includes(rawProvider as Provider) ? rawProvider : "anthropic") as Provider;
   const model = core.getInput("model") || "claude-sonnet-4-6";
   const baseUrl = core.getInput("base_url") || "";
-  const profile = (core.getInput("profile") || "chill") as Profile;
+  const rawProfile = core.getInput("profile") || "chill";
+  const profile = (VALID_PROFILES.includes(rawProfile as Profile) ? rawProfile : "chill") as Profile;
   const maxComments = parseInt(core.getInput("max_comments") || "15", 10);
   const language = core.getInput("language") || "en-US";
   const selfCritique = core.getInput("self_critique") !== "false";

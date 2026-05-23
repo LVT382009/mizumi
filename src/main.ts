@@ -21,6 +21,7 @@ import { writeMemory, readMemory, autoGenerateSkills, loadSkills } from "./memor
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
 import { createSpendEntry, appendSpendEntry } from "./spend.js";
+import { recordFindings } from "./feedback.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
@@ -252,6 +253,11 @@ const spendEntry = createSpendEntry(
   result.findingCount, result.riskScore
 );
 appendSpendEntry(workspace, spendEntry);
+
+// 10d. Record findings for emoji feedback tracking
+recordFindings(workspace, `${owner}/${repo}`, prNumber,
+  mergedReview.comments.map((c) => ({ file: c.file, line: c.line, category: c.category, severity: c.severity, message: c.message }))
+);
 
     // 11. Update memory — learn from this review
     const memoryUpdate = filtered.comments
