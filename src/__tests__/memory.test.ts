@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { readMemory, writeMemory, readRules } from "../memory.js";
+import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills } from "../memory.js";
 
 describe("readMemory", () => {
   it("returns empty string when memory file does not exist", () => {
@@ -136,6 +136,130 @@ describe("readRules", () => {
       const rules = readRules(tmpDir);
       expect(rules).toContain("Rule A");
       expect(rules).toContain("Rule B");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+describe("autoGenerateSkills", () => {
+  it("returns empty array for empty memory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    try {
+      expect(autoGenerateSkills("", tmpDir)).toEqual([]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates skill when file+category appears 3+ times", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:10 — security: sql injection",
+      "- [critical] src/auth.ts:22 — security: missing validation",
+      "- [high] src/auth.ts:35 — security: hardcoded secret",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      expect(generated).toHaveLength(1);
+      const skillContent = fs.readFileSync(generated[0], "utf-8");
+      expect(skillContent).toContain("name: security-auth");
+      expect(skillContent).toContain('file_pattern: "src/auth.ts"');
+      expect(skillContent).toContain("pay attention to security issues");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("skips patterns with fewer than 3 occurrences", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/db.ts:10 — security: issue1",
+      "- [high] src/db.ts:20 — security: issue2",
+    ].join("\n");
+    try {
+      expect(autoGenerateSkills(memory, tmpDir)).toEqual([]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("separates different categories for the same file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/api.ts:1 — security: issue",
+      "- [high] src/api.ts:2 — security: issue",
+      "- [high] src/api.ts:3 — security: issue",
+      "- [low] src/api.ts:4 — style: lint",
+      "- [low] src/api.ts:5 — style: lint",
+      "- [low] src/api.ts:6 — style: lint",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      expect(generated).toHaveLength(2);
+      const names = generated.map((p) => path.basename(p, ".md")).sort();
+      expect(names).toEqual(["security-api", "style-api"]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+describe("loadSkills", () => {
+  it("returns empty when no skills directory exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    try {
+      const result = loadSkills(tmpDir, ["src/auth.ts"]);
+      expect(result.names).toEqual([]);
+      expect(result.loaded).toBe("");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("returns names and loads matching skills", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = "---\nname: security-auth\ndescription: desc\nfile_pattern: \"src/auth.ts\"\n---\nWhen reviewing src/auth.ts, pay attention to security issues.\n";
+    fs.writeFileSync(path.join(skillsDir, "security-auth.md"), skillContent, "utf-8");
+    try {
+      const result = loadSkills(tmpDir, ["src/auth.ts"]);
+      expect(result.names).toContain("security-auth");
+      expect(result.loaded).toContain("pay attention to security issues");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("skips skills whose file_pattern does not match changed files", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = "---\nname: security-auth\ndescription: desc\nfile_pattern: \"src/auth.ts\"\n---\nAuth security guidance.\n";
+    fs.writeFileSync(path.join(skillsDir, "security-auth.md"), skillContent, "utf-8");
+    try {
+      const result = loadSkills(tmpDir, ["src/db.ts"]);
+      expect(result.names).toContain("security-auth");
+      expect(result.loaded).toBe("");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("caps at 5 skills and 2000 chars", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    for (let i = 0; i < 7; i++) {
+      const content = `---\nname: skill-${i}\ndescription: desc\nfile_pattern: "src/f${i}.ts"\n---\n${"x".repeat(50)}\n`;
+      fs.writeFileSync(path.join(skillsDir, `skill-${i}.md`), content, "utf-8");
+    }
+    try {
+      const changedFiles = Array.from({ length: 7 }, (_, i) => `src/f${i}.ts`);
+      const result = loadSkills(tmpDir, changedFiles);
+      expect(result.names).toHaveLength(7);
+      expect(result.loaded.length).toBeLessThanOrEqual(2000);
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }

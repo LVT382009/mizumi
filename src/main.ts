@@ -17,12 +17,14 @@ import { buildContext } from "./context.js";
 import { runReview } from "./review.js";
 import { runCritique } from "./critique.js";
 import { postReview, cleanupOutdatedComments } from "./post.js";
-import { writeMemory } from "./memory.js";
+import { writeMemory, readMemory, autoGenerateSkills, loadSkills } from "./memory.js";
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
 import { createSpendEntry, appendSpendEntry } from "./spend.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
+import { generateFix } from "./improve.js";
+import { isDuplicateDelivery, markDeliveryProcessed, isReviewedSha, markShaReviewed } from "./idempotency.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -68,6 +70,17 @@ async function run(): Promise<void> {
       core.info("Description posted");
       return;
     }
+    if (cmd?.command === "improve") {
+      core.info("Running /mizumi improve...");
+      const result = await generateFix(octokit, owner, repo, prNumber, config);
+      await octokit.rest.issues.createComment({
+        owner, repo, issue_number: prNumber,
+        body: result.fixedCount > 0
+          ? `Applied ${result.fixedCount} suggestion(s) (${result.commitSha?.slice(0, 7)})`
+          : "No fixable suggestions found",
+      });
+      return;
+    }
   }
 
     // Respect auto_review: false — only run on manual /mizumi trigger
@@ -84,6 +97,19 @@ async function run(): Promise<void> {
         return;
       }
     }
+
+  // 0. Workspace + idempotency checks
+  const workspace = process.env.GITHUB_WORKSPACE || ".";
+  const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
+  const deliveryId = (ctx.payload as any).delivery_id || "";
+  if (isDuplicateDelivery(workspace, deliveryId)) {
+    core.info("Duplicate webhook delivery — skipping");
+    return;
+  }
+  if (!isManualTrigger && isReviewedSha(workspace, headSha)) {
+    core.info(`Already reviewed SHA ${headSha.slice(0, 7)} — skipping. Use /mizumi to force.`);
+    return;
+  }
 
     // 1. Fetch and parse diff
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
@@ -128,8 +154,14 @@ if (slopResult.isSlop) {
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
 
     // 5. Build context (diff + memory + rules + PR metadata + classification)
-    const workspace = process.env.GITHUB_WORKSPACE || ".";
     const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
+
+// 5b. Progressive skill loading — inject matching skills into rules context
+const skills = loadSkills(workspace, diff.files.map((f) => f.path));
+if (skills.loaded) context.rulesContent += `
+
+## Project Skills
+${skills.loaded}`;
 
     // 6. Build position hint for LLM
     const positionHint = buildPositionHint(diff.files);
@@ -193,12 +225,15 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
   if (deletedCount > 0) core.info(`Cleaned up ${deletedCount} outdated comment(s)`);
 
   // 10. Post review
-    const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     core.info("Posting review...");
     const result = await postReview(
       octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+
+// 10c. Mark idempotency — prevent duplicate reviews for this SHA/delivery
+markShaReviewed(workspace, headSha);
+markDeliveryProcessed(workspace, deliveryId);
 
 // 10b. Track spend
 const spendEntry = createSpendEntry(
@@ -216,6 +251,11 @@ appendSpendEntry(workspace, spendEntry);
       .join("\n");
 
     writeMemory(workspace, context.memoryContent, memoryUpdate);
+
+// 11b. Auto-generate skills from recurring patterns
+const updatedMemory = readMemory(workspace);
+const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
+if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.length} skill(s)`);
 
     // Always exit 0 — never fail the build by default
     core.info("Mizumi review complete");

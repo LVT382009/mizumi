@@ -129,6 +129,64 @@ export function ghostWarnings(memoryContent: string, changedFiles: string[]): st
 }
 
 /**
+ * Auto Skill Generation — when a file+category combo appears 3+ times in
+ * memory, create a SKILL.md under .github/mizumi-skills/.
+ */
+export function autoGenerateSkills(memoryContent: string, workspace: string): string[] {
+  if (!memoryContent) return [];
+  const patternRe = /^[-*]\s+\[[^\]]+\]\s+(\S+):(\d+)\s+—\s+(\w+)/gm;
+  const counts = new Map<string, { file: string; category: string; count: number }>();
+  let m: RegExpExecArray | null;
+  while ((m = patternRe.exec(memoryContent)) !== null) {
+    const key = `${m[1]}|${m[3]}`;
+    const existing = counts.get(key);
+    if (existing) existing.count++;
+    else counts.set(key, { file: m[1], category: m[3], count: 1 });
+  }
+
+  const skillsDir = path.join(workspace, ".github", "mizumi-skills");
+  const generated: string[] = [];
+  for (const [, v] of counts) {
+    if (v.count < 3) continue;
+    if (!fs.existsSync(skillsDir)) fs.mkdirSync(skillsDir, { recursive: true });
+    const basename = path.basename(v.file, path.extname(v.file));
+    const skillName = `${v.category}-${basename}`;
+    const skillPath = path.join(skillsDir, `${skillName}.md`);
+    const body = `When reviewing ${v.file}, pay attention to ${v.category} issues.`;
+    const content = `---\nname: ${skillName}\ndescription: ${v.category} patterns for ${v.file}\nfile_pattern: "${v.file}"\n---\n${body}\n`;
+    fs.writeFileSync(skillPath, content, "utf-8");
+    generated.push(skillPath);
+  }
+  return generated;
+}
+
+/**
+ * Progressive Skill Loading — scan skill names first, then lazy-load
+ * only those matching changed files. Returns names + loaded content.
+ */
+export function loadSkills(workspace: string, changedFiles: string[]): { names: string[]; loaded: string } {
+  const skillsDir = path.join(workspace, ".github", "mizumi-skills");
+  if (!fs.existsSync(skillsDir)) return { names: [], loaded: "" };
+
+  const allFiles = fs.readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
+  const names = allFiles.map((f) => f.replace(/\.md$/, ""));
+  const fmRe = /^---\n[\s\S]*?file_pattern:\s*"([^"]+)"[\s\S]*?---\n([\s\S]*)$/;
+
+  let loaded = "";
+  let skillCount = 0;
+  for (const f of allFiles) {
+    if (skillCount >= 5) break;
+    const raw = fs.readFileSync(path.join(skillsDir, f), "utf-8");
+    const fm = raw.match(fmRe);
+    if (!fm || !changedFiles.some((cf) => cf === fm[1] || cf.endsWith(fm[1]))) continue;
+    loaded += `\n${fm[2].trim()}\n`;
+    skillCount++;
+    if (loaded.length > 2000) { loaded = loaded.slice(0, 2000); break; }
+  }
+  return { names, loaded: loaded.trim() };
+}
+
+/**
  * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
  */
 export function readRules(workspace: string): string {
