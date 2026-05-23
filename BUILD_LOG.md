@@ -1,50 +1,59 @@
 # Mizumi Build Log
 
-## Cycle 1 — 2026-05-23
+## Cycle 3 — 2026-05-23
 
-### Research Agents Completed
-1. **AI SDK 6 + Zod v4** — CONFIRMED: AI SDK 6 (v6.0.191) natively supports Zod v4 (^4.1.8+). `Output.object({ schema })` works directly. No `zod-to-json-schema` adapter needed. Breaking change: `generateObject()` deprecated, use `generateText() + Output.object()`. Return value is `{ output }` not `{ object }`. `maxTokens` → `maxOutputTokens`.
-2. **Node 24 Migration** — `using: node24` in action.yml. `@actions/core` v3.0.1 (ESM-only). `@actions/github` v9.1.1 (ESM-only). `@octokit/rest` v22.0.1.
-3. **reviewdog + SourceAnt + diff0 patterns** — Detailed analysis of position mapping, fingerprint dedup, suggestion block formatting, and 422 fallback strategies.
-4. **GitHub API position deprecation** — `position` is deprecated in favor of `line`/`start_line`/`side`/`start_side`. Single-line: `{ path, line, side: "RIGHT", body }`. Multi-line: `{ path, start_line, line, start_side: "RIGHT", side: "RIGHT", body }`.
+### Phase 1 Complete
 
-### Phase 0 Progress
-- [x] action.yml — using: node24, 10 inputs, 3 outputs, MIZUMI_ANTHROPIC_API_KEY naming
-- [x] package.json — ESM, all deps, dev deps
-- [x] tsconfig.json — strict, ES2024 target, bundler moduleResolution
-- [x] src/main.ts — full pipeline: rules → review → critique → post → memory
-- [x] src/config.ts — .github/mizumi.yml parser + BYOK provider selection + getApiKey()
-- [x] src/diff.ts — fetchDiff (3 strategies), parseDiff with rawDiff, PII stripping
-- [x] src/linemap.ts — MIGRATED from position Map to LineMap (Set-based): validates line numbers in diff, no longer computes deprecated diff positions. resolveLine() with ±5 proximity.
-- [x] src/context.ts — diff + memory + rules + PR metadata assembly
-- [x] src/review.ts — AI SDK 6 Output.object() + Zod v4 structured output, BYOK multi-provider, profile-aware system prompt
-- [x] src/critique.ts — two-pass "subterfuge" framing, cheap model for critique, exported filterByConfidence + parseCritiqueOutput
-- [x] src/post.ts — MIGRATED from deprecated `position` to `line`/`start_line`/`side`/`start_side`. reviewdog pattern: inline suggestions + HTML marker dedup + 422 fallback
-- [x] src/sanitize.ts — Comment-and-Control defense, recursive HTML comment strip, output screening, canary-ready
-- [x] src/memory.ts — MEMORY.md reader/writer, ~2KB bounded, consolidation at 80%
-- [x] src/rules.ts — deterministic regex checks: auth middleware, hardcoded secrets, SQL injection
-- [x] rollup.config.ts — Rollup >=4.59.0, inlineDynamicImports, sourcemaps
-- [x] .github/workflows/review.yml — pull_request + issue_comment trigger, uses: ./
-- [x] .gitignore — dist/ exclusions removed (dist/index.js checked in per JS Action convention)
-- [x] tsconfig.test.json — test-inclusive TS check (separate from build)
-- [x] BUILD passes: `dist/index.js` produced, 2.5MB single bundle
+All Phase 1 items from the implementation plan are now implemented:
 
-### Test Coverage (206 tests, 9 files, ALL PASSING)
-- `sanitize.test.ts` — 45 tests (input sanitization, output screening, wrap diff)
-- `linemap.test.ts` — 21 tests (buildLineMapFromRawDiff as Set, isValidLine, resolveLine, buildPositionHint)
-- `config.test.ts` — 18 tests (YAML parser, BYOK env vars, exclude patterns)
-- `rules.test.ts` — 36 tests (auth middleware, hardcoded secrets, SQL concat, edge cases)
-- `post.test.ts` — 30 tests (line-based comments, overflow, 422 fallback, marker dedup, risk display, multi-line)
-- `diff.test.ts` — 21 tests (parseDiff, excludePatterns, stripPatchPII, fetchDiff mock)
-- `memory.test.ts` — 11 tests (read/write/consolidate, readRules)
-- `critique.test.ts` — 18 tests (filterByConfidence, parseCritiqueOutput, runCritique with mocks)
-- `context.test.ts` — 6 tests (PR metadata, diff text, file paths, memory/rules)
+| Item | Status | Implementation |
+|------|--------|---------------|
+| 1.1 Line mapping | ✅ | `linemap.ts` — LineMap (Set-based), resolveLine with ±5 proximity |
+| 1.2 Inline suggestions | ✅ | `post.ts` — `line`/`start_line`/`side` params, multi-line support |
+| 1.3 PR Review via createReview | ✅ | `post.ts` — DraftReviewComment with COMMENT/REQUEST_CHANGES event |
+| 1.4 Summary comment | ✅ | `post.ts` — buildSummaryComment with risk score + severity table |
+| 1.5 Checks API | ⏳ Deferred | Summary comment sufficient for v0.1 |
+| 1.6 Self-critique | ✅ | `critique.ts` — obra "subterfuge" framing, cheap model |
+| 1.7 Confidence scoring | ✅ | Zod schema 0-100, filterByConfidence with threshold |
+| 1.8 HTML marker dedup | ✅ | `<!-- mizumi-review-marker -->` update-in-place |
+| 1.9 Incremental review | ⏳ Deferred | Re-review entire diff is fine for v0.1 |
+| 1.10 config.ts | ✅ | `.github/mizumi.yml` parser + BYOK |
+| 1.11 BYOK | ✅ | 6 providers: anthropic, openai, google, openrouter, nvidia, local |
+| 1.12 Exclude patterns | ✅ | minimatch in diff.ts, 9 default patterns |
+| 1.13 plugin-retry | ✅ | RetryingOctokit on all API calls |
+| 1.14 Rate cap | ✅ | maxComments: 15 default |
+| 1.15 Memory.ts | ✅ | MEMORY.md ~2KB bounded, consolidate at 80% |
+| 1.16 Rules files | ✅ | reads REVIEW.md + CLAUDE.md |
+| 1.17 /mizumi trigger | ✅ | issue_comment handler in main.ts |
+| 1.18 422 fallback | ✅ | summary-only comment on createReview 422 |
+| 1.19 Input sanitization | ✅ | sanitize.ts — recursive HTML strip, injection patterns, base64 recheck |
+| 1.20 Output screening | ✅ | screenOutput — img tags, secrets, URLs, shell commands |
+| 1.21 Checks API | ⏳ Deferred | Phase 2 |
+| 1.22 Danger | ⏳ Deferred | Phase 2 (deterministic rules.ts replaces for v0.1) |
+| 1.23 chill default | ✅ | config.ts default profile="chill" |
+| 1.24 auto_pause_after | ✅ | main.ts — counts existing reviews, skips when >= limit, /mizumi bypasses |
+| 1.25 Verify before fix | ✅ | Diagnosis visible, suggestion in `<details>` block |
+| 1.26 PII stripping | ✅ | stripPatchPII in diff.ts |
+| 1.27 AI disclosure | ✅ | "AI-generated by Mizumi" on every review + summary |
+| 1.28 SECURITY.md + PRIVACY.md | ✅ | Created with threat model, GDPR compliance |
+| 1.29 ToS disclaimer | ✅ | README.md includes BYOK liability notice |
 
-### Key Architectural Decisions This Cycle
-1. **Line-based comments** — Migrated from deprecated `position` to `line`/`side` params. Simplified linemap.ts from `Map<file, Map<line, position>>` to `Map<file, Set<line>>`.
-2. **Checked-in dist/** — `dist/index.js` is committed per JS Action convention (needed for `uses: ./`).
-3. **Dual tsconfig** — `tsconfig.json` excludes tests (for rollup build), `tsconfig.test.json` includes all (for `npm run check`).
-4. **Exported critique helpers** — `filterByConfidence` and `parseCritiqueOutput` now exported for testing.
+### New Files This Cycle
+- `SECURITY.md` — Vulnerability disclosure, threat model, mitigations
+- `PRIVACY.md` — Data handling transparency, GDPR compliance
+- `README.md` — Quick start, all inputs, provider setup guides
+- `.github/mizumi.yml` — Example per-repo configuration
 
-### Production Code: 1,521 lines (under 3,000 budget)
-### Total with tests: ~2,500 lines
+### Build Stats
+- 207 tests passing (9 test files)
+- 1,580 production lines (under 3,000 budget)
+- Zero TS errors
+- `dist/index.js` 2.5MB bundle verified
+
+### Commit History (this repo)
+1. `64c64cb` — Phase 0 scaffold
+2. `0088c14` — Research integration
+3. `7462bba` — Phase 0 complete
+4. `7b86c3d` — Line-based comments migration + 206 tests
+5. `16b47aa` — NVIDIA NIM provider
+6. `327ad56` — Phase 1 complete
