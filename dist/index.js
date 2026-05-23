@@ -73599,6 +73599,43 @@ function truncateIfNeeded(filePath) {
         // Non-critical
     }
 }
+function readSpendLog(workspace) {
+    const filePath = path$1.join(workspace, ".github", SPEND_FILENAME);
+    if (!fs$1.existsSync(filePath))
+        return [];
+    try {
+        return fs$1.readFileSync(filePath, "utf-8")
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line));
+    }
+    catch {
+        return [];
+    }
+}
+function formatSpendDigest(entries) {
+    if (entries.length === 0)
+        return "No spend data available.";
+    const totalTokens = entries.reduce((s, e) => s + e.totalTokens, 0);
+    const totalCached = entries.reduce((s, e) => s + e.cachedTokens, 0);
+    const byProvider = {};
+    for (const e of entries) {
+        const key = `${e.provider}/${e.model}`;
+        if (!byProvider[key])
+            byProvider[key] = { count: 0, tokens: 0 };
+        byProvider[key].count++;
+        byProvider[key].tokens += e.totalTokens;
+    }
+    let digest = `**Mizumi Spend Digest** (${entries.length} reviews)\n\n`;
+    digest += `- Total tokens: ${totalTokens.toLocaleString()}\n`;
+    digest += `- Cached tokens: ${totalCached.toLocaleString()} (${totalTokens > 0 ? Math.round((totalCached / totalTokens) * 100) : 0}% cache hit)\n\n`;
+    digest += "| Provider/Model | Reviews | Tokens |\n|---------------|---------|--------|\n";
+    for (const [key, val] of Object.entries(byProvider).sort((a, b) => b[1].tokens - a[1].tokens)) {
+        digest += `| ${key} | ${val.count} | ${val.tokens.toLocaleString()} |\n`;
+    }
+    return digest;
+}
 
 /**
  * Emoji feedback — polls reactions on Mizumi review comments.
@@ -74048,6 +74085,10 @@ async function run() {
         const repo = ctx.repo.repo;
         const isManualTrigger = ctx.eventName === "issue_comment";
         info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+        // 0. Workspace + idempotency checks
+        const workspace = process.env.GITHUB_WORKSPACE || ".";
+        const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
+        const deliveryId = ctx.payload.delivery_id || "";
         // Handle /mizumi subcommands
         if (isManualTrigger) {
             const cmd = parseCommand(ctx.payload.comment?.body || "");
@@ -74081,6 +74122,12 @@ async function run() {
                 await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: testOutput });
                 return;
             }
+            if (cmd?.command === "spend") {
+                info("Running /mizumi spend...");
+                const entries = readSpendLog(workspace);
+                await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
+                return;
+            }
         }
         // Respect auto_review: false — only run on manual /mizumi trigger
         if (!config.autoReview && !isManualTrigger) {
@@ -74095,10 +74142,6 @@ async function run() {
                 return;
             }
         }
-        // 0. Workspace + idempotency checks
-        const workspace = process.env.GITHUB_WORKSPACE || ".";
-        const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
-        const deliveryId = ctx.payload.delivery_id || "";
         if (isDuplicateDelivery(workspace, deliveryId)) {
             info("Duplicate webhook delivery — skipping");
             return;

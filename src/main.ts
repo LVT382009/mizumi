@@ -56,6 +56,11 @@ async function run(): Promise<void> {
 
     core.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
 
+  // 0. Workspace + idempotency checks
+  const workspace = process.env.GITHUB_WORKSPACE || ".";
+  const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
+  const deliveryId = (ctx.payload as any).delivery_id || "";
+
   // Handle /mizumi subcommands
   if (isManualTrigger) {
     const cmd = parseCommand(ctx.payload.comment?.body || "");
@@ -93,7 +98,6 @@ async function run(): Promise<void> {
     }
     if (cmd?.command === "spend") {
       core.info("Running /mizumi spend...");
-      const workspace = process.env.GITHUB_WORKSPACE || ".";
       const entries = readSpendLog(workspace);
       await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
       return;
@@ -115,10 +119,7 @@ async function run(): Promise<void> {
       }
     }
 
-  // 0. Workspace + idempotency checks
-  const workspace = process.env.GITHUB_WORKSPACE || ".";
-  const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
-  const deliveryId = (ctx.payload as any).delivery_id || "";
+
   if (isDuplicateDelivery(workspace, deliveryId)) {
     core.info("Duplicate webhook delivery — skipping");
     return;
