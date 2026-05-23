@@ -2,7 +2,7 @@
  * LLM review — structured output via Vercel AI SDK 6.
  * BYOK from day 1: any provider, same code path.
  */
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -146,31 +146,13 @@ export async function runReview(
     userPrompt += `\n\n## Project Rules (coding standards)\n${rulesContent}`;
   }
 
-  const { text } = await generateText({
+  const { output } = await generateText({
     model,
     system: systemPrompt,
     prompt: userPrompt,
+    output: Output.object({ schema: ReviewResponse }),
     maxTokens: 4096,
   });
 
-  // Parse structured output — Zod v4 validation
-  // AI SDK 6's Output.object may need zod-to-json-schema adapter
-  // Fallback: parse JSON from text response
-  return parseStructuredOutput(text);
-}
-
-/**
- * Parse LLM text response into ReviewResponse.
- * Handles both pure JSON and markdown-wrapped JSON.
- */
-function parseStructuredOutput(text: string): ReviewResponseType {
-  // Try to extract JSON from potential markdown wrapping
-  let jsonStr = text.trim();
-
-  // If wrapped in ```json ... ```, strip it
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
-  return ReviewResponse.parse(parsed);
+  return output;
 }

@@ -1,0 +1,106 @@
+/**
+ * Deterministic rule engine — runs before LLM, never hallucinates.
+ * Phase 1 stub: regex-based checks only. Full Danger integration deferred to Phase 2.
+ */
+import { DiffFile } from "./diff.js";
+
+export interface RuleFinding {
+  file: string;
+  line: number;
+  severity: "critical" | "high" | "medium";
+  category: "security" | "compliance";
+  message: string;
+  rule: string;
+}
+
+/**
+ * Run deterministic rules on the diff before LLM review.
+ * These checks are regex-based, zero LLM cost, 100% deterministic.
+ */
+export function runRules(files: DiffFile[]): RuleFinding[] {
+  const findings: RuleFinding[] = [];
+
+  for (const file of files) {
+    // Rule: Every auth endpoint must call auth middleware
+    if (file.path.includes("routes/") || file.path.includes("api/")) {
+      for (const hunk of file.hunks) {
+        for (const change of hunk.changes) {
+          if (change.type === "add" && isRouteDefinition(change.content)) {
+            const block = getSurroundingBlock(hunk, change.line);
+            if (!callsAuthMiddleware(block)) {
+              findings.push({
+                file: file.path,
+                line: change.line,
+                severity: "high",
+                category: "security",
+                message: "Route handler may be missing authentication middleware",
+                rule: "auth-middleware-required",
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Rule: No hardcoded secrets
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasHardcodedSecret(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "critical",
+            category: "security",
+            message: "Possible hardcoded secret detected — use environment variables instead",
+            rule: "no-hardcoded-secrets",
+          });
+        }
+      }
+    }
+
+    // Rule: SQL injection risk (string concatenation in queries)
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasSQLConcat(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "high",
+            category: "security",
+            message: "Possible SQL injection — use parameterized queries instead of string concatenation",
+            rule: "no-sql-concat",
+          });
+        }
+      }
+    }
+  }
+
+  return findings;
+}
+
+function isRouteDefinition(line: string): boolean {
+  return /\.(get|post|put|delete|patch|route)\s*\(/i.test(line);
+}
+
+function callsAuthMiddleware(block: string[]): boolean {
+  const authPatterns = /auth|authenticate|verify(token|jwt|session)|requireAuth|isAuth/i;
+  return block.some((l) => authPatterns.test(l));
+}
+
+function getSurroundingBlock(hunk: typeof hunk, line: number): string[] {
+  // Get ±10 lines around the target line
+  return hunk.changes
+    .filter((c) => Math.abs(c.line - line) <= 10 && c.type !== "delete")
+    .map((c) => c.content);
+}
+
+function hasHardcodedSecret(line: string): boolean {
+  // Common patterns: api_key = "xxx", password = "xxx", secret = "xxx"
+  return /(api[-_]?key|password|passwd|secret|token|credential)\s*[:=]\s*["'][^"']{8,}["']/i.test(line)
+    && !/process\.env|import\.meta|ENV|getenv/i.test(line);
+}
+
+function hasSQLConcat(line: string): boolean {
+  return /(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\s.*[+`]/i.test(line)
+    && /\$\{/.test(line) === false; // Template literals are slightly safer
+}

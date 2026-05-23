@@ -4,9 +4,7 @@
  * 2. Compare commits endpoint
  * 3. Git diff via CLI fallback
  */
-import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
-import { retry } from "@octokit/plugin-retry";
 import { minimatch } from "minimatch";
 
 export interface DiffFile {
@@ -28,7 +26,7 @@ export interface DiffHunk {
 
 export interface DiffChange {
   type: "add" | "delete" | "normal";
-  line: number;   // New file line number
+  line: number; // New file line number
   oldLine: number; // Old file line number
   content: string;
 }
@@ -37,6 +35,7 @@ export interface ParsedDiff {
   files: DiffFile[];
   totalAdditions: number;
   totalDeletions: number;
+  rawDiff: string; // Raw diff text for accurate position mapping
 }
 
 /**
@@ -58,7 +57,8 @@ export async function fetchDiff(
   });
 
   const rawDiff = typeof diffText === "string" ? diffText : JSON.stringify(diffText);
-  return parseDiff(rawDiff, excludePatterns);
+  const parsed = await parseDiff(rawDiff, excludePatterns);
+  return { ...parsed, rawDiff };
 }
 
 /**
@@ -79,7 +79,9 @@ export async function parseDiff(
 
   for (const file of parsed) {
     const filePath = file.to || file.from || "";
-    const status = file.new ? "added" : file.deleted ? "deleted" : file.renamed ? "renamed" : "modified";
+    // parse-diff File doesn't have a `renamed` flag — detect from `from` !== `to`
+    const isRenamed = !!(file.from && file.to && file.from !== file.to);
+    const status = file.new ? "added" : file.deleted ? "deleted" : isRenamed ? "renamed" : "modified";
 
     // Skip excluded files
     if (shouldExclude(filePath, excludePatterns)) continue;
@@ -90,10 +92,22 @@ export async function parseDiff(
       const changes: DiffChange[] = [];
       for (const change of chunk.changes || []) {
         const type = change.type === "add" ? "add" : change.type === "del" ? "delete" : "normal";
+        // Type narrowing: AddChange/DeleteChange have `ln`, NormalChange has `ln1`/`ln2`
+        let line = 0;
+        let oldLine = 0;
+        if (change.type === "normal") {
+          const nc = change as import("parse-diff").NormalChange;
+          line = nc.ln2 || 0;
+          oldLine = nc.ln1 || 0;
+        } else {
+          const ac = change as import("parse-diff").AddChange | import("parse-diff").DeleteChange;
+          line = ac.ln || 0;
+          oldLine = ac.ln || 0;
+        }
         changes.push({
           type,
-          line: change.ln || change.ln2 || 0,
-          oldLine: change.ln1 || change.ln || 0,
+          line,
+          oldLine,
           content: change.content || "",
         });
       }
@@ -116,7 +130,7 @@ export async function parseDiff(
     files.push({ path: filePath, status, additions, deletions, hunks });
   }
 
-  return { files, totalAdditions, totalDeletions };
+  return { files, totalAdditions, totalDeletions, rawDiff: diffText };
 }
 
 /**
@@ -159,6 +173,6 @@ export function stripPatchPII(diffText: string): string {
     // Keep only the file path info, strip author/email
     return header;
   }).replace(/^From: .*$\n/m, "")
-    .replace(/^Author: .*$\n/m, "")
-    .replace(/^Date: .*$\n/m, "");
+  .replace(/^Author: .*$\n/m, "")
+  .replace(/^Date: .*$\n/m, "");
 }

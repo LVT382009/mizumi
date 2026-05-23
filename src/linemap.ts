@@ -5,20 +5,77 @@
  * GitHub's PR Review API uses "position" which is the 1-based index into the diff,
  * NOT the file line number. This module builds the mapping between them.
  *
- * Strategy from SourceAnt's LineMapper + diff0's parseDiffForPositions.
+ * Primary: diff0's parseDiffForPositions — walks raw diff text line-by-line.
+ * Fallback: parsed DiffFile[] with approximate positions.
  */
-import { DiffFile, DiffHunk, DiffChange } from "./diff.js";
+import { DiffFile } from "./diff.js";
 
 export interface LineMapping {
   file: string;
-  line: number;       // The actual file line number the LLM referenced
-  position: number;   // The GitHub diff position for createReviewComment
+  line: number;
+  position: number;
   side?: "LEFT" | "RIGHT";
 }
 
 /**
- * Build a complete position lookup from parsed diff data.
- * Returns a map: filePath → Map<fileLineNumber, githubPosition>
+ * Build position map from raw unified diff text (diff0 pattern).
+ * More accurate than building from parsed hunks because GitHub's "position"
+ * counts ALL diff lines including metadata, hunk headers, and context.
+ */
+export function buildLineMapFromRawDiff(rawDiff: string): Map<string, Map<number, number>> {
+  const result = new Map<string, Map<number, number>>();
+  const lines = rawDiff.split("\n");
+  let currentFile: string | null = null;
+  let position = 0;
+  let newLineNumber = 0;
+
+  for (const line of lines) {
+    position++; // Every line in diff increments position
+
+    if (line.startsWith("diff --git")) {
+      const m = line.match(/^diff --git a\/(.+?) b\/(.+)$/);
+      if (m) {
+        currentFile = m[2];
+        newLineNumber = 0;
+        if (!result.has(currentFile)) {
+          result.set(currentFile, new Map());
+        }
+      }
+      continue;
+    }
+
+    if (line.startsWith("@@")) {
+      const m = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (m) {
+        newLineNumber = parseInt(m[1], 10) - 1;
+      }
+      continue;
+    }
+
+    if (line.startsWith("index ") || line.startsWith("--- ") || line.startsWith("+++ ") || line.startsWith("Binary")) {
+      continue;
+    }
+
+    if (!currentFile) continue;
+    const fileMap = result.get(currentFile)!;
+
+    if (line.startsWith("+")) {
+      newLineNumber++;
+      fileMap.set(newLineNumber, position);
+    } else if (line.startsWith("-")) {
+      // Removed line — no new file line number
+    } else if (!line.startsWith("\\")) {
+      newLineNumber++;
+      fileMap.set(newLineNumber, position);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Build line map from parsed DiffFile[] as fallback.
+ * Less accurate — use buildLineMapFromRawDiff when raw diff is available.
  */
 export function buildLineMap(files: DiffFile[]): Map<string, Map<number, number>> {
   const result = new Map<string, Map<number, number>>();
@@ -28,14 +85,11 @@ export function buildLineMap(files: DiffFile[]): Map<string, Map<number, number>
     let position = 0;
 
     for (const hunk of file.hunks) {
+      position++; // hunk header
       for (const change of hunk.changes) {
         position++;
-        // Only map lines that exist in the new version (RIGHT side)
-        // "add" and "normal" lines have valid new-file line numbers
-        if (change.type === "add" || change.type === "normal") {
-          if (change.line > 0) {
-            lineToPosition.set(change.line, position);
-          }
+        if ((change.type === "add" || change.type === "normal") && change.line > 0) {
+          lineToPosition.set(change.line, position);
         }
       }
     }
@@ -47,8 +101,8 @@ export function buildLineMap(files: DiffFile[]): Map<string, Map<number, number>
 }
 
 /**
- * Resolve an LLM finding to a valid GitHub diff position.
- * If the exact line isn't in the diff, find the nearest valid position.
+ * Resolve LLM finding to GitHub diff position.
+ * SourceAnt 4-strategy cascade: exact → proximity (±5) → closest.
  */
 export function resolvePosition(
   lineMap: Map<string, Map<number, number>>,
@@ -58,10 +112,8 @@ export function resolvePosition(
   const fileMap = lineMap.get(file);
   if (!fileMap) return null;
 
-  // Exact match
   if (fileMap.has(line)) return fileMap.get(line)!;
 
-  // Find nearest valid position (within 5 lines, preferring higher)
   const positions = [...fileMap.entries()]
     .filter(([ln]) => Math.abs(ln - line) <= 5)
     .sort(([a], [b]) => Math.abs(a - line) - Math.abs(b - line));
@@ -70,8 +122,7 @@ export function resolvePosition(
 }
 
 /**
- * Generate a hint string for the LLM prompt listing valid comment positions.
- * Format: "src/auth.ts: lines 10-45, 50-89; src/api.ts: lines 5-30"
+ * Generate hint string for LLM prompt listing valid comment positions.
  */
 export function buildPositionHint(files: DiffFile[]): string {
   const parts: string[] = [];
@@ -88,7 +139,6 @@ export function buildPositionHint(files: DiffFile[]): string {
 
     if (validLines.length === 0) continue;
 
-    // Collapse consecutive ranges
     const ranges: string[] = [];
     let rangeStart = validLines[0];
     let rangeEnd = validLines[0];
@@ -111,8 +161,7 @@ export function buildPositionHint(files: DiffFile[]): string {
 }
 
 /**
- * Validate that a finding's file+line combination is actually in the diff.
- * Returns the corrected position or null if impossible.
+ * Validate that a finding's file+line combination is in the diff.
  */
 export function validateFinding(
   lineMap: Map<string, Map<number, number>>,

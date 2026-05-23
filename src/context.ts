@@ -6,7 +6,7 @@ import { Octokit } from "@octokit/rest";
 import { DiffFile, ParsedDiff } from "./diff.js";
 import { readMemory, readRules } from "./memory.js";
 import { stripPatchPII } from "./diff.js";
-import { stripAnsi } from "strip-ansi";
+import stripAnsi from "strip-ansi";
 
 export interface ReviewContext {
   diffText: string;

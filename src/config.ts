@@ -52,10 +52,12 @@ export function loadConfig(): MizumiConfig {
     try {
       const raw = fs.readFileSync(configPath, "utf-8");
       const parsed = parseSimpleYaml(raw);
-      if (parsed.llm?.model) repoModel = String(parsed.llm.model);
-      if (parsed.review?.profile) repoProfile = String(parsed.review.profile) as Profile;
-      if (parsed.review?.max_comments) repoMaxComments = Number(parsed.review.max_comments);
-      if (parsed.review?.confidence_threshold) repoConfidence = Number(parsed.review.confidence_threshold);
+      const llm = parsed.llm as Record<string, unknown> | undefined;
+      const review = parsed.review as Record<string, unknown> | undefined;
+      if (llm?.model) repoModel = String(llm.model);
+      if (review?.profile) repoProfile = String(review.profile) as Profile;
+      if (review?.max_comments) repoMaxComments = Number(review.max_comments);
+      if (review?.confidence_threshold) repoConfidence = Number(review.confidence_threshold);
       if (Array.isArray(parsed.exclude)) excludePatterns = [...DEFAULT_EXCLUDE, ...parsed.exclude.map(String)];
     } catch {
       core.warning("Failed to parse .github/mizumi.yml, using defaults");

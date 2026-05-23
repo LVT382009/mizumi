@@ -6,8 +6,7 @@
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { z } from "zod";
-import { ReviewCommentType, ReviewResponseType, ReviewComment, ReviewResponse } from "./review.js";
+import { ReviewResponseType, ReviewResponse } from "./review.js";
 import { MizumiConfig, getApiKey } from "./config.js";
 
 const CRITIQUE_MODEL = "gpt-4.1-mini"; // Cheap model for critique pass
@@ -52,7 +51,7 @@ Return the filtered list as JSON with the same schema.`;
     const { text } = await generateText({
       model,
       prompt: critiquePrompt,
-      maxTokens: 4096,
+      maxOutputTokens: 4096,
     });
 
     const filtered = parseCritiqueOutput(text, review);
