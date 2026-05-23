@@ -64,7 +64,7 @@ All Phase 1 items from the implementation plan are now implemented:
 - Review fatigue: buildFatigueWarning in post.ts, appears before risk score
 - Anthropic prompt caching: providerOptions cacheControl ephemeral on user message
 
-### Phase 3 — Make It Remember (In Progress)
+### Phase 3 — Make It Remember (Nearly Complete)
 
 | Item | Status | Implementation |
 |------|--------|---------------|
@@ -79,6 +79,7 @@ All Phase 1 items from the implementation plan are now implemented:
 | 3.15 /mizumi improve | ✅ | `improve.ts` — applies suggestion blocks via Git Data API |
 | 3.4 SHA dedup | ✅ | `idempotency.ts` — isReviewedSha + markShaReviewed (flat-file) |
 | 3.5 Webhook idempotency | ✅ | `idempotency.ts` — hashed delivery_id dedup (flat-file, 500 entries) |
+| /mizumi test | ✅ | `testgen.ts` — LLM-generated vitest skeletons for critical/high findings |
 
 ### Bug Fixes (This Cycle)
 
