@@ -24,6 +24,7 @@ import { createSpendEntry, appendSpendEntry } from "./spend.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
+import { generateTests } from "./testgen.js";
 import { isDuplicateDelivery, markDeliveryProcessed, isReviewedSha, markShaReviewed } from "./idempotency.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
@@ -79,6 +80,14 @@ async function run(): Promise<void> {
           ? `Applied ${result.fixedCount} suggestion(s) (${result.commitSha?.slice(0, 7)})`
           : "No fixable suggestions found",
       });
+      return;
+    }
+    if (cmd?.command === "test") {
+      core.info("Running /mizumi test...");
+      const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
+      const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
+      const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindings, config);
+      await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: testOutput });
       return;
     }
   }
@@ -315,6 +324,29 @@ async function countMizumiReviews(
   count += reviews.filter((r) => r.body?.includes(MARKER)).length;
 
   return count;
+}
+
+async function getLatestFindings(
+  octokit: Octokit, owner: string, repo: string, prNumber: number
+): Promise<Array<{ file: string; line: number; severity: string; category: string; message: string; suggestion?: string }>> {
+  const findings: Array<{ file: string; line: number; severity: string; category: string; message: string; suggestion?: string }> = [];
+  const { data: comments } = await octokit.rest.pulls.listReviewComments({
+    owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
+  });
+  for (const c of comments.slice(0, 20)) {
+    if (!c.body?.includes(MARKER)) continue;
+    const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
+    const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
+    const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
+    findings.push({
+      file: c.path, line: c.line ?? 0,
+      severity: seveMatch?.[1]?.toLowerCase() || "medium",
+      category: catMatch?.[1]?.toLowerCase() || "bug",
+      message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
+      suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+    });
+  }
+  return findings;
 }
 
 run();
