@@ -249,6 +249,11 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
 
+// 10a. Set action outputs
+core.setOutput("review_id", result.reviewId);
+core.setOutput("finding_count", result.findingCount);
+core.setOutput("risk_score", result.riskScore);
+
 // 10c. Mark idempotency — prevent duplicate reviews for this SHA/delivery
 markShaReviewed(workspace, headSha);
 markDeliveryProcessed(workspace, deliveryId);

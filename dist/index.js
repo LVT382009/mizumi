@@ -74230,6 +74230,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         info("Posting review...");
         const result = await postReview(octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config);
         info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+        // 10a. Set action outputs
+        setOutput("review_id", result.reviewId);
+        setOutput("finding_count", result.findingCount);
+        setOutput("risk_score", result.riskScore);
         // 10c. Mark idempotency — prevent duplicate reviews for this SHA/delivery
         markShaReviewed(workspace, headSha);
         markDeliveryProcessed(workspace, deliveryId);
