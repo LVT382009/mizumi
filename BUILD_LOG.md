@@ -81,8 +81,12 @@ All Phase 1 items from the implementation plan are now implemented:
 | 3.5 Webhook idempotency | ✅ | `idempotency.ts` — hashed delivery_id dedup (flat-file, 500 entries) |
 | /mizumi test | ✅ | `testgen.ts` — LLM-generated vitest skeletons for critical/high findings |
 
-### Bug Fixes (This Cycle)
+### Bug Fixes / Hardening (This Cycle)
 
+- recordFindings wired into main.ts (feedback.ts was dead code — emoji tracking now works)
+- Provider + profile validation in config.ts (whitelist against VALID_PROVIDERS/VALID_PROFILES)
+- github_token input added to action.yml (was only read from env, now has proper Action input)
+- Workflow: contents: write permission for /mizumi improve (push commits)
 - MARKER added to buildReviewBody (auto-pause was counting 0 reviews)
 - Exclude patterns fix from mizumi.yml (double-nested YAML parser)
 - Suggestion blocks moved to top-level for "Commit suggestion" button
@@ -110,7 +114,7 @@ All Phase 1 items from the implementation plan are now implemented:
 ### Build Stats
 
 - 384 tests passing (21 test files + 1 skipped)
-- 2,942 production lines (58 under 3,000 budget)
+- 2,953 production lines (47 under 3,000 budget)
 - Zero TS errors
 - 22 source modules (main, config, diff, linemap, context, review, critique, post, memory, rules, sanitize, router, classifier, description, slop, feedback, spend, describe, improve, idempotency, testgen, context)
 - `dist/index.js` bundle verified
