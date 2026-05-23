@@ -7,7 +7,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("../config.js", () => ({
-  getApiKey: vi.fn(() => "test-key"),
+  requireApiKey: vi.fn(() => "test-key"),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({

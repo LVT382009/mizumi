@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export type Profile = "chill" | "assertive" | "followup";
-export type Provider = "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "local";
+export type Provider = "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "local" | "custom";
 
 export interface MizumiConfig {
   provider: Provider;
@@ -42,7 +42,7 @@ const DEFAULT_SECURITY_PATHS = [
   "**/password*",
 ];
 
-const VALID_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "openrouter", "nvidia", "local"];
+const VALID_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "openrouter", "nvidia", "local", "custom"];
 const VALID_PROFILES: Profile[] = ["chill", "assertive", "followup"];
 
 export function loadConfig(): MizumiConfig {
@@ -66,6 +66,7 @@ export function loadConfig(): MizumiConfig {
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
   let repoModel = model;
+  let repoBaseUrl = baseUrl;
   let repoProfile = profile;
   let repoMaxComments = maxComments;
   let repoConfidence = confidenceThreshold;
@@ -79,7 +80,8 @@ export function loadConfig(): MizumiConfig {
       const llm = parsed.llm as Record<string, unknown> | undefined;
       const review = parsed.review as Record<string, unknown> | undefined;
       if (llm?.model) repoModel = String(llm.model);
-      if (review?.profile) repoProfile = String(review.profile) as Profile;
+      if (llm?.base_url) repoBaseUrl = String(llm.base_url);
+      if (review?.profile) { const p = String(review.profile); if (VALID_PROFILES.includes(p as Profile)) repoProfile = p as Profile; }
       if (review?.max_comments) repoMaxComments = Number(review.max_comments);
       if (review?.confidence_threshold) repoConfidence = Number(review.confidence_threshold);
       if (review?.tier_routing === false) repoTierRouting = false;
@@ -109,7 +111,7 @@ export function loadConfig(): MizumiConfig {
   return {
     provider,
     model: repoModel,
-    baseUrl,
+    baseUrl: repoBaseUrl,
     profile: repoProfile,
     maxComments: repoMaxComments,
     language,
@@ -205,7 +207,19 @@ export function getApiKey(provider: Provider): string {
       return core.getInput("openrouter_api_key") || process.env.OPENROUTER_API_KEY || "";
     case "local":
       return core.getInput("local_api_key") || process.env.LOCAL_API_KEY || "dummy";
+    case "custom":
+      return core.getInput("custom_api_key") || process.env.CUSTOM_API_KEY || "";
     case "nvidia":
       return core.getInput("nvidia_api_key") || process.env.NVIDIA_NIM_API_KEY || "";
   }
+}
+
+/** Get API key, throwing an actionable error if missing for non-local providers. */
+export function requireApiKey(provider: Provider): string {
+  const key = getApiKey(provider);
+  if (!key && provider !== "local" && provider !== "custom") {
+    const envVar = `${provider.toUpperCase()}_API_KEY`;
+    throw new Error(`API key for ${provider} is required. Set ${envVar} or the ${provider}_api_key action input.`);
+  }
+  return key || "dummy";
 }

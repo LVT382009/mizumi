@@ -263,10 +263,11 @@ describe("getApiKey provider mapping", () => {
     openrouter: "OPENROUTER_API_KEY",
     nvidia: "NVIDIA_NIM_API_KEY",
     local: "LOCAL_API_KEY",
+    custom: "CUSTOM_API_KEY",
   };
 
   it("each provider has a corresponding env var", () => {
-    const providers = ["anthropic", "openai", "google", "openrouter", "nvidia", "local"];
+    const providers = ["anthropic", "openai", "google", "openrouter", "nvidia", "local", "custom"];
     for (const provider of providers) {
       expect(PROVIDER_ENV_MAP[provider]).toBeDefined();
     }
@@ -276,6 +277,10 @@ describe("getApiKey provider mapping", () => {
     // The getApiKey function returns "dummy" for local provider as fallback
     // This test documents that expected behavior
     expect(PROVIDER_ENV_MAP.local).toBe("LOCAL_API_KEY");
+  });
+
+  it("custom provider uses CUSTOM_API_KEY env var", () => {
+    expect(PROVIDER_ENV_MAP.custom).toBe("CUSTOM_API_KEY");
   });
 
   it("nvidia provider uses NVIDIA_NIM_API_KEY env var", () => {

@@ -25,20 +25,23 @@ inputs:
     description: NVIDIA NIM API key (nvapi-*)
     required: false
   local_api_key:
-    description: API key for local/self-hosted model (optional, e.g. for Ollama)
+    description: API key for local/self-hosted model (optional — Ollama/llama.cpp/LM Studio usually don't need one)
     required: false
     default: "dummy"
   base_url:
-    description: Custom base URL for OpenAI-compatible endpoint (Ollama, vLLM, Together, etc.)
+    description: "Custom base URL for OpenAI-compatible endpoint. For local: Ollama (http://localhost:11434/v1), llama.cpp server (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). For custom: Together AI, Groq, DeepSeek, Fireworks, etc."
     required: false
   model:
     description: Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)
     required: false
     default: "claude-sonnet-4-6"
   provider:
-    description: LLM provider (anthropic | openai | google | openrouter | nvidia | local)
+    description: "LLM provider: anthropic | openai | google | openrouter | nvidia | local | custom"
     required: false
     default: "anthropic"
+  custom_api_key:
+    description: API key for custom OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, Fireworks, etc.)
+    required: false
   profile:
     description: Review profile — chill (bugs/security only) | assertive (+ style/docs) | followup (+ check previous comments)
     required: false

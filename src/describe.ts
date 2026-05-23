@@ -7,7 +7,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, getApiKey } from "./config.js";
+import { MizumiConfig, requireApiKey } from "./config.js";
 
 const DescriptionSchema = z.object({
   title: z.string().describe("Concise PR title in imperative mood"),
@@ -18,14 +18,15 @@ const DescriptionSchema = z.object({
 });
 
 function createModel(config: MizumiConfig) {
-  const apiKey = getApiKey(config.provider);
+  const apiKey = requireApiKey(config.provider);
   switch (config.provider) {
     case "anthropic": return createAnthropic({ apiKey })(config.model);
     case "openai": return createOpenAI({ apiKey })(config.model);
     case "google": return createGoogleGenerativeAI({ apiKey })(config.model);
     case "openrouter": return createOpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey, name: "openrouter" }).chat(config.model);
-    case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey: apiKey || "dummy", name: "local" }).chat(config.model);
-    case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
+    case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey, name: "local" }).chat(config.model);
+    case "custom": return createOpenAI({ baseURL: config.baseUrl || process.env.CUSTOM_BASE_URL || "", apiKey, name: "custom" }).chat(config.model);
+  case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
   }
 }
 

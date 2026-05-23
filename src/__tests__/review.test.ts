@@ -12,7 +12,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("../config.js", () => ({
-  getApiKey: vi.fn(() => "test-key"),
+  requireApiKey: vi.fn(() => "test-key"),
 }));
 
 vi.mock("../sanitize.js", () => ({
@@ -428,5 +428,17 @@ describe("runReview", () => {
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "openai" }));
 
     expect(capturedMessages[0]?.providerOptions).toBeUndefined();
+  });
+
+  it("custom provider passes base URL to createOpenAI", async () => {
+    const { createOpenAI } = await import("@ai-sdk/openai");
+    mockGenerateText.mockResolvedValue({ output: fakeReviewOutput, usage: { inputTokens: 500, outputTokens: 200, inputTokenDetails: { noCacheTokens: 500, cacheReadTokens: 0, cacheWriteTokens: 0 } } } as any);
+
+    await runReview("diff", "pos", "", "", "", makeConfig({ provider: "custom", baseUrl: "https://api.together.xyz/v1", model: "meta-llama/llama-3.3-70b-instruct" }));
+
+    expect(createOpenAI).toHaveBeenCalledWith(expect.objectContaining({
+      baseURL: "https://api.together.xyz/v1",
+      name: "custom",
+    }));
   });
 });

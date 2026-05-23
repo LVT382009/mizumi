@@ -7,7 +7,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ReviewResponseType, ReviewResponse } from "./review.js";
-import { MizumiConfig, getApiKey } from "./config.js";
+import { MizumiConfig, requireApiKey } from "./config.js";
 
 const CRITIQUE_MODEL = "gpt-4.1-mini"; // Cheap model for critique pass
 
@@ -25,10 +25,10 @@ export async function runCritique(
 
   // Use a cheap model for critique — reframe as "external reviewer to critically evaluate"
   // Prefer OpenAI for cheap critique, fall back to the configured provider
-  const openaiKey = getApiKey("openai");
+  const openaiKey = requireApiKey("openai");
   const model = openaiKey
     ? createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL)
-    : createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5");
+    : createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5");
 
   const critiquePrompt = `An external AI reviewer made these findings about a PR:
 

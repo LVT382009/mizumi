@@ -7,7 +7,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, getApiKey } from "./config.js";
+import { MizumiConfig, requireApiKey } from "./config.js";
 import { DiffClassification } from "./router.js";
 import { wrapDiff } from "./sanitize.js";
 
@@ -33,7 +33,7 @@ export type ReviewCommentType = z.infer<typeof ReviewComment>;
 export type ReviewResponseType = z.infer<typeof ReviewResponse>;
 
 function createModel(config: MizumiConfig) {
-  const apiKey = getApiKey(config.provider);
+  const apiKey = requireApiKey(config.provider);
 
   switch (config.provider) {
     case "anthropic":
@@ -49,10 +49,17 @@ function createModel(config: MizumiConfig) {
         name: "openrouter",
       }).chat(config.model);
     case "local":
+      // Defaults to Ollama (11434). Override base_url for llama.cpp (8081) or LM Studio (1234)
       return createOpenAI({
         baseURL: config.baseUrl || process.env.MIZUMI_BASE_URL || "http://localhost:11434/v1",
-        apiKey: apiKey || "dummy",
+        apiKey,
         name: "local",
+      }).chat(config.model);
+    case "custom":
+      return createOpenAI({
+        baseURL: config.baseUrl || process.env.CUSTOM_BASE_URL || "",
+        apiKey,
+        name: "custom",
       }).chat(config.model);
     case "nvidia":
       return createOpenAI({
@@ -69,7 +76,7 @@ function createModel(config: MizumiConfig) {
  */
 export function selectModel(config: MizumiConfig, classification: DiffClassification): ReturnType<typeof createModel> {
   if (classification.tier === "light" && config.provider === "anthropic") {
-    return createAnthropic({ apiKey: getApiKey("anthropic") })("claude-haiku-4-5-20251001");
+    return createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5-20251001");
   }
   return createModel(config);
 }

@@ -41,8 +41,8 @@ describe("delivery idempotency", () => {
     expect(isDuplicateDelivery(tmpDir, "del-1")).toBe(false);
   });
 
-  it("returns true after marking as processed", () => {
-    markDeliveryProcessed(tmpDir, "del-1");
+  it("returns true after first call marks it atomically", () => {
+    expect(isDuplicateDelivery(tmpDir, "del-1")).toBe(false);
     expect(isDuplicateDelivery(tmpDir, "del-1")).toBe(true);
   });
 
@@ -51,8 +51,8 @@ describe("delivery idempotency", () => {
   });
 
   it("persists across calls", () => {
-    markDeliveryProcessed(tmpDir, "del-99");
-    // Re-read from file
+    isDuplicateDelivery(tmpDir, "del-99");
+    // Re-read from file (atomic mark already happened)
     expect(isDuplicateDelivery(tmpDir, "del-99")).toBe(true);
   });
 });
@@ -62,8 +62,8 @@ describe("SHA dedup", () => {
     expect(isReviewedSha(tmpDir, "abc123")).toBe(false);
   });
 
-  it("returns true after marking as reviewed", () => {
-    markShaReviewed(tmpDir, "abc123");
+  it("returns true after first call marks it atomically", () => {
+    expect(isReviewedSha(tmpDir, "abc123")).toBe(false);
     expect(isReviewedSha(tmpDir, "abc123")).toBe(true);
   });
 
@@ -72,7 +72,7 @@ describe("SHA dedup", () => {
   });
 
   it("different SHAs are independent", () => {
-    markShaReviewed(tmpDir, "sha-a");
+    isReviewedSha(tmpDir, "sha-a");
     expect(isReviewedSha(tmpDir, "sha-b")).toBe(false);
     expect(isReviewedSha(tmpDir, "sha-a")).toBe(true);
   });

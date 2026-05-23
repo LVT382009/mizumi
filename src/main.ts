@@ -26,7 +26,7 @@ import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
 import { generateTests } from "./testgen.js";
-import { isDuplicateDelivery, markDeliveryProcessed, isReviewedSha, markShaReviewed } from "./idempotency.js";
+import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -120,11 +120,11 @@ async function run(): Promise<void> {
     }
 
 
-  if (isDuplicateDelivery(workspace, deliveryId)) {
+  if (checkAndMarkDelivery(workspace, deliveryId)) {
     core.info("Duplicate webhook delivery — skipping");
     return;
   }
-  if (!isManualTrigger && isReviewedSha(workspace, headSha)) {
+  if (!isManualTrigger && checkAndMarkSha(workspace, headSha)) {
     core.info(`Already reviewed SHA ${headSha.slice(0, 7)} — skipping. Use /mizumi to force.`);
     return;
   }
@@ -254,9 +254,7 @@ core.setOutput("review_id", result.reviewId);
 core.setOutput("finding_count", result.findingCount);
 core.setOutput("risk_score", result.riskScore);
 
-// 10c. Mark idempotency — prevent duplicate reviews for this SHA/delivery
-markShaReviewed(workspace, headSha);
-markDeliveryProcessed(workspace, deliveryId);
+  // 10c. Idempotency already marked atomically at step 0
 
 // 10b. Track spend
 const spendEntry = createSpendEntry(
@@ -288,7 +286,8 @@ if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.leng
     // Always exit 0 — never fail the build by default
     core.info("Mizumi review complete");
   } catch (error) {
-    core.error(`Mizumi error: ${error instanceof Error ? error.message : String(error)}`);
+    core.error(`Mizumi error: ${error instanceof Error ? (error.stack || error.message) : String(error)}`);
+    core.setOutput("review_id", 0);
     core.setOutput("finding_count", 0);
     core.setOutput("risk_score", 0);
   }
@@ -368,4 +367,4 @@ async function getLatestFindings(
   return findings;
 }
 
-run();
+void run().catch((e) => { core.setFailed(`Fatal: ${e}`); process.exit(1); });

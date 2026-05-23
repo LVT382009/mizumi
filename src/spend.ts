@@ -93,7 +93,8 @@ export function readSpendLog(workspace: string): SpendEntry[] {
       .trim()
       .split("\n")
       .filter(Boolean)
-      .map((line) => JSON.parse(line) as SpendEntry);
+      .map((line) => { try { return JSON.parse(line) as SpendEntry; } catch { return null; } })
+      .filter((e): e is SpendEntry => e !== null);
   } catch {
     return [];
   }
