@@ -2,7 +2,7 @@
  * /mizumi test — generate test skeletons for critical/high findings.
  * Uses LLM to produce test code from review findings + diff context.
  */
-import { generateText, Output } from "ai";
+import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -47,7 +47,7 @@ export async function generateTests(
     .map((f) => `- [${f.severity}] ${f.file}:${f.line} (${f.category}): ${f.message}${f.suggestion ? ` — Suggestion: ${f.suggestion}` : ""}`)
     .join("\n");
 
-  const { output } = await generateText({
+  const { object: output } = await generateObject({
     model,
     system: "You generate vitest test code that would catch the specific bugs/security issues described in review findings. Write focused, minimal tests — one test per finding. Use vitest describe/it/expect syntax.",
     prompt: `Generate vitest tests for these review findings:
@@ -58,7 +58,7 @@ Changed code diff (for context):
 ${diffText.slice(0, 30000)}
 
 Respond with structured JSON matching the schema.`,
-    output: Output.object({ schema: TestSchema }),
+    schema: TestSchema,
     maxOutputTokens: 2048,
   });
 

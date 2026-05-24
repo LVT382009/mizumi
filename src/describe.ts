@@ -2,7 +2,7 @@
  * PR description generator — analyzes diff and produces a structured description.
  * Triggered via `/mizumi describe` command.
  */
-import { generateText, Output } from "ai";
+import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -39,7 +39,7 @@ export async function generateDescription(
   diffFiles?: Array<{ path: string; additions: number; deletions: number }>
 ): Promise<string> {
   const model = createModel(config);
-  const { output } = await generateText({
+  const { object: output } = await generateObject({
     model,
     system: "You generate clear, structured PR descriptions from diff content. Use imperative mood. Be concise.",
     prompt: `Generate a PR description for this diff.
@@ -51,7 +51,7 @@ Diff:
 ${diffText.slice(0, 50000)}
 
 Respond with structured JSON matching the schema.`,
-    output: Output.object({ schema: DescriptionSchema }),
+    schema: DescriptionSchema,
     maxOutputTokens: 2048,
   });
 

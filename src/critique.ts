@@ -4,13 +4,13 @@
  * Uses cheaper model (haiku) for critique pass.
  */
 import * as core from "@actions/core";
-import { generateText } from "ai";
+import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ReviewResponseType, ReviewResponse } from "./review.js";
 import { MizumiConfig, getApiKey } from "./config.js";
 
-const CRITIQUE_MODEL = "gpt-4.1-mini"; // Cheap model for critique pass
+const CRITIQUE_MODEL = "gpt-4.1-mini";
 
 /**
  * Run self-critique: re-evaluate review findings with a "subterfuge" framing.
@@ -24,7 +24,6 @@ export async function runCritique(
     return filterByConfidence(review, config.confidenceThreshold);
   }
 
-  // Use a cheap model for critique — try OpenAI first, then Anthropic, then configured provider
   const openaiKey = getApiKey("openai");
   const anthropicKey = getApiKey("anthropic");
   let model;
@@ -33,7 +32,6 @@ export async function runCritique(
   } else if (anthropicKey) {
     model = createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5");
   } else {
-    // Fall back to the user's configured provider + model for critique
     const configKey = getApiKey(config.provider);
     if (!configKey && config.provider !== "local" && config.provider !== "custom") {
       core.warning("No API key available for critique — skipping self-critique");
@@ -72,23 +70,24 @@ Remove any finding where:
 - The finding is overly pedantic or stylistic
 - The confidence should be below ${config.confidenceThreshold}
 
-Return the filtered list as JSON with the same schema.`;
+Return the filtered list with the same schema.`;
 
   try {
-    const { text } = await generateText({
+    const { object } = await generateObject({
       model,
       prompt: critiquePrompt,
+      schema: ReviewResponse,
       maxOutputTokens: 4096,
     });
 
-    const filtered = parseCritiqueOutput(text, review);
-    return filterByConfidence(filtered, config.confidenceThreshold);
+    return filterByConfidence(object, config.confidenceThreshold);
   } catch (e) {
     core.warning(`Critique LLM call failed: ${e instanceof Error ? e.message : String(e)} — falling back to confidence filter`);
     return filterByConfidence(review, config.confidenceThreshold);
   }
 }
 
+/** @deprecated Kept for test compatibility — generateObject replaces manual JSON parsing */
 export function parseCritiqueOutput(text: string, original: ReviewResponseType): ReviewResponseType {
   try {
     let jsonStr = text.trim();
@@ -98,7 +97,6 @@ export function parseCritiqueOutput(text: string, original: ReviewResponseType):
     const parsed = JSON.parse(jsonStr);
     return ReviewResponse.parse(parsed);
   } catch {
-    // If critique output can't be parsed, return original filtered by confidence
     return original;
   }
 }
@@ -108,7 +106,6 @@ export function filterByConfidence(review: ReviewResponseType, threshold: number
   return {
     ...review,
     comments: filtered,
-    // Adjust decision if all critical/high findings were filtered
     decision: filtered.some((c) => c.severity === "critical" || c.severity === "high")
       ? review.decision
       : filtered.length > 0

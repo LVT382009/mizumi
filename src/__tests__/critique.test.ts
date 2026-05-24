@@ -167,11 +167,11 @@ describe("parseCritiqueOutput", () => {
 });
 
 // ---------------------------------------------------------------------------
-// runCritique — requires mocking generateText
+// runCritique — requires mocking generateObject
 // ---------------------------------------------------------------------------
 
 vi.mock("ai", () => ({
-  generateText: vi.fn(),
+  generateObject: vi.fn(),
 }));
 
 vi.mock("../config.js", () => ({
@@ -187,9 +187,9 @@ vi.mock("@ai-sdk/anthropic", () => ({
   createAnthropic: vi.fn(() => vi.fn(() => "mock-model")),
 }));
 
-import { generateText } from "ai";
+import { generateObject } from "ai";
 
-const mockGenerateText = vi.mocked(generateText);
+const mockGenerateObject = vi.mocked(generateObject);
 
 describe("runCritique", () => {
   const baseConfig = {
@@ -240,7 +240,7 @@ describe("runCritique", () => {
     // Should skip LLM call and just filter by confidence (80)
     expect(result.comments).toHaveLength(1);
     expect(result.comments[0].confidence).toBe(90);
-    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
   it("skips critique when review has no comments", async () => {
@@ -253,12 +253,12 @@ describe("runCritique", () => {
     const result = await runCritique(emptyReview, baseConfig);
     expect(result.comments).toHaveLength(0);
     expect(result.decision).toBe("approve");
-    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
   it("calls LLM when selfCritique is true and comments exist", async () => {
-    mockGenerateText.mockResolvedValue({
-      text: JSON.stringify({
+    mockGenerateObject.mockResolvedValue({
+      object: {
         summary: "Filtered",
         riskScore: 2,
         comments: [
@@ -272,16 +272,16 @@ describe("runCritique", () => {
           },
         ],
         decision: "comment",
-      }),
+      },
     } as any);
 
     const result = await runCritique(reviewWithComments, baseConfig);
-    expect(mockGenerateText).toHaveBeenCalledOnce();
+    expect(mockGenerateObject).toHaveBeenCalledOnce();
     expect(result.comments).toHaveLength(1);
   });
 
   it("falls back to confidence-only filter when LLM call fails", async () => {
-    mockGenerateText.mockRejectedValue(new Error("LLM unavailable"));
+    mockGenerateObject.mockRejectedValue(new Error("LLM unavailable"));
 
     const result = await runCritique(reviewWithComments, baseConfig);
     // Falls back to filterByConfidence on the original review
@@ -289,10 +289,8 @@ describe("runCritique", () => {
     expect(result.comments[0].confidence).toBe(90);
   });
 
-  it("falls back to original when critique output is unparseable", async () => {
-    mockGenerateText.mockResolvedValue({
-      text: "I can't return JSON, sorry",
-    } as any);
+  it("falls back to original when generateObject fails to produce structured output", async () => {
+    mockGenerateObject.mockRejectedValue(new Error("NoObjectGeneratedError"));
 
     const result = await runCritique(reviewWithComments, baseConfig);
     // parseCritiqueOutput fails → returns original → filterByConfidence applies

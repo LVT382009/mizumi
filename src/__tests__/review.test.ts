@@ -7,8 +7,7 @@ import type { ReviewResponseType } from "../review.js";
 // ---------------------------------------------------------------------------
 
 vi.mock("ai", () => ({
-  generateText: vi.fn(),
-  Output: { object: vi.fn((opts: any) => opts) },
+  generateObject: vi.fn(),
 }));
 
 vi.mock("../config.js", () => ({
@@ -35,9 +34,9 @@ vi.mock("@ai-sdk/google", () => ({
   createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "google-model")),
 }));
 
-import { generateText } from "ai";
+import { generateObject } from "ai";
 
-const mockGenerateText = vi.mocked(generateText);
+const mockGenerateObject = vi.mocked(generateObject);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -212,14 +211,14 @@ describe("ReviewResponse schema", () => {
 
 describe("profile instructions in system prompt", () => {
   beforeEach(() => {
-    mockGenerateText.mockReset();
+    mockGenerateObject.mockReset();
   });
 
   it("chill profile mentions bugs and security but not style", async () => {
     let capturedSystem = "";
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "chill" }));
@@ -231,9 +230,9 @@ describe("profile instructions in system prompt", () => {
 
   it("assertive profile mentions style", async () => {
     let capturedSystem = "";
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "assertive" }));
@@ -245,9 +244,9 @@ describe("profile instructions in system prompt", () => {
 
   it("followup profile mentions previous review", async () => {
     let capturedSystem = "";
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig({ profile: "followup" }));
@@ -262,14 +261,14 @@ describe("profile instructions in system prompt", () => {
 
 describe("system prompt build", () => {
   beforeEach(() => {
-    mockGenerateText.mockReset();
+    mockGenerateObject.mockReset();
   });
 
   it("includes validPositions text in system prompt", async () => {
     let capturedSystem = "";
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     const positions = "src/app.ts:10,src/app.ts:15";
@@ -281,9 +280,9 @@ describe("system prompt build", () => {
 
   it("includes severity guidelines in system prompt", async () => {
     let capturedSystem = "";
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedSystem = opts.system;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "positions", "", "", "", makeConfig());
@@ -300,7 +299,7 @@ describe("system prompt build", () => {
 
 describe("runReview", () => {
   beforeEach(() => {
-    mockGenerateText.mockReset();
+    mockGenerateObject.mockReset();
   });
 
   it("returns structured ReviewResponse from LLM output", async () => {
@@ -321,7 +320,7 @@ describe("runReview", () => {
       decision: "request_changes",
     };
 
-    mockGenerateText.mockResolvedValue({ output: expected, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
+    mockGenerateObject.mockResolvedValue({ object:expected, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
 
     const { output: result, usage } = await runReview("diff content", "src/util.ts:42", "", "", "", makeConfig());
 
@@ -333,9 +332,9 @@ describe("runReview", () => {
 
   it("passes diff content through wrapDiff", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     const { wrapDiff } = await import("../sanitize.js");
@@ -350,9 +349,9 @@ describe("runReview", () => {
 
   it("appends memory content to user prompt when provided", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "past review patterns", "", "", makeConfig());
@@ -366,9 +365,9 @@ describe("runReview", () => {
 
   it("appends rules content to user prompt when provided", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "no console.log in production", "", makeConfig());
@@ -382,9 +381,9 @@ describe("runReview", () => {
 
   it("omits memory and rules sections when not provided", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig());
@@ -396,21 +395,21 @@ describe("runReview", () => {
     expect(userText).not.toContain("Project Rules");
   });
 
-  it("calls generateText with maxOutputTokens 4096", async () => {
-    mockGenerateText.mockResolvedValue({ output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
+  it("calls generateObject with maxOutputTokens 4096", async () => {
+    mockGenerateObject.mockResolvedValue({ object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any);
 
     await runReview("diff", "pos", "", "", "", makeConfig());
 
-    expect(mockGenerateText).toHaveBeenCalledOnce();
-    const callOpts = mockGenerateText.mock.calls[0][0] as any;
+    expect(mockGenerateObject).toHaveBeenCalledOnce();
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
     expect(callOpts.maxOutputTokens).toBe(4096);
   });
 
   it("adds Anthropic cacheControl when provider is anthropic", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "anthropic" }));
@@ -420,9 +419,9 @@ describe("runReview", () => {
 
   it("does not add cacheControl for non-Anthropic providers", async () => {
     let capturedMessages: any[] = [];
-    mockGenerateText.mockImplementation(async (opts: any) => {
+    mockGenerateObject.mockImplementation(async (opts: any) => {
       capturedMessages = opts.messages;
-      return { output: fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
+      return { object:fakeReviewOutput, usage: { inputTokens: 1000, outputTokens: 500, cachedInputTokens: 200, inputTokenDetails: { noCacheTokens: 800, cacheReadTokens: 200, cacheWriteTokens: 0 } } } as any;
     });
 
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "openai" }));
@@ -432,7 +431,7 @@ describe("runReview", () => {
 
   it("custom provider passes base URL to createOpenAI", async () => {
     const { createOpenAI } = await import("@ai-sdk/openai");
-    mockGenerateText.mockResolvedValue({ output: fakeReviewOutput, usage: { inputTokens: 500, outputTokens: 200, inputTokenDetails: { noCacheTokens: 500, cacheReadTokens: 0, cacheWriteTokens: 0 } } } as any);
+    mockGenerateObject.mockResolvedValue({ object:fakeReviewOutput, usage: { inputTokens: 500, outputTokens: 200, inputTokenDetails: { noCacheTokens: 500, cacheReadTokens: 0, cacheWriteTokens: 0 } } } as any);
 
     await runReview("diff", "pos", "", "", "", makeConfig({ provider: "custom", baseUrl: "https://api.together.xyz/v1", model: "meta-llama/llama-3.3-70b-instruct" }));
 

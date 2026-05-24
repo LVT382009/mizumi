@@ -195,3 +195,18 @@ src/changestack.ts (86) — Change Stack cohort ordering
 | 19 | `96bcfc8` | BUILD_LOG.md update |
 | 20 | `593a2af` | Custom provider, atomic idempotency, requireApiKey, fix 20 test failures |
 | 21 | `pending` | Release hardening: exit 0, critique fallback, improve path guard, bundle fix |
+| 22 | `09b2a72` | Mermaid diagrams, learning persistence, LF enforcement, 491 tests |
+| 23 | `pending` | Competitive reframe (Copilot-first), Macroscope table, CI workflow, bundle fix |
+
+### Build Stats (Current — 491 Tests)
+
+- **491 tests** passing (30 test files + 1 skipped)
+- **4,448 production lines** (27 source modules)
+- **0 TS errors**
+- **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
+- **5 subcommands**: `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
+- **2 Mermaid diagram generators**: architecture flowchart + severity distribution
+- **Learning persistence**: memory/feedback/skills committed to default branch via Git Data REST API
+- `dist/index.js` bundle verified (2.6MB, rollup with node: externals)
+- Exit code 0 always enforced
+- `.gitattributes` enforces LF line endings

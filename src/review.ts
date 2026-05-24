@@ -2,7 +2,7 @@
  * LLM review — structured output via Vercel AI SDK 6.
  * BYOK from day 1: any provider, same code path.
  */
-import { generateText, Output } from "ai";
+import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -181,11 +181,11 @@ export async function runReview(
       }
     : { role: "user" as const, content: userPrompt };
 
-  const { output, usage } = await generateText({
+  const { object: output, usage } = await generateObject({
     model,
     system: systemPrompt,
     messages: [userMessage],
-    output: Output.object({ schema: ReviewResponse }),
+    schema: ReviewResponse,
     maxOutputTokens: 4096,
   });
 

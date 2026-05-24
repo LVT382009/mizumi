@@ -21,6 +21,5 @@ export default defineConfig({
       tsconfig: "./tsconfig.json",
     }),
   ],
-  // better-sqlite3 CANNOT be bundled — must be external
-  external: ["better-sqlite3"],
+  external: [/^node:/],
 });

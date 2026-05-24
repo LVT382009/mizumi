@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generateTests } from "../testgen.js";
 
 vi.mock("ai", () => ({
-  generateText: vi.fn(),
-  Output: { object: vi.fn((opts: any) => opts) },
+  generateObject: vi.fn(),
 }));
 
 vi.mock("../config.js", () => ({
@@ -26,8 +25,8 @@ vi.mock("@ai-sdk/google", () => ({
   createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "google-model")),
 }));
 
-import { generateText } from "ai";
-const mockGenerateText = vi.mocked(generateText);
+import { generateObject } from "ai";
+const mockGenerateObject = vi.mocked(generateObject);
 
 function makeConfig() {
   return {
@@ -40,7 +39,7 @@ function makeConfig() {
 }
 
 describe("generateTests", () => {
-  beforeEach(() => { mockGenerateText.mockReset(); });
+  beforeEach(() => { mockGenerateObject.mockReset(); });
 
   it("returns message for empty findings", async () => {
     const result = await generateTests("diff", [], makeConfig());
@@ -55,8 +54,8 @@ describe("generateTests", () => {
   });
 
   it("calls LLM and formats test output", async () => {
-    mockGenerateText.mockResolvedValue({
-      output: { tests: [{ file: "src/__tests__/a.test.ts", code: "it('should work', () => { expect(1).toBe(1); })" }] },
+    mockGenerateObject.mockResolvedValue({
+      object: { tests: [{ file: "src/__tests__/a.test.ts", code: "it('should work', () => { expect(1).toBe(1); })" }] },
       usage: { inputTokens: 100, outputTokens: 50 },
     } as any);
 
@@ -70,8 +69,8 @@ describe("generateTests", () => {
   });
 
   it("handles empty LLM test output", async () => {
-    mockGenerateText.mockResolvedValue({
-      output: { tests: [] },
+    mockGenerateObject.mockResolvedValue({
+      object: { tests: [] },
       usage: { inputTokens: 100, outputTokens: 50 },
     } as any);
 
@@ -83,8 +82,8 @@ describe("generateTests", () => {
   });
 
   it("caps findings at 5", async () => {
-    mockGenerateText.mockResolvedValue({
-      output: { tests: [{ file: "t.test.ts", code: "test" }] },
+    mockGenerateObject.mockResolvedValue({
+      object: { tests: [{ file: "t.test.ts", code: "test" }] },
       usage: { inputTokens: 100, outputTokens: 50 },
     } as any);
 
@@ -94,7 +93,7 @@ describe("generateTests", () => {
 
     await generateTests("diff", findings, makeConfig());
 
-    const callOpts = mockGenerateText.mock.calls[0][0] as any;
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
     const promptText = callOpts.prompt as string;
     // Should only include 5 findings
     const bugLines = promptText.split("\n").filter((l: string) => l.includes("[high]"));

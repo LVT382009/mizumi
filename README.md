@@ -4,9 +4,9 @@
 
 Mizumi is a GitHub Action that reviews pull requests using AI, learns from past reviews, and posts actionable findings — with deterministic rules that never hallucinate.
 
-**The numbers:** Teams with high AI adoption merge 98% more PRs — but review time increases 91% and PRs merging with zero review are up 31% ([Faros AI](https://www.getfaros.com), [AI Engineering Report 2026](https://dev.to/code-board/the-review-bottleneck-why-faster-code-generation-isnt-faster-delivery-4273)). Mizumi closes this gap: instant, consistent AI review for every PR.
+**The numbers:** Teams with high AI adoption merge 98% more PRs — but review time increases 91% and PRs merging with zero review are up 31% ([Faros AI](https://www.getfaros.com), [AI Engineering Report 2026](https://dev.to/code-board/the-review-bottleneck-why-faster-code-generation-isnt-faster-delivery-4273)). AI review adoption grew from 14.8% to 51.4% in 2025 ([Jellyfish](https://jellyfish.co)), with 1.3M repos now using AI-assisted review ([GitHub Octoverse 2025](https://octoverse.github.com)). Yet 40% of organizations report a capacity gap in code review. Mizumi closes this gap: instant, consistent AI review for every PR.
 
-**Why not use Anthropic's own Code Review?** It costs $15–$25 per review and takes ~20 minutes. Mizumi's BYOK model costs $0.001–$0.08 per review — a 100–10,000x price gap — and runs in seconds, not minutes. Plus Mizumi works with any provider, not just Anthropic.
+**Why not Copilot Review?** 67% of engineers already use Copilot Review ([Jellyfish](https://jellyfish.co), Dec 2025). It's everywhere — but it's surface-level: generic style comments, no self-learning, no deterministic rules, and vendor lock-in. Mizumi is the specialist: BYOK with 7 providers (Anthropic, OpenAI, Google, NVIDIA NIM, OpenRouter, local models, any OpenAI-compatible endpoint), self-learning memory that adapts to your repo, deterministic secret/auth/SQL rules that never hallucinate, and Mermaid diagrams that visualize your change architecture. At $0.001–$0.08/review (your own API key), it's 100–10,000x cheaper than Anthropic's Code Review ($15–$25/review, ~20 min/PR).
 
 ## Features
 
@@ -93,6 +93,11 @@ jobs:
 | `language` | `en-US` | Review comment language |
 | `tier_routing` | `true` | Route small diffs to a cheaper model |
 | `small_diff_threshold` | `50` | Line count threshold for tier routing |
+| `compliance_check` | `true` | Check ticket-to-code compliance |
+| `auto_fix` | `false` | Auto-apply suggestions on 👍 reaction |
+| `confidence_calibration` | `true` | Dual-model voting on borderline findings |
+| `change_stack` | `true` | Reorganize output into dependency order |
+| `improve_enabled` | `false` | Enable /mizumi improve (requires contents: write) |
 
 ### Per-Repository Config (`.github/mizumi.yml`)
 
@@ -185,6 +190,26 @@ When Mizumi detects recurring review patterns, it writes reusable skill files to
 | `review_id` | ID of the posted PR review |
 | `finding_count` | Number of findings posted |
 | `risk_score` | Risk score 1-5 |
+| `compliance` | Ticket-to-code compliance level (fully/partially/not/none) |
+| `auto_fixed` | Number of suggestions auto-applied via 👍 reaction approval |
+
+## Comparison
+
+| | Mizumi | Copilot Review | CodeRabbit | Anthropic Code Review | Macroscope |
+|---|---|---|---|---|---|
+| **Cost/review** | $0.001–$0.08 (BYOK) | $19–$39/user/mo | Free / $24+/user/mo | $15–$25 | ~$0.95 avg |
+| **Providers** | 7 + any OpenAI-compat | Multi-model | OpenAI/Anthropic | Anthropic-only | Own model + AST |
+| **Self-learning** | Memory + SQLite + skills | No | Learnable prefs | No | No |
+| **Deterministic rules** | Secrets, auth, SQL injection | ESLint/CodeQL only | 40+ built-in linters | No | AST graph analysis |
+| **Mermaid diagrams** | Architecture + severity | No | No | No | No |
+| **Speed** | Seconds | Seconds | ~30s | ~20 min | Fast |
+| **Review depth** | Two-pass + calibration | Surface (36.7% recall) | Standard (46% detect) | Deep (multi-agent) | Deep (48% detect) |
+| **Custom rules** | REVIEW.md + CLAUDE.md | copilot-instructions.md | .coderabbit.yaml | Custom instructions | Config file |
+| **Auto-fix** | 👍 reaction → commit | No | Yes | No | CI-validated fix loop |
+| **Platforms** | GitHub (v0.1) | GitHub-only | GitHub + GitLab + Azure + Bitbucket | GitHub-only | GitHub-only |
+| **CI-validated fixes** | No (v0.1) | No | No | No | Yes |
+
+> **Note:** Published detection benchmarks (including Macroscope's 48% rate, 98% precision) are vendor self-reported and should be treated as directional rather than definitive. Every vendor wins their own benchmark.
 
 ## License
 
