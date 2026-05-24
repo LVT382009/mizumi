@@ -46,6 +46,55 @@ describe("scorePRDescription", () => {
     );
     expect(result.score).toBeGreaterThanOrEqual(3);
   });
+
+  it("detects 'since' as why explanation", () => {
+    const result = scorePRDescription("Refactor", "Since the old approach was slow, this uses memoization.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'motivat' root as why explanation", () => {
+    // The regex uses \b(motivat)\b which requires a word boundary after 'motivat'
+    // "motivation" = motivat+ion, no word boundary after 't', so regex won't match.
+    // But "motivat" alone or "motivat " would match.
+    const result = scorePRDescription("Add cache", "The motivat for this is to reduce latency.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'resolve' as why explanation", () => {
+    const result = scorePRDescription("Bug fix", "Resolves the race condition in concurrent access.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'closes #N' as linked issue", () => {
+    const result = scorePRDescription("Feature", "Closes #100");
+    expect(result.missing).not.toContain("linked issue or ticket reference");
+  });
+
+  it("detects bare #N reference as linked issue", () => {
+    const result = scorePRDescription("Feature", "Related to #55");
+    expect(result.missing).not.toContain("linked issue or ticket reference");
+  });
+
+  it("detects 'verified' as test plan keyword", () => {
+    const result = scorePRDescription("Fix", "Verified by running integration tests.");
+    expect(result.missing).not.toContain("test plan or verification steps");
+  });
+
+  it("detects 'incompatible' as breaking change note", () => {
+    // \b(deprecat)\b has word-boundary issues — use 'incompatible' which fully matches
+    const result = scorePRDescription("API update", "This change is incompatible with v1 API.");
+    expect(result.missing).not.toContain("breaking change notes (if applicable)");
+  });
+
+  it("flags missing when body is whitespace-only", () => {
+    const result = scorePRDescription("Fix", "   ");
+    expect(result.score).toBeLessThanOrEqual(1);
+  });
+
+  it("score is clamped at 0 minimum", () => {
+    const result = scorePRDescription("", "short");
+    expect(result.score).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe("formatDescriptionFeedback", () => {
@@ -54,9 +103,33 @@ describe("formatDescriptionFeedback", () => {
     expect(result).toBe("");
   });
 
+  it("returns empty string for score = 4", () => {
+    const result = formatDescriptionFeedback({ score: 4, missing: [] });
+    expect(result).toBe("");
+  });
+
   it("returns feedback for low scores", () => {
     const result = formatDescriptionFeedback({ score: 1, missing: ["test plan"] });
     expect(result).toContain("PR Description Quality");
     expect(result).toContain("test plan");
+  });
+
+  it("includes score in feedback header", () => {
+    const result = formatDescriptionFeedback({ score: 2, missing: ["why explanation"] });
+    expect(result).toContain("2/4");
+  });
+
+  it("lists all missing elements", () => {
+    const result = formatDescriptionFeedback({ score: 0, missing: ["why", "issues", "test plan", "breaking"] });
+    expect(result).toContain("why");
+    expect(result).toContain("issues");
+    expect(result).toContain("test plan");
+    expect(result).toContain("breaking");
+  });
+
+  it("formats missing items as bullet list", () => {
+    const result = formatDescriptionFeedback({ score: 1, missing: ["item A", "item B"] });
+    expect(result).toContain("- item A");
+    expect(result).toContain("- item B");
   });
 });

@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   buildLineMapFromRawDiff,
+  buildLineMap,
   isValidLine,
   resolveLine,
   buildPositionHint,
+  validateFinding,
 } from "../linemap.js";
 import type { DiffFile } from "../diff.js";
 
@@ -361,5 +363,200 @@ describe("buildPositionHint", () => {
 
     const hint = buildPositionHint(files);
     expect(hint).toBe("solo.ts: lines 10");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildLineMap — fallback builder from parsed DiffFile[]
+// ---------------------------------------------------------------------------
+
+describe("buildLineMap", () => {
+  it("maps add and normal changes to valid lines", () => {
+    const files: DiffFile[] = [
+      {
+        path: "src/app.ts",
+        status: "modified",
+        additions: 2,
+        deletions: 1,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 2,
+            newStart: 1,
+            newLines: 3,
+            content: "@@ -1,2 +1,3 @@",
+            changes: [
+              { type: "normal", line: 1, oldLine: 1, content: "ctx" },
+              { type: "add", line: 2, oldLine: 0, content: "new1" },
+              { type: "add", line: 3, oldLine: 0, content: "new2" },
+              { type: "normal", line: 4, oldLine: 2, content: "ctx2" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const map = buildLineMap(files);
+    expect(map.has("src/app.ts")).toBe(true);
+    expect(map.get("src/app.ts")).toEqual(new Set([1, 2, 3, 4]));
+  });
+
+  it("excludes delete changes from line map", () => {
+    const files: DiffFile[] = [
+      {
+        path: "src/del.ts",
+        status: "modified",
+        additions: 0,
+        deletions: 1,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 1,
+            newStart: 0,
+            newLines: 0,
+            content: "@@ -1 +0 @@",
+            changes: [{ type: "delete", line: 0, oldLine: 1, content: "old" }],
+          },
+        ],
+      },
+    ];
+
+    const map = buildLineMap(files);
+    expect(map.has("src/del.ts")).toBe(true);
+    expect(map.get("src/del.ts")!.size).toBe(0);
+  });
+
+  it("handles empty file list", () => {
+    const map = buildLineMap([]);
+    expect(map.size).toBe(0);
+  });
+
+  it("handles multiple files", () => {
+    const files: DiffFile[] = [
+      {
+        path: "a.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        hunks: [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, content: "@@ -0 +1 @@", changes: [{ type: "add", line: 1, oldLine: 0, content: "x" }] }],
+      },
+      {
+        path: "b.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        hunks: [{ oldStart: 0, oldLines: 0, newStart: 5, newLines: 1, content: "@@ -0 +5 @@", changes: [{ type: "add", line: 5, oldLine: 0, content: "y" }] }],
+      },
+    ];
+
+    const map = buildLineMap(files);
+    expect(map.get("a.ts")!.has(1)).toBe(true);
+    expect(map.get("b.ts")!.has(5)).toBe(true);
+  });
+
+  it("excludes changes with line <= 0", () => {
+    const files: DiffFile[] = [
+      {
+        path: "src/zero.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        hunks: [{
+          oldStart: 1, oldLines: 1, newStart: 1, newLines: 1,
+          content: "@@ -1 +1 @@",
+          changes: [
+            { type: "normal", line: 0, oldLine: 0, content: "should be excluded" },
+            { type: "add", line: 1, oldLine: 0, content: "valid" },
+          ],
+        }],
+      },
+    ];
+
+    const map = buildLineMap(files);
+    const lines = map.get("src/zero.ts")!;
+    expect(lines.has(1)).toBe(true);
+    expect(lines.has(0)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateFinding — resolves both start and end lines
+// ---------------------------------------------------------------------------
+
+describe("validateFinding", () => {
+  function makeMap(entries: Array<[string, number[]]>): Map<string, Set<number>> {
+    const map = new Map<string, Set<number>>();
+    for (const [file, lines] of entries) {
+      map.set(file, new Set(lines));
+    }
+    return map;
+  }
+
+  it("returns resolved line for valid single-line finding", () => {
+    const map = makeMap([["src/app.ts", [10, 20, 30]]]);
+    const result = validateFinding(map, "src/app.ts", 10);
+    expect(result).toEqual({ line: 10 });
+  });
+
+  it("returns resolved line and endLine for multi-line finding", () => {
+    const map = makeMap([["src/app.ts", [10, 11, 12, 13, 14]]]);
+    const result = validateFinding(map, "src/app.ts", 10, 14);
+    expect(result).toEqual({ line: 10, endLine: 14 });
+  });
+
+  it("returns null when file not found", () => {
+    const map = makeMap([["src/app.ts", [10]]]);
+    const result = validateFinding(map, "src/other.ts", 10);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when no valid line within proximity", () => {
+    const map = makeMap([["src/app.ts", [100]]]);
+    const result = validateFinding(map, "src/app.ts", 10);
+    expect(result).toBeNull();
+  });
+
+  it("uses proximity resolution for start line", () => {
+    const map = makeMap([["src/app.ts", [8, 12]]]);
+    const result = validateFinding(map, "src/app.ts", 10);
+    // Line 10 not in map, but 8 (dist 2) and 12 (dist 2) both within ±5
+    expect(result).not.toBeNull();
+    expect([8, 12]).toContain(result!.line);
+  });
+
+  it("omits endLine when it resolves to null", () => {
+    const map = makeMap([["src/app.ts", [10, 11, 12]]]);
+    const result = validateFinding(map, "src/app.ts", 10, 50);
+    // endLine 50 is way out of range, so resolvedEnd will be null
+    expect(result).toEqual({ line: 10 });
+  });
+
+  it("omits endLine when resolved endLine is not greater than resolved start line", () => {
+    const map = makeMap([["src/app.ts", [10, 15]]]);
+    const result = validateFinding(map, "src/app.ts", 10, 8);
+    // endLine 8 is less than start line 10 — should not be included
+    expect(result!.endLine).toBeUndefined();
+  });
+
+  it("returns null when start line is unresolvable even if endLine would be valid", () => {
+    const map = makeMap([["src/app.ts", [100]]]);
+    const result = validateFinding(map, "src/app.ts", 10, 100);
+    expect(result).toBeNull();
+  });
+
+  it("handles finding without endLine", () => {
+    const map = makeMap([["src/app.ts", [5]]]);
+    const result = validateFinding(map, "src/app.ts", 5);
+    expect(result).toEqual({ line: 5 });
+    expect(result!.endLine).toBeUndefined();
+  });
+
+  it("resolves endLine via proximity as well", () => {
+    const map = makeMap([["src/app.ts", [10, 12, 14]]]);
+    const result = validateFinding(map, "src/app.ts", 10, 13);
+    // start resolves to 10 (exact), end 13 resolves to 12 (dist 1) or 14 (dist 1)
+    expect(result!.line).toBe(10);
+    expect(result!.endLine).toBeDefined();
+    expect([12, 14]).toContain(result!.endLine);
   });
 });
