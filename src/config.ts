@@ -27,6 +27,7 @@ export interface MizumiConfig {
   improveEnabled: boolean;
   dryRun: boolean;
   linterScan: boolean;
+  autoLabels: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -75,6 +76,7 @@ export function loadConfig(): MizumiConfig {
   const improveEnabled = core.getInput("improve_enabled") === "true";
 const dryRun = core.getInput("dry_run") === "true";
 const linterScan = core.getInput("linter_scan") !== "false"; // default true
+const autoLabels = core.getInput("auto_labels") !== "false"; // default true
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -144,6 +146,7 @@ const linterScan = core.getInput("linter_scan") !== "false"; // default true
     improveEnabled,
     dryRun,
     linterScan,
+    autoLabels,
   };
 }
 

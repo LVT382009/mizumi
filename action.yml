@@ -109,6 +109,11 @@ inputs:
     required: false
     default: "true"
 
+  auto_labels:
+    description: Auto-label PRs based on review findings (security, bug, style, needs-attention, review-heavy)
+    required: false
+    default: "true"
+
 outputs:
   review_id:
     description: ID of the posted PR review

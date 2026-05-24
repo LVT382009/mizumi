@@ -30,6 +30,7 @@ import { generateTests } from "./testgen.js";
 import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
 import { runAgentContextGathering } from "./agent.js";
 import { runLinters } from "./linter.js";
+import { applyLabels } from "./labels.js";
 import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
@@ -389,6 +390,15 @@ if (config.confidenceCalibration || config.complianceCheck) {
  }
  } else {
  core.setOutput("compliance", "none");
+
+      // 10b. Auto-label PR based on findings
+      if (config.autoLabels) {
+        try {
+          await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
+        } catch (e: any) {
+          core.warning("Auto-labeling failed: " + (e?.message || String(e)));
+        }
+      }
  }
  }
 
