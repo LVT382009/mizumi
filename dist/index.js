@@ -108568,8 +108568,82 @@ async function postGateStatus(input) {
   return state;
 }
 
-// src/main.ts
+// src/helpers.ts
 var MARKER4 = "<!-- mizumi-review-marker -->";
+var SPEND_MARKER = "<!-- mizumi-spend-marker -->";
+async function countMizumiReviews(octokit, owner, repo, prNumber) {
+  let count = 0;
+  let page = 1;
+  while (page <= 10) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+      per_page: 100,
+      page
+    });
+    count += comments.filter((c) => c.body?.includes(MARKER4)).length;
+    if (comments.length < 100) break;
+    page++;
+  }
+  const { data: reviews } = await octokit.rest.pulls.listReviews({
+    owner,
+    repo,
+    pull_number: prNumber,
+    per_page: 100
+  });
+  count += reviews.filter((r) => r.body?.includes(MARKER4)).length;
+  return count;
+}
+async function getLatestFindings(octokit, owner, repo, prNumber) {
+  const findings = [];
+  const { data: comments } = await octokit.rest.pulls.listReviewComments({
+    owner,
+    repo,
+    pull_number: prNumber,
+    per_page: 100,
+    sort: "created",
+    direction: "desc"
+  });
+  for (const c of comments.slice(0, 20)) {
+    if (!c.body?.includes(MARKER4)) continue;
+    const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
+    const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
+    const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
+    findings.push({
+      file: c.path,
+      line: c.line ?? 0,
+      severity: seveMatch?.[1]?.toLowerCase() || "medium",
+      category: catMatch?.[1]?.toLowerCase() || "bug",
+      message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
+      suggestion: sugMatch?.[1]?.replace(/\n$/, "")
+    });
+  }
+  return findings;
+}
+async function createOrUpdateSpendComment(octokit, owner, repo, prNumber, body) {
+  let page = 1;
+  let existing;
+  while (!existing) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+      per_page: 100,
+      page
+    });
+    existing = comments.find((c) => c.body?.includes(SPEND_MARKER));
+    if (comments.length < 100) break;
+    page++;
+  }
+  if (existing) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+  } else {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+  }
+}
+
+// src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
   try {
@@ -109010,78 +109084,6 @@ function getPrNumber(ctx) {
     }
   }
   return null;
-}
-async function countMizumiReviews(octokit, owner, repo, prNumber) {
-  let count = 0;
-  let page = 1;
-  while (page <= 10) {
-    const { data: comments } = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: prNumber,
-      per_page: 100,
-      page
-    });
-    count += comments.filter((c) => c.body?.includes(MARKER4)).length;
-    if (comments.length < 100) break;
-    page++;
-  }
-  const { data: reviews } = await octokit.rest.pulls.listReviews({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 100
-  });
-  count += reviews.filter((r) => r.body?.includes(MARKER4)).length;
-  return count;
-}
-async function getLatestFindings(octokit, owner, repo, prNumber) {
-  const findings = [];
-  const { data: comments } = await octokit.rest.pulls.listReviewComments({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 100,
-    sort: "created",
-    direction: "desc"
-  });
-  for (const c of comments.slice(0, 20)) {
-    if (!c.body?.includes(MARKER4)) continue;
-    const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
-    const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
-    const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
-    findings.push({
-      file: c.path,
-      line: c.line ?? 0,
-      severity: seveMatch?.[1]?.toLowerCase() || "medium",
-      category: catMatch?.[1]?.toLowerCase() || "bug",
-      message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
-      suggestion: sugMatch?.[1]?.replace(/\n$/, "")
-    });
-  }
-  return findings;
-}
-var SPEND_MARKER = "<!-- mizumi-spend-marker -->";
-async function createOrUpdateSpendComment(octokit, owner, repo, prNumber, body) {
-  let page = 1;
-  let existing;
-  while (!existing) {
-    const { data: comments } = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: prNumber,
-      per_page: 100,
-      page
-    });
-    existing = comments.find((c) => c.body?.includes(SPEND_MARKER));
-    if (comments.length < 100) break;
-    page++;
-  }
-  if (existing) {
-    await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-  } else {
-    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
-  }
 }
 void run().catch((e) => {
   setFailed(`Fatal: ${e}`);
