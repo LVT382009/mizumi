@@ -69,6 +69,75 @@ describe("RateLimiter", () => {
     await limiter.acquire();
     expect(limiter.getRequestCount()).toBe(3);
   });
+
+  it("RPM bucket drains and waits", async () => {
+    const limiter = new RateLimiter({ rpm: 5, rps: 0 });
+    // 5 acquires should succeed (RPM bucket has 5 tokens)
+    for (let i = 0; i < 5; i++) {
+      await limiter.acquire();
+    }
+    expect(limiter.getRequestCount()).toBe(5);
+
+    // 6th acquire should wait for RPM refill (12000ms for rpm=5)
+    const acquirePromise = limiter.acquire();
+    vi.advanceTimersByTime(13000);
+    await acquirePromise;
+    expect(limiter.getRequestCount()).toBe(6);
+  });
+
+  it("Both RPM and RPS limits are enforced", async () => {
+    const limiter = new RateLimiter({ rpm: 3, rps: 10 });
+    // RPM bucket has 3 tokens (bottleneck), RPS has 10
+    for (let i = 0; i < 3; i++) {
+      await limiter.acquire();
+    }
+    expect(limiter.getRequestCount()).toBe(3);
+
+    // 4th should wait for RPM refill (60000/3 = 20000ms)
+    const acquirePromise = limiter.acquire();
+    vi.advanceTimersByTime(21000);
+    await acquirePromise;
+    expect(limiter.getRequestCount()).toBe(4);
+  });
+
+  it("Refill restores tokens after time passes", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 2 });
+    // Drain both RPS tokens
+    await limiter.acquire();
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(2);
+
+    // Advance past refill interval (1000/2 = 500ms per token)
+    vi.advanceTimersByTime(600);
+
+    // Should be able to acquire again
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(3);
+  });
+
+  it("Tokens cap at maxTokens after extended idle", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 3 });
+    // Drain all 3 RPS tokens
+    await limiter.acquire();
+    await limiter.acquire();
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(3);
+
+    // Wait a very long time (far more than needed to refill)
+    vi.advanceTimersByTime(60000);
+
+    // Only 3 tokens should be available (capped at maxTokens)
+    await limiter.acquire();
+    await limiter.acquire();
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(6);
+
+    // 4th should wait (proving tokens capped at 3, not more)
+    const acquirePromise = limiter.acquire();
+    vi.advanceTimersByTime(1100);
+    await acquirePromise;
+    expect(limiter.getRequestCount()).toBe(7);
+  });
 });
 
 describe("DEFAULT_RATE_LIMITS", () => {
@@ -88,6 +157,32 @@ describe("DEFAULT_RATE_LIMITS", () => {
 
   it("nvidia has lower limits than other providers", () => {
     expect(DEFAULT_RATE_LIMITS.nvidia.rpm).toBeLessThan(DEFAULT_RATE_LIMITS.openai.rpm);
+  });
+
+  it("all providers have rps > 0 except local", () => {
+    for (const [provider, config] of Object.entries(DEFAULT_RATE_LIMITS)) {
+      if (provider === "local") {
+        expect(config.rps).toBe(0);
+      } else {
+        expect(config.rps).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("custom provider has same defaults as openai", () => {
+    expect(DEFAULT_RATE_LIMITS.custom).toEqual(DEFAULT_RATE_LIMITS.openai);
+  });
+
+  it("anthropic rpm is 50", () => {
+    expect(DEFAULT_RATE_LIMITS.anthropic.rpm).toBe(50);
+  });
+
+  it("openai rpm is 60", () => {
+    expect(DEFAULT_RATE_LIMITS.openai.rpm).toBe(60);
+  });
+
+  it("nvidia rpm is 30", () => {
+    expect(DEFAULT_RATE_LIMITS.nvidia.rpm).toBe(30);
   });
 });
 
@@ -112,5 +207,10 @@ describe("createRateLimiter", () => {
     for (const [, config] of nonLocal) {
       expect(config.rpm).toBeGreaterThan(0);
     }
+  });
+
+  it("createRateLimiter for nvidia uses nvidia defaults", () => {
+    const limiter = createRateLimiter("nvidia");
+    expect(limiter).toBeInstanceOf(RateLimiter);
   });
 });

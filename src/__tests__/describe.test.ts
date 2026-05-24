@@ -73,6 +73,36 @@ describe("parseCommand", () => {
     const result = parseCommand("/mizumi review #42");
     expect(result?.args).toBe("#42");
   });
+
+  // --- New tests ---
+
+  it("returns null for empty string", () => {
+    expect(parseCommand("")).toBeNull();
+  });
+
+  it("parses /mizumi calibrate", () => {
+    const result = parseCommand("/mizumi calibrate");
+    expect(result?.command).toBe("calibrate");
+  });
+
+  it("parses /mizumi labels", () => {
+    const result = parseCommand("/mizumi labels");
+    expect(result?.command).toBe("labels");
+  });
+
+  it("parses /mizumi with multi-word args", () => {
+    const result = parseCommand("/mizumi review check for SQL injection in auth");
+    expect(result?.command).toBe("review");
+    expect(result?.args).toBe("check for SQL injection in auth");
+  });
+
+  it("does not match /mizumi-style prefix (must be exact)", () => {
+    expect(parseCommand("/mizumiextra command")).toBeNull();
+  });
+
+  it("returns null for command without leading slash", () => {
+    expect(parseCommand("mizumi describe")).toBeNull();
+  });
 });
 
 describe("generateDescription", () => {
@@ -180,5 +210,83 @@ describe("generateDescription", () => {
     const callOpts = mockGenerateObject.mock.calls[0][0] as any;
     const diffPart = callOpts.prompt.split("Diff:")[1];
     expect(diffPart.length).toBeLessThan(55000);
+  });
+
+  // --- New tests ---
+
+  it("formats changes as bullet list", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Refactor auth",
+        summary: "Refactored auth module",
+        changes: ["Extract auth middleware", "Add unit tests", "Update docs"],
+        testing: "npm test",
+        breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const result = await generateDescription("diff", "Refactor", "auth", makeConfig());
+    expect(result).toContain("- Extract auth middleware");
+    expect(result).toContain("- Add unit tests");
+    expect(result).toContain("- Update docs");
+  });
+
+  it("includes imperative mood title in heading", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Add logging module",
+        summary: "Adds structured logging",
+        changes: ["Add winston logger"],
+        testing: "npm test",
+        breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const result = await generateDescription("diff", "Title", "Body", makeConfig());
+    expect(result).toContain("## Add logging module");
+  });
+
+  it("omits breaking changes section when undefined", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Fix",
+        summary: "Fix typo",
+        changes: ["Fix spelling"],
+        testing: "Visual check",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const result = await generateDescription("diff", "Fix", "typo", makeConfig());
+    expect(result).not.toContain("Breaking Changes");
+  });
+
+  it("includes system prompt for description generation", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Fix", summary: "Fix", changes: ["Fix"], testing: "Run", breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    await generateDescription("diff", "title", "body", makeConfig());
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.system).toContain("structured PR descriptions");
+    expect(callOpts.system).toContain("imperative mood");
+  });
+
+  it("passes maxOutputTokens 2048 to generateObject", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Fix", summary: "Fix", changes: ["Fix"], testing: "Run", breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    await generateDescription("diff", "title", "body", makeConfig());
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.maxOutputTokens).toBe(2048);
   });
 });

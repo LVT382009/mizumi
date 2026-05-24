@@ -27,7 +27,7 @@ describe("isDangerousPath", () => {
 
   it("rejects empty or whitespace paths", () => {
     expect(isDangerousPath("")).toBe(true);
-    expect(isDangerousPath("   ")).toBe(true);
+    expect(isDangerousPath(" ")).toBe(true);
   });
 
   it("rejects backslash traversal on Windows", () => {
@@ -43,6 +43,24 @@ describe("isDangerousPath", () => {
   it("accepts paths with dots in filenames (not leading)", () => {
     expect(isDangerousPath("src/app.test.ts")).toBe(false);
     expect(isDangerousPath("lib/v2.0.module.js")).toBe(false);
+  });
+
+  it("rejects paths with encoded traversal", () => {
+    // URL-encoded traversal is NOT decoded by path.normalize, but it starts
+    // with ".." which is caught by the hidden-file segment check (. prefix).
+    expect(isDangerousPath("..%2F..%2Fetc")).toBe(true);
+  });
+
+  it("accepts deep nested paths", () => {
+    expect(isDangerousPath("src/features/auth/login.ts")).toBe(false);
+  });
+
+  it("rejects .ssh directory", () => {
+    expect(isDangerousPath(".ssh/config")).toBe(true);
+  });
+
+  it("rejects drive letter paths", () => {
+    expect(isDangerousPath("D:\\Windows\\system32")).toBe(true);
   });
 });
 
@@ -74,6 +92,20 @@ describe("parseSuggestions", () => {
     expect(results).toHaveLength(1);
     expect(results[0].code).toBe("if (x) {\n return y;\n}");
   });
+
+  it("strips trailing newline from code", () => {
+    const body = "```suggestion\ncode;\n```";
+    const results = parseSuggestions(body, "src/d.ts", 1);
+    expect(results).toHaveLength(1);
+    expect(results[0].code).toBe("code;");
+  });
+
+  it("handles suggestion with no trailing newline", () => {
+    const body = "```suggestion\ncode;```";
+    const results = parseSuggestions(body, "src/e.ts", 1);
+    expect(results).toHaveLength(1);
+    expect(results[0].code).toBe("code;");
+  });
 });
 
 describe("verifyPatch", () => {
@@ -89,23 +121,23 @@ describe("verifyPatch", () => {
   });
 
   it("rejects whitespace-only replacement", () => {
-    const result = verifyPatch("const x = 1;", "   ");
+    const result = verifyPatch("const x = 1;", " ");
     expect(result.valid).toBe(false);
   });
 
   it("rejects indentation mismatch", () => {
-    const result = verifyPatch("    const x = 1;", "const x = 2;");
+    const result = verifyPatch("  const x = 1;", "const x = 2;");
     expect(result.valid).toBe(false);
     expect(result.reason).toContain("indentation");
   });
 
   it("accepts replacement with matching indentation", () => {
-    const result = verifyPatch("    const x = 1;", "    const x = 2;");
+    const result = verifyPatch("  const x = 1;", "  const x = 2;");
     expect(result.valid).toBe(true);
   });
 
   it("accepts multiline replacement even with different indentation", () => {
-    const result = verifyPatch("  if (x) {", "if (x && y) {\n    return z;\n  }");
+    const result = verifyPatch("  if (x) {", "if (x && y) {\n  return z;\n}");
     expect(result.valid).toBe(true);
   });
 
@@ -121,12 +153,27 @@ describe("verifyPatch", () => {
   });
 
   it("accepts replacement with greater indentation", () => {
-    const result = verifyPatch("const x = 1;", "    const x = 2;");
+    const result = verifyPatch("const x = 1;", "  const x = 2;");
     expect(result.valid).toBe(true);
   });
 
   it("accepts no-indent original with no-indent replacement", () => {
     const result = verifyPatch("export default App;", "export default NewApp;");
     expect(result.valid).toBe(true);
+  });
+
+  it("accepts replacement that starts with bracket for short original", () => {
+    // Original is 16 chars trimmed (<= 20), so too-short check is bypassed.
+    // Both have 0 indent, so no indentation mismatch.
+    const result = verifyPatch("function foo() {", "}");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects replacement of just } for long unindented original", () => {
+    // Original has 0 indent (no indentation mismatch), but trimmed length > 20
+    // and replacement trimmed is 1 char (<= 2), so too-short check fires.
+    const result = verifyPatch("const result = computeValue(input, config, opts);", "}");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("too short");
   });
 });

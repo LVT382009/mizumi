@@ -36,6 +36,39 @@ describe("createSpendEntry", () => {
     expect(entry.inputTokens).toBe(0);
     expect(entry.totalTokens).toBe(0);
   });
+
+  it("includes all fields", () => {
+    const entry = createSpendEntry(
+      "owner/repo", 7, "anthropic", "claude-sonnet-4-6",
+      { inputTokens: 100, outputTokens: 50 },
+      "standard", 4, 3
+    );
+    expect(entry.timestamp).toBeTruthy();
+    expect(entry.repo).toBe("owner/repo");
+    expect(entry.pr).toBe(7);
+    expect(entry.tier).toBe("standard");
+    expect(entry.findingCount).toBe(4);
+    expect(entry.riskScore).toBe(3);
+  });
+
+  it("calculates totalTokens correctly with large numbers", () => {
+    const entry = createSpendEntry(
+      "o/r", 1, "anthropic", "claude",
+      { inputTokens: 100000, outputTokens: 50000 },
+      "standard", 0, 1
+    );
+    expect(entry.totalTokens).toBe(150000);
+  });
+
+  it("defaults outputTokens to 0", () => {
+    const entry = createSpendEntry(
+      "o/r", 1, "openai", "gpt-4.1",
+      { inputTokens: 500 },
+      "light", 0, 1
+    );
+    expect(entry.outputTokens).toBe(0);
+    expect(entry.totalTokens).toBe(500);
+  });
 });
 
 describe("appendSpendEntry + readSpendLog", () => {
@@ -56,6 +89,44 @@ describe("appendSpendEntry + readSpendLog", () => {
       appendSpendEntry(tmpDir, createSpendEntry("o/r", i, "anthropic", "claude", { inputTokens: 100 }, "light", 0, 1));
     }
     expect(readSpendLog(tmpDir)).toHaveLength(3);
+  });
+
+  it("handles empty file", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-spend.jsonl"), "", "utf-8");
+    expect(readSpendLog(tmpDir)).toEqual([]);
+  });
+
+  it("handles file with only whitespace", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-spend.jsonl"), "\n\n\n", "utf-8");
+    expect(readSpendLog(tmpDir)).toEqual([]);
+  });
+
+  it("skips malformed JSONL lines in readSpendLog", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-spend.jsonl"), "not-json\n{\"repo\":\"o/r\"}\n");
+    const log = readSpendLog(tmpDir);
+    // Malformed lines are filtered out
+    expect(log.length).toBeLessThanOrEqual(1);
+  });
+
+  it("creates .github directory if missing", () => {
+    const githubDir = path.join(tmpDir, ".github");
+    // Ensure .github does not exist
+    if (fs.existsSync(githubDir)) {
+      fs.rmSync(githubDir, { recursive: true, force: true });
+    }
+    expect(fs.existsSync(githubDir)).toBe(false);
+
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 100 }, "light", 0, 1);
+    appendSpendEntry(tmpDir, entry);
+
+    expect(fs.existsSync(githubDir)).toBe(true);
+    expect(fs.existsSync(path.join(githubDir, "mizumi-spend.jsonl"))).toBe(true);
   });
 });
 
@@ -81,6 +152,28 @@ describe("formatSpendDigest", () => {
     ];
     const digest = formatSpendDigest(entries);
     expect(digest).toContain("Cached tokens: 500");
+  });
+
+  it("includes total cached tokens count", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 2000, cachedInputTokens: 800, outputTokens: 200 }, "standard", 0, 1),
+      createSpendEntry("o/r", 2, "openai", "gpt-4.1", { inputTokens: 1000, cachedInputTokens: 200, outputTokens: 100 }, "light", 0, 1),
+    ];
+    const digest = formatSpendDigest(entries);
+    // Total cached = 800 + 200 = 1000
+    expect(digest).toContain("Cached tokens: 1,000");
+  });
+
+  it("table includes all provider/model combos", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "anthropic", "claude-sonnet-4-6", { inputTokens: 3000 }, "standard", 0, 1),
+      createSpendEntry("o/r", 2, "anthropic", "claude-haiku-4-5", { inputTokens: 2000 }, "light", 0, 1),
+      createSpendEntry("o/r", 3, "openai", "gpt-4.1", { inputTokens: 1000 }, "light", 0, 1),
+    ];
+    const digest = formatSpendDigest(entries);
+    expect(digest).toContain("anthropic/claude-sonnet-4-6");
+    expect(digest).toContain("anthropic/claude-haiku-4-5");
+    expect(digest).toContain("openai/gpt-4.1");
   });
 });
 
@@ -141,14 +234,5 @@ describe("spend threshold logic", () => {
     const anthropicIdx = digest.indexOf("anthropic/claude");
     const openaiIdx = digest.indexOf("openai/gpt-4.1");
     expect(anthropicIdx).toBeLessThan(openaiIdx);
-  });
-
-  it("skips malformed JSONL lines in readSpendLog", () => {
-    const dir = path.join(tmpDir, ".github");
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "mizumi-spend.jsonl"), "not-json\n{\"repo\":\"o/r\"}\n");
-    const log = readSpendLog(tmpDir);
-    // Malformed lines are filtered out
-    expect(log.length).toBeLessThanOrEqual(1);
   });
 });
