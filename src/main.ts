@@ -40,6 +40,7 @@ const RetryingOctokit = Octokit.plugin(retry);
 async function run(): Promise<void> {
   try {
     const config = loadConfig();
+  let manualInstructions = "";
     const ctx = github.context;
     const token = process.env.GITHUB_TOKEN || core.getInput("github_token");
 
@@ -116,6 +117,12 @@ async function run(): Promise<void> {
       const entries = readSpendLog(workspace);
       await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
       return;
+    }
+
+    // Capture custom instructions from /mizumi review [instructions]
+    if (cmd?.command === "review" && cmd.args) {
+      manualInstructions = cmd.args;
+      core.info("Custom review instructions: " + manualInstructions);
     }
   }
 
@@ -204,7 +211,10 @@ if (slopResult.isSlop) {
 
 // 5b. Progressive skill loading — inject matching skills into rules context
 const skills = loadSkills(workspace, diff.files.map((f) => f.path));
-if (skills.loaded) context.rulesContent += `
+if (manualInstructions) {
+    context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
+  }
+  if (skills.loaded) context.rulesContent += `
 
 ## Project Skills
 ${skills.loaded}`;

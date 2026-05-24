@@ -44,3 +44,37 @@ describe("getPrNumber", () => {
     })).toBeNull();
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// parseCommand — verify /mizumi review [instructions] parsing
+// ---------------------------------------------------------------------------
+
+describe("parseCommand for /mizumi review", () => {
+  it("parses /mizumi review with custom instructions", () => {
+    const result = parseCommand("/mizumi review focus on security");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("review");
+    expect(result!.args).toBe("focus on security");
+  });
+
+  it("parses /mizumi review without instructions", () => {
+    const result = parseCommand("/mizumi review");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("review");
+    expect(result!.args).toBe("");
+  });
+
+  it("parses /mizumi review with multi-word instructions", () => {
+    const result = parseCommand("/mizumi review check for SQL injection and XSS in API handlers");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("review");
+    expect(result!.args).toBe("check for SQL injection and XSS in API handlers");
+  });
+});
+
+function parseCommand(body: string): { command: string; args: string } | null {
+  const match = body.match(/^\/mizumi\s+(\w+)(?:\s+(.+))?/);
+  if (!match) return null;
+  return { command: match[1], args: match[2] || "" };
+}
