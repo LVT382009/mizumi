@@ -372,5 +372,47 @@ describe("loadConfig parseInt NaN defaults", () => {
     const config = loadConfig();
     expect(config.spendThreshold).toBe(100000);
   });
+
+  it("defaults gate_threshold to none", () => {
+    mockGetInput.mockReturnValue("");
+    const config = loadConfig();
+    expect(config.gateThreshold).toBe("none");
+  });
+
+  it("parses gate_threshold=high", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "gate_threshold") return "high";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.gateThreshold).toBe("high");
+  });
+
+  it("parses gate_threshold=critical", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "gate_threshold") return "critical";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.gateThreshold).toBe("critical");
+  });
+
+  it("parses gate_threshold=medium", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "gate_threshold") return "medium";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.gateThreshold).toBe("medium");
+  });
+
+  it("falls back to none for invalid gate_threshold", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "gate_threshold") return "invalid";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.gateThreshold).toBe("none");
+  });
 });
 

@@ -207,6 +207,8 @@ describe("runCritique", () => {
     tierRouting: true,
     smallDiffThreshold: 50,
     securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**", "**/secret*", "**/password*"],
+    spendThreshold: 0,
+    gateThreshold: "none" as const,
   };
 
   const reviewWithComments: ReviewResponseType = {

@@ -234,6 +234,18 @@ Uses `createOrUpdateSpendComment` with `<!-- mizumi-spend-marker -->` for dedup.
   integration with mocked Octokit (6)
 - 631 tests passing, 0 TS errors, 5,278 production lines, bundle rebuilt
 
+### Cycle: Calibrate Coverage + Config Gate Tests (2026-05-24)
+
+- Expanded calibrate.test.ts from 3 to 17 tests: confidence level mapping,
+  borderline confidence with/without second model, LLM confirmation/rejection,
+  confidence score adjustment (boost +15/reduce -20 with clamping), multi-finding
+  calibration, LLM failure fallback to "medium"
+- Refactored `getSecondModel` in calibrate.ts: now tries anthropic/openai/google
+  as cross-check providers (not just hardcoded 2). Same-provider fallback as last resort.
+- Added gateThreshold config tests: none (default), high, critical, medium, invalid fallback
+- Added gateThreshold + spendThreshold to critique.test.ts makeConfig
+- 650 tests passing, 0 TS errors, bundle rebuilt
+
 ### Source Modules
 
 ```
@@ -308,7 +320,7 @@ src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Chan
 
 ### Build Stats (Current — 631 Tests)
 
-- **631 tests** passing (38 test files + 1 skipped)
+- **650 tests** passing (38 test files + 1 skipped)
 - **5,294 production lines** (32 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)

@@ -6,10 +6,10 @@
 import * as core from "@actions/core";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { ReviewCommentType, ReviewResponseType } from "./review.js";
+import { MizumiConfig, getApiKey, Provider } from "./config.js";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import { ReviewCommentType, ReviewResponseType } from "./review.js";
-import { MizumiConfig, getApiKey } from "./config.js";
 
 const BORDERLINE_MIN = 60;
 const BORDERLINE_MAX = 80;
@@ -95,25 +95,40 @@ Is this issue real and actionable?`,
   return result;
 }
 
+/** Provider fallback order for calibration cross-check */
+const CALIBRATION_FALLBACKS: { provider: Provider; model: string; minApiKeyName: string }[] = [
+  { provider: "anthropic", model: "claude-haiku-4-5-20251001", minApiKeyName: "anthropic" },
+  { provider: "openai", model: "gpt-4.1-mini", minApiKeyName: "openai" },
+  { provider: "google", model: "gemini-2.5-flash", minApiKeyName: "google" },
+];
+
 /**
  * Get a second model for confidence calibration.
- * Tries a different provider than the main review model.
+ * Tries a different provider than the main review model for cross-validation.
  */
 function getSecondModel(config: MizumiConfig) {
-  const anthropicKey = getApiKey("anthropic");
-  const openaiKey = getApiKey("openai");
+  for (const fallback of CALIBRATION_FALLBACKS) {
+    const key = getApiKey(fallback.provider);
+    if (!key) continue;
 
-  if (config.provider !== "anthropic" && anthropicKey) {
-    return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
+    if (fallback.provider !== config.provider) {
+      if (fallback.provider === "anthropic") return createAnthropic({ apiKey: key })(fallback.model);
+      if (fallback.provider === "openai") return createOpenAI({ apiKey: key })(fallback.model);
+      if (fallback.provider === "google") {
+        const { createGoogleGenerativeAI } = require("@ai-sdk/google") as typeof import("@ai-sdk/google");
+        return createGoogleGenerativeAI({ apiKey: key })(fallback.model);
+      }
+    }
   }
-  if (config.provider !== "openai" && openaiKey) {
-    return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
-  }
-  if (config.provider === "anthropic" && anthropicKey) {
-    return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
-  }
-  if (config.provider === "openai" && openaiKey) {
-    return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
+
+  // Same-provider fallback (different model)
+  for (const fallback of CALIBRATION_FALLBACKS) {
+    if (fallback.provider === config.provider) {
+      const key = getApiKey(fallback.provider);
+      if (!key) continue;
+      if (fallback.provider === "anthropic") return createAnthropic({ apiKey: key })(fallback.model);
+      if (fallback.provider === "openai") return createOpenAI({ apiKey: key })(fallback.model);
+    }
   }
 
   return null;
