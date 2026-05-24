@@ -453,3 +453,26 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
   failed to match "motivation"/"deprecation" (no word boundary between root
   and suffix). Changed to `motivat\w*` and `deprecat\w*` to match all
   conjugations. Caught by expanded test coverage.
+
+### Cycle 2026-05-25b — 1067 tests, agent context gathering, pollReactions, post edge cases
+
+- **Test expansion**: 1067 tests (from 1000), 0 TS errors
+- agent.test.ts: 49→67 — runAgentContextGathering tests (11 new): model
+  routing (light/standard/thorough), empty text, LLM error, truncation,
+  diff length cap, stopWhen=8, maxOutputTokens=2048. Also added
+  isBlockedPath edge cases (.p12, .pfx, oauth, github_token) and
+  createAgentTools edge cases (non-base64 content, text_matches limits)
+- feedback.test.ts: 25→33 — pollReactions tests (8 new): +1/heart helpful,
+  -1/no_entry unhelpful, neutral reactions ignored, mixed reactions,
+  API failure returns zeros, empty reactions
+- post.test.ts: 81→95 — report card edge cases (nitpick weight 0.5,
+  unknown severity, risk score coverage grades), body truncation at 65K,
+  description feedback section, arch diagram with multi-dir diffFiles,
+  severity distribution diagram, decision mapping default, fingerprint
+  uniqueness
+- changestack.test.ts: 17→29 — service/route/handler classification,
+  module/class/core files as logic, page/view as consumer, import files,
+  single cohort stacks, spec files, data-model priority
+- sanitize.test.ts: 28→41 — JWT redaction, short base64 passthrough,
+  ruby/perl/nc/sh command redaction, nested HTML comments, override
+  all rules, combined injection patterns, repetition with normal text
