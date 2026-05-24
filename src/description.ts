@@ -17,7 +17,7 @@ export function scorePRDescription(title: string, body: string): DescriptionQual
   const missing: string[] = [];
 
   // Check for "why" explanation — look for causal language
-  const hasWhy = /\b(because|since|reason|why|motivat|purpose|goal|fix|resolv|address)\b/.test(text)
+  const hasWhy = /\b(because|since|reason|why|motivat\w*|purpose|goal|fix|resolv\w*|address)\b/.test(text)
     || body.length > 100; // Long descriptions likely explain why
   if (!hasWhy) missing.push("explanation of why this change is needed");
 
@@ -30,7 +30,7 @@ export function scorePRDescription(title: string, body: string): DescriptionQual
   if (!hasTestPlan) missing.push("test plan or verification steps");
 
   // Check for breaking change notes
-  const hasBreakingNote = /\b(breaking\s+change|breaking\s+api|incompatible|migration|upgrade\s+guide|deprecat)\b/i.test(text);
+  const hasBreakingNote = /\b(breaking\s+change|breaking\s+api|incompatible|migration|upgrade\s+guide|deprecat\w*)\b/i.test(text);
   // Only flag if the diff seems significant (large changes without breaking notes)
   // We don't have diff size here, so just note it as optional
   if (!hasBreakingNote && body.length > 0) {

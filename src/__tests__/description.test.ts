@@ -52,11 +52,8 @@ describe("scorePRDescription", () => {
     expect(result.missing).not.toContain("explanation of why this change is needed");
   });
 
-  it("detects 'motivat' root as why explanation", () => {
-    // The regex uses \b(motivat)\b which requires a word boundary after 'motivat'
-    // "motivation" = motivat+ion, no word boundary after 't', so regex won't match.
-    // But "motivat" alone or "motivat " would match.
-    const result = scorePRDescription("Add cache", "The motivat for this is to reduce latency.");
+  it("detects 'motivation' as why explanation", () => {
+    const result = scorePRDescription("Add cache", "The motivation for this is to reduce latency.");
     expect(result.missing).not.toContain("explanation of why this change is needed");
   });
 
@@ -80,8 +77,12 @@ describe("scorePRDescription", () => {
     expect(result.missing).not.toContain("test plan or verification steps");
   });
 
+  it("detects 'deprecation' as breaking change note", () => {
+    const result = scorePRDescription("API update", "Deprecation notice: /v1/endpoint will be removed.");
+    expect(result.missing).not.toContain("breaking change notes (if applicable)");
+  });
+
   it("detects 'incompatible' as breaking change note", () => {
-    // \b(deprecat)\b has word-boundary issues — use 'incompatible' which fully matches
     const result = scorePRDescription("API update", "This change is incompatible with v1 API.");
     expect(result.missing).not.toContain("breaking change notes (if applicable)");
   });
