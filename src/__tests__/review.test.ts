@@ -441,4 +441,12 @@ describe("runReview", () => {
       name: "custom",
     }));
   });
+
+  it("custom provider throws when baseUrl is empty and CUSTOM_BASE_URL is not set", async () => {
+    delete process.env.CUSTOM_BASE_URL;
+    const config = makeConfig({ provider: "custom", baseUrl: "" });
+    await expect(
+      runReview("diff", "pos", "", "", "", config)
+    ).rejects.toThrow("Custom provider requires base_url input or CUSTOM_BASE_URL env var");
+  });
 });

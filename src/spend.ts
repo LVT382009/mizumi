@@ -79,8 +79,8 @@ function truncateIfNeeded(filePath: string): void {
       const kept = lines.slice(-MAX_SPEND_ENTRIES);
       fs.writeFileSync(filePath, kept.join("\n") + "\n", "utf-8");
     }
-  } catch {
-    // Non-critical
+  } catch (e) {
+    core.warning(`Spend log rotation failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

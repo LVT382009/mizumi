@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postReview, buildFatigueWarning, vscodeLink, cleanupOutdatedComments } from "../post.js";
+import { postReview, buildReviewBody, buildFatigueWarning, vscodeLink, cleanupOutdatedComments } from "../post.js";
 import type { ReviewCommentType, ReviewResponseType } from "../review.js";
 import type { LineMap } from "../linemap.js";
 import type { MizumiConfig } from "../config.js";
@@ -23,6 +23,11 @@ vi.mock("../linemap.js", () => ({
 
 vi.mock("../sanitize.js", () => ({
   screenOutput: vi.fn((text: string) => text),
+}));
+
+vi.mock("../fuzzy.js", () => ({
+  deduplicateFindings: vi.fn((findings: any[]) => findings),
+  findStaleComments: vi.fn(() => []),
 }));
 
 import { resolveLine } from "../linemap.js";
@@ -87,10 +92,12 @@ function makeOctokit() {
   const listComments = vi.fn().mockResolvedValue({ data: [] });
   const updateComment = vi.fn().mockResolvedValue({});
   const createComment = vi.fn().mockResolvedValue({});
+  const listReviewComments = vi.fn().mockResolvedValue({ data: [] });
+  const deleteReviewComment = vi.fn().mockResolvedValue({});
 
   return {
     rest: {
-      pulls: { createReview },
+      pulls: { createReview, listReviewComments, deleteReviewComment },
       issues: { listComments, updateComment, createComment },
     },
   } as any;
@@ -888,6 +895,37 @@ describe("cleanupOutdatedComments", () => {
 
     expect(deleted).toBe(0);
     expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// 16. riskScore clamping in buildReviewBody
+// -----------------------------------------------------------------------
+
+describe("buildReviewBody riskScore clamping", () => {
+  it("clamps riskScore 0 to 1 — renders one red circle", () => {
+    const body = buildReviewBody([], [], [], [], 0, 0, "COMMENT");
+    expect(body).toContain("🔴⚪⚪⚪⚪");
+    expect(body).toContain("(1/5)");
+  });
+
+  it("clamps riskScore 6 to 5 — renders five red circles", () => {
+    const body = buildReviewBody([], [], [], [], 6, 0, "COMMENT");
+    expect(body).toContain("🔴🔴🔴🔴🔴");
+    expect(body).not.toContain("⚪");
+    expect(body).toContain("(5/5)");
+  });
+
+  it("clamps negative riskScore -1 to 1 — renders one red circle", () => {
+    const body = buildReviewBody([], [], [], [], -1, 0, "COMMENT");
+    expect(body).toContain("🔴⚪⚪⚪⚪");
+    expect(body).toContain("(1/5)");
+  });
+
+  it("keeps valid riskScore 3 unchanged", () => {
+    const body = buildReviewBody([], [], [], [], 3, 0, "COMMENT");
+    expect(body).toContain("🔴🔴🔴⚪⚪");
+    expect(body).toContain("(3/5)");
   });
 });
 

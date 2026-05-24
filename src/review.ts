@@ -55,12 +55,17 @@ function createModel(config: MizumiConfig) {
         apiKey,
         name: "local",
       }).chat(config.model);
-    case "custom":
+    case "custom": {
+      const customBase = config.baseUrl || process.env.CUSTOM_BASE_URL;
+      if (!customBase) {
+        throw new Error("Custom provider requires base_url input or CUSTOM_BASE_URL env var");
+      }
       return createOpenAI({
-        baseURL: config.baseUrl || process.env.CUSTOM_BASE_URL || "",
+        baseURL: customBase,
         apiKey,
         name: "custom",
       }).chat(config.model);
+    }
     case "nvidia":
       return createOpenAI({
         baseURL: "https://integrate.api.nvidia.com/v1",

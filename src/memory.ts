@@ -21,7 +21,8 @@ export function readMemory(workspace: string): string {
     const content = fs.readFileSync(memoryPath, "utf-8");
     core.info(`Memory: loaded ${content.length} bytes from ${MEMORY_FILENAME}`);
     return content;
-  } catch {
+  } catch (e) {
+    core.warning(`Failed to read ${MEMORY_FILENAME}: ${e instanceof Error ? e.message : String(e)}`);
     return "";
   }
 }

@@ -21,12 +21,17 @@ import { writeMemory, readMemory, autoGenerateSkills, loadSkills } from "./memor
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
 import { createSpendEntry, appendSpendEntry, readSpendLog, formatSpendDigest } from "./spend.js";
+import { computeLearningWeights, applyLearningWeights, recordSuggestion } from "./db.js";
 import { recordFindings } from "./feedback.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
 import { generateTests } from "./testgen.js";
 import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
+import { runAgentContextGathering } from "./agent.js";
+import { calibrateConfidence } from "./calibrate.js";
+import { checkCompliance, formatCompliance } from "./compliance.js";
+import { processReactionApprovals } from "./autofix.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -129,7 +134,20 @@ async function run(): Promise<void> {
     return;
   }
 
-    // 1. Fetch and parse diff
+    // 0b. Process 👍 reaction auto-fixes before running new review
+  if (config.autoFix) {
+    try {
+      const autoFixed = await processReactionApprovals(octokit, owner, repo, prNumber, config);
+      if (autoFixed > 0) {
+        core.info(`Auto-fixed ${autoFixed} suggestion(s) via 👍 reaction approval`);
+        core.setOutput("auto_fixed", autoFixed);
+      }
+    } catch (e) {
+      core.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // 1. Fetch and parse diff
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
     core.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
 
@@ -199,7 +217,23 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
 }
 
     // 7. Run review (first pass — LLM)
-    core.info("Running review pass...");
+    // 6c. Agent context gathering — explore codebase with tools for cross-file context
+let agentContext = "";
+if (classification.tier !== "light") {
+  try {
+    core.info("Running agent context gathering...");
+    agentContext = await runAgentContextGathering(
+      context.diffText, config, octokit, owner, repo, headSha, classification
+    );
+    if (agentContext) {
+      context.ghostContent += "\n\n## Agent-Explored Context\n" + agentContext;
+    }
+  } catch (e) {
+    core.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+core.info("Running review pass...");
     const { output: review, usage: reviewUsage } = await runReview(
       context.diffText,
       positionHint,
@@ -216,7 +250,57 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     const filtered = await runCritique(review, config);
     core.info(`After critique: ${filtered.comments.length} findings (threshold=${config.confidenceThreshold})`);
 
-    // 9. Merge deterministic rule findings into LLM findings
+    // 8b. Apply learning weights from past feedback
+const learningWeights = computeLearningWeights(workspace, owner + "/" + repo);
+if (Object.keys(learningWeights).length > 0) {
+  core.info("Learning weights: " + JSON.stringify(learningWeights));
+  const adjusted = applyLearningWeights(filtered.comments, learningWeights);
+  filtered.comments = adjusted as typeof filtered.comments;
+}
+
+// 8c. Confidence calibration + compliance check (parallel)
+let complianceResults: import("./compliance.js").ComplianceResult[] = [];
+if (config.confidenceCalibration || config.complianceCheck) {
+  const calibrationPromise = config.confidenceCalibration
+    ? calibrateConfidence(filtered, config).catch((e) => {
+        core.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
+        return null;
+      })
+    : Promise.resolve(null);
+
+  const compliancePromise = config.complianceCheck
+    ? (async () => {
+        try {
+          const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+          const diffSummary = diff.files.map((f) => f.path + ": +" + f.additions + "/-" + f.deletions).join("\n");
+          return checkCompliance(
+            octokit, owner, repo, prNumber,
+            prData.body || "", prData.title || "",
+            diffSummary, config
+          );
+        } catch (e) {
+          core.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+          return [];
+        }
+      })()
+    : Promise.resolve([]);
+
+  const [calibrated, compliance] = await Promise.all([calibrationPromise, compliancePromise]);
+
+  if (calibrated) {
+    const highCount = calibrated.filter((c) => c.calibratedConfidence === "high").length;
+    const lowCount = calibrated.filter((c) => c.calibratedConfidence === "low").length;
+    core.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
+    filtered.comments = calibrated as typeof filtered.comments;
+  }
+
+  complianceResults = compliance;
+  if (complianceResults.length > 0) {
+    core.info("Compliance: " + complianceResults.length + " issue(s) checked");
+  }
+}
+
+// 9. Merge deterministic rule findings into LLM findings
     // Rule findings are always posted — they're deterministic and high-confidence
     const mergedComments = [
       ...ruleFindings.map((r) => ({
@@ -253,6 +337,22 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
 core.setOutput("review_id", result.reviewId);
 core.setOutput("finding_count", result.findingCount);
 core.setOutput("risk_score", result.riskScore);
+  // Compliance output
+  if (complianceResults.length > 0) {
+    const topCompliance = complianceResults[0].compliance;
+    core.setOutput("compliance", topCompliance);
+  } else {
+    core.setOutput("compliance", "none");
+  // Post compliance results as a comment if any
+  if (complianceResults.length > 0) {
+    const complianceBody = formatCompliance(complianceResults);
+    if (complianceBody) {
+      await octokit.rest.issues.createComment({
+        owner, repo, issue_number: prNumber, body: complianceBody,
+      });
+    }
+  }
+  }
 
   // 10c. Idempotency already marked atomically at step 0
 
@@ -276,7 +376,12 @@ recordFindings(workspace, `${owner}/${repo}`, prNumber,
       .map((c) => `- [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message}`)
       .join("\n");
 
-    writeMemory(workspace, context.memoryContent, memoryUpdate);
+    // Record suggestions to SQLite for feedback tracking
+for (const c of mergedReview.comments) {
+  recordSuggestion(workspace, owner + "/" + repo, c.file, c.line, c.category, c.severity, c.message);
+}
+
+writeMemory(workspace, context.memoryContent, memoryUpdate);
 
 // 11b. Auto-generate skills from recurring patterns
 const updatedMemory = readMemory(workspace);
@@ -289,7 +394,7 @@ if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.leng
     core.error(`Mizumi error: ${error instanceof Error ? (error.stack || error.message) : String(error)}`);
     core.setOutput("review_id", 0);
     core.setOutput("finding_count", 0);
-    core.setOutput("risk_score", 0);
+    core.setOutput("risk_score", -1);
   }
 }
 
@@ -317,7 +422,7 @@ async function countMizumiReviews(
   let count = 0;
   let page = 1;
 
-  while (true) {
+  while (page <= 10) { // Max 10 pages (1000 comments) to prevent runaway
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
@@ -337,6 +442,7 @@ async function countMizumiReviews(
     owner,
     repo,
     pull_number: prNumber,
+    per_page: 100,
   });
 
   count += reviews.filter((r) => r.body?.includes(MARKER)).length;

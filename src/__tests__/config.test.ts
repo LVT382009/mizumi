@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // parseSimpleYaml — extracted from config.ts for direct testing.
@@ -285,5 +285,76 @@ describe("getApiKey provider mapping", () => {
 
   it("nvidia provider uses NVIDIA_NIM_API_KEY env var", () => {
     expect(PROVIDER_ENV_MAP.nvidia).toBe("NVIDIA_NIM_API_KEY");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadConfig — parseInt NaN defaults
+// Verifies that non-numeric action inputs fall back to default values.
+// Since loadConfig depends on @actions/core, we mock it and re-import.
+// ---------------------------------------------------------------------------
+
+vi.mock("@actions/core", () => ({
+  getInput: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+}));
+
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn(() => false),
+}));
+
+vi.mock("node:path", () => ({
+  join: vi.fn(() => "/fake/.github/mizumi.yml"),
+}));
+
+import { loadConfig } from "../config.js";
+import * as core from "@actions/core";
+
+const mockGetInput = vi.mocked(core.getInput);
+
+describe("loadConfig parseInt NaN defaults", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: all inputs return empty string (triggers defaults)
+    mockGetInput.mockReturnValue("");
+    delete process.env.GITHUB_WORKSPACE;
+  });
+
+  it("defaults max_comments to 15 when input is non-numeric", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "max_comments") return "abc";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.maxComments).toBe(15);
+  });
+
+  it("defaults confidence_threshold to 80 when input is non-numeric", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "confidence_threshold") return "xyz";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.confidenceThreshold).toBe(80);
+  });
+
+  it("defaults auto_pause_after to 5 when input is non-numeric", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "auto_pause_after") return "bad";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.autoPauseAfter).toBe(5);
+  });
+
+  it("defaults small_diff_threshold to 50 when input is non-numeric", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "small_diff_threshold") return "nope";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.smallDiffThreshold).toBe(50);
   });
 });

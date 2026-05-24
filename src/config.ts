@@ -20,6 +20,10 @@ export interface MizumiConfig {
   tierRouting: boolean;
   smallDiffThreshold: number;
   securityPaths: string[];
+  complianceCheck: boolean;
+  autoFix: boolean;
+  confidenceCalibration: boolean;
+  changeStack: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -52,15 +56,19 @@ export function loadConfig(): MizumiConfig {
   const baseUrl = core.getInput("base_url") || "";
   const rawProfile = core.getInput("profile") || "chill";
   const profile = (VALID_PROFILES.includes(rawProfile as Profile) ? rawProfile : "chill") as Profile;
-  const maxComments = parseInt(core.getInput("max_comments") || "15", 10);
+  const maxComments = parseInt(core.getInput("max_comments") || "15", 10) || 15;
   const language = core.getInput("language") || "en-US";
   const selfCritique = core.getInput("self_critique") !== "false";
-  const confidenceThreshold = parseInt(core.getInput("confidence_threshold") || "80", 10);
+  const confidenceThreshold = parseInt(core.getInput("confidence_threshold") || "80", 10) || 80;
   const autoReview = core.getInput("auto_review") !== "false";
-  const autoPauseAfter = parseInt(core.getInput("auto_pause_after") || "5", 10);
+  const autoPauseAfter = parseInt(core.getInput("auto_pause_after") || "5", 10) || 5;
 
   const tierRouting = core.getInput("tier_routing") !== "false";
-  const smallDiffThreshold = parseInt(core.getInput("small_diff_threshold") || "50", 10);
+  const smallDiffThreshold = parseInt(core.getInput("small_diff_threshold") || "50", 10) || 50;
+  const complianceCheck = core.getInput("compliance_check") !== "false";
+  const autoFix = core.getInput("auto_fix") === "true";
+  const confidenceCalibration = core.getInput("confidence_calibration") !== "false";
+  const changeStack = core.getInput("change_stack") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -123,6 +131,10 @@ export function loadConfig(): MizumiConfig {
     tierRouting: repoTierRouting,
     smallDiffThreshold: repoSmallDiffThreshold,
     securityPaths,
+    complianceCheck,
+    autoFix,
+    confidenceCalibration,
+    changeStack,
   };
 }
 

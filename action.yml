@@ -78,6 +78,22 @@ inputs:
     description: Line count threshold below which a diff is considered "small" for tier routing
     required: false
     default: "50"
+  compliance_check:
+    description: Check ticket-to-code compliance when PR references a GitHub Issue (closes #N, fixes #N)
+    required: false
+    default: "true"
+  auto_fix:
+    description: Auto-apply suggestion blocks when a 👍 reaction is found on Mizumi's review comments
+    required: false
+    default: "false"
+  confidence_calibration:
+    description: Enable dual-model confidence calibration for borderline findings (confidence 60-80)
+    required: false
+    default: "true"
+  change_stack:
+    description: Reorganize large review output into cohort/layer ordering (data models → contracts → logic → consumers → tests)
+    required: false
+    default: "true"
 
 outputs:
   review_id:
@@ -86,6 +102,10 @@ outputs:
     description: Number of findings posted
   risk_score:
     description: Risk score 1-5
+  compliance:
+    description: Ticket-to-code compliance level (fully/partially/not/none)
+  auto_fixed:
+    description: Number of suggestions auto-applied via 👍 reaction approval
 
 runs:
   using: node24

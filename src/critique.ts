@@ -83,8 +83,8 @@ Return the filtered list as JSON with the same schema.`;
 
     const filtered = parseCritiqueOutput(text, review);
     return filterByConfidence(filtered, config.confidenceThreshold);
-  } catch {
-    // Critique failure is non-fatal — fall back to confidence filter only
+  } catch (e) {
+    core.warning(`Critique LLM call failed: ${e instanceof Error ? e.message : String(e)} — falling back to confidence filter`);
     return filterByConfidence(review, config.confidenceThreshold);
   }
 }

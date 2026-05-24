@@ -15,6 +15,7 @@ import { ReviewCommentType, ReviewResponseType } from "./review.js";
 import { LineMap, resolveLine } from "./linemap.js";
 import { screenOutput } from "./sanitize.js";
 import { MizumiConfig } from "./config.js";
+import { buildChangeStack } from "./changestack.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
@@ -123,7 +124,8 @@ export async function postReview(
       inlineFindings, tableFindings, detailsFindings, unmappableFindings,
       review.riskScore, review.comments.length,
       mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
-      review.summary
+      review.summary,
+      review.comments
     );
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
@@ -178,16 +180,23 @@ export function buildReviewBody(
   riskScore: number,
   findingCount: number,
   _reviewDecision: "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
-  descriptionFeedback?: string
+  descriptionFeedback?: string,
+  allFindings?: ReviewCommentType[]
 ): string {
   let body = MARKER;
   const fatigueWarning = buildFatigueWarning(findingCount);
   if (fatigueWarning) {
     body += `\n${fatigueWarning}\n\n`;
   }
-  body += `## Mizumi Review — Risk: ${"🔴".repeat(riskScore)}${"⚪".repeat(5 - riskScore)} (${riskScore}/5)\n\n`;
+  body += `## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(riskScore, 1), 5))} (${Math.min(Math.max(riskScore, 1), 5)}/5)\n\n`;
   if (descriptionFeedback) {
     body += screenOutput(descriptionFeedback) + "\n\n";
+  }
+
+  // Change Stack for larger reviews
+  if (allFindings && allFindings.length >= 5) {
+    const changeStack = buildChangeStack(allFindings);
+    if (changeStack) body += changeStack + "\n\n";
   }
 
   // Medium findings — summary table
@@ -220,7 +229,7 @@ export function buildReviewBody(
 
 function buildSummaryComment(review: ReviewResponseType): string {
   let body = MARKER;
-  body += `\n## Mizumi Review — Risk: ${"🔴".repeat(review.riskScore)}${"⚪".repeat(5 - review.riskScore)} (${review.riskScore}/5)`;
+  body += `\n## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(review.riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(review.riskScore, 1), 5))} (${Math.min(Math.max(review.riskScore, 1), 5)}/5)`;
   body += `\n\n${screenOutput(review.summary)}`;
   body += `\n\n**Decision:** ${review.decision.toUpperCase()} | **Findings:** ${review.comments.length}`;
 
