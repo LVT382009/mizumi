@@ -30,6 +30,26 @@ export const ReviewResponse = z.object({
 export type ReviewCommentType = z.infer<typeof ReviewComment>;
 export type ReviewResponseType = z.infer<typeof ReviewResponse>;
 
+/** Sanitize LLM output — clamp values and fix malformed fields after Zod parse. */
+export function sanitizeReviewOutput(review: ReviewResponseType): ReviewResponseType {
+  const riskScore = Math.min(Math.max(Number.isFinite(review.riskScore) ? Math.round(review.riskScore) : 3, 1), 5);
+  const decision = ["approve", "comment", "request_changes"].includes(review.decision)
+    ? review.decision : "comment";
+
+  const comments = review.comments
+    .filter((c) => c.file && c.file.trim().length > 0)
+    .map((c) => {
+      const line = Math.max(1, Number.isFinite(c.line) ? Math.round(c.line) : 1);
+      const endLine = c.endLine != null && Number.isFinite(c.endLine)
+        ? Math.max(line, Math.round(c.endLine)) : undefined;
+      const confidence = Number.isFinite(c.confidence)
+        ? Math.min(Math.max(Math.round(c.confidence), 0), 100) : 50;
+      return { ...c, line, endLine, confidence };
+    });
+
+  return { ...review, riskScore, decision, comments };
+}
+
 // createModel is imported from ./models.js
 
 /**
@@ -146,5 +166,5 @@ export async function runReview(
     maxOutputTokens: 4096,
   });
 
-  return { output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
+  return { output: sanitizeReviewOutput(output), usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
 }

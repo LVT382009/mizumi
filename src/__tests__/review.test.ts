@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ReviewComment, ReviewResponse, runReview } from "../review.js";
+import { ReviewComment, ReviewResponse, runReview, sanitizeReviewOutput } from "../review.js";
 import type { ReviewResponseType } from "../review.js";
 
 // ---------------------------------------------------------------------------
@@ -447,5 +447,107 @@ describe("runReview", () => {
     await expect(
       runReview("diff", "pos", "", "", "", config)
     ).rejects.toThrow("Custom provider requires base_url input or CUSTOM_BASE_URL env var");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeReviewOutput — output validation guards
+// ---------------------------------------------------------------------------
+
+describe("sanitizeReviewOutput", () => {
+  const baseReview: ReviewResponseType = {
+    summary: "Looks good",
+    riskScore: 2,
+    comments: [],
+    decision: "comment",
+  };
+
+  it("passes through valid output unchanged", () => {
+    const review = { ...baseReview, riskScore: 3, decision: "approve" as const };
+    const result = sanitizeReviewOutput(review);
+    expect(result.riskScore).toBe(3);
+    expect(result.decision).toBe("approve");
+  });
+
+  it("clamps riskScore to 1-5 range", () => {
+    expect(sanitizeReviewOutput({ ...baseReview, riskScore: 0 }).riskScore).toBe(1);
+    expect(sanitizeReviewOutput({ ...baseReview, riskScore: 10 }).riskScore).toBe(5);
+    expect(sanitizeReviewOutput({ ...baseReview, riskScore: -1 }).riskScore).toBe(1);
+  });
+
+  it("defaults NaN riskScore to 3", () => {
+    expect(sanitizeReviewOutput({ ...baseReview, riskScore: NaN }).riskScore).toBe(3);
+  });
+
+  it("defaults invalid decision to comment", () => {
+    const result = sanitizeReviewOutput({ ...baseReview, decision: "reject" as any });
+    expect(result.decision).toBe("comment");
+  });
+
+  it("rounds riskScore to integer", () => {
+    expect(sanitizeReviewOutput({ ...baseReview, riskScore: 2.7 }).riskScore).toBe(3);
+  });
+
+  it("clamps confidence to 0-100 range", () => {
+    const review = {
+      ...baseReview,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high" as const, category: "bug" as const, message: "x", confidence: 150 },
+        { file: "b.ts", line: 2, severity: "low" as const, category: "style" as const, message: "y", confidence: -10 },
+      ],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments[0].confidence).toBe(100);
+    expect(result.comments[1].confidence).toBe(0);
+  });
+
+  it("clamps negative line numbers to 1", () => {
+    const review = {
+      ...baseReview,
+      comments: [{ file: "a.ts", line: -5, severity: "high" as const, category: "bug" as const, message: "x", confidence: 80 }],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments[0].line).toBe(1);
+  });
+
+  it("defaults NaN line to 1", () => {
+    const review = {
+      ...baseReview,
+      comments: [{ file: "a.ts", line: NaN, severity: "high" as const, category: "bug" as const, message: "x", confidence: 80 }],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments[0].line).toBe(1);
+  });
+
+  it("fixes endLine that is before line", () => {
+    const review = {
+      ...baseReview,
+      comments: [{ file: "a.ts", line: 10, endLine: 5, severity: "high" as const, category: "bug" as const, message: "x", confidence: 80 }],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments[0].endLine).toBeGreaterThanOrEqual(result.comments[0].line);
+  });
+
+  it("filters out comments with empty file path", () => {
+    const review = {
+      ...baseReview,
+      comments: [
+        { file: "", line: 1, severity: "high" as const, category: "bug" as const, message: "x", confidence: 80 },
+        { file: "  ", line: 2, severity: "low" as const, category: "style" as const, message: "y", confidence: 70 },
+        { file: "valid.ts", line: 3, severity: "medium" as const, category: "bug" as const, message: "z", confidence: 90 },
+      ],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments).toHaveLength(1);
+    expect(result.comments[0].file).toBe("valid.ts");
+  });
+
+  it("defaults NaN confidence to 50", () => {
+    const review = {
+      ...baseReview,
+      comments: [{ file: "a.ts", line: 1, severity: "medium" as const, category: "bug" as const, message: "x", confidence: NaN }],
+    };
+    const result = sanitizeReviewOutput(review);
+    expect(result.comments[0].confidence).toBe(50);
   });
 });

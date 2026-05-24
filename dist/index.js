@@ -106175,6 +106175,17 @@ var ReviewResponse = external_exports.object({
   comments: external_exports.array(ReviewComment).describe("Review findings"),
   decision: external_exports.enum(["approve", "comment", "request_changes"])
 });
+function sanitizeReviewOutput(review) {
+  const riskScore = Math.min(Math.max(Number.isFinite(review.riskScore) ? Math.round(review.riskScore) : 3, 1), 5);
+  const decision = ["approve", "comment", "request_changes"].includes(review.decision) ? review.decision : "comment";
+  const comments = review.comments.filter((c) => c.file && c.file.trim().length > 0).map((c) => {
+    const line = Math.max(1, Number.isFinite(c.line) ? Math.round(c.line) : 1);
+    const endLine = c.endLine != null && Number.isFinite(c.endLine) ? Math.max(line, Math.round(c.endLine)) : void 0;
+    const confidence = Number.isFinite(c.confidence) ? Math.min(Math.max(Math.round(c.confidence), 0), 100) : 50;
+    return { ...c, line, endLine, confidence };
+  });
+  return { ...review, riskScore, decision, comments };
+}
 function selectModel(config2, classification) {
   if (classification.tier === "light") {
     return createLightModel(config2);
@@ -106269,7 +106280,7 @@ ${ghostContent}`;
     schema: ReviewResponse,
     maxOutputTokens: 4096
   });
-  return { output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
+  return { output: sanitizeReviewOutput(output), usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
 }
 
 // src/critique.ts
