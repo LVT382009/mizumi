@@ -32,6 +32,7 @@ import { runAgentContextGathering } from "./agent.js";
 import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
+import { persistLearningData } from "./persist.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -74,7 +75,8 @@ async function run(): Promise<void> {
       const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
       const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
       const description = await generateDescription(
-        diff.rawDiff.slice(0, 50000), pr.title || "", pr.body || "", config
+        diff.rawDiff.slice(0, 50000), pr.title || "", pr.body || "", config,
+    diff.files
       );
       await octokit.rest.issues.createComment({
         owner, repo, issue_number: prNumber, body: description,
@@ -336,7 +338,8 @@ if (config.confidenceCalibration || config.complianceCheck) {
   // 10. Post review
     core.info("Posting review...");
     const result = await postReview(
-      octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config
+      octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config,
+    diff.files
     );
     core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
 
@@ -395,7 +398,18 @@ const updatedMemory = readMemory(workspace);
 const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
 if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.length} skill(s)`);
 
-    // Always exit 0 — never fail the build by default
+    // 11c. Persist learning data back to repo (survives between Action runs)
+  try {
+    const defaultBranch = github.context.payload.repository?.default_branch || "main";
+    const persistResult = await persistLearningData(octokit, owner, repo, defaultBranch, workspace);
+    if (persistResult.committed) {
+      core.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
+    }
+  } catch (e) {
+    core.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+
+  // Always exit 0 — never fail the build by default
     core.info("Mizumi review complete");
   } catch (error) {
     core.error(`Mizumi error: ${error instanceof Error ? (error.stack || error.message) : String(error)}`);

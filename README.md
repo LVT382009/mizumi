@@ -28,6 +28,8 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Auto-fix on 👍** — React with thumbs-up on any Mizumi suggestion to auto-apply the fix
 - **Fuzzy dedup** — Suppresses near-duplicate findings and cleans stale comments using rapid-fuzzy matching
 - **SQLite learning** — Tracks suggestion acceptance rates, promotes/demotes categories based on past feedback
+- **Mermaid diagrams** — Auto-generates architecture and severity distribution diagrams in review output (GitHub renders natively)
+- **Learning persistence** — Commits memory, feedback, and skills back to the repo so they survive between Action runs
 
 ## Quick Start
 

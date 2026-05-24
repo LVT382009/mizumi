@@ -16,6 +16,7 @@ import { LineMap, resolveLine } from "./linemap.js";
 import { screenOutput } from "./sanitize.js";
 import { MizumiConfig } from "./config.js";
 import { buildChangeStack } from "./changestack.js";
+import { generateArchDiagram, generateSeverityDiagram } from "./diagram.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
@@ -30,6 +31,12 @@ export interface PostResult {
   riskScore: number;
 }
 
+export interface DiffFileSummary {
+  path: string;
+  additions: number;
+  deletions: number;
+}
+
 /**
  * Post the full review to GitHub with severity-based delivery.
  */
@@ -41,7 +48,8 @@ export async function postReview(
   headSha: string,
   review: ReviewResponseType,
   lineMap: LineMap,
-  config: MizumiConfig
+  config: MizumiConfig,
+  diffFiles?: DiffFileSummary[]
 ): Promise<PostResult> {
 
   // 1. Partition findings by severity
@@ -125,7 +133,8 @@ export async function postReview(
       review.riskScore, review.comments.length,
       mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
       review.summary,
-      review.comments
+      review.comments,
+      diffFiles
     );
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
@@ -181,7 +190,8 @@ export function buildReviewBody(
   findingCount: number,
   _reviewDecision: "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
   descriptionFeedback?: string,
-  allFindings?: ReviewCommentType[]
+  allFindings?: ReviewCommentType[],
+  diffFiles?: DiffFileSummary[]
 ): string {
   let body = MARKER;
   const fatigueWarning = buildFatigueWarning(findingCount);
@@ -197,6 +207,18 @@ export function buildReviewBody(
   if (allFindings && allFindings.length >= 5) {
     const changeStack = buildChangeStack(allFindings);
     if (changeStack) body += changeStack + "\n\n";
+  }
+
+  // Architecture diagram when multiple directories changed
+  if (diffFiles && diffFiles.length >= 2) {
+    const archDiagram = generateArchDiagram(diffFiles, allFindings);
+    if (archDiagram) body += "### Change Architecture\n\n" + archDiagram + "\n\n";
+  }
+
+  // Severity distribution diagram
+  if (allFindings && allFindings.length > 0) {
+    const sevDiagram = generateSeverityDiagram(allFindings);
+    if (sevDiagram) body += "### Finding Distribution\n\n" + sevDiagram + "\n\n";
   }
 
   // Medium findings — summary table
