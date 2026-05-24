@@ -74174,18 +74174,34 @@ function safeId(key) {
 }
 
 /**
- * Post review — severity-delivered output + summary + HTML marker dedup.
+ * Post review — severity-delivered output + summary + fingerprint dedup.
  *
  * Delivery tiers (Phase 2.4 — CodeRabbit pattern):
  * Critical/High → inline suggestions (with "Commit suggestion" button)
  * Medium → summary table in review body
  * Low/Nitpick → collapsible <details> in review body
  *
- * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
- * The deprecated `position` parameter is NOT used.
+ * Dedup: FNV-1a fingerprint in HTML meta comment (reviewdog pattern).
+ * Reply-aware deletion: comments with human replies are never deleted.
+ * 65,535 char cap: review body truncated if exceeding GitHub limit.
  */
 const MARKER$3 = "<!-- mizumi-review-marker -->";
-const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
+/** FNV-1a 32-bit hash — fast, deterministic fingerprint for dedup */
+function fnv1a32(str) {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+}
+/** Compute fingerprint for a finding — stable across re-reviews */
+function computeFingerprint(file, line, message) {
+    return fnv1a32(file + ":" + line + ":" + message);
+}
+const FINGERPRINT_PREFIX = "<!-- mizumi-fp:";
+const MAX_COMMENT_BODY = 65535;
+const MAX_INLINE_COMMENTS = 30;
 function vscodeLink(file, line) {
     return `[Open in VS Code](vscode://file/${file}:${line})`;
 }
@@ -74209,7 +74225,7 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             detailsFindings.push(finding);
         }
     }
-    // 2. Build inline comments (critical + high only)
+    // 2. Build inline comments (critical + high only) with fingerprints
     const inlineComments = [];
     for (const finding of inlineFindings) {
         const resolvedLine = resolveLine(lineMap, finding.file, finding.line);
@@ -74218,9 +74234,12 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             continue;
         }
         const link = vscodeLink(finding.file, resolvedLine);
-        const body = screenOutput(finding.suggestion
+        const fp = computeFingerprint(finding.file, finding.line, finding.message);
+        const fpMeta = FINGERPRINT_PREFIX + fp + "-->";
+        const rawBody = finding.suggestion
             ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n${link}`
-            : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n${link}`);
+            : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n${link}`;
+        const body = fpMeta + "\n" + screenOutput(rawBody);
         const comment = {
             path: finding.file,
             line: resolvedLine,
@@ -74253,7 +74272,13 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
     // 4. Create PR Review
     let reviewId = 0;
     try {
-        const reviewBody = buildReviewBody(inlineFindings, tableFindings, detailsFindings, unmappableFindings, review.riskScore, review.comments.length, mapDecision(review.decision), review.summary, review.comments, diffFiles);
+        let reviewBody = buildReviewBody(inlineFindings, tableFindings, detailsFindings, unmappableFindings, review.riskScore, review.comments.length, mapDecision(review.decision), review.summary, review.comments, diffFiles);
+        // Truncate if exceeding GitHub's 65,535 char limit
+        if (reviewBody.length > MAX_COMMENT_BODY) {
+            const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
+            reviewBody = truncated + `\n\n... Too many findings to display. (${review.comments.length} findings, body truncated to ${MAX_COMMENT_BODY} chars)`;
+            warning(`Review body truncated from ${reviewBody.length} to ${MAX_COMMENT_BODY} chars`);
+        }
         const { data: createdReview } = await octokit.rest.pulls.createReview({
             owner,
             repo,
@@ -74266,7 +74291,6 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
         reviewId = createdReview.id;
     }
     catch (error) {
-        // 422 = invalid line numbers — fall back to summary-only
         if (error?.status === 422) {
             warning("422 on createReview — falling back to summary-only comment");
             const summaryBody = buildSummaryComment(review);
@@ -74367,12 +74391,12 @@ function buildSummaryComment(review) {
     return body;
 }
 /**
- * Delete Mizumi's own inline review comments whose file+line no longer
- * appears in the current findings (reviewdog stale-cleanup pattern).
+ * Delete outdated Mizumi inline review comments using fingerprint matching.
+ * Comments with human replies are never deleted (reviewdog pattern).
  * Returns the number of comments deleted. Never throws.
  */
 async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFindings) {
-    const currentKeys = new Set(currentFindings.map((f) => `${f.file}:${f.line}`));
+    const currentFingerprints = new Set(currentFindings.map((f) => computeFingerprint(f.file, f.line, f.message)));
     let deleted = 0;
     let page = 1;
     while (true) {
@@ -74380,10 +74404,20 @@ async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFi
             owner, repo, pull_number: prNumber, per_page: 100, page,
         });
         for (const comment of comments) {
-            if (!comment.body?.includes(MARKER$3))
+            // Only touch comments with our fingerprint marker
+            if (!comment.body?.includes(FINGERPRINT_PREFIX))
                 continue;
-            const key = `${comment.path}:${comment.line}`;
-            if (currentKeys.has(key))
+            // Skip deletion if comment has human replies (reviewdog pattern)
+            const replies = comment.replies;
+            if (Array.isArray(replies) && replies.length > 0)
+                continue;
+            // Extract fingerprint from HTML meta comment
+            const fpMatch = comment.body.match(/<!-- mizumi-fp:([0-9a-f]+)-->/);
+            if (!fpMatch)
+                continue;
+            const fp = fpMatch[1];
+            // Skip if this finding still exists in current review
+            if (currentFingerprints.has(fp))
                 continue;
             try {
                 await octokit.rest.pulls.deleteReviewComment({
@@ -76060,18 +76094,15 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         if (complianceResults.length > 0) {
             const topCompliance = complianceResults[0].compliance;
             setOutput("compliance", topCompliance);
+            const complianceBody = formatCompliance(complianceResults);
+            if (complianceBody) {
+                await octokit.rest.issues.createComment({
+                    owner, repo, issue_number: prNumber, body: complianceBody,
+                });
+            }
         }
         else {
             setOutput("compliance", "none");
-            // Post compliance results as a comment if any
-            if (complianceResults.length > 0) {
-                const complianceBody = formatCompliance(complianceResults);
-                if (complianceBody) {
-                    await octokit.rest.issues.createComment({
-                        owner, repo, issue_number: prNumber, body: complianceBody,
-                    });
-                }
-            }
         }
         // 10c. Idempotency already marked atomically at step 0
         // 10b. Track spend

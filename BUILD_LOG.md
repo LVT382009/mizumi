@@ -137,6 +137,21 @@
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 
+### Cycle: generateObject Migration + Hardening (2026-05-24)
+
+- Migrated all 6 LLM-calling source files to generateObject with zod schemas (Issue #9)
+  - review.ts, describe.ts, testgen.ts, critique.ts: generateText + Output.object → generateObject
+  - compliance.ts: LEVEL|summary text parsing → ComplianceSchema (z.enum + z.string)
+  - calibrate.ts: yes/no text parsing → VerificationSchema (z.enum)
+- Fixed compliance posting bug: formatCompliance was inside else block, never called
+- Added reviewdog-style fingerprint dedup (FNV-1a 32-bit) to inline comment bodies
+- Added 65,535 char comment body cap with truncation
+- Added reply-aware deletion: comments with human replies are never cleaned up
+- Updated cleanupOutdatedComments to use fingerprint matching instead of file:line keys
+- Added computeFingerprint + truncateToLimit exports with tests
+- Fixed review.test.ts return shape: { output: result } not { object: result }
+- 498 tests passing, 0 TS errors, bundle rebuilt
+
 ### Source Modules
 
 ```

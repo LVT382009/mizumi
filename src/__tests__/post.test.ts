@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postReview, buildReviewBody, buildFatigueWarning, vscodeLink, cleanupOutdatedComments } from "../post.js";
+import { postReview, buildReviewBody, buildFatigueWarning, vscodeLink, cleanupOutdatedComments, computeFingerprint, truncateToLimit } from "../post.js";
 import type { ReviewCommentType, ReviewResponseType } from "../review.js";
 import type { LineMap } from "../linemap.js";
 import type { MizumiConfig } from "../config.js";
@@ -817,7 +817,18 @@ describe("vscodeLink", () => {
 // -----------------------------------------------------------------------
 
 describe("cleanupOutdatedComments", () => {
-  const MARKER = "<!-- mizumi-review-marker -->";
+  const FP_PREFIX = '<!-- mizumi-fp:';
+
+  function fpComment(id, file, line, message, replies?) {
+    const fp = computeFingerprint(file, line, message);
+    return {
+      id,
+      path: file,
+      line,
+      body: FP_PREFIX + fp + '-->' + message,
+      replies: replies || [],
+    };
+  }
 
   function makeCleanupOctokit(reviewComments: any[]) {
     const listReviewComments = vi.fn().mockResolvedValue({ data: reviewComments });
@@ -831,7 +842,7 @@ describe("cleanupOutdatedComments", () => {
 
   it("returns 0 when there are no outdated comments", async () => {
     const octokit = makeCleanupOctokit([
-      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Finding A` },
+      fpComment(1, "src/app.ts", 10, "Finding A"),
     ]);
     const currentFindings = [{ file: "src/app.ts", line: 10, message: "Finding A" }];
 
@@ -841,10 +852,10 @@ describe("cleanupOutdatedComments", () => {
     expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
   });
 
-  it("deletes marked comments whose file+line is not in current findings", async () => {
+  it("deletes comments whose fingerprint is not in current findings", async () => {
     const octokit = makeCleanupOctokit([
-      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Old finding` },
-      { id: 2, path: "src/app.ts", line: 20, body: `${MARKER} Another old` },
+      fpComment(1, "src/app.ts", 10, "Still here"),
+      fpComment(2, "src/app.ts", 20, "Old finding"),
     ]);
     const currentFindings = [{ file: "src/app.ts", line: 10, message: "Still here" }];
 
@@ -856,7 +867,7 @@ describe("cleanupOutdatedComments", () => {
     );
   });
 
-  it("does not delete comments without the marker", async () => {
+  it("does not delete comments without the fingerprint marker", async () => {
     const octokit = makeCleanupOctokit([
       { id: 1, path: "src/app.ts", line: 10, body: "Human review comment" },
     ]);
@@ -870,21 +881,20 @@ describe("cleanupOutdatedComments", () => {
 
   it("does not throw when deletion fails — skips gracefully", async () => {
     const octokit = makeCleanupOctokit([
-      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Stale` },
+      fpComment(1, "src/app.ts", 10, "Stale"),
     ]);
     octokit.rest.pulls.deleteReviewComment.mockRejectedValue(new Error("GitHub API error"));
     const currentFindings: Array<{ file: string; line: number; message: string }> = [];
 
-    // Must not throw
     const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
 
     expect(deleted).toBe(0);
   });
 
-  it("keeps comments that match a current finding by file and line", async () => {
+  it("keeps comments that match a current finding by fingerprint", async () => {
     const octokit = makeCleanupOctokit([
-      { id: 1, path: "src/app.ts", line: 10, body: `${MARKER} Still valid` },
-      { id: 2, path: "src/util.ts", line: 5, body: `${MARKER} Also valid` },
+      fpComment(1, "src/app.ts", 10, "Still valid"),
+      fpComment(2, "src/util.ts", 5, "Also valid"),
     ]);
     const currentFindings = [
       { file: "src/app.ts", line: 10, message: "Still valid" },
@@ -896,9 +906,20 @@ describe("cleanupOutdatedComments", () => {
     expect(deleted).toBe(0);
     expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
   });
+
+  it("does not delete comments that have human replies", async () => {
+    const octokit = makeCleanupOctokit([
+      fpComment(1, "src/app.ts", 10, "Outdated but replied", [{ id: 100, body: "I disagree" }]),
+    ]);
+    const currentFindings: Array<{ file: string; line: number; message: string }> = [];
+
+    const deleted = await cleanupOutdatedComments(octokit, OWNER, REPO, PR_NUMBER, currentFindings);
+
+    expect(deleted).toBe(0);
+    expect(octokit.rest.pulls.deleteReviewComment).not.toHaveBeenCalled();
+  });
 });
 
-// -----------------------------------------------------------------------
 // 16. riskScore clamping in buildReviewBody
 // -----------------------------------------------------------------------
 
@@ -930,3 +951,53 @@ describe("buildReviewBody riskScore clamping", () => {
 });
 
 
+
+
+// -----------------------------------------------------------------------
+// 17. Fingerprint computation
+// -----------------------------------------------------------------------
+
+describe("computeFingerprint", () => {
+  it("returns deterministic 8-char hex for same input", () => {
+    const fp1 = computeFingerprint("src/app.ts", 10, "Null deref");
+    const fp2 = computeFingerprint("src/app.ts", 10, "Null deref");
+    expect(fp1).toBe(fp2);
+    expect(fp1).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it("returns different fingerprints for different inputs", () => {
+    const fp1 = computeFingerprint("src/a.ts", 1, "Bug A");
+    const fp2 = computeFingerprint("src/b.ts", 2, "Bug B");
+    expect(fp1).not.toBe(fp2);
+  });
+
+  it("produces different fingerprint when message changes but file/line same", () => {
+    const fp1 = computeFingerprint("src/app.ts", 10, "Old message");
+    const fp2 = computeFingerprint("src/app.ts", 10, "New message");
+    expect(fp1).not.toBe(fp2);
+  });
+});
+
+// -----------------------------------------------------------------------
+// 18. truncateToLimit
+// -----------------------------------------------------------------------
+
+describe("truncateToLimit", () => {
+  it("returns body unchanged when under limit", () => {
+    expect(truncateToLimit("short", 100)).toBe("short");
+  });
+
+  it("truncates and appends notice when over limit", () => {
+    const long = "a".repeat(200);
+    const result = truncateToLimit(long, 100);
+    expect(result.length).toBeLessThanOrEqual(100);
+    expect(result).toContain("Too many findings");
+  });
+
+  it("uses default limit of 65535", () => {
+    const body = "x".repeat(65536);
+    const result = truncateToLimit(body);
+    expect(result.length).toBeLessThanOrEqual(65535);
+    expect(result).toContain("Too many findings");
+  });
+});

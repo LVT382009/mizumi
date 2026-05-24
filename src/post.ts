@@ -1,13 +1,14 @@
 /**
- * Post review — severity-delivered output + summary + HTML marker dedup.
+ * Post review — severity-delivered output + summary + fingerprint dedup.
  *
  * Delivery tiers (Phase 2.4 — CodeRabbit pattern):
  * Critical/High → inline suggestions (with "Commit suggestion" button)
  * Medium → summary table in review body
  * Low/Nitpick → collapsible <details> in review body
  *
- * Uses `line`/`start_line`/`side` (GitHub GA since April 2020).
- * The deprecated `position` parameter is NOT used.
+ * Dedup: FNV-1a fingerprint in HTML meta comment (reviewdog pattern).
+ * Reply-aware deletion: comments with human replies are never deleted.
+ * 65,535 char cap: review body truncated if exceeding GitHub limit.
  */
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
@@ -19,7 +20,25 @@ import { buildChangeStack } from "./changestack.js";
 import { generateArchDiagram, generateSeverityDiagram } from "./diagram.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
-const MAX_INLINE_COMMENTS = 30; // GitHub limit per createReview call
+
+/** FNV-1a 32-bit hash — fast, deterministic fingerprint for dedup */
+function fnv1a32(str: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/** Compute fingerprint for a finding — stable across re-reviews */
+export function computeFingerprint(file: string, line: number, message: string): string {
+  return fnv1a32(file + ":" + line + ":" + message);
+}
+
+const FINGERPRINT_PREFIX = "<!-- mizumi-fp:";
+const MAX_COMMENT_BODY = 65535;
+const MAX_INLINE_COMMENTS = 30;
 
 export function vscodeLink(file: string, line: number): string {
   return `[Open in VS Code](vscode://file/${file}:${line})`;
@@ -68,7 +87,7 @@ export async function postReview(
     }
   }
 
-  // 2. Build inline comments (critical + high only)
+  // 2. Build inline comments (critical + high only) with fingerprints
   const inlineComments: Array<{
     path: string;
     line: number;
@@ -86,11 +105,12 @@ export async function postReview(
     }
 
     const link = vscodeLink(finding.file, resolvedLine);
-    const body = screenOutput(
-      finding.suggestion
-        ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n${link}`
-        : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n${link}`
-    );
+    const fp = computeFingerprint(finding.file, finding.line, finding.message);
+    const fpMeta = FINGERPRINT_PREFIX + fp + "-->";
+    const rawBody = finding.suggestion
+      ? `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n\`\`\`suggestion\n${finding.suggestion}\n\`\`\`\n\n${link}`
+      : `**[${finding.severity.toUpperCase()}] ${finding.category}**: ${finding.message}\n\n${link}`;
+    const body = fpMeta + "\n" + screenOutput(rawBody);
 
     const comment: (typeof inlineComments)[number] = {
       path: finding.file,
@@ -128,7 +148,7 @@ export async function postReview(
   // 4. Create PR Review
   let reviewId = 0;
   try {
-    const reviewBody = buildReviewBody(
+    let reviewBody = buildReviewBody(
       inlineFindings, tableFindings, detailsFindings, unmappableFindings,
       review.riskScore, review.comments.length,
       mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
@@ -136,6 +156,14 @@ export async function postReview(
       review.comments,
       diffFiles
     );
+
+    // Truncate if exceeding GitHub's 65,535 char limit
+    if (reviewBody.length > MAX_COMMENT_BODY) {
+      const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
+      reviewBody = truncated + `\n\n... Too many findings to display. (${review.comments.length} findings, body truncated to ${MAX_COMMENT_BODY} chars)`;
+      core.warning(`Review body truncated from ${reviewBody.length} to ${MAX_COMMENT_BODY} chars`);
+    }
+
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
       repo,
@@ -147,7 +175,6 @@ export async function postReview(
     });
     reviewId = createdReview.id;
   } catch (error: any) {
-    // 422 = invalid line numbers — fall back to summary-only
     if (error?.status === 422) {
       core.warning("422 on createReview — falling back to summary-only comment");
       const summaryBody = buildSummaryComment(review);
@@ -272,8 +299,8 @@ function buildSummaryComment(review: ReviewResponseType): string {
 }
 
 /**
- * Delete Mizumi's own inline review comments whose file+line no longer
- * appears in the current findings (reviewdog stale-cleanup pattern).
+ * Delete outdated Mizumi inline review comments using fingerprint matching.
+ * Comments with human replies are never deleted (reviewdog pattern).
  * Returns the number of comments deleted. Never throws.
  */
 export async function cleanupOutdatedComments(
@@ -283,8 +310,8 @@ export async function cleanupOutdatedComments(
   prNumber: number,
   currentFindings: Array<{ file: string; line: number; message: string }>
 ): Promise<number> {
-  const currentKeys = new Set(
-    currentFindings.map((f) => `${f.file}:${f.line}`)
+  const currentFingerprints = new Set(
+    currentFindings.map((f) => computeFingerprint(f.file, f.line, f.message))
   );
   let deleted = 0;
   let page = 1;
@@ -295,9 +322,21 @@ export async function cleanupOutdatedComments(
     });
 
     for (const comment of comments) {
-      if (!comment.body?.includes(MARKER)) continue;
-      const key = `${comment.path}:${comment.line}`;
-      if (currentKeys.has(key)) continue;
+      // Only touch comments with our fingerprint marker
+      if (!comment.body?.includes(FINGERPRINT_PREFIX)) continue;
+
+      // Skip deletion if comment has human replies (reviewdog pattern)
+      const replies = (comment as any).replies;
+      if (Array.isArray(replies) && replies.length > 0) continue;
+
+      // Extract fingerprint from HTML meta comment
+      const fpMatch = comment.body.match(/<!-- mizumi-fp:([0-9a-f]+)-->/);
+      if (!fpMatch) continue;
+      const fp = fpMatch[1];
+
+      // Skip if this finding still exists in current review
+      if (currentFingerprints.has(fp)) continue;
+
       try {
         await octokit.rest.pulls.deleteReviewComment({
           owner, repo, comment_id: comment.id,
@@ -311,6 +350,12 @@ export async function cleanupOutdatedComments(
   }
 
   return deleted;
+}
+
+/** Truncate a string to the GitHub comment body char limit */
+export function truncateToLimit(body: string, limit: number = MAX_COMMENT_BODY): string {
+  if (body.length <= limit) return body;
+  return body.slice(0, limit - 100) + "\n\n... Too many findings to display.";
 }
 
 async function createOrUpdateSummaryComment(

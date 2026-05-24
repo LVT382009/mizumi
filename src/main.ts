@@ -348,21 +348,18 @@ core.setOutput("review_id", result.reviewId);
 core.setOutput("finding_count", result.findingCount);
 core.setOutput("risk_score", result.riskScore);
   // Compliance output
-  if (complianceResults.length > 0) {
-    const topCompliance = complianceResults[0].compliance;
-    core.setOutput("compliance", topCompliance);
-  } else {
-    core.setOutput("compliance", "none");
-  // Post compliance results as a comment if any
-  if (complianceResults.length > 0) {
-    const complianceBody = formatCompliance(complianceResults);
-    if (complianceBody) {
-      await octokit.rest.issues.createComment({
-        owner, repo, issue_number: prNumber, body: complianceBody,
-      });
-    }
-  }
-  }
+ if (complianceResults.length > 0) {
+ const topCompliance = complianceResults[0].compliance;
+ core.setOutput("compliance", topCompliance);
+ const complianceBody = formatCompliance(complianceResults);
+ if (complianceBody) {
+ await octokit.rest.issues.createComment({
+ owner, repo, issue_number: prNumber, body: complianceBody,
+ });
+ }
+ } else {
+ core.setOutput("compliance", "none");
+ }
 
   // 10c. Idempotency already marked atomically at step 0
 
