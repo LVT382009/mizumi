@@ -29,6 +29,7 @@ import { generateFix } from "./improve.js";
 import { generateTests } from "./testgen.js";
 import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
 import { runAgentContextGathering } from "./agent.js";
+import { runLinters } from "./linter.js";
 import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
@@ -205,6 +206,15 @@ if (slopResult.isSlop) {
     // 4. Run deterministic rules (zero LLM cost, never hallucinates)
     const ruleFindings = runRules(diff.files);
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
+
+// 4b. Run linter pre-scan (deterministic, zero LLM cost)
+ let linterFindings: import("./linter.js").LinterFinding[] = [];
+ try {
+   linterFindings = runLinters(workspace, diff.files.map((f) => f.path));
+   if (linterFindings.length > 0) core.info(`Linters: ${linterFindings.length} finding(s)`);
+ } catch (e) {
+   core.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+ }
 
     // 5. Build context (diff + memory + rules + PR metadata + classification)
     const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);

@@ -104,6 +104,11 @@ inputs:
     required: false
     default: "false"
 
+  linter_scan:
+    description: Run project linters (ESLint, tsc, Prettier) before LLM review. Linter findings are deterministic and never hallucinate. Requires linters to be installed in the workflow.
+    required: false
+    default: "true"
+
 outputs:
   review_id:
     description: ID of the posted PR review

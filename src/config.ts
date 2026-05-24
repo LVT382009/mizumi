@@ -26,6 +26,7 @@ export interface MizumiConfig {
   changeStack: boolean;
   improveEnabled: boolean;
   dryRun: boolean;
+  linterScan: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -73,6 +74,7 @@ export function loadConfig(): MizumiConfig {
   const changeStack = core.getInput("change_stack") !== "false";
   const improveEnabled = core.getInput("improve_enabled") === "true";
 const dryRun = core.getInput("dry_run") === "true";
+const linterScan = core.getInput("linter_scan") !== "false"; // default true
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -141,6 +143,7 @@ const dryRun = core.getInput("dry_run") === "true";
     changeStack,
     improveEnabled,
     dryRun,
+    linterScan,
   };
 }
 

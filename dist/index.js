@@ -19,6 +19,7 @@ import * as fs$1 from 'node:fs';
 import * as path$1 from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import * as crypto$1 from 'node:crypto';
+import { execSync } from 'node:child_process';
 
 function _mergeNamespaces(n, m) {
     m.forEach(function (e) {
@@ -28199,6 +28200,13 @@ function setFailed(message) {
     error(message);
 }
 /**
+ * Writes debug message to user log
+ * @param message debug message
+ */
+function debug(message) {
+    issueCommand('debug', {}, message);
+}
+/**
  * Adds an error issue
  * @param message error issue message. Errors will be converted to string via toString()
  * @param properties optional properties to add to the annotation.
@@ -34815,6 +34823,7 @@ function loadConfig() {
     const changeStack = getInput("change_stack") !== "false";
     const improveEnabled = getInput("improve_enabled") === "true";
     const dryRun = getInput("dry_run") === "true";
+    const linterScan = getInput("linter_scan") !== "false"; // default true
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34893,6 +34902,7 @@ function loadConfig() {
         changeStack,
         improveEnabled,
         dryRun,
+        linterScan,
     };
 }
 /**
@@ -75508,6 +75518,171 @@ ${diffContent.slice(0, 15000)}`;
 }
 
 /**
+ * Linter pre-scan — run project linters (ESLint, tsc, prettier) before LLM review.
+ * Linter findings are deterministic (never hallucinate), saving LLM tokens
+ * and improving accuracy for style/formatting issues.
+ *
+ * This is a best-effort scan: linters are optional and may not be installed.
+ * Failures are logged as warnings and skipped gracefully.
+ */
+/**
+ * Run project linters on changed files and return deterministic findings.
+ * Each linter is optional — if not installed or configured, it's skipped.
+ */
+function runLinters(workspace, changedFiles) {
+    const findings = [];
+    const jsFiles = changedFiles.filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(f));
+    if (jsFiles.length === 0)
+        return findings;
+    // ESLint
+    try {
+        const eslintResults = runEslint(workspace, jsFiles);
+        findings.push(...eslintResults);
+    }
+    catch (e) {
+        debug("ESLint scan skipped: " + (e instanceof Error ? e.message : String(e)));
+    }
+    // TypeScript compiler (tsc --noEmit)
+    try {
+        const tscResults = runTsc(workspace);
+        findings.push(...tscResults);
+    }
+    catch (e) {
+        debug("tsc scan skipped: " + (e instanceof Error ? e.message : String(e)));
+    }
+    // Prettier check
+    try {
+        const prettierResults = runPrettier(workspace, jsFiles);
+        findings.push(...prettierResults);
+    }
+    catch (e) {
+        debug("Prettier scan skipped: " + (e instanceof Error ? e.message : String(e)));
+    }
+    if (findings.length > 0) {
+        info(`Linter pre-scan: ${findings.length} finding(s) from linters`);
+    }
+    return findings;
+}
+/** Run ESLint with JSON output format and parse results */
+function runEslint(workspace, files) {
+    const findings = [];
+    const fileArgs = files.slice(0, 50).join(" ");
+    try {
+        const output = execSync(`npx eslint --format json --no-error-on-unmatched-pattern ${fileArgs}`, { cwd: workspace, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+        const results = JSON.parse(output);
+        for (const result of results) {
+            const relPath = result.filePath.replace(workspace + "/", "").replace(workspace + "\\", "");
+            for (const msg of result.messages) {
+                findings.push({
+                    file: relPath,
+                    line: msg.line,
+                    severity: msg.severity === 2 ? "high" : "low",
+                    category: categorizeRule(msg.ruleId),
+                    message: msg.message + (msg.ruleId ? ` (${msg.ruleId})` : ""),
+                    linter: "eslint",
+                });
+            }
+        }
+    }
+    catch (e) {
+        // ESLint exits with non-zero on findings — parse the stdout
+        if (e?.stdout) {
+            try {
+                const results = JSON.parse(e.stdout);
+                for (const result of results) {
+                    const relPath = result.filePath.replace(workspace + "/", "").replace(workspace + "\\", "");
+                    for (const msg of result.messages) {
+                        findings.push({
+                            file: relPath,
+                            line: msg.line,
+                            severity: msg.severity === 2 ? "high" : "low",
+                            category: categorizeRule(msg.ruleId),
+                            message: msg.message + (msg.ruleId ? ` (${msg.ruleId})` : ""),
+                            linter: "eslint",
+                        });
+                    }
+                }
+            }
+            catch {
+                // Not JSON output — likely ESLint not installed
+            }
+        }
+    }
+    return findings;
+}
+/** Run tsc --noEmit and parse diagnostic output */
+function runTsc(workspace) {
+    const findings = [];
+    try {
+        execSync("npx tsc --noEmit --pretty false", {
+            cwd: workspace, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"],
+        });
+        // No errors — tsc exits 0
+    }
+    catch (e) {
+        const output = e?.stdout || e?.stderr || "";
+        // Parse tsc output: "file.ts(line,col): error TS1234: message"
+        const lines = output.split("\n");
+        for (const line of lines) {
+            const match = line.match(/^(.+?)\((\d+),\d+\):\s*(error|warning)\s+(TS\d+):\s*(.+)$/);
+            if (match) {
+                findings.push({
+                    file: match[1].replace(workspace + "/", "").replace(workspace + "\\", ""),
+                    line: parseInt(match[2], 10),
+                    severity: match[3] === "error" ? "high" : "low",
+                    category: "bug",
+                    message: `${match[4]}: ${match[5]}`,
+                    linter: "tsc",
+                });
+            }
+        }
+    }
+    return findings;
+}
+/** Run prettier --check and report unformatted files */
+function runPrettier(workspace, files) {
+    const findings = [];
+    const fileArgs = files.slice(0, 50).join(" ");
+    try {
+        execSync(`npx prettier --check ${fileArgs}`, {
+            cwd: workspace, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"],
+        });
+        // All formatted — exit 0
+    }
+    catch (e) {
+        const output = e?.stdout || e?.stderr || "";
+        // Prettier outputs unformatted file paths
+        for (const line of output.split("\n")) {
+            const trimmed = line.trim().replace(/^\[warn\]\s*/, "");
+            if (trimmed && files.some((f) => trimmed.endsWith(f) || f.endsWith(trimmed))) {
+                findings.push({
+                    file: trimmed,
+                    line: 1,
+                    severity: "low",
+                    category: "style",
+                    message: "File not formatted with Prettier",
+                    linter: "prettier",
+                });
+            }
+        }
+    }
+    return findings;
+}
+/** Map ESLint rule IDs to Mizumi categories */
+function categorizeRule(ruleId) {
+    if (!ruleId)
+        return "style";
+    if (ruleId.includes("security") || ruleId.includes("no-eval") ||
+        ruleId.includes("no-implied-eval") || ruleId.includes("no-new-func") ||
+        ruleId.startsWith("security/"))
+        return "security";
+    if (ruleId.includes("no-") && (ruleId.includes("undef") || ruleId.includes("unused") ||
+        ruleId.includes("console") || ruleId.includes("debugger")))
+        return "bug";
+    return "style";
+}
+
+/**
  * Confidence calibration — dual-model voting on borderline findings.
  * Phase 2.19: If both models agree → High confidence. If only one flags → Low.
  * Visual badges: High=green, Medium=yellow, Low=gray.
@@ -76037,6 +76212,16 @@ async function run() {
         // 4. Run deterministic rules (zero LLM cost, never hallucinates)
         const ruleFindings = runRules(diff.files);
         info(`Rules: ${ruleFindings.length} deterministic findings`);
+        // 4b. Run linter pre-scan (deterministic, zero LLM cost)
+        let linterFindings = [];
+        try {
+            linterFindings = runLinters(workspace, diff.files.map((f) => f.path));
+            if (linterFindings.length > 0)
+                info(`Linters: ${linterFindings.length} finding(s)`);
+        }
+        catch (e) {
+            warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
         // 5. Build context (diff + memory + rules + PR metadata + classification)
         const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
         // 5b. Progressive skill loading — inject matching skills into rules context
