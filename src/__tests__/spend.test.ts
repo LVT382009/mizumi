@@ -115,4 +115,40 @@ describe("spend threshold logic", () => {
     expect(digest).toContain("1 reviews");
     expect(digest).toContain("5,000");
   });
+
+  it("formats digest with review count", () => {
+    const entries = Array.from({ length: 5 }, () =>
+      createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 1000 }, "standard", 1, 1)
+    );
+    const digest = formatSpendDigest(entries);
+    expect(digest).toContain("5 reviews");
+  });
+
+  it("handles 0 cache hit percentage", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "openai", "gpt-4.1", { inputTokens: 1000, outputTokens: 500 }, "light", 0, 1),
+    ];
+    const digest = formatSpendDigest(entries);
+    expect(digest).toContain("0% cache hit");
+  });
+
+  it("sorts providers by token count descending", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "openai", "gpt-4.1", { inputTokens: 1000 }, "light", 0, 1),
+      createSpendEntry("o/r", 2, "anthropic", "claude", { inputTokens: 5000 }, "standard", 1, 2),
+    ];
+    const digest = formatSpendDigest(entries);
+    const anthropicIdx = digest.indexOf("anthropic/claude");
+    const openaiIdx = digest.indexOf("openai/gpt-4.1");
+    expect(anthropicIdx).toBeLessThan(openaiIdx);
+  });
+
+  it("skips malformed JSONL lines in readSpendLog", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-spend.jsonl"), "not-json\n{\"repo\":\"o/r\"}\n");
+    const log = readSpendLog(tmpDir);
+    // Malformed lines are filtered out
+    expect(log.length).toBeLessThanOrEqual(1);
+  });
 });

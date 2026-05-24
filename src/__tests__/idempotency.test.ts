@@ -8,6 +8,8 @@ import {
   markDeliveryProcessed,
   isReviewedSha,
   markShaReviewed,
+  checkAndMarkDelivery,
+  checkAndMarkSha,
 } from "../idempotency.js";
 
 let tmpDir: string;
@@ -75,5 +77,48 @@ describe("SHA dedup", () => {
     isReviewedSha(tmpDir, "sha-a");
     expect(isReviewedSha(tmpDir, "sha-b")).toBe(false);
     expect(isReviewedSha(tmpDir, "sha-a")).toBe(true);
+  });
+
+  it("persists SHA dedup to disk", () => {
+    isReviewedSha(tmpDir, "abc123");
+    // Re-read from file system
+    const store = JSON.parse(fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8"));
+    expect("abc123" in store.reviewedShas).toBe(true);
+  });
+});
+
+describe("checkAndMarkDelivery", () => {
+  it("returns false for first delivery", () => {
+    expect(checkAndMarkDelivery(tmpDir, "delivery-1")).toBe(false);
+  });
+
+  it("returns true for duplicate delivery", () => {
+    checkAndMarkDelivery(tmpDir, "delivery-1");
+    expect(checkAndMarkDelivery(tmpDir, "delivery-1")).toBe(true);
+  });
+
+  it("returns false for empty delivery id", () => {
+    expect(checkAndMarkDelivery(tmpDir, "")).toBe(false);
+  });
+
+  it("different delivery IDs are independent", () => {
+    checkAndMarkDelivery(tmpDir, "del-A");
+    expect(checkAndMarkDelivery(tmpDir, "del-B")).toBe(false);
+    expect(checkAndMarkDelivery(tmpDir, "del-A")).toBe(true);
+  });
+});
+
+describe("checkAndMarkSha", () => {
+  it("returns false for first SHA", () => {
+    expect(checkAndMarkSha(tmpDir, "sha111")).toBe(false);
+  });
+
+  it("returns true for duplicate SHA", () => {
+    checkAndMarkSha(tmpDir, "sha111");
+    expect(checkAndMarkSha(tmpDir, "sha111")).toBe(true);
+  });
+
+  it("returns false for empty SHA", () => {
+    expect(checkAndMarkSha(tmpDir, "")).toBe(false);
   });
 });

@@ -102,4 +102,15 @@ describe("createRateLimiter", () => {
     const limiter = createRateLimiter("unknown");
     expect(limiter).toBeInstanceOf(RateLimiter);
   });
+
+  it("anthropic has RPS of 5", () => {
+    expect(DEFAULT_RATE_LIMITS.anthropic.rps).toBe(5);
+  });
+
+  it("all non-local providers have non-zero RPM", () => {
+    const nonLocal = Object.entries(DEFAULT_RATE_LIMITS).filter(([k]) => k !== "local");
+    for (const [, config] of nonLocal) {
+      expect(config.rpm).toBeGreaterThan(0);
+    }
+  });
 });

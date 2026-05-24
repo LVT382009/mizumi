@@ -72,4 +72,22 @@ describe("ghostWarnings", () => {
     const result = ghostWarnings(memory, ["packages/core/src/auth.ts"]);
     expect(result).toHaveLength(1);
   });
+
+  it("does not match unrelated filenames", () => {
+    const memory = "- [high] auth.ts:10 — bug: null ref";
+    const result = ghostWarnings(memory, ["src/utils.ts"]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("preserves severity prefix in warning output", () => {
+    const memory = "- [critical] server.ts:1 — security: RCE risk";
+    const result = ghostWarnings(memory, ["server.ts"]);
+    expect(result[0]).toContain("[critical]");
+  });
+
+  it("handles memory with mixed valid and invalid lines", () => {
+    const memory = "Title line\n\n- [high] app.ts:5 — bug: crash\nSome other text\n- [medium] app.ts:10 — style: naming";
+    const result = ghostWarnings(memory, ["app.ts"]);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+  });
 });
