@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { formatCompliance, extractIssueRefs, type ComplianceResult, type ComplianceLevel } from "../compliance.js";
+import { formatCompliance, extractIssueRefs, checkCompliance, type ComplianceResult, type ComplianceLevel } from "../compliance.js";
 
 vi.mock("@actions/core", () => ({
   setOutput: vi.fn(),
@@ -9,6 +9,30 @@ vi.mock("@actions/core", () => ({
   debug: vi.fn(),
   notice: vi.fn(),
 }));
+
+vi.mock("ai", () => ({
+  generateObject: vi.fn(),
+}));
+
+vi.mock("../sanitize.js", () => ({
+  sanitizeInput: vi.fn((s: string) => s),
+}));
+
+vi.mock("../config.js", () => ({
+  requireApiKey: vi.fn(() => "test-key"),
+  MizumiConfig: {},
+}));
+
+vi.mock("@ai-sdk/anthropic", () => ({
+  createAnthropic: vi.fn(() => vi.fn(() => "mock-anthropic-model")),
+}));
+
+vi.mock("@ai-sdk/openai", () => ({
+  createOpenAI: vi.fn(() => vi.fn(() => "mock-openai-model")),
+}));
+
+import { generateObject } from "ai";
+const mockGenerateObject = vi.mocked(generateObject);
 
 // ---------------------------------------------------------------------------
 // extractIssueRefs — pure function, no mocking needed
@@ -161,5 +185,145 @@ describe("formatCompliance", () => {
     expect(body).toContain("#1");
     expect(body).toContain("#2");
     expect(body).toContain("#3");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkCompliance — async integration with GitHub API + LLM
+// ---------------------------------------------------------------------------
+
+describe("checkCompliance", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeConfig() {
+    return {
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-6",
+      baseUrl: "",
+      profile: "chill" as const,
+      maxComments: 15,
+      language: "en-US",
+      selfCritique: true,
+      confidenceThreshold: 80,
+      autoReview: true,
+      autoPauseAfter: 5,
+      excludePatterns: [],
+      tierRouting: true,
+      smallDiffThreshold: 50,
+      securityPaths: [],
+    };
+  }
+
+  it("returns empty when no issue references in PR", async () => {
+    const octokit = { rest: { issues: { get: vi.fn() } } };
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Just a regular PR", "", "diff", makeConfig()
+    );
+    expect(result).toEqual([]);
+    expect(octokit.rest.issues.get).not.toHaveBeenCalled();
+  });
+
+  it("fetches issue and evaluates compliance via LLM", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "Add auth", body: "Need OAuth2 flow", pull_request: undefined },
+          }),
+        },
+      },
+    };
+    mockGenerateObject.mockResolvedValue({
+      object: { level: "fully", summary: "All auth requirements met" },
+    } as any);
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Fixes #42", "", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].issueNumber).toBe(42);
+    expect(result[0].compliance).toBe("fully");
+    expect(result[0].summary).toContain("All auth requirements met");
+  });
+
+  it("skips PR-type issues (not real issues)", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "PR as issue", body: "", pull_request: { url: "https://..." } },
+          }),
+        },
+      },
+    };
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Fixes #99", "", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns none compliance when LLM fails", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "Add tests", body: "Add unit tests", pull_request: undefined },
+          }),
+        },
+      },
+    };
+    mockGenerateObject.mockRejectedValue(new Error("LLM error"));
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Fixes #7", "", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].compliance).toBe("none");
+  });
+
+  it("handles GitHub API error gracefully", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockRejectedValue(new Error("not found")),
+        },
+      },
+    };
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Fixes #404", "", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("caps at 3 issues maximum", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "Issue", body: "body", pull_request: undefined },
+          }),
+        },
+      },
+    };
+    mockGenerateObject.mockResolvedValue({
+      object: { level: "partially", summary: "Partial" },
+    } as any);
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1,
+      "Fixes #1, fixes #2, fixes #3, fixes #4, fixes #5",
+      "", "diff", makeConfig()
+    );
+
+    expect(octokit.rest.issues.get).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(3);
   });
 });

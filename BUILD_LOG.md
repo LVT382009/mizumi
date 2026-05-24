@@ -429,3 +429,27 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Import cleanup**: improve.test.ts now imports isDangerousPath and verifyPatch
   from source module (was duplicating locally)
 - 844 tests passing, 0 TS errors, bundle rebuilt
+
+### Cycle 2026-05-25 — 965 tests, dependency audit, regex fix
+
+- **Test expansion**: 965 tests (from 897), 0 TS errors
+  - autofix.test.ts: 6→12 — rate limit, pagination, failure handling, patch verification
+  - context.test.ts: 8→16 — ghost warnings, PII stripping, description feedback,
+    empty title, deletion prefix, multi-file diffs
+  - walkthrough.test.ts: 11→24 — risk score, severity emoji, deep path grouping,
+    file count per directory, finding filtering, estimateEffort boundary tests
+  - description.test.ts: 10→24 — since/motivation/resolution why-explanation,
+    closes/bare issue refs, verified/deprecation/incompatible detection,
+    formatDescriptionFeedback score header, bullet list formatting
+  - linemap.test.ts: 21→36 — buildLineMap (fallback from DiffFile[]),
+    validateFinding (start+endLine resolution, proximity, multi-line)
+- **Dependency vulnerability scanning** (`linter.ts`): `runDependencyAudit`
+  integrates `npm audit --json` and `pip-audit --format json` as linter
+  pre-scan extensions. CVE findings surface as deterministic security
+  findings with confidence=100, zero LLM cost. Competitive gap P0-3
+  (Qodo/DeepSource have this; Mizumi now does too). 17 new tests.
+  Called from main.ts alongside runLinters.
+- **Regex bug fix** (`description.ts`): `\b(motivat)\b` and `\b(deprecat)\b`
+  failed to match "motivation"/"deprecation" (no word boundary between root
+  and suffix). Changed to `motivat\w*` and `deprecat\w*` to match all
+  conjugations. Caught by expanded test coverage.

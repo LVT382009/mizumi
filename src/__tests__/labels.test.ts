@@ -1,5 +1,30 @@
 import { describe, it, expect, vi } from "vitest";
-import { computeLabels } from "../labels.js";
+import { computeLabels, applyLabels } from "../labels.js";
+
+vi.mock("@actions/core", () => ({
+  setOutput: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  notice: vi.fn(),
+}));
+
+function makeOctokit(currentLabels: string[] = []) {
+  return {
+    rest: {
+      issues: {
+        getLabel: vi.fn().mockRejectedValue(new Error("not found")),
+        createLabel: vi.fn().mockResolvedValue({}),
+        listLabelsOnIssue: vi.fn().mockResolvedValue({
+          data: currentLabels.map((name) => ({ name })),
+        }),
+        addLabels: vi.fn().mockResolvedValue({}),
+        removeLabel: vi.fn().mockResolvedValue({}),
+      },
+    },
+  };
+}
 
 describe("computeLabels", () => {
   it("applies security label for security findings", () => {
@@ -96,5 +121,96 @@ describe("computeLabels", () => {
     );
     const securityCount = labels.filter((l) => l === "security").length;
     expect(securityCount).toBe(1);
+  });
+});
+
+describe("applyLabels", () => {
+  it("returns empty result when no desired labels", async () => {
+    const octokit = makeOctokit();
+    const result = await applyLabels(octokit as any, "owner", "repo", 1, [], 1);
+    expect(result.added).toHaveLength(0);
+    expect(result.removed).toHaveLength(0);
+  });
+
+  it("adds desired labels not currently on PR", async () => {
+    const octokit = makeOctokit([]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(result.added).toContain("security");
+    expect(octokit.rest.issues.addLabels).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["security"] })
+    );
+  });
+
+  it("skips labels already on the PR", async () => {
+    const octokit = makeOctokit(["security"]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(result.added).toHaveLength(0);
+    expect(octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("removes Mizumi labels no longer desired", async () => {
+    const octokit = makeOctokit(["security", "bug"]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(result.removed).toContain("bug");
+    expect(octokit.rest.issues.removeLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "bug" })
+    );
+  });
+
+  it("does not remove non-Mizumi labels", async () => {
+    const octokit = makeOctokit(["security", "enhancement", "good first issue"]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(result.removed).toHaveLength(0);
+  });
+
+  it("creates labels that don't exist in repo", async () => {
+    const octokit = makeOctokit([]);
+    await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(octokit.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "security" })
+    );
+  });
+
+  it("returns both added and removed labels", async () => {
+    const octokit = makeOctokit(["bug", "enhancement"]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "critical", category: "security" }],
+      5
+    );
+    expect(result.added).toContain("security");
+    expect(result.added).toContain("needs-attention");
+    expect(result.removed).toContain("bug");
+  });
+
+  it("handles removeLabel failure gracefully", async () => {
+    const octokit = makeOctokit(["security", "bug"]);
+    octokit.rest.issues.removeLabel.mockRejectedValueOnce(new Error("already removed"));
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }],
+      3
+    );
+    expect(result.removed).toContain("bug");
   });
 });

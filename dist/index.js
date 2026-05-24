@@ -3934,13 +3934,13 @@ function scorePRDescription(title, body) {
   }
   const text = `${title} ${body}`.toLowerCase();
   const missing = [];
-  const hasWhy = /\b(because|since|reason|why|motivat|purpose|goal|fix|resolv|address)\b/.test(text) || body.length > 100;
+  const hasWhy = /\b(because|since|reason|why|motivat\w*|purpose|goal|fix|resolv\w*|address)\b/.test(text) || body.length > 100;
   if (!hasWhy) missing.push("explanation of why this change is needed");
   const hasLinkedIssue = /(?:closes?|fixes?|resolves?|addresses?|relates?|refs?|see)\s+#\d+|#\d+/.test(text);
   if (!hasLinkedIssue) missing.push("linked issue or ticket reference");
   const hasTestPlan = /\b(test\s*plan|how\s+to\s+test|test\s+steps|verified|testing)\b/i.test(text);
   if (!hasTestPlan) missing.push("test plan or verification steps");
-  const hasBreakingNote = /\b(breaking\s+change|breaking\s+api|incompatible|migration|upgrade\s+guide|deprecat)\b/i.test(text);
+  const hasBreakingNote = /\b(breaking\s+change|breaking\s+api|incompatible|migration|upgrade\s+guide|deprecat\w*)\b/i.test(text);
   if (!hasBreakingNote && body.length > 0) {
     missing.push("breaking change notes (if applicable)");
   }
