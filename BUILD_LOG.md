@@ -166,6 +166,18 @@
 - improve.test.ts: 4 new isDangerousPath test cases (UNC, hidden, empty, backslash traversal)
 - 520 tests passing, 0 TS errors, bundle rebuilt
 
+### Cycle: Linter Pre-Scan + Confidence Badges + Dry-Run (2026-05-24)
+
+- Added linter pre-scan module (`linter.ts`): runs ESLint (--format json), tsc (--noEmit),
+  and Prettier (--check) on changed files before LLM review — deterministic, never hallucinates
+- Linter findings merge into review pipeline with confidence=100 and `[linter]` prefix
+- Added `linter_scan` action input (default true) and `linterScan` config field
+- Added confidence badges (shields.io) to medium/low findings tables in review body
+  (>80=high green, 50-80=medium yellow, <50=low gray)
+- Implemented dry-run mode: skips all GitHub API writes (postReview, compliance comment),
+  logs findings with full detail, still tracks spend/memory
+- 530 tests passing, 0 TS errors, 4,778 production lines, bundle rebuilt
+
 ### Source Modules
 
 ```
@@ -190,6 +202,7 @@ src/idempotency.ts (88) — Atomic check-and-mark dedup (TOCTOU-safe)
 src/sanitize.ts (105) — Input sanitization + output screening
 src/autofix.ts (93) — Auto-commit on 👍 reaction approval
 src/improve.ts (96) — /mizumi improve (path.normalize + traversal guard + hoisted API)
+src/linter.ts (155) — Linter pre-scan (ESLint, tsc, Prettier) — deterministic findings
 src/context.ts (87) — Build LLM context (diff + memory + rules + ghost)
 src/describe.ts (84) — /mizumi describe (custom provider support)
 src/router.ts (83) — Tier routing + context window guard
@@ -229,10 +242,10 @@ src/changestack.ts (90) — Change Stack cohort ordering
 | 22 | `09b2a72` | Mermaid diagrams, learning persistence, LF enforcement, 491 tests |
 | 23 | `pending` | Competitive reframe (Copilot-first), Macroscope table, CI workflow, bundle fix |
 
-### Build Stats (Current — 520 Tests)
+### Build Stats (Current — 530 Tests)
 
-- **520 tests** passing (31 test files + 1 skipped)
-- **4,534 production lines** (27+7 source modules)
+- **530 tests** passing (32 test files + 1 skipped)
+- **4,778 production lines** (28 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
