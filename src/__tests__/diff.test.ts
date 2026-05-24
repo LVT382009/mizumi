@@ -329,4 +329,36 @@ describe("fetchDiff", () => {
     expect(paths).not.toContain("yarn.lock");
     expect(paths).toContain("src/app.ts");
   });
+
+  it("falls back to compare commits when diff media type fails", async () => {
+    const diffText = [
+      "diff --git a/src/app.ts b/src/app.ts",
+      "index abc..def 100644",
+      "--- a/src/app.ts",
+      "+++ b/src/app.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    const mockOctokit = {
+      pulls: {
+        get: vi.fn().mockRejectedValueOnce(new Error("404 Not Found")),
+      },
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: { base: { sha: "abc123" }, head: { sha: "def456" } },
+          }),
+        },
+        repos: {
+          compareCommits: vi.fn().mockResolvedValue({ data: diffText }),
+        },
+      },
+    } as any;
+
+    const result = await fetchDiff(mockOctokit, "owner", "repo", 42, []);
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].path).toBe("src/app.ts");
+    expect(mockOctokit.rest.repos.compareCommits).toHaveBeenCalled();
+  });
 });
