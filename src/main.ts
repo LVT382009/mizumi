@@ -36,7 +36,7 @@ import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
 import { persistLearningData } from "./persist.js";
-import { postGateStatus } from "./gate.js";
+import { postGateStatus, postPendingGate } from "./gate.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -74,6 +74,11 @@ async function run(): Promise<void> {
   const workspace = process.env.GITHUB_WORKSPACE || ".";
   const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
   const deliveryId = (ctx.payload as any).delivery_id || "";
+
+// 0-gate. Post pending gate status (shows "review in progress" in checks UI)
+if (config.gateThreshold !== "none" && !config.dryRun) {
+  await postPendingGate(octokit, owner, repo, headSha, prNumber);
+}
 
   // Handle /mizumi subcommands
   if (isManualTrigger) {
@@ -416,7 +421,7 @@ if (config.confidenceCalibration || config.complianceCheck) {
 if (config.gateThreshold !== "none" && !config.dryRun) {
   try {
     const gateResult = await postGateStatus({
-      octokit, owner, repo, headSha,
+      octokit, owner, repo, headSha, prNumber,
       findings: mergedReview.comments,
       riskScore: mergedReview.riskScore,
       threshold: config.gateThreshold,

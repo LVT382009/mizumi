@@ -13,6 +13,7 @@ interface GateInput {
   owner: string;
   repo: string;
   headSha: string;
+  prNumber: number;
   findings: Array<{ severity: string }>;
   riskScore: number;
   threshold: GateThreshold;
@@ -27,6 +28,8 @@ const SEVERITY_LEVEL: Record<string, number> = {
   nitpick: 4,
 };
 
+const GATE_CONTEXT = "Mizumi Review Gate";
+
 /** Check if findings exceed the gate threshold. Returns failure if any finding meets or exceeds the threshold. */
 export function shouldFailGate(findings: Array<{ severity: string }>, threshold: GateThreshold): boolean {
   if (threshold === "none") return false;
@@ -35,9 +38,28 @@ export function shouldFailGate(findings: Array<{ severity: string }>, threshold:
   return findings.some((f) => (SEVERITY_LEVEL[f.severity] ?? 4) <= thresholdLevel);
 }
 
+/** Post a pending commit status at the start of review (shows "review in progress" in checks UI). */
+export async function postPendingGate(
+  octokit: Octokit, owner: string, repo: string, headSha: string, prNumber: number
+): Promise<void> {
+  try {
+    await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha: headSha,
+      state: "pending",
+      target_url: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+      description: "Review in progress...",
+      context: GATE_CONTEXT,
+    });
+  } catch (e) {
+    core.warning(`Failed to post pending gate status: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 /** Post a commit status to the HEAD SHA. */
 export async function postGateStatus(input: GateInput): Promise<"success" | "failure"> {
-  const { octokit, owner, repo, headSha, findings, riskScore, threshold, findingCount } = input;
+  const { octokit, owner, repo, headSha, prNumber, findings, riskScore, threshold, findingCount } = input;
 
   if (threshold === "none") return "success";
 
@@ -54,9 +76,9 @@ export async function postGateStatus(input: GateInput): Promise<"success" | "fai
       repo,
       sha: headSha,
       state,
-      target_url: `https://github.com/${owner}/${repo}/pull/${input.headSha}`,
+      target_url: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
       description,
-      context: "Mizumi Review Gate",
+      context: GATE_CONTEXT,
     });
     core.info(`Gate status: ${state} (threshold=${threshold}, findings=${findingCount})`);
   } catch (e) {

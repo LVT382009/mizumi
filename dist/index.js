@@ -76390,6 +76390,7 @@ const SEVERITY_LEVEL = {
     low: 3,
     nitpick: 4,
 };
+const GATE_CONTEXT = "Mizumi Review Gate";
 /** Check if findings exceed the gate threshold. Returns failure if any finding meets or exceeds the threshold. */
 function shouldFailGate(findings, threshold) {
     if (threshold === "none")
@@ -76399,9 +76400,26 @@ function shouldFailGate(findings, threshold) {
         return false;
     return findings.some((f) => (SEVERITY_LEVEL[f.severity] ?? 4) <= thresholdLevel);
 }
+/** Post a pending commit status at the start of review (shows "review in progress" in checks UI). */
+async function postPendingGate(octokit, owner, repo, headSha, prNumber) {
+    try {
+        await octokit.rest.repos.createCommitStatus({
+            owner,
+            repo,
+            sha: headSha,
+            state: "pending",
+            target_url: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+            description: "Review in progress...",
+            context: GATE_CONTEXT,
+        });
+    }
+    catch (e) {
+        warning(`Failed to post pending gate status: ${e instanceof Error ? e.message : String(e)}`);
+    }
+}
 /** Post a commit status to the HEAD SHA. */
 async function postGateStatus(input) {
-    const { octokit, owner, repo, headSha, findings, riskScore, threshold, findingCount } = input;
+    const { octokit, owner, repo, headSha, prNumber, findings, riskScore, threshold, findingCount } = input;
     if (threshold === "none")
         return "success";
     const failed = shouldFailGate(findings, threshold);
@@ -76415,9 +76433,9 @@ async function postGateStatus(input) {
             repo,
             sha: headSha,
             state,
-            target_url: `https://github.com/${owner}/${repo}/pull/${input.headSha}`,
+            target_url: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
             description,
-            context: "Mizumi Review Gate",
+            context: GATE_CONTEXT,
         });
         info(`Gate status: ${state} (threshold=${threshold}, findings=${findingCount})`);
     }
@@ -76465,6 +76483,10 @@ async function run() {
         const workspace = process.env.GITHUB_WORKSPACE || ".";
         const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
         const deliveryId = ctx.payload.delivery_id || "";
+        // 0-gate. Post pending gate status (shows "review in progress" in checks UI)
+        if (config.gateThreshold !== "none" && !config.dryRun) {
+            await postPendingGate(octokit, owner, repo, headSha, prNumber);
+        }
         // Handle /mizumi subcommands
         if (isManualTrigger) {
             const cmd = parseCommand(ctx.payload.comment?.body || "");
@@ -76745,7 +76767,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         if (config.gateThreshold !== "none" && !config.dryRun) {
             try {
                 const gateResult = await postGateStatus({
-                    octokit, owner, repo, headSha,
+                    octokit, owner, repo, headSha, prNumber,
                     findings: mergedReview.comments,
                     riskScore: mergedReview.riskScore,
                     threshold: config.gateThreshold,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { shouldFailGate, postGateStatus } from "../gate.js";
+import { shouldFailGate, postGateStatus, postPendingGate } from "../gate.js";
 import type { GateThreshold } from "../gate.js";
 
 // ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ describe("shouldFailGate", () => {
 });
 
 // ---------------------------------------------------------------------------
-// postGateStatus — requires mocking Octokit
+// postGateStatus / postPendingGate — requires mocking Octokit
 // ---------------------------------------------------------------------------
 
 vi.mock("@actions/core", () => ({
@@ -93,6 +93,7 @@ vi.mock("@actions/core", () => ({
 import * as core from "@actions/core";
 
 const mockSetOutput = vi.mocked(core.setOutput);
+const mockWarning = vi.mocked(core.warning);
 
 function makeOctokit() {
   return {
@@ -116,6 +117,7 @@ describe("postGateStatus", () => {
       owner: "test",
       repo: "repo",
       headSha: "abc123",
+      prNumber: 7,
       findings: [{ severity: "critical" }],
       riskScore: 5,
       threshold: "none",
@@ -132,6 +134,7 @@ describe("postGateStatus", () => {
       owner: "test",
       repo: "repo",
       headSha: "abc123",
+      prNumber: 7,
       findings: [{ severity: "critical" }, { severity: "high" }],
       riskScore: 4,
       threshold: "high",
@@ -155,6 +158,7 @@ describe("postGateStatus", () => {
       owner: "test",
       repo: "repo",
       headSha: "abc123",
+      prNumber: 7,
       findings: [{ severity: "low" }],
       riskScore: 2,
       threshold: "high",
@@ -176,6 +180,7 @@ describe("postGateStatus", () => {
       owner: "test",
       repo: "repo",
       headSha: "abc123",
+      prNumber: 7,
       findings: [{ severity: "high" }],
       riskScore: 3,
       threshold: "high",
@@ -194,12 +199,62 @@ describe("postGateStatus", () => {
       owner: "test",
       repo: "repo",
       headSha: "abc123",
+      prNumber: 7,
       findings: [{ severity: "critical" }],
       riskScore: 5,
       threshold: "critical",
       findingCount: 1,
     });
-    // Still returns the expected state even when API call fails
     expect(result).toBe("failure");
+  });
+
+  it("includes PR URL in target_url", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit,
+      owner: "myorg",
+      repo: "myrepo",
+      headSha: "def456",
+      prNumber: 42,
+      findings: [{ severity: "low" }],
+      riskScore: 1,
+      threshold: "high",
+      findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.target_url).toBe("https://github.com/myorg/myrepo/pull/42");
+  });
+});
+
+describe("postPendingGate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("posts pending status with correct context", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "owner", "repo", "abc123", 7);
+    expect(octokit.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sha: "abc123",
+        state: "pending",
+        context: "Mizumi Review Gate",
+        description: "Review in progress...",
+      })
+    );
+  });
+
+  it("includes PR URL in target_url", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "myorg", "myrepo", "def456", 42);
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.target_url).toBe("https://github.com/myorg/myrepo/pull/42");
+  });
+
+  it("gracefully handles API errors", async () => {
+    const octokit = makeOctokit();
+    octokit.rest.repos.createCommitStatus.mockRejectedValue(new Error("API error"));
+    await expect(postPendingGate(octokit, "owner", "repo", "abc123", 7)).resolves.toBeUndefined();
+    expect(mockWarning).toHaveBeenCalled();
   });
 });

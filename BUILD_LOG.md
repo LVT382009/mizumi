@@ -246,6 +246,18 @@ Uses `createOrUpdateSpendComment` with `<!-- mizumi-spend-marker -->` for dedup.
 - Added gateThreshold + spendThreshold to critique.test.ts makeConfig
 - 650 tests passing, 0 TS errors, bundle rebuilt
 
+### Cycle: Pending Gate Status + Target URL Fix (2026-05-24)
+
+- Added `postPendingGate` — posts "pending" commit status at review start so
+  teams see "Review in progress..." in their checks UI before the review completes.
+  Updated to "success"/"failure" after review finishes. Traditional CI pattern.
+- Fixed `target_url` in gate status: was using headSha instead of prNumber for
+  the PR link. Now correctly links to `https://github.com/{owner}/{repo}/pull/{prNumber}`.
+- Added gate interface `prNumber` field (required for correct PR URL).
+- Added 3 postPendingGate tests: pending state, PR URL, API error handling.
+- Added 1 postGateStatus test: PR URL in target_url.
+- 654 tests passing, 0 TS errors, bundle rebuilt
+
 ### Source Modules
 
 ```
@@ -320,7 +332,7 @@ src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Chan
 
 ### Build Stats (Current — 631 Tests)
 
-- **650 tests** passing (38 test files + 1 skipped)
+- **654 tests** passing (38 test files + 1 skipped)
 - **5,294 production lines** (32 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
