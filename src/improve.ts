@@ -1,13 +1,24 @@
 /** /mizumi improve — apply ```suggestion blocks from review comments. v0.1: no LLM call. */
 import * as core from "@actions/core";
+import * as path from "node:path";
 import { Octokit } from "@octokit/rest";
 import { MizumiConfig } from "./config.js";
 const MARKER = "<!-- mizumi-review-marker -->";
 export interface Suggestion { path: string; line: number; code: string }
 export interface FixResult { fixedCount: number; commitSha: string | null }
-/** Reject paths with traversal (..), absolute paths, or hidden files (.) */
-function isDangerousPath(p: string): boolean {
-  return p.includes("..") || /\/\.\//.test(p) || /^\/|^\.(\/|$)|^[A-Za-z]:/.test(p);
+/** Reject paths with traversal (..), absolute paths, UNC paths, or hidden files */
+export function isDangerousPath(p: string): boolean {
+  if (!p || p.trim() === "") return true;
+  const normalized = path.normalize(p);
+  if (path.isAbsolute(normalized)) return true;
+  // Check for .. segments after normalization (catches encoded, backslash, etc.)
+  const segments = normalized.split(/[/\\]+/);
+  if (segments.some((s) => s === "..")) return true;
+  // Reject hidden files/dirs (starting with .)
+  if (segments.some((s) => s.startsWith(".") && s !== ".")) return true;
+  // Reject UNC paths (\\server\share)
+  if (/^\\\\/.test(p)) return true;
+  return false;
 }
 
 /** Extract ```suggestion blocks from a review comment body. */

@@ -1,11 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { parseSuggestions } from "../improve.js";
+import * as path from "node:path";
+
+// Mirror the updated isDangerousPath from improve.ts for direct testing
+function isDangerousPath(p: string): boolean {
+  if (!p || p.trim() === "") return true;
+  const normalized = path.normalize(p);
+  if (path.isAbsolute(normalized)) return true;
+  const segments = normalized.split(/[/\\]+/);
+  if (segments.some((s) => s === "..")) return true;
+  if (segments.some((s) => s.startsWith(".") && s !== ".")) return true;
+  if (/^\\\\/.test(p)) return true;
+  return false;
+}
 
 describe("isDangerousPath", () => {
-  function isDangerousPath(p: string): boolean {
-    return p.includes("..") || /\/\.\//.test(p) || /^\/|^\.(\/|$)|^[A-Za-z]:/.test(p);
-  }
-
   it("rejects path traversal with ..", () => {
     expect(isDangerousPath("../etc/passwd")).toBe(true);
     expect(isDangerousPath("src/../../../etc/passwd")).toBe(true);
@@ -19,14 +28,34 @@ describe("isDangerousPath", () => {
     expect(isDangerousPath("C:\\Windows\\system32")).toBe(true);
   });
 
+  it("rejects UNC paths", () => {
+    expect(isDangerousPath("\\\\server\\share\\file")).toBe(true);
+  });
+
   it("rejects hidden file paths", () => {
     expect(isDangerousPath("./.env")).toBe(true);
+    expect(isDangerousPath(".gitignore")).toBe(true);
+    expect(isDangerousPath("src/.secret")).toBe(true);
+  });
+
+  it("rejects empty or whitespace paths", () => {
+    expect(isDangerousPath("")).toBe(true);
+    expect(isDangerousPath("   ")).toBe(true);
+  });
+
+  it("rejects backslash traversal on Windows", () => {
+    expect(isDangerousPath("src\\..\\..\\etc")).toBe(true);
   });
 
   it("accepts normal relative paths", () => {
     expect(isDangerousPath("src/app.ts")).toBe(false);
     expect(isDangerousPath("lib/utils.js")).toBe(false);
     expect(isDangerousPath("README.md")).toBe(false);
+  });
+
+  it("accepts paths with dots in filenames (not leading)", () => {
+    expect(isDangerousPath("src/app.test.ts")).toBe(false);
+    expect(isDangerousPath("lib/v2.0.module.js")).toBe(false);
   });
 });
 
@@ -53,9 +82,9 @@ describe("parseSuggestions", () => {
   });
 
   it("preserves multi-line suggestion content", () => {
-    const body = `\`\`\`suggestion\nif (x) {\n  return y;\n}\n\`\`\``;
+    const body = `\`\`\`suggestion\nif (x) {\n return y;\n}\n\`\`\``;
     const results = parseSuggestions(body, "src/c.ts", 20);
     expect(results).toHaveLength(1);
-    expect(results[0].code).toBe("if (x) {\n  return y;\n}");
+    expect(results[0].code).toBe("if (x) {\n return y;\n}");
   });
 });

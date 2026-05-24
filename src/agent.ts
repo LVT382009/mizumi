@@ -18,6 +18,16 @@ import { DiffClassification } from "./router.js";
  * Create agent tools scoped to a specific repo and commit.
  * Uses closures to inject Octokit + repo context without global state.
  */
+
+/** Strip GitHub search operators from a user-provided query to prevent injection */
+export function sanitizeSearchQuery(query: string): string {
+  return query
+    .replace(/\b(repo|org|user|owner|language|filename|path|extension|size|fork|in|is|type|state|label|status|head|base|merged|sort|order|access|review|checks|commit)\s*:\s*\S*/gi, "")
+    .replace(/[+\-~*"|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
 export function createAgentTools(
   octokit: Octokit,
   owner: string,
@@ -60,8 +70,9 @@ export function createAgentTools(
     }),
     execute: async ({ query }) => {
       try {
+        const safeQuery = sanitizeSearchQuery(query);
         const { data } = await octokit.rest.search.code({
-          q: `${query} repo:${owner}/${repo}`,
+          q: `${safeQuery} repo:${owner}/${repo}`,
           per_page: 10,
           headers: { accept: "application/vnd.github.v3.text-match+json" },
         });
@@ -88,8 +99,9 @@ export function createAgentTools(
     }),
     execute: async ({ symbol }) => {
       try {
+        const safeSymbol = sanitizeSearchQuery(symbol);
         const { data } = await octokit.rest.search.code({
-          q: `"${symbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
+          q: `"${safeSymbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
           per_page: 15,
           headers: { accept: "application/vnd.github.v3.text-match+json" },
         });

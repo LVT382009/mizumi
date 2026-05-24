@@ -359,34 +359,43 @@ export function truncateToLimit(body: string, limit: number = MAX_COMMENT_BODY):
 }
 
 async function createOrUpdateSummaryComment(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  prNumber: number,
-  body: string
+ octokit: Octokit,
+ owner: string,
+ repo: string,
+ prNumber: number,
+ body: string
 ): Promise<void> {
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner,
-    repo,
-    issue_number: prNumber,
-    per_page: 100,
-  });
+ let page = 1;
+ let existing: { id: number } | undefined;
 
-  const existing = comments.find((c) => c.body?.includes(MARKER));
+ while (!existing) {
+   const { data: comments } = await octokit.rest.issues.listComments({
+     owner,
+     repo,
+     issue_number: prNumber,
+     per_page: 100,
+     page,
+   });
 
-  if (existing) {
-    await octokit.rest.issues.updateComment({
-      owner,
-      repo,
-      comment_id: existing.id,
-      body,
-    });
-  } else {
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: prNumber,
-      body,
-    });
-  }
+   existing = comments.find((c) => c.body?.includes(MARKER)) as { id: number } | undefined;
+
+   if (comments.length < 100) break;
+   page++;
+ }
+
+ if (existing) {
+   await octokit.rest.issues.updateComment({
+     owner,
+     repo,
+     comment_id: existing.id,
+     body,
+   });
+ } else {
+   await octokit.rest.issues.createComment({
+     owner,
+     repo,
+     issue_number: prNumber,
+     body,
+   });
+ }
 }

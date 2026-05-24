@@ -235,7 +235,7 @@ export function getApiKey(provider: Provider): string {
 /** Get API key, throwing an actionable error if missing for non-local providers. */
 export function requireApiKey(provider: Provider): string {
   const key = getApiKey(provider);
-  if (!key && provider !== "local" && provider !== "custom") {
+  if (!key && provider !== "local") {
     const envVar = `${provider.toUpperCase()}_API_KEY`;
     throw new Error(`API key for ${provider} is required. Set ${envVar} or the ${provider}_api_key action input.`);
   }

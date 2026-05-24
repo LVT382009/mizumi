@@ -34982,7 +34982,7 @@ function getApiKey(provider) {
 /** Get API key, throwing an actionable error if missing for non-local providers. */
 function requireApiKey(provider) {
     const key = getApiKey(provider);
-    if (!key && provider !== "local" && provider !== "custom") {
+    if (!key && provider !== "local") {
         const envVar = `${provider.toUpperCase()}_API_KEY`;
         throw new Error(`API key for ${provider} is required. Set ${envVar} or the ${provider}_api_key action input.`);
     }
@@ -74436,13 +74436,21 @@ async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFi
     return deleted;
 }
 async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body) {
-    const { data: comments } = await octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNumber,
-        per_page: 100,
-    });
-    const existing = comments.find((c) => c.body?.includes(MARKER$3));
+    let page = 1;
+    let existing;
+    while (!existing) {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+            page,
+        });
+        existing = comments.find((c) => c.body?.includes(MARKER$3));
+        if (comments.length < 100)
+            break;
+        page++;
+    }
     if (existing) {
         await octokit.rest.issues.updateComment({
             owner,
@@ -75066,9 +75074,24 @@ function detectSlop(diffText, totalAdditions, totalDeletions, _fileCount, change
 
 /** /mizumi improve — apply ```suggestion blocks from review comments. v0.1: no LLM call. */
 const MARKER$2 = "<!-- mizumi-review-marker -->";
-/** Reject paths with traversal (..), absolute paths, or hidden files (.) */
+/** Reject paths with traversal (..), absolute paths, UNC paths, or hidden files */
 function isDangerousPath(p) {
-    return p.includes("..") || /\/\.\//.test(p) || /^\/|^\.(\/|$)|^[A-Za-z]:/.test(p);
+    if (!p || p.trim() === "")
+        return true;
+    const normalized = path$1.normalize(p);
+    if (path$1.isAbsolute(normalized))
+        return true;
+    // Check for .. segments after normalization (catches encoded, backslash, etc.)
+    const segments = normalized.split(/[/\\]+/);
+    if (segments.some((s) => s === ".."))
+        return true;
+    // Reject hidden files/dirs (starting with .)
+    if (segments.some((s) => s.startsWith(".") && s !== "."))
+        return true;
+    // Reject UNC paths (\\server\share)
+    if (/^\\\\/.test(p))
+        return true;
+    return false;
 }
 /** Extract ```suggestion blocks from a review comment body. */
 function parseSuggestions(body, filePath, line) {
@@ -75298,6 +75321,15 @@ function checkAndMarkSha(workspace, headSha) {
  * Create agent tools scoped to a specific repo and commit.
  * Uses closures to inject Octokit + repo context without global state.
  */
+/** Strip GitHub search operators from a user-provided query to prevent injection */
+function sanitizeSearchQuery(query) {
+    return query
+        .replace(/\b(repo|org|user|owner|language|filename|path|extension|size|fork|in|is|type|state|label|status|head|base|merged|sort|order|access|review|checks|commit)\s*:\s*\S*/gi, "")
+        .replace(/[+\-~*"|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
+}
 function createAgentTools(octokit, owner, repo, headSha) {
     const read_file = tool({
         description: `Read the contents of a file from the repository at the PR branch version. Use this to understand the full context around a code change. Do NOT read files that are not in the diff — focus on changed files and their imports/dependencies.`,
@@ -75335,8 +75367,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
         }),
         execute: async ({ query }) => {
             try {
+                const safeQuery = sanitizeSearchQuery(query);
                 const { data } = await octokit.rest.search.code({
-                    q: `${query} repo:${owner}/${repo}`,
+                    q: `${safeQuery} repo:${owner}/${repo}`,
                     per_page: 10,
                     headers: { accept: "application/vnd.github.v3.text-match+json" },
                 });
@@ -75363,8 +75396,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
         }),
         execute: async ({ symbol }) => {
             try {
+                const safeSymbol = sanitizeSearchQuery(symbol);
                 const { data } = await octokit.rest.search.code({
-                    q: `"${symbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
+                    q: `"${safeSymbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
                     per_page: 15,
                     headers: { accept: "application/vnd.github.v3.text-match+json" },
                 });
