@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runRules, checkDuplicateApprovalGuard } from "../rules.js";
+import { runRules, checkDuplicateApprovalGuard, hasEvalUsage, hasUnsafeInnerHTML, hasDebugger, hasWeakCrypto, hasTimingUnsafeCompare, hasUnsafeRegex, hasTodoFixme } from "../rules.js";
 import { DiffFile } from "../diff.js";
 
 // ---------------------------------------------------------------------------
@@ -571,5 +571,203 @@ describe("duplicate-approval-guard", () => {
     const guard = findings.find((f) => f.rule === "duplicate-approval-guard");
     expect(guard).toBeDefined();
     expect(guard!.message).toContain("authorization bypass");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 5: no-eval
+// ---------------------------------------------------------------------------
+
+describe("no-eval", () => {
+  it("flags eval() call", () => {
+    const files = [addFile("src/exec.ts", ["eval(userInput)"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-eval")).toBe(true);
+  });
+
+  it("flags Function() constructor", () => {
+    const files = [addFile("src/exec.ts", ["new Function('return ' + code)()"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-eval")).toBe(true);
+  });
+
+  it("does NOT flag eval in comments", () => {
+    expect(hasEvalUsage("// eval is dangerous")).toBe(false);
+  });
+
+  it("does NOT flag without parentheses", () => {
+    expect(hasEvalUsage("const evaluate = true")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 6: no-unsafe-innerhtml
+// ---------------------------------------------------------------------------
+
+describe("no-unsafe-innerhtml", () => {
+  it("flags innerHTML assignment", () => {
+    const files = [addFile("src/view.ts", ["el.innerHTML = userInput"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-unsafe-innerhtml")).toBe(true);
+  });
+
+  it("does NOT flag innerHTML with DOMPurify", () => {
+    expect(hasUnsafeInnerHTML("el.innerHTML = DOMPurify.sanitize(html)")).toBe(false);
+  });
+
+  it("does NOT flag textContent", () => {
+    expect(hasUnsafeInnerHTML("el.textContent = text")).toBe(false);
+  });
+
+  it("detects hasUnsafeInnerHTML correctly", () => {
+    expect(hasUnsafeInnerHTML("element.innerHTML = data")).toBe(true);
+    expect(hasUnsafeInnerHTML("div.innerHTML = '<b>safe</b>'")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 7: no-debugger
+// ---------------------------------------------------------------------------
+
+describe("no-debugger", () => {
+  it("flags standalone debugger statement", () => {
+    const files = [addFile("src/debug.ts", ["debugger;"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-debugger")).toBe(true);
+  });
+
+  it("does NOT flag debugger in a string", () => {
+    expect(hasDebugger('const x = "debugger"')).toBe(false);
+  });
+
+  it("does NOT flag debugger keyword in other contexts", () => {
+    expect(hasDebugger("const debuggerMode = true")).toBe(false);
+  });
+
+  it("detects hasDebugger correctly", () => {
+    expect(hasDebugger("debugger;")).toBe(true);
+    expect(hasDebugger("  debugger  ")).toBe(true);
+    expect(hasDebugger("debugger")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 8: no-weak-crypto
+// ---------------------------------------------------------------------------
+
+describe("no-weak-crypto", () => {
+  it("flags md5 usage", () => {
+    const files = [addFile("src/hash.ts", ["const h = md5(data)"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-weak-crypto")).toBe(true);
+  });
+
+  it("flags sha1 usage", () => {
+    expect(hasWeakCrypto("const h = sha1(input)")).toBe(true);
+  });
+
+  it("flags createHash('md5')", () => {
+    expect(hasWeakCrypto("crypto.createHash('md5')")).toBe(true);
+  });
+
+  it("flags createHash('sha1')", () => {
+    expect(hasWeakCrypto("crypto.createHash('sha1')")).toBe(true);
+  });
+
+  it("does NOT flag sha256", () => {
+    expect(hasWeakCrypto("crypto.createHash('sha256')")).toBe(false);
+  });
+
+  it("does NOT flag aes-256", () => {
+    expect(hasWeakCrypto("crypto.createCipher('aes-256-cbc', key)")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 9: no-timing-unsafe-compare
+// ---------------------------------------------------------------------------
+
+describe("no-timing-unsafe-compare", () => {
+  it("flags password === comparison", () => {
+    const files = [addFile("src/auth.ts", ["if (password === input) login()"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "no-timing-unsafe-compare")).toBe(true);
+  });
+
+  it("flags token == comparison", () => {
+    expect(hasTimingUnsafeCompare("if (token == req.headers.auth)")).toBe(true);
+  });
+
+  it("flags secret !== comparison", () => {
+    expect(hasTimingUnsafeCompare("if (secret !== stored)")).toBe(true);
+  });
+
+  it("does NOT flag timingSafeEqual", () => {
+    expect(hasTimingUnsafeCompare("if (crypto.timingSafeEqual(password, input))")).toBe(false);
+  });
+
+  it("does NOT flag hmac.verify", () => {
+    expect(hasTimingUnsafeCompare("if (hmac.verify(signature, token))")).toBe(false);
+  });
+
+  it("does NOT flag regular variable comparison", () => {
+    expect(hasTimingUnsafeCompare("if (count === 0)")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 10: no-unsafe-regex
+// ---------------------------------------------------------------------------
+
+describe("no-unsafe-regex", () => {
+  it("detects nested quantifier regex", () => {
+    expect(hasUnsafeRegex("const re = new RegExp('(a+)+')")).toBe(true);
+  });
+
+  it("does NOT flag simple regex", () => {
+    expect(hasUnsafeRegex("const re = /hello/")).toBe(false);
+  });
+
+  it("does NOT flag non-regex nested parens", () => {
+    expect(hasUnsafeRegex("const x = (1+2)*3")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule 11: track-todo
+// ---------------------------------------------------------------------------
+
+describe("track-todo", () => {
+  it("flags TODO comment", () => {
+    const files = [addFile("src/work.ts", ["// TODO: implement error handling"])];
+    const findings = runRules(files);
+    expect(findings.some((f) => f.rule === "track-todo")).toBe(true);
+  });
+
+  it("flags FIXME comment", () => {
+    expect(hasTodoFixme("// FIXME: this is broken")).toBe(true);
+  });
+
+  it("flags HACK comment", () => {
+    expect(hasTodoFixme("// HACK: workaround for bug 123")).toBe(true);
+  });
+
+  it("flags XXX comment", () => {
+    expect(hasTodoFixme("// XXX: dangerous code")).toBe(true);
+  });
+
+  it("does NOT flag regular comments", () => {
+    expect(hasTodoFixme("// This is a normal comment")).toBe(false);
+  });
+
+  it("does NOT flag todo in a string", () => {
+    expect(hasTodoFixme('message = "todo list item"')).toBe(false);
+  });
+
+  it("has low severity", () => {
+    const files = [addFile("src/app.ts", ["// TODO: refactor later"])];
+    const findings = runRules(files).filter((f) => f.rule === "track-todo");
+    expect(findings[0].severity).toBe("low");
+    expect(findings[0].category).toBe("compliance");
   });
 });

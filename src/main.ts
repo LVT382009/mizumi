@@ -363,7 +363,7 @@ if (config.confidenceCalibration || config.complianceCheck) {
       ...ruleFindings.map((r) => ({
         file: r.file,
         line: r.line,
-        severity: r.severity as "critical" | "high" | "medium",
+        severity: r.severity as "critical" | "high" | "medium" | "low",
         category: r.category as "security" | "compliance",
         message: r.message,
         suggestion: undefined as string | undefined,

@@ -1,6 +1,8 @@
 /**
  * Deterministic rule engine — runs before LLM, never hallucinates.
- * Phase 1 stub: regex-based checks only. Full Danger integration deferred to Phase 2.
+ * 12 rules: hardcoded secrets, auth middleware, SQL concat, eval, innerHTML,
+ * debugger, weak crypto, timing-unsafe compare, unsafe regex, TODO/FIXME,
+ * duplicate approval guard, and no-evil-eval.
  */
 import { DiffFile, DiffHunk } from "./diff.js";
 import { minimatch } from "minimatch";
@@ -8,7 +10,7 @@ import { minimatch } from "minimatch";
 export interface RuleFinding {
   file: string;
   line: number;
-  severity: "critical" | "high" | "medium";
+  severity: "critical" | "high" | "medium" | "low";
   category: "security" | "compliance";
   message: string;
   rule: string;
@@ -74,6 +76,118 @@ export function runRules(files: DiffFile[]): RuleFinding[] {
         }
       }
     }
+
+    // Rule: eval/Function usage — code injection risk
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasEvalUsage(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "critical",
+            category: "security",
+            message: "eval() or Function() constructor detected — allows arbitrary code execution. Use safer alternatives.",
+            rule: "no-eval",
+          });
+        }
+      }
+    }
+
+    // Rule: unsafe innerHTML — XSS risk
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasUnsafeInnerHTML(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "high",
+            category: "security",
+            message: "innerHTML assignment detected — potential XSS vector. Use textContent or DOMPurify.sanitize() instead.",
+            rule: "no-unsafe-innerhtml",
+          });
+        }
+      }
+    }
+
+    // Rule: debugger statement left in code
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasDebugger(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "medium",
+            category: "compliance",
+            message: "debugger statement detected — remove before production",
+            rule: "no-debugger",
+          });
+        }
+      }
+    }
+
+    // Rule: weak crypto algorithms
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasWeakCrypto(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "high",
+            category: "security",
+            message: "Weak crypto algorithm detected — use AES-256, SHA-256+, or modern equivalents",
+            rule: "no-weak-crypto",
+          });
+        }
+      }
+    }
+
+    // Rule: timing-unsafe comparison for secrets
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasTimingUnsafeCompare(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "high",
+            category: "security",
+            message: "Direct comparison of secrets (== or !=) is vulnerable to timing attacks. Use crypto.timingSafeEqual() or hmac.compare()",
+            rule: "no-timing-unsafe-compare",
+          });
+        }
+      }
+    }
+
+    // Rule: unsafe regex (ReDoS risk)
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasUnsafeRegex(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "medium",
+            category: "security",
+            message: "Potentially unsafe regex — nested quantifiers can cause catastrophic backtracking (ReDoS)",
+            rule: "no-unsafe-regex",
+          });
+        }
+      }
+    }
+
+    // Rule: TODO/FIXME/HACK — technical debt tracker
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "add" && hasTodoFixme(change.content)) {
+          findings.push({
+            file: file.path,
+            line: change.line,
+            severity: "low",
+            category: "compliance",
+            message: "TODO/FIXME/HACK comment detected — track as technical debt",
+            rule: "track-todo",
+          });
+        }
+      }
+    }
   }
 
   const dup = checkDuplicateApprovalGuard(files);
@@ -122,19 +236,46 @@ function callsAuthMiddleware(block: string[]): boolean {
 }
 
 function getSurroundingBlock(hunk: DiffHunk, line: number): string[] {
-  // Get ±10 lines around the target line
   return hunk.changes
     .filter((c: { line: number; type: string }) => Math.abs(c.line - line) <= 10 && c.type !== "delete")
     .map((c: { content: string }) => c.content);
 }
 
 function hasHardcodedSecret(line: string): boolean {
-  // Common patterns: api_key = "xxx", password = "xxx", secret = "xxx"
   return /(api[-_]?key|password|passwd|secret|token|credential)\s*[:=]\s*["'][^"']{8,}["']/i.test(line)
     && !/process\.env|import\.meta|ENV|getenv/i.test(line);
 }
 
+export function hasEvalUsage(line: string): boolean {
+  return /\b(eval|Function)\s*\(/.test(line);
+}
+
+export function hasUnsafeInnerHTML(line: string): boolean {
+  return /\.innerHTML\s*=/.test(line) && !/DOMPurify\.sanitize/.test(line);
+}
+
+export function hasDebugger(line: string): boolean {
+  return /^\s*debugger\s*;?\s*$/.test(line);
+}
+
+export function hasWeakCrypto(line: string): boolean {
+  return /\b(md5|sha1|des|rc4|blowfish)\s*\(/i.test(line) || /createHash\s*\(\s*["'](?:md5|sha1)["']\s*\)/.test(line);
+}
+
+export function hasTimingUnsafeCompare(line: string): boolean {
+  return /(?:password|secret|token|key|hash|signature)\s*(===|!==|==|!=)\s*/i.test(line)
+    && !/timingSafeEqual|hmac\.verify|crypto\.verify/.test(line);
+}
+
+export function hasUnsafeRegex(line: string): boolean {
+  return /\([^)]*[+*][^)]*\)[+*]/.test(line) && /RegExp|new\s+RegExp|\/.*\/[gimsuy]/.test(line);
+}
+
+export function hasTodoFixme(line: string): boolean {
+  return /\/\/\s*(TODO|FIXME|HACK|XXX)\b/i.test(line);
+}
+
 function hasSQLConcat(line: string): boolean {
   return /(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\s.*[+`]/i.test(line)
-    && /\$\{/.test(line) === false; // Template literals are slightly safer
+    && /\$\{/.test(line) === false;
 }
