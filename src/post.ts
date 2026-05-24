@@ -218,6 +218,88 @@ export function buildFatigueWarning(findingCount: number): string {
   return `> ⚠️ **Review Fatigue**: This review found ${findingCount} findings. Consider splitting this PR into smaller, focused changes for better review quality.`;
 }
 
+/** Report card dimensions — maps findings to 5 quality dimensions with letter grades */
+export interface ReportCard {
+  security: string;
+  reliability: string;
+  complexity: string;
+  hygiene: string;
+  coverage: string;
+  overall: string;
+}
+
+const DIMENSION_CATEGORIES: Record<keyof Omit<ReportCard, "overall">, string[]> = {
+  security: ["security"],
+  reliability: ["bug", "compliance"],
+  complexity: ["architecture"],
+  hygiene: ["style", "performance"],
+  coverage: [],
+};
+
+const SEVERITY_WEIGHT: Record<string, number> = {
+  critical: 10,
+  high: 5,
+  medium: 2,
+  low: 1,
+  nitpick: 0.5,
+};
+
+function scoreToGrade(score: number): string {
+  if (score === 0) return "A";
+  if (score <= 1) return "B";
+  if (score <= 3) return "C";
+  if (score <= 7) return "D";
+  return "F";
+}
+
+export function buildReportCard(findings: ReviewCommentType[], riskScore: number): ReportCard {
+  const dimScores: Record<string, number> = {};
+  for (const dim of Object.keys(DIMENSION_CATEGORIES) as (keyof typeof DIMENSION_CATEGORIES)[]) {
+    dimScores[dim] = 0;
+  }
+
+  for (const f of findings) {
+    const weight = SEVERITY_WEIGHT[f.severity] ?? 1;
+    for (const [dim, cats] of Object.entries(DIMENSION_CATEGORIES)) {
+      if (cats.includes(f.category)) {
+        dimScores[dim] += weight;
+      }
+    }
+  }
+
+  const coverageScore = riskScore >= 4 ? 3 : riskScore >= 3 ? 1.5 : 0;
+  dimScores.coverage = coverageScore;
+
+  const security = scoreToGrade(dimScores.security);
+  const reliability = scoreToGrade(dimScores.reliability);
+  const complexity = scoreToGrade(dimScores.complexity);
+  const hygiene = scoreToGrade(dimScores.hygiene);
+  const coverage = scoreToGrade(dimScores.coverage);
+
+  const gradeValues: Record<string, number> = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+  const grades = [security, reliability, complexity, hygiene, coverage];
+  const avg = grades.reduce((sum, g) => sum + (gradeValues[g] ?? 0), 0) / grades.length;
+  const overall = avg >= 4.5 ? "A" : avg >= 3.5 ? "B" : avg >= 2.5 ? "C" : avg >= 1.5 ? "D" : "F";
+
+  return { security, reliability, complexity, hygiene, coverage, overall };
+}
+
+export function formatReportCard(card: ReportCard): string {
+  const ROW = (label: string, grade: string) => {
+    const icons: Record<string, string> = { A: "🟢", B: "🟡", C: "🟠", D: "🔴", F: "⛔" };
+    return `| ${label} | ${icons[grade] || ""} ${grade} |`;
+  };
+  let body = "### Report Card\n\n";
+  body += "| Dimension | Grade |\n|-----------|-------|\n";
+  body += ROW("Security", card.security) + "\n";
+  body += ROW("Reliability", card.reliability) + "\n";
+  body += ROW("Complexity", card.complexity) + "\n";
+  body += ROW("Hygiene", card.hygiene) + "\n";
+  body += ROW("Test Coverage", card.coverage) + "\n";
+  body += "| **Overall** | **" + (card.overall === "A" ? "🟢" : card.overall === "B" ? "🟡" : card.overall === "C" ? "🟠" : card.overall === "D" ? "🔴" : "⛔") + " " + card.overall + "** |\n";
+  return body;
+}
+
 export function buildReviewBody(
   _inlineFindings: ReviewCommentType[],
   tableFindings: ReviewCommentType[],
@@ -236,6 +318,13 @@ export function buildReviewBody(
     body += `\n${fatigueWarning}\n\n`;
   }
   body += `## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(riskScore, 1), 5))} (${Math.min(Math.max(riskScore, 1), 5)}/5)\n\n`;
+
+  // Report card graded table
+  if (allFindings && allFindings.length > 0) {
+    const card = buildReportCard(allFindings, riskScore);
+    body += formatReportCard(card) + "\n";
+  }
+
   if (descriptionFeedback) {
     body += screenOutput(descriptionFeedback) + "\n\n";
   }

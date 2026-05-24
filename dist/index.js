@@ -106794,6 +106794,68 @@ function buildFatigueWarning(findingCount) {
   if (findingCount <= 15) return "";
   return `> \u26A0\uFE0F **Review Fatigue**: This review found ${findingCount} findings. Consider splitting this PR into smaller, focused changes for better review quality.`;
 }
+var DIMENSION_CATEGORIES = {
+  security: ["security"],
+  reliability: ["bug", "compliance"],
+  complexity: ["architecture"],
+  hygiene: ["style", "performance"],
+  coverage: []
+};
+var SEVERITY_WEIGHT = {
+  critical: 10,
+  high: 5,
+  medium: 2,
+  low: 1,
+  nitpick: 0.5
+};
+function scoreToGrade(score) {
+  if (score === 0) return "A";
+  if (score <= 1) return "B";
+  if (score <= 3) return "C";
+  if (score <= 7) return "D";
+  return "F";
+}
+function buildReportCard(findings, riskScore) {
+  const dimScores = {};
+  for (const dim of Object.keys(DIMENSION_CATEGORIES)) {
+    dimScores[dim] = 0;
+  }
+  for (const f of findings) {
+    const weight = SEVERITY_WEIGHT[f.severity] ?? 1;
+    for (const [dim, cats] of Object.entries(DIMENSION_CATEGORIES)) {
+      if (cats.includes(f.category)) {
+        dimScores[dim] += weight;
+      }
+    }
+  }
+  const coverageScore = riskScore >= 4 ? 3 : riskScore >= 3 ? 1.5 : 0;
+  dimScores.coverage = coverageScore;
+  const security = scoreToGrade(dimScores.security);
+  const reliability = scoreToGrade(dimScores.reliability);
+  const complexity = scoreToGrade(dimScores.complexity);
+  const hygiene = scoreToGrade(dimScores.hygiene);
+  const coverage = scoreToGrade(dimScores.coverage);
+  const gradeValues = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+  const grades = [security, reliability, complexity, hygiene, coverage];
+  const avg = grades.reduce((sum, g) => sum + (gradeValues[g] ?? 0), 0) / grades.length;
+  const overall = avg >= 4.5 ? "A" : avg >= 3.5 ? "B" : avg >= 2.5 ? "C" : avg >= 1.5 ? "D" : "F";
+  return { security, reliability, complexity, hygiene, coverage, overall };
+}
+function formatReportCard(card) {
+  const ROW = (label, grade) => {
+    const icons = { A: "\u{1F7E2}", B: "\u{1F7E1}", C: "\u{1F7E0}", D: "\u{1F534}", F: "\u26D4" };
+    return `| ${label} | ${icons[grade] || ""} ${grade} |`;
+  };
+  let body = "### Report Card\n\n";
+  body += "| Dimension | Grade |\n|-----------|-------|\n";
+  body += ROW("Security", card.security) + "\n";
+  body += ROW("Reliability", card.reliability) + "\n";
+  body += ROW("Complexity", card.complexity) + "\n";
+  body += ROW("Hygiene", card.hygiene) + "\n";
+  body += ROW("Test Coverage", card.coverage) + "\n";
+  body += "| **Overall** | **" + (card.overall === "A" ? "\u{1F7E2}" : card.overall === "B" ? "\u{1F7E1}" : card.overall === "C" ? "\u{1F7E0}" : card.overall === "D" ? "\u{1F534}" : "\u26D4") + " " + card.overall + "** |\n";
+  return body;
+}
 function buildReviewBody(_inlineFindings, tableFindings, detailsFindings, unmappableFindings, riskScore, findingCount, _reviewDecision, descriptionFeedback, allFindings, diffFiles) {
   let body = MARKER;
   const fatigueWarning = buildFatigueWarning(findingCount);
@@ -106806,6 +106868,10 @@ ${fatigueWarning}
   body += `## Mizumi Review \u2014 Risk: ${"\u{1F534}".repeat(Math.min(Math.max(riskScore, 1), 5))}${"\u26AA".repeat(5 - Math.min(Math.max(riskScore, 1), 5))} (${Math.min(Math.max(riskScore, 1), 5)}/5)
 
 `;
+  if (allFindings && allFindings.length > 0) {
+    const card = buildReportCard(allFindings, riskScore);
+    body += formatReportCard(card) + "\n";
+  }
   if (descriptionFeedback) {
     body += screenOutput(descriptionFeedback) + "\n\n";
   }
@@ -107697,6 +107763,28 @@ function checkAndMarkSha(workspace, headSha) {
 function sanitizeSearchQuery(query) {
   return query.replace(/\b(repo|org|user|owner|language|filename|path|extension|size|fork|in|is|type|state|label|status|head|base|merged|sort|order|access|review|checks|commit)\s*:\s*\S*/gi, "").replace(/[+\-~*"|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
 }
+var BLOCKED_PATHS = [
+  /^\.env/i,
+  /^\.?env\./i,
+  /id_rsa/i,
+  /id_ed25519/i,
+  /id_ecdsa/i,
+  /\.pem$/i,
+  /\.key$/i,
+  /\.p12$/i,
+  /\.pfx$/i,
+  /credentials/i,
+  /secret/i,
+  /\.npmrc$/i,
+  /\.pypirc$/i,
+  /\.netrc$/i,
+  /\/\.ssh\//i,
+  /github_token/i,
+  /oauth/i
+];
+function isBlockedPath(filePath) {
+  return BLOCKED_PATHS.some((pattern) => pattern.test(filePath));
+}
 function createAgentTools(octokit, owner, repo, headSha) {
   const read_file = tool({
     description: `Read the contents of a file from the repository at the PR branch version. Use this to understand the full context around a code change. Do NOT read files that are not in the diff \u2014 focus on changed files and their imports/dependencies.`,
@@ -107704,6 +107792,10 @@ function createAgentTools(octokit, owner, repo, headSha) {
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
     execute: async ({ path: path11 }) => {
+      if (isBlockedPath(path11)) {
+        warning(`Agent read_file blocked: ${path11} matches secret file pattern`);
+        return `Access denied: ${path11} is a protected file (secrets/credentials)`;
+      }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,

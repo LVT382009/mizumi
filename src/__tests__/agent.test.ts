@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { sanitizeSearchQuery, truncate } from "../agent.js";
+import { sanitizeSearchQuery, truncate, isBlockedPath } from "../agent.js";
 
 // ---------------------------------------------------------------------------
 // sanitizeSearchQuery — pure function, no mocking needed
@@ -132,6 +132,57 @@ describe("truncate", () => {
 });
 
 // ---------------------------------------------------------------------------
+// isBlockedPath — agent path traversal/secret file protection
+// ---------------------------------------------------------------------------
+
+describe("isBlockedPath", () => {
+  it("blocks .env files", () => {
+    expect(isBlockedPath(".env")).toBe(true);
+    expect(isBlockedPath(".env.local")).toBe(true);
+    expect(isBlockedPath(".env.production")).toBe(true);
+  });
+
+  it("blocks SSH private keys", () => {
+    expect(isBlockedPath("id_rsa")).toBe(true);
+    expect(isBlockedPath("~/.ssh/id_rsa")).toBe(true);
+    expect(isBlockedPath("id_ed25519")).toBe(true);
+    expect(isBlockedPath("id_ecdsa")).toBe(true);
+  });
+
+  it("blocks PEM key files", () => {
+    expect(isBlockedPath("server.pem")).toBe(true);
+    expect(isBlockedPath("cert.key")).toBe(true);
+  });
+
+  it("blocks credential files", () => {
+    expect(isBlockedPath("credentials.json")).toBe(true);
+    expect(isBlockedPath("src/secrets.yaml")).toBe(true);
+  });
+
+  it("blocks auth config files", () => {
+    expect(isBlockedPath(".npmrc")).toBe(true);
+    expect(isBlockedPath(".netrc")).toBe(true);
+    expect(isBlockedPath(".pypirc")).toBe(true);
+  });
+
+  it("blocks .ssh directory contents", () => {
+    expect(isBlockedPath("/home/user/.ssh/config")).toBe(true);
+  });
+
+  it("allows normal source files", () => {
+    expect(isBlockedPath("src/auth/login.ts")).toBe(false);
+    expect(isBlockedPath("package.json")).toBe(false);
+    expect(isBlockedPath("README.md")).toBe(false);
+    expect(isBlockedPath("src/config.ts")).toBe(false);
+  });
+
+  it("allows test files with 'secret' in path", () => {
+    // This WILL be blocked since it matches /secret/i — by design
+    expect(isBlockedPath("tests/secret-handshake.test.ts")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createAgentTools — requires mocking Octokit
 // ---------------------------------------------------------------------------
 
@@ -213,6 +264,22 @@ describe("createAgentTools", () => {
       const tools = createAgentTools(octokit, "owner", "repo", "sha123");
       const result = await tools.read_file.execute({ path: "nonexistent.ts" });
       expect(result).toContain("not found");
+    });
+
+    it("blocks access to secret files (.env)", async () => {
+      const octokit = makeMockOctokit();
+      const tools = createAgentTools(octokit, "owner", "repo", "sha123");
+      const result = await tools.read_file.execute({ path: ".env" });
+      expect(result).toContain("Access denied");
+      expect(octokit.rest.repos.getContent).not.toHaveBeenCalled();
+    });
+
+    it("blocks access to private key files", async () => {
+      const octokit = makeMockOctokit();
+      const tools = createAgentTools(octokit, "owner", "repo", "sha123");
+      const result = await tools.read_file.execute({ path: "id_rsa" });
+      expect(result).toContain("Access denied");
+      expect(octokit.rest.repos.getContent).not.toHaveBeenCalled();
     });
   });
 

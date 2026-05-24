@@ -27,6 +27,32 @@ export function sanitizeSearchQuery(query: string): string {
     .trim()
     .slice(0, 200);
 }
+
+/** Paths the agent should never read — secret files, private keys, credentials */
+const BLOCKED_PATHS = [
+  /^\.env/i,
+  /^\.?env\./i,
+  /id_rsa/i,
+  /id_ed25519/i,
+  /id_ecdsa/i,
+  /\.pem$/i,
+  /\.key$/i,
+  /\.p12$/i,
+  /\.pfx$/i,
+  /credentials/i,
+  /secret/i,
+  /\.npmrc$/i,
+  /\.pypirc$/i,
+  /\.netrc$/i,
+  /\/\.ssh\//i,
+  /github_token/i,
+  /oauth/i,
+];
+
+/** Check if a path should be blocked from agent file reads */
+export function isBlockedPath(filePath: string): boolean {
+  return BLOCKED_PATHS.some((pattern) => pattern.test(filePath));
+}
 export function createAgentTools(
   octokit: Octokit,
   owner: string,
@@ -39,6 +65,10 @@ export function createAgentTools(
       path: z.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'"),
     }),
     execute: async ({ path }) => {
+      if (isBlockedPath(path)) {
+        core.warning(`Agent read_file blocked: ${path} matches secret file pattern`);
+        return `Access denied: ${path} is a protected file (secrets/credentials)`;
+      }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postReview, buildReviewBody, buildFatigueWarning, vscodeLink, cleanupOutdatedComments, computeFingerprint, truncateToLimit } from "../post.js";
+import { postReview, buildReviewBody, buildFatigueWarning, vscodeLink, cleanupOutdatedComments, computeFingerprint, truncateToLimit, buildReportCard, formatReportCard } from "../post.js";
 import type { ReviewCommentType, ReviewResponseType } from "../review.js";
 import type { LineMap } from "../linemap.js";
 import type { MizumiConfig } from "../config.js";
@@ -1119,5 +1119,122 @@ describe("buildReviewBody walkthrough + labels together", () => {
     expect(body).toContain("Walkthrough");
     expect(body).toContain("Review effort:");
     expect(body).toContain("Finding Distribution");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildReportCard + formatReportCard
+// ---------------------------------------------------------------------------
+
+describe("buildReportCard", () => {
+  it("returns all A grades for zero findings", () => {
+    const card = buildReportCard([], 1);
+    expect(card.security).toBe("A");
+    expect(card.reliability).toBe("A");
+    expect(card.complexity).toBe("A");
+    expect(card.hygiene).toBe("A");
+    expect(card.coverage).toBe("A");
+    expect(card.overall).toBe("A");
+  });
+
+  it("returns F security grade for critical security finding", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "critical", category: "security", message: "x", confidence: 90 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.security).toBe("F");
+    expect(card.reliability).toBe("A");
+  });
+
+  it("returns F reliability grade for critical bug finding", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "critical", category: "bug", message: "x", confidence: 90 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.reliability).toBe("F");
+    expect(card.security).toBe("A");
+  });
+
+  it("count compliance findings toward reliability", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "high", category: "compliance", message: "x", confidence: 90 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.reliability).toBe("D");
+  });
+
+  it("counts architecture findings toward complexity", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "medium", category: "architecture", message: "x", confidence: 80 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.complexity).toBe("C");
+  });
+
+  it("counts style + performance findings toward hygiene", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "medium", category: "style", message: "x", confidence: 80 },
+      { file: "b.ts", line: 2, severity: "medium", category: "performance", message: "y", confidence: 80 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.hygiene).toBe("D");
+  });
+
+  it("high risk score degrades coverage grade", () => {
+    const card = buildReportCard([], 5);
+    expect(card.coverage).toBe("C");
+  });
+
+  it("medium risk score gives C coverage", () => {
+    const card = buildReportCard([], 3);
+    expect(card.coverage).toBe("C");
+  });
+
+  it("low risk score gives A coverage", () => {
+    const card = buildReportCard([], 1);
+    expect(card.coverage).toBe("A");
+  });
+
+  it("computes overall as average of dimensions", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "critical", category: "security", message: "x", confidence: 90 },
+    ];
+    const card = buildReportCard(findings, 2);
+    // security=F(1), others=A(5) → avg = (1+5+5+5+5)/5 = 4.2 → B
+    expect(card.overall).toBe("B");
+  });
+
+  it("multiple low findings accumulate to lower grades", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "low", category: "security", message: "x", confidence: 80 },
+      { file: "b.ts", line: 2, severity: "low", category: "security", message: "y", confidence: 80 },
+      { file: "c.ts", line: 3, severity: "low", category: "security", message: "z", confidence: 80 },
+    ];
+    const card = buildReportCard(findings, 2);
+    expect(card.security).toBe("C");
+  });
+});
+
+describe("formatReportCard", () => {
+  it("formats a fully passing card", () => {
+    const card = buildReportCard([], 1);
+    const text = formatReportCard(card);
+    expect(text).toContain("Report Card");
+    expect(text).toContain("Security");
+    expect(text).toContain("Reliability");
+    expect(text).toContain("Complexity");
+    expect(text).toContain("Hygiene");
+    expect(text).toContain("Test Coverage");
+    expect(text).toContain("Overall");
+    expect(text).toContain("A");
+  });
+
+  it("includes emoji indicators for grades", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "critical", category: "security", message: "x", confidence: 90 },
+    ];
+    const card = buildReportCard(findings, 2);
+    const text = formatReportCard(card);
+    expect(text).toContain("F");
   });
 });
