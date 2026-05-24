@@ -37,4 +37,39 @@ describe("ghostWarnings", () => {
     const result = ghostWarnings(memory, ["src/auth.ts"]);
     expect(result).toHaveLength(1);
   });
+
+  it("strips leading list markers from warnings", () => {
+    const memory = "- [high] src/auth.ts:10 — security: missing validation";
+    const result = ghostWarnings(memory, ["src/auth.ts"]);
+    expect(result[0]).not.toMatch(/^- /);
+    expect(result[0]).toContain("[high]");
+  });
+
+  it("handles asterisk list markers", () => {
+    const memory = "* [critical] db.ts:5 — security: hardcoded secret";
+    const result = ghostWarnings(memory, ["db.ts"]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toContain("hardcoded secret");
+  });
+
+  it("matches multiple files in the same memory", () => {
+    const memory = [
+      "- [high] src/auth.ts:10 — security: issue1",
+      "- [high] src/db.ts:20 — bug: issue2",
+    ].join("\n");
+    const result = ghostWarnings(memory, ["src/auth.ts", "src/db.ts"]);
+    expect(result).toHaveLength(2);
+  });
+
+  it("handles memory lines without file references", () => {
+    const memory = "# Memory\n\nSome generic note without file refs";
+    const result = ghostWarnings(memory, ["src/auth.ts"]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("handles changed files with subdirectory paths", () => {
+    const memory = "- [high] auth.ts:10 — bug: null ref";
+    const result = ghostWarnings(memory, ["packages/core/src/auth.ts"]);
+    expect(result).toHaveLength(1);
+  });
 });

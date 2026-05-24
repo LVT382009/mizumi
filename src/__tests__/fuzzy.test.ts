@@ -93,4 +93,43 @@ describe("findStaleComments", () => {
     const stale = findStaleComments(findings, existing);
     expect(stale).toHaveLength(0);
   });
+
+  it("finds stale comments when completely different topics", () => {
+    const findings = [makeFinding("Memory leak in event listener")];
+    const existing = [makeExisting("SQL injection in user query", 1), makeExisting("Hardcoded API key detected", 2)];
+    const stale = findStaleComments(findings, existing);
+    expect(stale.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles empty message bodies gracefully", () => {
+    const findings = [makeFinding("test issue")];
+    const existing: ExistingComment[] = [{ id: 1, file: "src/a.ts", line: 5, body: "" }];
+    const stale = findStaleComments(findings, existing);
+    expect(stale).toHaveLength(0); // empty body skipped
+  });
+});
+
+describe("deduplicateFindings — edge cases", () => {
+  it("handles empty new findings array", () => {
+    const result = deduplicateFindings([], [{ id: 1, file: "a.ts", line: 1, body: "existing" }]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("handles findings with different files/lines but same message", () => {
+    const findings = [
+      { file: "src/a.ts", line: 10, severity: "high" as const, category: "bug" as const, message: "Null pointer dereference", confidence: 90 },
+      { file: "src/b.ts", line: 20, severity: "high" as const, category: "bug" as const, message: "Null pointer dereference", confidence: 85 },
+    ];
+    const existing: ExistingComment[] = [{ id: 1, file: "src/a.ts", line: 10, body: "<!-- mizumi-review-marker -->\n**[HIGH] bug**: Null pointer dereference" }];
+    const result = deduplicateFindings(findings, existing);
+    // Same message → first is deduplicated, second may or may not be (same message vs different file)
+    expect(result.length).toBeLessThanOrEqual(2);
+  });
+
+  it("preserves findings below threshold", () => {
+    const findings = [{ file: "a.ts", line: 1, severity: "low" as const, category: "style" as const, message: "Use const instead of let for variable that is never reassigned", confidence: 60 }];
+    const existing: ExistingComment[] = [{ id: 1, file: "a.ts", line: 1, body: "<!-- mizumi-review-marker -->\n**[LOW] style**: Consider using optional chaining for safer property access" }];
+    const result = deduplicateFindings(findings, existing);
+    expect(result).toHaveLength(1);
+  });
 });

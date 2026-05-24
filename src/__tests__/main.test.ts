@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { parseCommand } from "../describe.js";
 
-// getPrNumber logic extracted for testability
+// getPrNumber logic extracted for testability — mirrors src/main.ts
 function getPrNumber(payload: Record<string, unknown>): number | null {
   if ((payload.pull_request as Record<string, unknown>)?.number) {
     return (payload.pull_request as Record<string, unknown>).number as number;
@@ -43,11 +44,46 @@ describe("getPrNumber", () => {
       comment: { body: "/mizumi review" },
     })).toBeNull();
   });
+
+  it("returns null for empty payload", () => {
+    expect(getPrNumber({})).toBeNull();
+  });
+
+  it("returns null when pull_request.number is 0 (falsy — no valid PR)", () => {
+    expect(getPrNumber({ pull_request: { number: 0 } })).toBeNull();
+  });
+
+  it("handles /mizumi describe command on PR issue_comment", () => {
+    expect(getPrNumber({
+      issue: { number: 7, pull_request: {} },
+      comment: { body: "/mizumi describe" },
+    })).toBe(7);
+  });
+
+  it("handles /mizumi improve command on PR issue_comment", () => {
+    expect(getPrNumber({
+      issue: { number: 13, pull_request: {} },
+      comment: { body: "/mizumi improve" },
+    })).toBe(13);
+  });
+
+  it("returns null for /mizumi on non-PR issue", () => {
+    expect(getPrNumber({
+      issue: { number: 5 },
+      comment: { body: "/mizumi review" },
+    })).toBeNull();
+  });
+
+  it("returns null when comment body is missing", () => {
+    expect(getPrNumber({
+      issue: { number: 5, pull_request: {} },
+    })).toBeNull();
+  });
 });
 
 
 // ---------------------------------------------------------------------------
-// parseCommand — verify /mizumi review [instructions] parsing
+// parseCommand — verify /mizumi subcommand parsing (imported from describe.ts)
 // ---------------------------------------------------------------------------
 
 describe("parseCommand for /mizumi review", () => {
@@ -71,10 +107,45 @@ describe("parseCommand for /mizumi review", () => {
     expect(result!.command).toBe("review");
     expect(result!.args).toBe("check for SQL injection and XSS in API handlers");
   });
-});
 
-function parseCommand(body: string): { command: string; args: string } | null {
-  const match = body.match(/^\/mizumi\s+(\w+)(?:\s+(.+))?/);
-  if (!match) return null;
-  return { command: match[1], args: match[2] || "" };
-}
+  it("parses /mizumi describe command", () => {
+    const result = parseCommand("/mizumi describe");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("describe");
+    expect(result!.args).toBe("");
+  });
+
+  it("parses /mizumi improve command", () => {
+    const result = parseCommand("/mizumi improve");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("improve");
+  });
+
+  it("parses /mizumi test command", () => {
+    const result = parseCommand("/mizumi test");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("test");
+  });
+
+  it("parses /mizumi spend command", () => {
+    const result = parseCommand("/mizumi spend");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("spend");
+  });
+
+  it("returns null for non-mizumi commands", () => {
+    expect(parseCommand("/review please")).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(parseCommand("")).toBeNull();
+  });
+
+  it("returns null for plain text", () => {
+    expect(parseCommand("just a regular comment")).toBeNull();
+  });
+
+  it("returns null for /mizumi without subcommand", () => {
+    expect(parseCommand("/mizumi")).toBeNull();
+  });
+});

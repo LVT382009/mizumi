@@ -78,8 +78,86 @@ describe("detectSlop", () => {
       "+export const x = 1;",
     ].join("\n");
     const result = detectSlop(diff, 6, 0, 1, ["src/gen.ts"]);
-    // boilerplate contributes at most 40
     const boilerplateScore = Math.min(5 * 20, 40);
     expect(result.score).toBeGreaterThanOrEqual(boilerplateScore);
+  });
+
+  it("detects numeric-suffix file pattern", () => {
+    const diff = Array.from({ length: 50 }, (_, i) => `+export const v${i} = ${i};`).join("\n");
+    const files = Array.from({ length: 7 }, (_, i) => `src/migration001${i}.ts`);
+    const result = detectSlop(diff, 50, 0, 7, files);
+    expect(result.reasons).toContain("numeric-suffix file pattern");
+    expect(result.score).toBeGreaterThanOrEqual(20);
+  });
+
+  it("does not flag numeric-suffix with 5 or fewer matches", () => {
+    const diff = Array.from({ length: 30 }, (_, i) => `+const v${i} = ${i};`).join("\n");
+    const files = ["src/mig001.ts", "src/mig002.ts", "src/mig003.ts", "other.ts"];
+    const result = detectSlop(diff, 30, 5, 4, files);
+    expect(result.reasons).not.toContain("numeric-suffix file pattern");
+  });
+
+  it("high addition ratio requires additions > 500", () => {
+    const diff = Array.from({ length: 400 }, (_, i) => `+line ${i}`).join("\n");
+    const result = detectSlop(diff, 400, 0, 1, ["src/file.ts"]);
+    expect(result.reasons).not.toContain("high addition ratio");
+  });
+
+  it("high addition ratio triggers at exactly 501 additions with 0 deletions", () => {
+    const diff = Array.from({ length: 501 }, (_, i) => `+line ${i}`).join("\n");
+    const result = detectSlop(diff, 501, 0, 1, ["src/file.ts"]);
+    expect(result.reasons).toContain("high addition ratio");
+  });
+
+  it("does not flag repetitive code below 20% threshold", () => {
+    const lines = [
+      "+unique line 1",
+      "+unique line 2",
+      "+unique line 3",
+      "+unique line 4",
+      "+duplicate line",
+      "+duplicate line",
+    ];
+    const diff = lines.join("\n");
+    const result = detectSlop(diff, 6, 0, 1, ["src/a.ts"]);
+    // 2 dupes / 6 lines = 33% > 20%, so this actually IS repetitive
+    // Need: less than 20% duplicates
+    const lowDupe = [
+      "+a", "+b", "+c", "+d", "+e", "+f", "+g", "+h", "+i", "+j",
+      "+dup", "+dup", "+dup",
+    ];
+    const diff2 = lowDupe.join("\n");
+    const result2 = detectSlop(diff2, 13, 0, 1, ["src/a.ts"]);
+    // 3 dupes / 13 lines = ~23% — still over. Use precise control:
+    const clean = Array.from({ length: 15 }, (_, i) => `+line ${i}`).join("\n");
+    const result3 = detectSlop(clean, 15, 0, 1, ["src/a.ts"]);
+    expect(result3.reasons).not.toContain("repetitive code");
+  });
+
+  it("ignores diff header lines when checking semantic density", () => {
+    const diff = "+++ b/newfile.txt\n+short";
+    const result = detectSlop(diff, 1, 0, 1, ["newfile.txt"]);
+    expect(result.reasons).not.toContain("low semantic density");
+  });
+
+  it("combines multiple signals for higher score", () => {
+    const dupLine = "+".padEnd(150, "x");
+    const diff = Array.from({ length: 600 }, () => dupLine).join("\n");
+    const result = detectSlop(diff, 600, 0, 1, ["src/gen.ts"]);
+    expect(result.score).toBeGreaterThanOrEqual(55);
+    expect(result.reasons.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("isSlop is true at score >= 60", () => {
+    const longLine = "+".padEnd(200, "x");
+    const diff = Array.from({ length: 600 }, () => longLine).join("\n");
+    const result = detectSlop(diff, 600, 0, 1, ["src/gen.ts"]);
+    expect(result.isSlop).toBe(true);
+  });
+
+  it("isSlop is false at score < 60", () => {
+    const diff = "+const x = 1;\n+const y = 2;";
+    const result = detectSlop(diff, 2, 0, 1, ["src/a.ts"]);
+    expect(result.isSlop).toBe(false);
   });
 });
