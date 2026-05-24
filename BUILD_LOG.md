@@ -353,21 +353,53 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Added gate fail-closed test**: invalid threshold returns true.
 - 705 tests passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 705 Tests)
+### Cycle: Report Card + Agent Path Protection + Adaptive Noise Reduction (2026-05-25)
 
-- **705 tests** passing (38 test files + 1 skipped)
-- **5,294 production lines** (33 source modules)
+- **Report card grading** (`post.ts`): 5-dimension quality scoring — security,
+  reliability, complexity, hygiene, coverage — with letter grades (A-F).
+  Severity-weighted scoring per category dimension. Risk score maps to
+  coverage grade. Overall grade is average of all dimensions. Pairs with
+  the merge gate — teams can track quality metrics over time.
+- **Agent path denylist** (`agent.ts`): `isBlockedPath` blocks read_file
+  access to secret/credential files — .env, id_rsa, *.pem, *.key,
+  credentials, .ssh/, .npmrc, .netrc. Prevents LLM agent from reading
+  protected files via GitHub API. 15 blocked patterns.
+- **Adaptive noise reduction** (`feedback.ts`): `computeSuppressedPatterns`
+  finds category+severity combos with < 30% acceptance rate (5+ responses).
+  `applyNoiseReduction` reduces confidence by 25 points for matching
+  patterns (floor at 50). Integrated into main.ts after learning weights.
+  Sourcery-inspired pattern — solves CodeRabbit's #1 user complaint (verbosity).
+- **Prompt injection fixes**: Applied `sanitizeInput` to prTitle/prBody
+  in describe.ts and issueTitle/issueBody in compliance.ts before LLM prompts.
+- **Removed duplicated createModel** in describe.ts — now uses shared import
+  from models.ts (eliminates silent crash on unknown providers).
+- **Fail-closed gate**: `shouldFailGate` returns `true` for invalid threshold
+  strings. For a merge gate, safe default = fail, not silently pass.
+- **Action permissions**: Added `permissions:` block to action.yml with
+  minimal scopes (contents:read, PRs:write, issues:write, statuses:write,
+  checks:write). Follows 2026 GitHub Actions security best practice.
+- **Test expansions**: agent.test.ts 14→47, compliance.test.ts 6→25,
+  describe.test.ts 6→16, gate.test.ts 20→21, post.test.ts +24, feedback.test.ts +18
+- 740 tests passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 740 Tests)
+
+- **740 tests** passing (38 test files + 1 skipped)
+- **5,400+ production lines** (33 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
+- **Commit status merge gate**: enforceable quality gate via branch protection
+- **Report card grading**: 5-dimension quality scoring (A-F) per review
+- **Adaptive noise reduction**: suppresses repeatedly-dismissed finding patterns
 - **PR auto-labeling**: security, bug, style, compliance, needs-attention, review-heavy
 - **Walkthrough summary**: directory-grouped change overview + review effort score
+- **Agent path denylist**: blocks LLM agent from reading secret files
 - **Rate limiting**: configurable RPM/RPS per provider (token bucket algorithm)
 - **Spend dashboard**: auto-post token usage digest when review exceeds configurable threshold
-- **2 Mermaid diagram generators**: architecture flowchart + severity distribution
+- **Security hardening**: execFileSync, path.normalize, search query sanitization, prompt injection fixes, fail-closed gate, minimal action permissions
 - **Learning persistence**: memory/feedback/skills committed to default branch via Git Data REST API
-- **Security hardening**: execFileSync (no shell injection), path.normalize traversal guard, search query sanitization
 - **Resilience**: diff fallback strategy, paginate summary comments
-- `dist/index.js` bundle verified (rollup with node: externals)
+- `dist/index.js` bundle verified
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
