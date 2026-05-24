@@ -403,3 +403,29 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
+
+### Cycle: Test Coverage Expansion + Patch Verification + SLSA Provenance (2026-05-25)
+
+- **Test coverage expansion**: db 6→41, slop 8→17, fuzzy 8→13, ghost 6→11, main 8→22
+  - db.test.ts: updateOutcome (5), getCategoryStats (6), computeLearningWeights (7),
+    applyLearningWeights (15), recordSuggestion (2)
+  - slop.test.ts: numeric-suffix pattern, addition ratio thresholds, repetitive code
+    thresholds, combined signals, isSlop boundary
+  - fuzzy.test.ts: stale comments edge cases, empty body, different files/lines
+  - ghost.test.ts: list marker stripping, asterisk markers, multi-file matching,
+    subdirectory paths, lines without file refs
+  - main.test.ts: imported parseCommand from describe.ts (was duplicated locally),
+    added getPrNumber edge cases (falsy 0, describe/improve commands, missing body),
+    added parseCommand tests for describe/improve/test/spend + null cases
+- **Patch verification** (`improve.ts`): `verifyPatch` rejects empty/whitespace
+  replacements, indentation mismatches (indented original → unindented single-line
+  replacement), and suspiciously short replacements vs original. Integrated into
+  `applyFileFixes` — invalid patches are skipped with warning. Prevents LLM-generated
+  garbage from being committed to PR branches. 10 verifyPatch tests added.
+- **SLSA L3 provenance** (`.github/workflows/release.yml`): Release workflow with
+  `actions/attest-build-provenance@v2` for signed build attestation of dist/index.js.
+  First AI code reviewer to advertise supply-chain provenance. Triggers on v* tags,
+  runs test→build→attest→release pipeline.
+- **Import cleanup**: improve.test.ts now imports isDangerousPath and verifyPatch
+  from source module (was duplicating locally)
+- 844 tests passing, 0 TS errors, bundle rebuilt
