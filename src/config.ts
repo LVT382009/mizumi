@@ -25,6 +25,7 @@ export interface MizumiConfig {
   confidenceCalibration: boolean;
   changeStack: boolean;
   improveEnabled: boolean;
+  dryRun: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -71,6 +72,7 @@ export function loadConfig(): MizumiConfig {
   const confidenceCalibration = core.getInput("confidence_calibration") !== "false";
   const changeStack = core.getInput("change_stack") !== "false";
   const improveEnabled = core.getInput("improve_enabled") === "true";
+const dryRun = core.getInput("dry_run") === "true";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -138,6 +140,7 @@ export function loadConfig(): MizumiConfig {
     confidenceCalibration,
     changeStack,
     improveEnabled,
+    dryRun,
   };
 }
 

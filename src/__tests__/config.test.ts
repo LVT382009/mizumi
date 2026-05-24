@@ -358,3 +358,4 @@ describe("loadConfig parseInt NaN defaults", () => {
     expect(config.smallDiffThreshold).toBe(50);
   });
 });
+

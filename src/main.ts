@@ -61,6 +61,7 @@ async function run(): Promise<void> {
     const isManualTrigger = ctx.eventName === "issue_comment";
 
     core.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+  if (config.dryRun) core.info("DRY RUN: review will be logged but not posted");
 
   // 0. Workspace + idempotency checks
   const workspace = process.env.GITHUB_WORKSPACE || ".";

@@ -34814,6 +34814,7 @@ function loadConfig() {
     const confidenceCalibration = getInput("confidence_calibration") !== "false";
     const changeStack = getInput("change_stack") !== "false";
     const improveEnabled = getInput("improve_enabled") === "true";
+    const dryRun = getInput("dry_run") === "true";
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34891,6 +34892,7 @@ function loadConfig() {
         confidenceCalibration,
         changeStack,
         improveEnabled,
+        dryRun,
     };
 }
 /**
@@ -75866,6 +75868,8 @@ async function run() {
         const repo = ctx.repo.repo;
         const isManualTrigger = ctx.eventName === "issue_comment";
         info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config.provider}/${config.model}`);
+        if (config.dryRun)
+            info("DRY RUN: review will be logged but not posted");
         // 0. Workspace + idempotency checks
         const workspace = process.env.GITHUB_WORKSPACE || ".";
         const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;

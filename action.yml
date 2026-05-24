@@ -99,6 +99,11 @@ inputs:
     required: false
     default: "false"
 
+  dry_run:
+    description: Run analysis without posting review comments (logs findings to Actions output instead). Safe for testing config changes.
+    required: false
+    default: "false"
+
 outputs:
   review_id:
     description: ID of the posted PR review
