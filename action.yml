@@ -124,6 +124,11 @@ inputs:
     required: false
     default: "0"
 
+  spend_threshold:
+  description: "Post a spend dashboard comment when a single review exceeds this many tokens (0 = disabled). Typical: 50000-200000."
+  required: false
+  default: "0"
+
 outputs:
   review_id:
     description: ID of the posted PR review

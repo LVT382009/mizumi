@@ -357,5 +357,20 @@ describe("loadConfig parseInt NaN defaults", () => {
     const config = loadConfig();
     expect(config.smallDiffThreshold).toBe(50);
   });
+
+  it("defaults spend_threshold to 0 when input is empty", () => {
+    mockGetInput.mockReturnValue("");
+    const config = loadConfig();
+    expect(config.spendThreshold).toBe(0);
+  });
+
+  it("parses spend_threshold when set", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "spend_threshold") return "100000";
+      return "";
+    });
+    const config = loadConfig();
+    expect(config.spendThreshold).toBe(100000);
+  });
 });
 

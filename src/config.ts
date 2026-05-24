@@ -28,6 +28,7 @@ export interface MizumiConfig {
   dryRun: boolean;
   linterScan: boolean;
   autoLabels: boolean;
+  spendThreshold: number;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -77,6 +78,7 @@ export function loadConfig(): MizumiConfig {
 const dryRun = core.getInput("dry_run") === "true";
 const linterScan = core.getInput("linter_scan") !== "false"; // default true
 const autoLabels = core.getInput("auto_labels") !== "false"; // default true
+const spendThreshold = parseInt(core.getInput("spend_threshold") || "0", 10) || 0; // 0 = disabled
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -147,6 +149,7 @@ const autoLabels = core.getInput("auto_labels") !== "false"; // default true
     dryRun,
     linterScan,
     autoLabels,
+    spendThreshold,
   };
 }
 

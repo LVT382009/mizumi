@@ -397,14 +397,15 @@ if (config.confidenceCalibration || config.complianceCheck) {
  } else {
  core.setOutput("compliance", "none");
 
-      // 10b. Auto-label PR based on findings
-      if (config.autoLabels) {
-        try {
-          await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
-        } catch (e: any) {
-          core.warning("Auto-labeling failed: " + (e?.message || String(e)));
-        }
-      }
+ }
+
+ // 10b. Auto-label PR based on findings (runs regardless of compliance)
+ if (config.autoLabels) {
+   try {
+     await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
+   } catch (e: any) {
+     core.warning("Auto-labeling failed: " + (e?.message || String(e)));
+   }
  }
  }
 
@@ -418,6 +419,20 @@ const spendEntry = createSpendEntry(
   mergedReview.comments.length, mergedReview.riskScore
 );
 appendSpendEntry(workspace, spendEntry);
+
+// 10e. Spend dashboard comment when threshold exceeded
+if (config.spendThreshold > 0 && spendEntry.totalTokens > config.spendThreshold && !config.dryRun) {
+  try {
+    const allEntries = readSpendLog(workspace);
+    const recentEntries = allEntries.filter((e: import("./spend.js").SpendEntry) => e.repo === `${owner}/${repo}`);
+    const digest = formatSpendDigest(recentEntries);
+    const dashboardBody = `<!-- mizumi-spend-marker -->\n## Spend Dashboard\n\n${digest}\n\n*Threshold: ${config.spendThreshold.toLocaleString()} tokens — this review used ${spendEntry.totalTokens.toLocaleString()} tokens.*\n\n---\n*Posted by Mizumi*`;
+    await createOrUpdateSpendComment(octokit, owner, repo, prNumber, dashboardBody);
+    core.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config.spendThreshold}`);
+  } catch (e) {
+    core.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 
 // 10d. Record findings for emoji feedback tracking
 recordFindings(workspace, `${owner}/${repo}`, prNumber,
@@ -536,6 +551,30 @@ async function getLatestFindings(
     });
   }
   return findings;
+}
+
+const SPEND_MARKER = "<!-- mizumi-spend-marker -->";
+
+async function createOrUpdateSpendComment(
+  octokit: Octokit, owner: string, repo: string, prNumber: number, body: string
+): Promise<void> {
+  let page = 1;
+  let existing: { id: number } | undefined;
+
+  while (!existing) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner, repo, issue_number: prNumber, per_page: 100, page,
+    });
+    existing = comments.find((c) => c.body?.includes(SPEND_MARKER)) as { id: number } | undefined;
+    if (comments.length < 100) break;
+    page++;
+  }
+
+  if (existing) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+  } else {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+  }
 }
 
 void run().catch((e) => { core.setFailed(`Fatal: ${e}`); process.exit(0); });

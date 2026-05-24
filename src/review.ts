@@ -3,11 +3,9 @@
  * BYOK from day 1: any provider, same code path.
  */
 import { generateObject } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, requireApiKey } from "./config.js";
+import { MizumiConfig } from "./config.js";
+import { createModel, createLightModel } from "./models.js";
 import { DiffClassification } from "./router.js";
 import { wrapDiff } from "./sanitize.js";
 
@@ -32,56 +30,15 @@ export const ReviewResponse = z.object({
 export type ReviewCommentType = z.infer<typeof ReviewComment>;
 export type ReviewResponseType = z.infer<typeof ReviewResponse>;
 
-function createModel(config: MizumiConfig) {
-  const apiKey = requireApiKey(config.provider);
-
-  switch (config.provider) {
-    case "anthropic":
-      return createAnthropic({ apiKey })(config.model);
-    case "openai":
-      return createOpenAI({ apiKey })(config.model);
-    case "google":
-      return createGoogleGenerativeAI({ apiKey })(config.model);
-    case "openrouter":
-      return createOpenAI({
-        baseURL: "https://openrouter.ai/api/v1",
-        apiKey,
-        name: "openrouter",
-      }).chat(config.model);
-    case "local":
-      // Defaults to Ollama (11434). Override base_url for llama.cpp (8081) or LM Studio (1234)
-      return createOpenAI({
-        baseURL: config.baseUrl || process.env.MIZUMI_BASE_URL || "http://localhost:11434/v1",
-        apiKey,
-        name: "local",
-      }).chat(config.model);
-    case "custom": {
-      const customBase = config.baseUrl || process.env.CUSTOM_BASE_URL;
-      if (!customBase) {
-        throw new Error("Custom provider requires base_url input or CUSTOM_BASE_URL env var");
-      }
-      return createOpenAI({
-        baseURL: customBase,
-        apiKey,
-        name: "custom",
-      }).chat(config.model);
-    }
-    case "nvidia":
-      return createOpenAI({
-        baseURL: "https://integrate.api.nvidia.com/v1",
-        apiKey,
-        name: "nvidia",
-      }).chat(config.model);
-  }
-}
+// createModel is imported from ./models.js
 
 /**
  * Select model based on diff classification tier.
  * Light tier → cheaper model (haiku for anthropic), else configured model.
  */
 export function selectModel(config: MizumiConfig, classification: DiffClassification): ReturnType<typeof createModel> {
-  if (classification.tier === "light" && config.provider === "anthropic") {
-    return createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5-20251001");
+  if (classification.tier === "light") {
+    return createLightModel(config);
   }
   return createModel(config);
 }

@@ -55,6 +55,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     tierRouting: true,
     smallDiffThreshold: 50,
     securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**"],
+    spendThreshold: 0,
     ...overrides,
   };
 }
@@ -1039,5 +1040,83 @@ describe("confidence badges in review body", () => {
     ];
     const body = buildReviewBody([], findings, [], [], 2, 1, "COMMENT", undefined, findings);
     expect(body).toContain("confidence-low-lightgray");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Walkthrough in buildReviewBody
+// ---------------------------------------------------------------------------
+
+describe("buildReviewBody walkthrough integration", () => {
+  const diffFiles: import("../post.js").DiffFileSummary[] = [
+    { path: "src/auth/login.ts", additions: 20, deletions: 5 },
+    { path: "src/auth/session.ts", additions: 10, deletions: 2 },
+    { path: "src/utils/helpers.ts", additions: 30, deletions: 8 },
+  ];
+
+  it("includes walkthrough section when diffFiles >= 2", () => {
+    const body = buildReviewBody([], [], [], [], 2, 3, "COMMENT", "Summary", [], diffFiles);
+    expect(body).toContain("Walkthrough");
+    expect(body).toContain("3 files");
+  });
+
+  it("includes review effort estimate", () => {
+    const body = buildReviewBody([], [], [], [], 2, 3, "COMMENT", "Summary", [], diffFiles);
+    expect(body).toContain("Review effort:");
+    expect(body).toMatch(/Review effort: [1-5]\/5/);
+  });
+
+  it("omits walkthrough when diffFiles < 2", () => {
+    const singleFile = [diffFiles[0]];
+    const body = buildReviewBody([], [], [], [], 2, 1, "COMMENT", "Summary", [], singleFile);
+    expect(body).not.toContain("Walkthrough");
+  });
+
+  it("groups findings by directory in walkthrough table", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "src/auth/login.ts", line: 10, severity: "high", category: "security", message: "Auth bypass", confidence: 90 },
+      { file: "src/auth/session.ts", line: 5, severity: "critical", category: "security", message: "Token leak", confidence: 95 },
+      { file: "src/utils/helpers.ts", line: 20, severity: "low", category: "style", message: "Missing semicolon", confidence: 60 },
+    ];
+    const body = buildReviewBody([], [], [], [], 4, 3, "COMMENT", "Summary", findings, diffFiles);
+    expect(body).toContain("Walkthrough");
+    expect(body).toContain("src/auth/");
+  });
+
+  it("shows effort 5 for large change with many findings", () => {
+    const largeDiff = Array.from({ length: 20 }, (_, i) => ({
+      path: `src/module${i}/file.ts`, additions: 100, deletions: 50,
+    }));
+    const manyFindings = Array.from({ length: 20 }, (_, i) => ({
+      file: `src/module${i}/file.ts`, line: 1, severity: "medium" as const,
+      category: "bug" as const, message: `Bug ${i}`, confidence: 80,
+    }));
+    const body = buildReviewBody([], manyFindings, [], [], 4, 20, "COMMENT", "Summary", manyFindings, largeDiff);
+    expect(body).toContain("Review effort: 5/5");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Labels integration (computeLabels tested in labels.test.ts; here we test
+// that walkthrough + labels appear together in the same review body)
+// ---------------------------------------------------------------------------
+
+describe("buildReviewBody walkthrough + labels together", () => {
+  it("includes walkthrough, effort, and severity distribution when both are present", () => {
+    const diffFiles: import("../post.js").DiffFileSummary[] = [
+      { path: "src/auth.ts", additions: 20, deletions: 5 },
+      { path: "src/api.ts", additions: 15, deletions: 3 },
+    ];
+    const findings: ReviewCommentType[] = [
+      { file: "src/auth.ts", line: 10, severity: "critical", category: "security", message: "Auth bypass", confidence: 95 },
+      { file: "src/api.ts", line: 5, severity: "medium", category: "bug", message: "Null ref", confidence: 70 },
+    ];
+    const body = buildReviewBody(
+      [findings[0]], [findings[1]], [], [],
+      4, 2, "REQUEST_CHANGES", "Security issues found", findings, diffFiles,
+    );
+    expect(body).toContain("Walkthrough");
+    expect(body).toContain("Review effort:");
+    expect(body).toContain("Finding Distribution");
   });
 });

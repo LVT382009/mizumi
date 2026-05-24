@@ -5,12 +5,9 @@
  */
 import * as core from "@actions/core";
 import { generateObject } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { ReviewResponseType, ReviewResponse } from "./review.js";
-import { MizumiConfig, getApiKey } from "./config.js";
-
-const CRITIQUE_MODEL = "gpt-4.1-mini";
+import { MizumiConfig } from "./config.js";
+import { createLightModel } from "./models.js";
 
 /**
  * Run self-critique: re-evaluate review findings with a "subterfuge" framing.
@@ -24,35 +21,7 @@ export async function runCritique(
     return filterByConfidence(review, config.confidenceThreshold);
   }
 
-  const openaiKey = getApiKey("openai");
-  const anthropicKey = getApiKey("anthropic");
-  let model;
-  if (openaiKey) {
-    model = createOpenAI({ apiKey: openaiKey })(CRITIQUE_MODEL);
-  } else if (anthropicKey) {
-    model = createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5");
-  } else {
-    const configKey = getApiKey(config.provider);
-    if (!configKey && config.provider !== "local" && config.provider !== "custom") {
-      core.warning("No API key available for critique — skipping self-critique");
-      return filterByConfidence(review, config.confidenceThreshold);
-    }
-    switch (config.provider) {
-      case "anthropic": model = createAnthropic({ apiKey: configKey })(config.model); break;
-      case "openai": model = createOpenAI({ apiKey: configKey })(config.model); break;
-      case "google": {
-        const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
-        model = createGoogleGenerativeAI({ apiKey: configKey })(config.model); break;
-      }
-      default: {
-        model = createOpenAI({
-          baseURL: config.baseUrl || (config.provider === "local" ? "http://localhost:11434/v1" : ""),
-          apiKey: configKey || "dummy",
-          name: config.provider,
-        }).chat(config.model); break;
-      }
-    }
-  }
+  const model = createLightModel(config);
 
   const critiquePrompt = `An external AI reviewer made these findings about a PR:
 

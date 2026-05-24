@@ -160,10 +160,10 @@ function shouldExclude(filePath: string, patterns: string[]): boolean {
  * Only file/line info is needed — GDPR compliance.
  */
 export function stripPatchPII(diffText: string): string {
-  return diffText.replace(/^diff --git.*$/m, (header) => {
-    // Keep only the file path info, strip author/email
-    return header;
-  }).replace(/^From: .*$\n/m, "")
-  .replace(/^Author: .*$\n/m, "")
-  .replace(/^Date: .*$\n/m, "");
+  return diffText
+    .replace(/^index [0-9a-f]+\.\.[0-9a-f]+.*$/gm, "index [REDACTED]")
+    .replace(/^From: .*$\n?/gm, "")
+    .replace(/^Author: .*$\n?/gm, "")
+    .replace(/^Date: .*$\n?/gm, "")
+    .replace(/^commit [0-9a-f]{7,40}$/gm, "commit [REDACTED]");
 }

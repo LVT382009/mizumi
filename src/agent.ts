@@ -9,9 +9,8 @@ import { tool, generateText, stepCountIs } from "ai";
 import { z } from "zod";
 import { Octokit } from "@octokit/rest";
 import * as core from "@actions/core";
-import { MizumiConfig, requireApiKey } from "./config.js";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
+import { MizumiConfig } from "./config.js";
+import { createLightModel, createModel } from "./models.js";
 import { DiffClassification } from "./router.js";
 
 /**
@@ -151,18 +150,10 @@ export async function runAgentContextGathering(
 ): Promise<string> {
   const tools = createAgentTools(octokit, owner, repo, headSha);
 
-  // Use the same model selection as the review
-  let model;
-  if (classification && classification.tier === "light" && config.provider === "anthropic") {
-    model = createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5-20251001");
-  } else if (config.provider === "anthropic") {
-    model = createAnthropic({ apiKey: requireApiKey("anthropic") })(config.model);
-  } else if (config.provider === "openai") {
-    model = createOpenAI({ apiKey: requireApiKey("openai") })(config.model);
-  } else {
-    // For other providers, skip agent context (tools may not be supported)
-    return "";
-  }
+  // Use lightweight model for agent context gathering
+  const model = (classification && classification.tier === "light")
+    ? createLightModel(config)
+    : createModel(config);
 
   const agentPrompt = `You are a code context assistant. Your job is to explore the codebase and gather relevant context for a PR review.
 

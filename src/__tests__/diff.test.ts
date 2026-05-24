@@ -250,7 +250,13 @@ describe("stripPatchPII", () => {
     expect(result).toContain("+new");
   });
 
-  it("handles patch with no PII unchanged", () => {
+  it("redacts index hash lines", () => {
+    const result = stripPatchPII(patchWithPII);
+    expect(result).not.toContain("index abc..def");
+    expect(result).toContain("index [REDACTED]");
+  });
+
+  it("handles patch with no PII (only index lines redacted)", () => {
     const cleanPatch = [
       "diff --git a/src/foo.ts b/src/foo.ts",
       "index abc..def 100644",
@@ -261,7 +267,26 @@ describe("stripPatchPII", () => {
       "+new",
     ].join("\n");
     const result = stripPatchPII(cleanPatch);
-    expect(result).toBe(cleanPatch);
+    expect(result).toContain("diff --git");
+    expect(result).toContain("index [REDACTED]");
+    expect(result).toContain("-old");
+    expect(result).toContain("+new");
+  });
+
+  it("removes commit hash lines", () => {
+    const patchWithCommit = [
+      "commit abc123def456",
+      "diff --git a/a.ts b/a.ts",
+      "index aaa..bbb 100644",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    const result = stripPatchPII(patchWithCommit);
+    expect(result).not.toContain("commit abc123def456");
+    expect(result).toContain("commit [REDACTED]");
   });
 });
 

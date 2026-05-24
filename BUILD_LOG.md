@@ -199,16 +199,33 @@
   called before each LLM call (review, critique, describe, test).
 - 581 tests passing, 0 TS errors, 5,184 production lines, bundle rebuilt
 
+### Cycle: Bug Fixes + Spend Dashboard + Test Coverage (2026-05-24)
+
+- Fixed critique.test.ts: missing `requireApiKey` mock (3 failing tests → all pass)
+- Removed unused `CRITIQUE_MODEL` constant from critique.ts (TS6133 error)
+- Fixed `stripPatchPII` no-op: replaced useless `diff --git` identity replacement with
+actual PII stripping — redacts `index <hash>..<hash>` lines and `commit <hash>` lines.
+Uses `/gm` flags for multi-line diffs. 2 new tests for index/commit hash redaction.
+- Added walkthrough + labels integration tests in post.test.ts (6 new tests):
+walkthrough rendering with diffFiles >= 2, effort score estimation, directory grouping,
+and walkthrough + labels appearing together in review body
+- Added spend dashboard feature (`spend_threshold` action input, default 0 = disabled):
+posts a follow-up comment with token usage digest when a review exceeds the threshold.
+Uses `createOrUpdateSpendComment` with `<!-- mizumi-spend-marker -->` for dedup.
+- Added `spendThreshold` to MizumiConfig + config.test.ts (3 new tests)
+- Added spend threshold logic tests in spend.test.ts (4 new tests)
+- 595 tests passing, 0 TS errors, 5,204 production lines, bundle rebuilt
+
 ### Source Modules
 
 ```
-src/main.ts (541) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
+src/main.ts (568) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory → spend dashboard
 src/post.ts (421) — Post review: inline + summary + dedup + change stack + VS Code links
-src/config.ts (249) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
+src/config.ts (252) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles + spend threshold
 src/review.ts (193) — LLM review with AI SDK 6 + Zod schema + prompt caching
 src/memory.ts (210) — MEMORY.md + ghost warnings + auto skills + progressive loading
 src/linemap.ts (195) — Map LLM lines → GitHub diff positions
-src/diff.ts (169) — Fetch PR diff, parse hunks, PII stripping + compare fallback
+src/diff.ts (169) — Fetch PR diff, parse hunks, PII stripping (index/commit/author/date) + compare fallback
 src/rules.ts (140) — Deterministic rules (secrets, auth, SQL injection, approval guard)
 src/feedback.ts (169) — Emoji feedback polling + acceptance rates
 src/compliance.ts (173) — Ticket-to-code compliance check + shields.io badges
@@ -271,16 +288,17 @@ src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Chan
 | 27 | `7083ab2` | Add walkthrough summary + review effort score |
 | 28 | `1d2d9da` | Add provider rate limiter with configurable RPM/RPS |
 
-### Build Stats (Current — 581 Tests)
+### Build Stats (Current — 595 Tests)
 
-- **581 tests** passing (35 test files + 1 skipped)
-- **5,184 production lines** (31 source modules)
+- **595 tests** passing (35 test files + 1 skipped)
+- **5,204 production lines** (31 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
 - **PR auto-labeling**: security, bug, style, compliance, needs-attention, review-heavy
 - **Walkthrough summary**: directory-grouped change overview + review effort score
 - **Rate limiting**: configurable RPM/RPS per provider (token bucket algorithm)
+- **Spend dashboard**: auto-post token usage digest when review exceeds configurable threshold
 - **2 Mermaid diagram generators**: architecture flowchart + severity distribution
 - **Learning persistence**: memory/feedback/skills committed to default branch via Git Data REST API
 - **Security hardening**: execFileSync (no shell injection), path.normalize traversal guard, search query sanitization

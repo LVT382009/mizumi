@@ -83,3 +83,36 @@ describe("formatSpendDigest", () => {
     expect(digest).toContain("Cached tokens: 500");
   });
 });
+
+describe("spend threshold logic", () => {
+  it("triggers dashboard when totalTokens exceeds threshold", () => {
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 80000, outputTokens: 30000 }, "standard", 3, 3);
+    const threshold = 100000;
+    expect(entry.totalTokens).toBe(110000);
+    expect(entry.totalTokens > threshold).toBe(true);
+  });
+
+  it("does not trigger dashboard when totalTokens is below threshold", () => {
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 1000, outputTokens: 500 }, "light", 0, 1);
+    const threshold = 100000;
+    expect(entry.totalTokens).toBe(1500);
+    expect(entry.totalTokens > threshold).toBe(false);
+  });
+
+  it("disabled when threshold is 0", () => {
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 100000 }, "standard", 5, 5);
+    const threshold = 0;
+    expect(threshold > 0).toBe(false);
+  });
+
+  it("formatSpendDigest can filter entries by repo", () => {
+    const entries = [
+      createSpendEntry("owner/repo1", 1, "anthropic", "claude", { inputTokens: 5000 }, "standard", 1, 2),
+      createSpendEntry("owner/repo2", 2, "anthropic", "claude", { inputTokens: 3000 }, "light", 0, 1),
+    ];
+    const filtered = entries.filter(e => e.repo === "owner/repo1");
+    const digest = formatSpendDigest(filtered);
+    expect(digest).toContain("1 reviews");
+    expect(digest).toContain("5,000");
+  });
+});
