@@ -74031,6 +74031,109 @@ function filterByConfidence(review, threshold) {
     };
 }
 
+/**
+ * Confidence calibration — dual-model voting on borderline findings.
+ * Phase 2.19: If both models agree → High confidence. If only one flags → Low.
+ * Visual badges: High=green, Medium=yellow, Low=gray.
+ */
+const BORDERLINE_MIN = 60;
+const BORDERLINE_MAX = 80;
+const VerificationSchema = object$1({
+    confirmed: _enum(["yes", "no"]).describe("Is this issue real and actionable?"),
+});
+/**
+ * Calibrate confidence on borderline findings using a second model vote.
+ * Findings with confidence 60-80 are re-evaluated by a different model.
+ * If the second model agrees → boost to "high" confidence.
+ * If the second model disagrees → lower to "low" confidence.
+ * Non-borderline findings keep their original confidence level.
+ */
+async function calibrateConfidence(review, config) {
+    const borderline = review.comments.filter((c) => c.confidence >= BORDERLINE_MIN && c.confidence <= BORDERLINE_MAX);
+    const nonBorderline = review.comments.filter((c) => c.confidence < BORDERLINE_MIN || c.confidence > BORDERLINE_MAX);
+    // Map non-borderline findings directly
+    const result = nonBorderline.map((c) => ({
+        ...c,
+        calibratedConfidence: c.confidence > 80 ? "high" : c.confidence > 50 ? "medium" : "low",
+    }));
+    if (borderline.length === 0)
+        return result;
+    // Get a second model for verification
+    const secondModel = getSecondModel(config);
+    if (!secondModel) {
+        return [
+            ...result,
+            ...borderline.map((c) => ({
+                ...c,
+                calibratedConfidence: "medium",
+            })),
+        ];
+    }
+    for (const finding of borderline) {
+        try {
+            const { object } = await generateObject({
+                model: secondModel,
+                prompt: `You are verifying a code review finding. Is this a real issue?
+
+File: ${finding.file}, Line: ${finding.line}
+Severity: ${finding.severity}, Category: ${finding.category}
+Message: ${finding.message}
+${finding.suggestion ? `Suggested fix: ${finding.suggestion}` : ""}
+
+Is this issue real and actionable?`,
+                schema: VerificationSchema,
+                maxOutputTokens: 32,
+            });
+            const isConfirmed = object.confirmed === "yes";
+            result.push({
+                ...finding,
+                calibratedConfidence: isConfirmed ? "high" : "low",
+                confidence: isConfirmed ? Math.min(finding.confidence + 15, 100) : Math.max(finding.confidence - 20, 0),
+            });
+        }
+        catch (e) {
+            warning(`Calibration failed for ${finding.file}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`);
+            result.push({ ...finding, calibratedConfidence: "medium" });
+        }
+    }
+    const highCount = result.filter((c) => c.calibratedConfidence === "high").length;
+    const lowCount = result.filter((c) => c.calibratedConfidence === "low").length;
+    info(`Confidence calibration: ${highCount} high, ${result.length - highCount - lowCount} medium, ${lowCount} low`);
+    return result;
+}
+/**
+ * Get a second model for confidence calibration.
+ * Tries a different provider than the main review model.
+ */
+function getSecondModel(config) {
+    const anthropicKey = getApiKey("anthropic");
+    const openaiKey = getApiKey("openai");
+    if (config.provider !== "anthropic" && anthropicKey) {
+        return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
+    }
+    if (config.provider !== "openai" && openaiKey) {
+        return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
+    }
+    if (config.provider === "anthropic" && anthropicKey) {
+        return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
+    }
+    if (config.provider === "openai" && openaiKey) {
+        return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
+    }
+    return null;
+}
+/**
+ * Format confidence badge for a finding.
+ * High=green, Medium=yellow, Low=gray.
+ */
+function confidenceBadge(level) {
+    switch (level) {
+        case "high": return "![High](https://img.shields.io/badge/confidence-high-green)";
+        case "medium": return "![Medium](https://img.shields.io/badge/confidence-medium-yellow)";
+        case "low": return "![Low](https://img.shields.io/badge/confidence-low-lightgray)";
+    }
+}
+
 const COHORT_ORDER = ["data-model", "contract", "logic", "test", "consumer", "other"];
 const COHORT_PATTERNS = {
     "data-model": [/schema/, /model/, /entity/, /migration/, /type.*def/, /interface/, /\/types?\//, /\.d\.ts$/],
@@ -74217,6 +74320,14 @@ function safeId(key) {
  * 65,535 char cap: review body truncated if exceeding GitHub limit.
  */
 const MARKER$3 = "<!-- mizumi-review-marker -->";
+/** Derive confidence level from numeric score (matches calibrate.ts thresholds) */
+function confidenceLevel(score) {
+    if (score > 80)
+        return "high";
+    if (score > 50)
+        return "medium";
+    return "low";
+}
 /** FNV-1a 32-bit hash — fast, deterministic fingerprint for dedup */
 function fnv1a32(str) {
     let hash = 0x811c9dc5;
@@ -74379,24 +74490,26 @@ function buildReviewBody(_inlineFindings, tableFindings, detailsFindings, unmapp
         if (sevDiagram)
             body += "### Finding Distribution\n\n" + sevDiagram + "\n\n";
     }
-    // Medium findings — summary table
+    // Medium findings — summary table with confidence badges
     const allTableFindings = [...tableFindings, ...unmappableFindings];
     if (allTableFindings.length > 0) {
         body += `### Medium Findings (${allTableFindings.length})\n\n`;
-        body += "| File | Line | Category | Message |\n";
-        body += "|------|------|----------|--------|\n";
+        body += "| Badge | File | Line | Category | Message |\n";
+        body += "|-------|------|------|----------|--------|\n";
         for (const f of allTableFindings) {
-            body += `| \`${f.file}\` | ${f.line} | ${f.category} | ${screenOutput(f.message)} |\n`;
+            const badge = confidenceBadge(confidenceLevel(f.confidence));
+            body += `| ${badge} | \`${f.file}\` | ${f.line} | ${f.category} | ${screenOutput(f.message)} |\n`;
         }
         body += "\n";
     }
-    // Low/nitpick findings — collapsible details
+    // Low/nitpick findings — collapsible details with confidence badges
     if (detailsFindings.length > 0) {
         body += `<details><summary>Low/Nitpick findings (${detailsFindings.length})</summary>\n\n`;
-        body += "| File | Line | Severity | Category | Message |\n";
-        body += "|------|------|----------|----------|--------|\n";
+        body += "| Badge | File | Line | Severity | Category | Message |\n";
+        body += "|-------|------|------|----------|----------|--------|\n";
         for (const f of detailsFindings) {
-            body += `| \`${f.file}\` | ${f.line} | ${f.severity} | ${f.category} | ${screenOutput(f.message)} |\n`;
+            const badge = confidenceBadge(confidenceLevel(f.confidence));
+            body += `| ${badge} | \`${f.file}\` | ${f.line} | ${f.severity} | ${f.category} | ${screenOutput(f.message)} |\n`;
         }
         body += "\n</details>\n";
     }
@@ -75680,98 +75793,6 @@ function categorizeRule(ruleId) {
         ruleId.includes("console") || ruleId.includes("debugger")))
         return "bug";
     return "style";
-}
-
-/**
- * Confidence calibration — dual-model voting on borderline findings.
- * Phase 2.19: If both models agree → High confidence. If only one flags → Low.
- * Visual badges: High=green, Medium=yellow, Low=gray.
- */
-const BORDERLINE_MIN = 60;
-const BORDERLINE_MAX = 80;
-const VerificationSchema = object$1({
-    confirmed: _enum(["yes", "no"]).describe("Is this issue real and actionable?"),
-});
-/**
- * Calibrate confidence on borderline findings using a second model vote.
- * Findings with confidence 60-80 are re-evaluated by a different model.
- * If the second model agrees → boost to "high" confidence.
- * If the second model disagrees → lower to "low" confidence.
- * Non-borderline findings keep their original confidence level.
- */
-async function calibrateConfidence(review, config) {
-    const borderline = review.comments.filter((c) => c.confidence >= BORDERLINE_MIN && c.confidence <= BORDERLINE_MAX);
-    const nonBorderline = review.comments.filter((c) => c.confidence < BORDERLINE_MIN || c.confidence > BORDERLINE_MAX);
-    // Map non-borderline findings directly
-    const result = nonBorderline.map((c) => ({
-        ...c,
-        calibratedConfidence: c.confidence > 80 ? "high" : c.confidence > 50 ? "medium" : "low",
-    }));
-    if (borderline.length === 0)
-        return result;
-    // Get a second model for verification
-    const secondModel = getSecondModel(config);
-    if (!secondModel) {
-        return [
-            ...result,
-            ...borderline.map((c) => ({
-                ...c,
-                calibratedConfidence: "medium",
-            })),
-        ];
-    }
-    for (const finding of borderline) {
-        try {
-            const { object } = await generateObject({
-                model: secondModel,
-                prompt: `You are verifying a code review finding. Is this a real issue?
-
-File: ${finding.file}, Line: ${finding.line}
-Severity: ${finding.severity}, Category: ${finding.category}
-Message: ${finding.message}
-${finding.suggestion ? `Suggested fix: ${finding.suggestion}` : ""}
-
-Is this issue real and actionable?`,
-                schema: VerificationSchema,
-                maxOutputTokens: 32,
-            });
-            const isConfirmed = object.confirmed === "yes";
-            result.push({
-                ...finding,
-                calibratedConfidence: isConfirmed ? "high" : "low",
-                confidence: isConfirmed ? Math.min(finding.confidence + 15, 100) : Math.max(finding.confidence - 20, 0),
-            });
-        }
-        catch (e) {
-            warning(`Calibration failed for ${finding.file}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`);
-            result.push({ ...finding, calibratedConfidence: "medium" });
-        }
-    }
-    const highCount = result.filter((c) => c.calibratedConfidence === "high").length;
-    const lowCount = result.filter((c) => c.calibratedConfidence === "low").length;
-    info(`Confidence calibration: ${highCount} high, ${result.length - highCount - lowCount} medium, ${lowCount} low`);
-    return result;
-}
-/**
- * Get a second model for confidence calibration.
- * Tries a different provider than the main review model.
- */
-function getSecondModel(config) {
-    const anthropicKey = getApiKey("anthropic");
-    const openaiKey = getApiKey("openai");
-    if (config.provider !== "anthropic" && anthropicKey) {
-        return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
-    }
-    if (config.provider !== "openai" && openaiKey) {
-        return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
-    }
-    if (config.provider === "anthropic" && anthropicKey) {
-        return createAnthropic({ apiKey: anthropicKey })("claude-haiku-4-5-20251001");
-    }
-    if (config.provider === "openai" && openaiKey) {
-        return createOpenAI({ apiKey: openaiKey })("gpt-4.1-mini");
-    }
-    return null;
 }
 
 /**

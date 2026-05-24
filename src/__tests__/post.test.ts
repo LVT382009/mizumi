@@ -1001,3 +1001,43 @@ describe("truncateToLimit", () => {
     expect(result).toContain("Too many findings");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Confidence badges in review body
+// ---------------------------------------------------------------------------
+
+describe("confidence badges in review body", () => {
+  it("includes confidence badge in medium findings table", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "src/a.ts", line: 10, severity: "medium", category: "bug", message: "Off-by-one", confidence: 70 },
+    ];
+    const review: ReviewResponseType = { summary: "S", riskScore: 3, comments: findings, decision: "comment" };
+    const body = buildReviewBody([], findings, [], [], 3, 1, "COMMENT", undefined, findings);
+    expect(body).toContain("Badge");
+    expect(body).toContain("img.shields.io/badge/confidence");
+  });
+
+  it("includes confidence badge in low findings details", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "src/a.ts", line: 5, severity: "low", category: "style", message: "Missing semicolon", confidence: 40 },
+    ];
+    const body = buildReviewBody([], [], findings, [], 2, 1, "COMMENT", undefined, findings);
+    expect(body).toContain("img.shields.io/badge/confidence");
+  });
+
+  it("shows high badge for confidence > 80", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "src/a.ts", line: 1, severity: "medium", category: "bug", message: "Bug", confidence: 95 },
+    ];
+    const body = buildReviewBody([], findings, [], [], 2, 1, "COMMENT", undefined, findings);
+    expect(body).toContain("confidence-high-green");
+  });
+
+  it("shows low badge for confidence <= 50", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "src/a.ts", line: 1, severity: "medium", category: "bug", message: "Bug", confidence: 30 },
+    ];
+    const body = buildReviewBody([], findings, [], [], 2, 1, "COMMENT", undefined, findings);
+    expect(body).toContain("confidence-low-lightgray");
+  });
+});
