@@ -178,12 +178,33 @@
   logs findings with full detail, still tracks spend/memory
 - 530 tests passing, 0 TS errors, 4,778 production lines, bundle rebuilt
 
+### Cycle: Auto-Labels + Walkthrough + Rate Limiter + Linter Security Fix (2026-05-24)
+
+- **Security fix**: Replaced execSync with execFileSync in linter.ts to prevent shell injection
+  via malicious file paths in PR filenames. Added relativePath() with path.normalize() for
+  cross-platform path handling (fixes Windows backslash bug).
+- Fixed post.ts truncation warning logging originalLen instead of already-truncated length
+- Expanded linter.test.ts from 6 to 23 tests with mocked execFileSync for runEslint, runTsc,
+  runPrettier, and argv-array verification (no shell injection)
+- Added PR auto-labeling (`labels.ts`): derives labels from finding categories (security, bug,
+  style, compliance) + risk score (needs-attention >=4) + finding volume (review-heavy >=10).
+  Creates missing labels with conventional colors, computes delta vs current labels, adds/removes
+  only changes. `auto_labels` config toggle (default true).
+- Added walkthrough summary (`walkthrough.ts`): groups diff files by directory, shows finding
+  severity counts per group in a collapsible table. Includes review effort estimate (1-5 scale).
+  Integrated into review body (CodeRabbit-inspired pattern).
+- Added provider rate limiter (`ratelimit.ts`): token bucket algorithm with separate RPM and
+  RPS buckets. Configurable per-provider via `rpm`/`rps` action inputs, with conservative
+  defaults per provider (anthropic 50rpm/5rps, local unlimited). `rateLimiter.acquire()`
+  called before each LLM call (review, critique, describe, test).
+- 581 tests passing, 0 TS errors, 5,184 production lines, bundle rebuilt
+
 ### Source Modules
 
 ```
-src/main.ts (505) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
-src/post.ts (401) — Post review: inline + summary + dedup + change stack + VS Code links
-src/config.ts (243) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
+src/main.ts (541) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
+src/post.ts (421) — Post review: inline + summary + dedup + change stack + VS Code links
+src/config.ts (249) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
 src/review.ts (193) — LLM review with AI SDK 6 + Zod schema + prompt caching
 src/memory.ts (210) — MEMORY.md + ghost warnings + auto skills + progressive loading
 src/linemap.ts (195) — Map LLM lines → GitHub diff positions
@@ -202,7 +223,7 @@ src/idempotency.ts (88) — Atomic check-and-mark dedup (TOCTOU-safe)
 src/sanitize.ts (105) — Input sanitization + output screening
 src/autofix.ts (93) — Auto-commit on 👍 reaction approval
 src/improve.ts (96) — /mizumi improve (path.normalize + traversal guard + hoisted API)
-src/linter.ts (155) — Linter pre-scan (ESLint, tsc, Prettier) — deterministic findings
+src/linter.ts (225) — Linter pre-scan (ESLint, tsc, Prettier) — deterministic findings
 src/context.ts (87) — Build LLM context (diff + memory + rules + ghost)
 src/describe.ts (84) — /mizumi describe (custom provider support)
 src/router.ts (83) — Tier routing + context window guard
@@ -211,7 +232,10 @@ src/testgen.ts (74) — /mizumi test (custom provider support)
 src/slop.ts (75) — AI-generated code detector
 src/description.ts (51) — PR description quality scorer
 src/fuzzy.ts (89) — Fuzzy dedup with rapid-fuzzy tokenSetRatioMany
-src/changestack.ts (90) — Change Stack cohort ordering
+src/changestack.ts (90)
+src/labels.ts (134) — PR auto-labeling from review findings (delta-based add/remove)
+src/walkthrough.ts (107) — Walkthrough summary by directory + review effort score
+src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Change Stack cohort ordering
 ```
 
 ### Commit History
@@ -241,17 +265,25 @@ src/changestack.ts (90) — Change Stack cohort ordering
 | 21 | `pending` | Release hardening: exit 0, critique fallback, improve path guard, bundle fix |
 | 22 | `09b2a72` | Mermaid diagrams, learning persistence, LF enforcement, 491 tests |
 | 23 | `pending` | Competitive reframe (Copilot-first), Macroscope table, CI workflow, bundle fix |
+| 24 | `b3b2094` | Fix command injection in linter.ts: execSync → execFileSync, 17 linter tests |
+| 25 | `7e93698` | Update BUILD_LOG with linter/security/dry-run cycle |
+| 26 | `d335571` | Add PR auto-labeling from review findings |
+| 27 | `7083ab2` | Add walkthrough summary + review effort score |
+| 28 | `1d2d9da` | Add provider rate limiter with configurable RPM/RPS |
 
-### Build Stats (Current — 530 Tests)
+### Build Stats (Current — 581 Tests)
 
-- **530 tests** passing (32 test files + 1 skipped)
-- **4,778 production lines** (28 source modules)
+- **581 tests** passing (35 test files + 1 skipped)
+- **5,184 production lines** (31 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
+- **PR auto-labeling**: security, bug, style, compliance, needs-attention, review-heavy
+- **Walkthrough summary**: directory-grouped change overview + review effort score
+- **Rate limiting**: configurable RPM/RPS per provider (token bucket algorithm)
 - **2 Mermaid diagram generators**: architecture flowchart + severity distribution
 - **Learning persistence**: memory/feedback/skills committed to default branch via Git Data REST API
-- **Security hardening**: path.normalize traversal guard, requireApiKey validation, search query sanitization
+- **Security hardening**: execFileSync (no shell injection), path.normalize traversal guard, search query sanitization
 - **Resilience**: diff fallback strategy, paginate summary comments
 - `dist/index.js` bundle verified (rollup with node: externals)
 - Exit code 0 always enforced
