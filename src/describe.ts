@@ -3,12 +3,11 @@
  * Triggered via `/mizumi describe` command.
  */
 import { generateObject } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, requireApiKey } from "./config.js";
+import { MizumiConfig } from "./config.js";
+import { createModel } from "./models.js";
 import { generateArchDiagram } from "./diagram.js";
+import { sanitizeInput } from "./sanitize.js";
 
 const DescriptionSchema = z.object({
   title: z.string().describe("Concise PR title in imperative mood"),
@@ -18,19 +17,6 @@ const DescriptionSchema = z.object({
   breaking: z.string().optional().describe("Breaking changes if any, or 'None'"),
 });
 
-function createModel(config: MizumiConfig) {
-  const apiKey = requireApiKey(config.provider);
-  switch (config.provider) {
-    case "anthropic": return createAnthropic({ apiKey })(config.model);
-    case "openai": return createOpenAI({ apiKey })(config.model);
-    case "google": return createGoogleGenerativeAI({ apiKey })(config.model);
-    case "openrouter": return createOpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey, name: "openrouter" }).chat(config.model);
-    case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey, name: "local" }).chat(config.model);
-    case "custom": return createOpenAI({ baseURL: config.baseUrl || process.env.CUSTOM_BASE_URL || "", apiKey, name: "custom" }).chat(config.model);
-    case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
-  }
-}
-
 export async function generateDescription(
   diffText: string,
   prTitle: string,
@@ -39,16 +25,20 @@ export async function generateDescription(
   diffFiles?: Array<{ path: string; additions: number; deletions: number }>
 ): Promise<string> {
   const model = createModel(config);
+  const safeTitle = sanitizeInput(prTitle || "(none)");
+  const safeBody = sanitizeInput(prBody || "(none)");
+  const safeDiff = sanitizeInput(diffText.slice(0, 50000));
+
   const { object: output } = await generateObject({
     model,
     system: "You generate clear, structured PR descriptions from diff content. Use imperative mood. Be concise.",
     prompt: `Generate a PR description for this diff.
 
-Current title: ${prTitle || "(none)"}
-Current body: ${prBody || "(none)"}
+Current title: ${safeTitle}
+Current body: ${safeBody}
 
 Diff:
-${diffText.slice(0, 50000)}
+${safeDiff}
 
 Respond with structured JSON matching the schema.`,
     schema: DescriptionSchema,
@@ -65,7 +55,6 @@ Respond with structured JSON matching the schema.`,
     body += `\n### Breaking Changes\n${desc.breaking}\n`;
   }
 
-  // Append architecture diagram when multi-directory changes
   if (diffFiles && diffFiles.length >= 2) {
     const diagram = generateArchDiagram(diffFiles);
     if (diagram) {

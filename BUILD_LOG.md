@@ -330,10 +330,33 @@ src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Chan
 | 27 | `7083ab2` | Add walkthrough summary + review effort score |
 | 28 | `1d2d9da` | Add provider rate limiter with configurable RPM/RPS |
 
-### Build Stats (Current — 631 Tests)
+### Cycle: Security Hardening + Test Coverage Expansion (2026-05-24)
 
-- **654 tests** passing (38 test files + 1 skipped)
-- **5,294 production lines** (32 source modules)
+- **Prompt injection fix** (describe.ts): Applied `sanitizeInput` to `prTitle` and `prBody`
+before interpolation into LLM prompt. All PR content is untrusted input.
+- **Prompt injection fix** (compliance.ts): Applied `sanitizeInput` to `issueTitle` and
+`issueBody` before LLM prompt. GitHub issue bodies are attacker-controlled.
+- **Removed duplicated model creation** (describe.ts): Replaced local `createModel` switch
+with `import { createModel } from "./models.js"` — eliminates maintenance hazard
+when new providers are added. No more silent crashes on unknown providers.
+- **Fail-closed gate** (gate.ts): `shouldFailGate` now returns `true` for invalid
+threshold strings instead of silently passing. For a merge gate, safe default = fail.
+- **Action permissions** (action.yml): Added explicit `permissions:` block with minimal
+scopes: contents:read, pull-requests:write, issues:write, statuses:write, checks:write.
+Follows GitHub Actions security best practice (2026).
+- **Exported `truncate`** from agent.ts and `extractIssueRefs` from compliance.ts for testing.
+- **Expanded agent.test.ts** from 14 to 35 tests: added truncate (6) + createAgentTools
+mock tests for read_file (4), search_code (4), find_usages (4) + 7 new sanitize patterns.
+- **Expanded compliance.test.ts** from 6 to 25 tests: added extractIssueRefs (18) tests
+covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivity.
+- **Expanded describe.test.ts** from 6 to 16 tests: parseCommand edge cases (10 new).
+- **Added gate fail-closed test**: invalid threshold returns true.
+- 705 tests passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 705 Tests)
+
+- **705 tests** passing (38 test files + 1 skipped)
+- **5,294 production lines** (33 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)

@@ -149,3 +149,10 @@ outputs:
 runs:
   using: node24
   main: dist/index.js
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+  checks: write

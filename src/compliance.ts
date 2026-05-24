@@ -11,6 +11,7 @@ import { Octokit } from "@octokit/rest";
 import { MizumiConfig, requireApiKey } from "./config.js";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { sanitizeInput } from "./sanitize.js";
 
 const ISSUE_REFS = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|ref(?:erence)?|see|part\s+of|related\s+to)\s*#\d+/gi;
 const BARE_REF = /#(\d+)/g;
@@ -80,7 +81,7 @@ export async function checkCompliance(
   return results;
 }
 
-function extractIssueRefs(text: string): number[] {
+export function extractIssueRefs(text: string): number[] {
   const refs = new Set<number>();
 
   const explicitRefs = text.matchAll(ISSUE_REFS);
@@ -116,13 +117,17 @@ async function evaluateCompliance(
     return { level: "none", summary: "No API key available for compliance check" };
   }
 
+  const safeTitle = sanitizeInput(issueTitle);
+  const safeBody = sanitizeInput(issueBody.slice(0, 2000));
+  const safeDiff = sanitizeInput(diffSummary.slice(0, 3000));
+
   const prompt = `You are evaluating whether a pull request actually implements what a GitHub issue describes.
 
-## Issue #${issueTitle}
-${issueBody.slice(0, 2000)}
+## Issue #${safeTitle}
+${safeBody}
 
 ## PR Changes Summary
-${diffSummary.slice(0, 3000)}
+${safeDiff}
 
 Does this PR implement the issue requirements?`;
 

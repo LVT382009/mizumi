@@ -126,7 +126,7 @@ export function createAgentTools(
   return { read_file, search_code, find_usages };
 }
 
-function truncate(text: string, maxChars: number): string {
+export function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + "\n... [truncated]";
 }

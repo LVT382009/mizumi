@@ -34,7 +34,7 @@ const GATE_CONTEXT = "Mizumi Review Gate";
 export function shouldFailGate(findings: Array<{ severity: string }>, threshold: GateThreshold): boolean {
   if (threshold === "none") return false;
   const thresholdLevel = SEVERITY_LEVEL[threshold];
-  if (thresholdLevel === undefined) return false;
+  if (thresholdLevel === undefined) return true;
   return findings.some((f) => (SEVERITY_LEVEL[f.severity] ?? 4) <= thresholdLevel);
 }
 

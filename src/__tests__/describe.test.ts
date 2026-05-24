@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { parseCommand } from "../describe.js";
 
 describe("parseCommand", () => {
@@ -28,5 +28,30 @@ describe("parseCommand", () => {
   it("parses /mizumi spend", () => {
     const result = parseCommand("/mizumi spend");
     expect(result?.command).toBe("spend");
+  });
+
+  it("parses /mizumi test", () => {
+    const result = parseCommand("/mizumi test");
+    expect(result?.command).toBe("test");
+  });
+
+  it("parses /mizumi trigger", () => {
+    const result = parseCommand("/mizumi trigger");
+    expect(result?.command).toBe("trigger");
+  });
+
+  it("handles extra whitespace in args", () => {
+    const result = parseCommand("/mizumi review   focus   on   security");
+    expect(result?.command).toBe("review");
+    expect(result?.args).toBe("focus   on   security");
+  });
+
+  it("returns null for /mizumi with no subcommand", () => {
+    expect(parseCommand("/mizumi")).toBeNull();
+  });
+
+  it("parses /mizumi with numeric args", () => {
+    const result = parseCommand("/mizumi review #42");
+    expect(result?.args).toBe("#42");
   });
 });

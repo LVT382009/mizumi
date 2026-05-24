@@ -75,6 +75,10 @@ describe("shouldFailGate", () => {
   it("handles unknown severity as lowest priority", () => {
     expect(shouldFailGate([{ severity: "unknown" }], "medium")).toBe(false);
   });
+
+  it("fails closed on invalid threshold (fail-safe default)", () => {
+    expect(shouldFailGate([], "invalid" as GateThreshold)).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
