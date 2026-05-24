@@ -114,6 +114,16 @@ inputs:
     required: false
     default: "true"
 
+  rpm:
+    description: "Max requests per minute to the LLM provider (0 = use provider default: anthropic 50, openai 60, local unlimited)"
+    required: false
+    default: "0"
+
+  rps:
+    description: "Max requests per second to the LLM provider (0 = use provider default: anthropic 5, openai 5, local unlimited)"
+    required: false
+    default: "0"
+
 outputs:
   review_id:
     description: ID of the posted PR review

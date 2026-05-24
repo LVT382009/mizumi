@@ -31,6 +31,7 @@ import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
 import { runAgentContextGathering } from "./agent.js";
 import { runLinters } from "./linter.js";
 import { applyLabels } from "./labels.js";
+import { createRateLimiter } from "./ratelimit.js";
 import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
@@ -52,6 +53,8 @@ async function run(): Promise<void> {
     }
 
     const octokit = new RetryingOctokit({ auth: token });
+  // Rate limiter for provider API calls
+  const rateLimiter = createRateLimiter(config.provider);
 
     const prNumber = getPrNumber(ctx);
     if (!prNumber) {
@@ -78,7 +81,8 @@ async function run(): Promise<void> {
       core.info("Running /mizumi describe...");
       const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
       const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
-      const description = await generateDescription(
+      await rateLimiter.acquire();
+const description = await generateDescription(
         diff.rawDiff.slice(0, 50000), pr.title || "", pr.body || "", config,
     diff.files
       );
@@ -110,7 +114,8 @@ async function run(): Promise<void> {
       core.info("Running /mizumi test...");
       const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
       const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
-      const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindings, config);
+      await rateLimiter.acquire();
+const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindings, config);
       await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: testOutput });
       return;
     }
@@ -278,7 +283,8 @@ core.info("Running review pass...");
 
     // 8. Self-critique (second pass — cheaper model)
     core.info("Running self-critique pass...");
-    const filtered = await runCritique(review, config);
+    await rateLimiter.acquire();
+const filtered = await runCritique(review, config);
     core.info(`After critique: ${filtered.comments.length} findings (threshold=${config.confidenceThreshold})`);
 
     // 8b. Apply learning weights from past feedback
