@@ -356,18 +356,27 @@ if (config.confidenceCalibration || config.complianceCheck) {
   );
   if (deletedCount > 0) core.info(`Cleaned up ${deletedCount} outdated comment(s)`);
 
-  // 10. Post review
-    core.info("Posting review...");
-    const result = await postReview(
-      octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config,
-    diff.files
-    );
-    core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+ // 10. Post review (skip in dry-run mode)
+ if (config.dryRun) {
+   core.info("DRY RUN: Skipping review post. Findings:");
+   for (const c of mergedReview.comments) {
+     core.info(`  [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message.slice(0, 200)}`);
+   }
+   core.setOutput("review_id", 0);
+   core.setOutput("finding_count", mergedReview.comments.length);
+   core.setOutput("risk_score", mergedReview.riskScore);
+ } else {
+   core.info("Posting review...");
+   const result = await postReview(
+     octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config,
+     diff.files
+   );
+   core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
 
-// 10a. Set action outputs
-core.setOutput("review_id", result.reviewId);
-core.setOutput("finding_count", result.findingCount);
-core.setOutput("risk_score", result.riskScore);
+   // 10a. Set action outputs
+   core.setOutput("review_id", result.reviewId);
+   core.setOutput("finding_count", result.findingCount);
+   core.setOutput("risk_score", result.riskScore);
   // Compliance output
  if (complianceResults.length > 0) {
  const topCompliance = complianceResults[0].compliance;
@@ -381,6 +390,7 @@ core.setOutput("risk_score", result.riskScore);
  } else {
  core.setOutput("compliance", "none");
  }
+ }
 
   // 10c. Idempotency already marked atomically at step 0
 
@@ -389,7 +399,7 @@ const spendEntry = createSpendEntry(
   `${owner}/${repo}`, prNumber,
   config.provider, config.model,
   { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier,
-  result.findingCount, result.riskScore
+  mergedReview.comments.length, mergedReview.riskScore
 );
 appendSpendEntry(workspace, spendEntry);
 

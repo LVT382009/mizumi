@@ -76354,31 +76354,42 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         const deletedCount = await cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFindings);
         if (deletedCount > 0)
             info(`Cleaned up ${deletedCount} outdated comment(s)`);
-        // 10. Post review
-        info("Posting review...");
-        const result = await postReview(octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config, diff.files);
-        info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
-        // 10a. Set action outputs
-        setOutput("review_id", result.reviewId);
-        setOutput("finding_count", result.findingCount);
-        setOutput("risk_score", result.riskScore);
-        // Compliance output
-        if (complianceResults.length > 0) {
-            const topCompliance = complianceResults[0].compliance;
-            setOutput("compliance", topCompliance);
-            const complianceBody = formatCompliance(complianceResults);
-            if (complianceBody) {
-                await octokit.rest.issues.createComment({
-                    owner, repo, issue_number: prNumber, body: complianceBody,
-                });
+        // 10. Post review (skip in dry-run mode)
+        if (config.dryRun) {
+            info("DRY RUN: Skipping review post. Findings:");
+            for (const c of mergedReview.comments) {
+                info(`  [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message.slice(0, 200)}`);
             }
+            setOutput("review_id", 0);
+            setOutput("finding_count", mergedReview.comments.length);
+            setOutput("risk_score", mergedReview.riskScore);
         }
         else {
-            setOutput("compliance", "none");
+            info("Posting review...");
+            const result = await postReview(octokit, owner, repo, prNumber, headSha, mergedReview, lineMap, config, diff.files);
+            info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+            // 10a. Set action outputs
+            setOutput("review_id", result.reviewId);
+            setOutput("finding_count", result.findingCount);
+            setOutput("risk_score", result.riskScore);
+            // Compliance output
+            if (complianceResults.length > 0) {
+                const topCompliance = complianceResults[0].compliance;
+                setOutput("compliance", topCompliance);
+                const complianceBody = formatCompliance(complianceResults);
+                if (complianceBody) {
+                    await octokit.rest.issues.createComment({
+                        owner, repo, issue_number: prNumber, body: complianceBody,
+                    });
+                }
+            }
+            else {
+                setOutput("compliance", "none");
+            }
         }
         // 10c. Idempotency already marked atomically at step 0
         // 10b. Track spend
-        const spendEntry = createSpendEntry(`${owner}/${repo}`, prNumber, config.provider, config.model, { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier, result.findingCount, result.riskScore);
+        const spendEntry = createSpendEntry(`${owner}/${repo}`, prNumber, config.provider, config.model, { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier, mergedReview.comments.length, mergedReview.riskScore);
         appendSpendEntry(workspace, spendEntry);
         // 10d. Record findings for emoji feedback tracking
         recordFindings(workspace, `${owner}/${repo}`, prNumber, mergedReview.comments.map((c) => ({ file: c.file, line: c.line, category: c.category, severity: c.severity, message: c.message })));
