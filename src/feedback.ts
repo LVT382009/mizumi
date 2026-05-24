@@ -2,6 +2,8 @@
  * Emoji feedback — polls reactions on Mizumi review comments.
  * 👍 / ❤️ = helpful, 👎 / ❌ = unhelpful.
  * Results stored in .github/mizumi-feedback.json for self-learning.
+ * Adaptive noise reduction: suppressed patterns from feedback history
+ * reduce confidence of repeatedly-dismissed finding types.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -143,10 +145,7 @@ export function recordFindings(
   writeFeedbackStore(workspace, store);
 }
 
-/**
- * Compute acceptance rate per category for use in prompt tuning.
- * Returns map of category → { helpful, unhelpful, rate }.
- */
+/** Compute acceptance rate per category for use in prompt tuning. */
 export function categoryAcceptanceRates(
   store: FeedbackStore
 ): Record<string, { helpful: number; unhelpful: number; rate: number }> {
@@ -166,4 +165,54 @@ export function categoryAcceptanceRates(
   }
 
   return result;
+}
+
+/**
+ * Adaptive noise reduction — compute suppressed patterns from feedback history.
+ * When a category+severity combo has acceptance rate < 30% with 5+ responses,
+ * it's flagged for suppression. Findings matching suppressed patterns get
+ * their confidence reduced, making them more likely to fall below threshold.
+ * Returns set of "{category}:{severity}" patterns to suppress.
+ */
+export function computeSuppressedPatterns(store: FeedbackStore): Set<string> {
+  const buckets: Record<string, { helpful: number; unhelpful: number }> = {};
+
+  for (const entry of store.entries) {
+    if (entry.outcome === "pending") continue;
+    const key = `${entry.category}:${entry.severity}`;
+    if (!buckets[key]) buckets[key] = { helpful: 0, unhelpful: 0 };
+    if (entry.outcome === "helpful") buckets[key].helpful++;
+    if (entry.outcome === "unhelpful") buckets[key].unhelpful++;
+  }
+
+  const suppressed = new Set<string>();
+  for (const [key, counts] of Object.entries(buckets)) {
+    const total = counts.helpful + counts.unhelpful;
+    if (total < 5) continue;
+    const rate = counts.helpful / total;
+    if (rate < 0.3) suppressed.add(key);
+  }
+
+  return suppressed;
+}
+
+/**
+ * Apply adaptive noise reduction to findings.
+ * Findings matching suppressed patterns have confidence reduced by 25 points.
+ * This makes them more likely to fall below the confidence threshold
+ * and get filtered out, without hard-deleting them.
+ */
+export function applyNoiseReduction<T extends { category: string; severity: string; confidence: number }>(
+  findings: T[],
+  suppressed: Set<string>
+): T[] {
+  if (suppressed.size === 0) return findings;
+
+  return findings.map((f) => {
+    const key = `${f.category}:${f.severity}`;
+    if (suppressed.has(key) && f.confidence > 50) {
+      return { ...f, confidence: Math.max(50, f.confidence - 25) };
+    }
+    return f;
+  });
 }

@@ -107419,6 +107419,34 @@ function recordFindings(workspace, repo, pr, findings) {
   }
   writeFeedbackStore(workspace, store);
 }
+function computeSuppressedPatterns(store) {
+  const buckets = {};
+  for (const entry of store.entries) {
+    if (entry.outcome === "pending") continue;
+    const key = `${entry.category}:${entry.severity}`;
+    if (!buckets[key]) buckets[key] = { helpful: 0, unhelpful: 0 };
+    if (entry.outcome === "helpful") buckets[key].helpful++;
+    if (entry.outcome === "unhelpful") buckets[key].unhelpful++;
+  }
+  const suppressed = /* @__PURE__ */ new Set();
+  for (const [key, counts] of Object.entries(buckets)) {
+    const total = counts.helpful + counts.unhelpful;
+    if (total < 5) continue;
+    const rate = counts.helpful / total;
+    if (rate < 0.3) suppressed.add(key);
+  }
+  return suppressed;
+}
+function applyNoiseReduction(findings, suppressed) {
+  if (suppressed.size === 0) return findings;
+  return findings.map((f) => {
+    const key = `${f.category}:${f.severity}`;
+    if (suppressed.has(key) && f.confidence > 50) {
+      return { ...f, confidence: Math.max(50, f.confidence - 25) };
+    }
+    return f;
+  });
+}
 
 // src/describe.ts
 var DescriptionSchema = external_exports.object({
@@ -108767,6 +108795,17 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       info("Learning weights: " + JSON.stringify(learningWeights));
       const adjusted = applyLearningWeights(filtered.comments, learningWeights);
       filtered.comments = adjusted;
+    }
+    try {
+      const feedbackStore = readFeedbackStore(workspace);
+      const suppressed = computeSuppressedPatterns(feedbackStore);
+      if (suppressed.size > 0) {
+        info(`Adaptive noise: ${suppressed.size} suppressed patterns \u2014 ${[...suppressed].join(", ")}`);
+        filtered.comments = applyNoiseReduction(filtered.comments, suppressed);
+        const reduced = filtered.comments.filter((c) => c.confidence < config2.confidenceThreshold).length;
+        if (reduced > 0) info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
+      }
+    } catch {
     }
     let complianceResults = [];
     if (config2.confidenceCalibration || config2.complianceCheck) {

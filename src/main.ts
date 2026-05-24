@@ -22,7 +22,7 @@ import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
 import { createSpendEntry, appendSpendEntry, readSpendLog, formatSpendDigest } from "./spend.js";
 import { computeLearningWeights, applyLearningWeights, recordSuggestion } from "./db.js";
-import { recordFindings } from "./feedback.js";
+import { recordFindings, computeSuppressedPatterns, applyNoiseReduction, readFeedbackStore } from "./feedback.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
@@ -301,7 +301,21 @@ if (Object.keys(learningWeights).length > 0) {
   filtered.comments = adjusted as typeof filtered.comments;
 }
 
-// 8c. Confidence calibration + compliance check (parallel)
+// 8b2. Adaptive noise reduction — suppress repeatedly-dismissed patterns
+    try {
+      const feedbackStore = readFeedbackStore(workspace);
+      const suppressed = computeSuppressedPatterns(feedbackStore);
+      if (suppressed.size > 0) {
+        core.info(`Adaptive noise: ${suppressed.size} suppressed patterns — ${[...suppressed].join(", ")}`);
+        filtered.comments = applyNoiseReduction(filtered.comments, suppressed) as typeof filtered.comments;
+        const reduced = filtered.comments.filter((c) => c.confidence < config.confidenceThreshold).length;
+        if (reduced > 0) core.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // 8c. Confidence calibration + compliance check (parallel)
 let complianceResults: import("./compliance.js").ComplianceResult[] = [];
 if (config.confidenceCalibration || config.complianceCheck) {
   const calibrationPromise = config.confidenceCalibration

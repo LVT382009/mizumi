@@ -9,6 +9,8 @@ import {
   writeFeedbackStore,
   recordFindings,
   categoryAcceptanceRates,
+  computeSuppressedPatterns,
+  applyNoiseReduction,
 } from "../feedback.js";
 
 let tmpDir: string;
@@ -113,5 +115,159 @@ describe("categoryAcceptanceRates", () => {
     };
     const rates = categoryAcceptanceRates(store);
     expect(Object.keys(rates)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeSuppressedPatterns — adaptive noise reduction
+// ---------------------------------------------------------------------------
+
+describe("computeSuppressedPatterns", () => {
+  it("returns empty set for empty store", () => {
+    const suppressed = computeSuppressedPatterns({ entries: [] });
+    expect(suppressed.size).toBe(0);
+  });
+
+  it("returns empty set when all entries are pending", () => {
+    const store = {
+      entries: Array.from({ length: 10 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+        category: "style", severity: "low", messageHash: `h${i}`,
+        outcome: "pending" as const, createdAt: "2026-01-01",
+      })),
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.size).toBe(0);
+  });
+
+  it("does not suppress with < 5 total responses", () => {
+    const store = {
+      entries: [
+        { repo: "o/r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "style", severity: "low", messageHash: "a", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 2, commentId: 2, file: "b.ts", line: 2, category: "style", severity: "low", messageHash: "b", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 3, commentId: 3, file: "c.ts", line: 3, category: "style", severity: "low", messageHash: "c", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 4, commentId: 4, file: "d.ts", line: 4, category: "style", severity: "low", messageHash: "d", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.size).toBe(0); // 4 < 5 minimum
+  });
+
+  it("suppresses category:severity with < 30% acceptance and 5+ responses", () => {
+    const store = {
+      entries: [
+        ...Array.from({ length: 4 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `h${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+        { repo: "o/r", pr: 5, commentId: 5, file: "e.ts", line: 5, category: "style", severity: "low", messageHash: "e", outcome: "helpful" as const, createdAt: "2026-01-01" },
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(true); // 1/5 = 20% < 30%
+  });
+
+  it("does not suppress category:severity with >= 30% acceptance", () => {
+    const store = {
+      entries: [
+        ...Array.from({ length: 3 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "security", severity: "high", messageHash: `h${i}`,
+          outcome: "helpful" as const, createdAt: "2026-01-01",
+        })),
+        ...Array.from({ length: 2 }, (_, i) => ({
+          repo: "o/r", pr: i + 3, commentId: i + 3, file: "b.ts", line: i + 3,
+          category: "security", severity: "high", messageHash: `u${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("security:high")).toBe(false); // 3/5 = 60% >= 30%
+  });
+
+  it("suppresses multiple patterns independently", () => {
+    const store = {
+      entries: [
+        // style:low — all unhelpful (suppressed)
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `s${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+        // bug:medium — mixed (not suppressed)
+        ...Array.from({ length: 3 }, (_, i) => ({
+          repo: "o/r", pr: i + 5, commentId: i + 5, file: "b.ts", line: i + 5,
+          category: "bug", severity: "medium", messageHash: `b${i}`,
+          outcome: "helpful" as const, createdAt: "2026-01-01",
+        })),
+        ...Array.from({ length: 2 }, (_, i) => ({
+          repo: "o/r", pr: i + 8, commentId: i + 8, file: "c.ts", line: i + 8,
+          category: "bug", severity: "medium", messageHash: `bu${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(true);
+    expect(suppressed.has("bug:medium")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyNoiseReduction — confidence reduction for suppressed patterns
+// ---------------------------------------------------------------------------
+
+describe("applyNoiseReduction", () => {
+  it("returns findings unchanged when no suppressed patterns", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 85, file: "a.ts", line: 1, message: "x" },
+    ];
+    const result = applyNoiseReduction(findings, new Set());
+    expect(result[0].confidence).toBe(85);
+  });
+
+  it("reduces confidence by 25 for suppressed patterns", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 90, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(65);
+  });
+
+  it("does not reduce confidence below 50", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 55, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(50);
+  });
+
+  it("does not reduce findings already at 50", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 50, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(50);
+  });
+
+  it("leaves non-suppressed findings unchanged", () => {
+    const findings = [
+      { category: "security", severity: "high", confidence: 95, file: "a.ts", line: 1, message: "x" },
+      { category: "style", severity: "low", confidence: 90, file: "b.ts", line: 2, message: "y" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(95); // unchanged
+    expect(result[1].confidence).toBe(65); // reduced
+  });
+
+  it("handles empty findings array", () => {
+    const result = applyNoiseReduction([], new Set(["style:low"]));
+    expect(result).toEqual([]);
   });
 });
