@@ -21,6 +21,24 @@ export function isDangerousPath(p: string): boolean {
   return false;
 }
 
+/** Verify a patch suggestion before applying — catches common LLM mistakes. */
+export function verifyPatch(original: string, replacement: string): { valid: boolean; reason?: string } {
+  if (replacement.trim().length === 0) {
+    return { valid: false, reason: "replacement is empty/whitespace" };
+  }
+  // Detect obvious indentation mismatch (original indented, replacement is not)
+  const origIndent = original.match(/^\s*/)?.[0].length ?? 0;
+  const replIndent = replacement.match(/^\s*/)?.[0].length ?? 0;
+  if (origIndent >= 2 && replIndent === 0 && !replacement.includes("\n")) {
+    return { valid: false, reason: "indentation mismatch: original is indented but replacement is not" };
+  }
+  // Detect replacement that nukes surrounding structure (e.g. replacing a full line with just a bracket)
+  if (original.trim().length > 20 && replacement.trim().length <= 2) {
+    return { valid: false, reason: "replacement too short relative to original — likely incorrect" };
+  }
+  return { valid: true };
+}
+
 /** Extract ```suggestion blocks from a review comment body. */
 export function parseSuggestions(body: string, filePath: string, line: number): Suggestion[] {
   const results: Suggestion[] = [];
@@ -64,7 +82,14 @@ async function applyFileFixes(
     const lines = Buffer.from(blob.content, "base64").toString("utf-8").split("\n");
     for (const s of [...suggestions].sort((a, b) => b.line - a.line)) {
       const idx = s.line - 1;
-      if (idx >= 0 && idx < lines.length) { lines[idx] = s.code; fixedCount++; }
+      if (idx >= 0 && idx < lines.length) {
+      const verification = verifyPatch(lines[idx], s.code);
+      if (!verification.valid) {
+        core.warning(`Skipping invalid patch at ${filePath}:${s.line}: ${verification.reason}`);
+        continue;
+      }
+      lines[idx] = s.code; fixedCount++;
+    }
     }
     const { data: newBlob } = await octokit.rest.git.createBlob({ owner, repo, content: lines.join("\n"), encoding: "utf-8" });
     entries.push({ path: filePath, mode: "100644", type: "blob", sha: newBlob.sha });

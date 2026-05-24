@@ -1,18 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSuggestions } from "../improve.js";
-import * as path from "node:path";
-
-// Mirror the updated isDangerousPath from improve.ts for direct testing
-function isDangerousPath(p: string): boolean {
-  if (!p || p.trim() === "") return true;
-  const normalized = path.normalize(p);
-  if (path.isAbsolute(normalized)) return true;
-  const segments = normalized.split(/[/\\]+/);
-  if (segments.some((s) => s === "..")) return true;
-  if (segments.some((s) => s.startsWith(".") && s !== ".")) return true;
-  if (/^\\\\/.test(p)) return true;
-  return false;
-}
+import { parseSuggestions, isDangerousPath, verifyPatch } from "../improve.js";
 
 describe("isDangerousPath", () => {
   it("rejects path traversal with ..", () => {
@@ -86,5 +73,60 @@ describe("parseSuggestions", () => {
     const results = parseSuggestions(body, "src/c.ts", 20);
     expect(results).toHaveLength(1);
     expect(results[0].code).toBe("if (x) {\n return y;\n}");
+  });
+});
+
+describe("verifyPatch", () => {
+  it("accepts valid replacement", () => {
+    const result = verifyPatch("const x = 1;", "const x = 2;");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects empty replacement", () => {
+    const result = verifyPatch("const x = 1;", "");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("empty");
+  });
+
+  it("rejects whitespace-only replacement", () => {
+    const result = verifyPatch("const x = 1;", "   ");
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects indentation mismatch", () => {
+    const result = verifyPatch("    const x = 1;", "const x = 2;");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("indentation");
+  });
+
+  it("accepts replacement with matching indentation", () => {
+    const result = verifyPatch("    const x = 1;", "    const x = 2;");
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts multiline replacement even with different indentation", () => {
+    const result = verifyPatch("  if (x) {", "if (x && y) {\n    return z;\n  }");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects replacement that is too short relative to original", () => {
+    const result = verifyPatch("const result = computeValue(input, config, opts);", "}");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("too short");
+  });
+
+  it("accepts short replacement when original is also short", () => {
+    const result = verifyPatch("x", "y");
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts replacement with greater indentation", () => {
+    const result = verifyPatch("const x = 1;", "    const x = 2;");
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts no-indent original with no-indent replacement", () => {
+    const result = verifyPatch("export default App;", "export default NewApp;");
+    expect(result.valid).toBe(true);
   });
 });
