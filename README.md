@@ -1,6 +1,10 @@
 # Mizumi — Self-Learning PR Review Agent
 
+> AI generates code 10x faster. Reviewing it is your #1 bottleneck.
+
 Mizumi is a GitHub Action that reviews pull requests using AI, learns from past reviews, and posts actionable findings — with deterministic rules that never hallucinate.
+
+**Why not use Anthropic's own Code Review?** It costs $15–$25 per review and takes ~20 minutes. Mizumi's BYOK model costs $0.001–$0.08 per review — a 100–10,000x price gap — and runs in seconds, not minutes. Plus Mizumi works with any provider, not just Anthropic.
 
 ## Features
 
@@ -16,6 +20,12 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Slop detection** — Skips deep review for low-quality AI-generated PRs
 - **VS Code deep-links** — Each review comment includes a `vscode://file/` link
 - **Tier routing** — Small diffs route to a cheaper model to reduce cost
+- **Confidence calibration** — Dual-model voting on borderline findings (high/medium/low badges)
+- **Ticket compliance** — Checks if PR changes match referenced GitHub Issues (3-tier: fully/partially/not)
+- **Change Stack** — Reorganizes large PR output into dependency order (data models → contracts → logic → consumers → tests)
+- **Auto-fix on 👍** — React with thumbs-up on any Mizumi suggestion to auto-apply the fix
+- **Fuzzy dedup** — Suppresses near-duplicate findings and cleans stale comments using rapid-fuzzy matching
+- **SQLite learning** — Tracks suggestion acceptance rates, promotes/demotes categories based on past feedback
 
 ## Quick Start
 

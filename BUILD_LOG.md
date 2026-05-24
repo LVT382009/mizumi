@@ -45,12 +45,21 @@
 | 2.5 Emoji feedback | ✅ | `feedback.ts` — reaction polling, JSON store, acceptance rates |
 | 2.8 Prompt caching | ✅ | `review.ts` — Anthropic cacheControl ephemeral |
 | 2.9 Token estimation | ✅ | `router.ts` — estimateTokens, guardContextWindow with head/tail truncation |
-| 2.11 Fuzzy dedup | ⏳ v1 | Dependency: rapid-fuzzy |
+| 2.11 Fuzzy dedup | ✅ | `fuzzy.ts` — rapid-fuzzy tokenSetRatioMany, 0.85 duplicate threshold, stale cleanup |
 | 2.12 Outdated comment cleanup | ✅ | `post.ts` — cleanupOutdatedComments deletes stale marked comments |
 | 2.14 Review Ghost | ✅ | `memory.ts` ghostWarnings + context.ts injection |
 | 2.15 PR description quality | ✅ | `description.ts` — score 0-4 with missing elements feedback |
 | 2.16 Review fatigue | ✅ | `post.ts` — buildFatigueWarning for >15 findings |
 | 2.17 Slop detection | ✅ | `slop.ts` — 5 heuristics, score >=60 = slop |
+| 2.3 Agent context | ✅ | `agent.ts` — Tool-using agent (read_file/search_code/find_usages), stepCountIs(8) |
+| 2.6 Feedback tracker | ✅ | `db.ts` — node:sqlite suggestions table, recordSuggestion/updateOutcome |
+| 2.7 Learning weights | ✅ | `db.ts` — computeLearningWeights, applyLearningWeights (demote/promote/neutral) |
+| 2.10 Auto-fix on 👍 | ✅ | `autofix.ts` — processReactionApprovals, polls reactions, applies via generateFix |
+| 2.13 Smart diff context | ✅ | `agent.ts` — runAgentContextGathering with tool-using agent |
+| 2.18 Change Stack | ✅ | `changestack.ts` — cohort ordering (data-model→contract→logic→test→consumer→other) |
+| 2.19 Confidence calibration | ✅ | `calibrate.ts` — dual-model voting, borderline 60-80 re-verified, badges (high/medium/low) |
+| 2.20 PR splitting | ✅ | `post.ts` — buildFatigueWarning suggests splitting for >15 findings |
+| 2.22 Ticket compliance | ✅ | `compliance.ts` — checkCompliance via LLM, 3-tier (fully/partially/not), shields.io badges |
 
 ### Phase 3 — Make It Remember ✅
 
@@ -90,34 +99,50 @@
 - Cleaned stale `.d.ts`/`.d.ts.map` artifacts from dist/
 - All test mocks updated: `getApiKey` ↔ `requireApiKey` per module
 
+### Phase 2 Integration (This Cycle)
+
+- Integrated `calibrateConfidence` into step 8c (parallel with compliance)
+- Integrated `checkCompliance` + `formatCompliance` (results posted as follow-up comment)
+- Integrated `processReactionApprovals` at pipeline start (step 0b)
+- Integrated `buildChangeStack` into post.ts buildReviewBody (5+ findings)
+- Fixed `classifyCohort` to use COHORT_ORDER iteration (test before consumer)
+- Added `/types/` and `.d.ts` patterns to data-model cohort
+- Added `\buse[A-Z]` pattern for React hooks (replaces too-broad `/use/`)
+- Added risk score clamping in buildReviewBody and buildSummaryComment
+- Added action.yml inputs: compliance_check, auto_fix, confidence_calibration, change_stack
+- Added action.yml outputs: compliance, auto_fixed
+- Added MizumiConfig fields: complianceCheck, autoFix, confidenceCalibration, changeStack
+- 451 tests passing, 0 TS errors, bundle rebuilt
+
 ### Deferred to v1
 
 - Checks API (1.5, 1.21)
 - Incremental review (1.9)
-- Feedback tracker in SQLite (2.6)
-- Fuzzy dedup via rapid-fuzzy (2.11)
 - Batch API (3.12)
 - Platform abstraction (3.14)
 - Qdrant vector memory (3.7) + RAG pipeline (3.8)
 - Postgres migration (3.6)
 - Marketplace listing (3.19)
+- Repo indexing (3.1)
+- Dashboard (3.2)
 
-### Build Stats (v0.1 Final)
+### Build Stats (Phase 2 Complete)
 
-- **397 tests** passing (22 test files + 1 skipped)
-- **3,008 production lines** (21 source modules)
+- **451 tests** passing (26 test files + 1 skipped)
+- **3,600+ production lines** (26 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **4 subcommands**: `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`
+- **7 Phase 2 features integrated**: fuzzy dedup, agent context, SQLite feedback, auto-fix, calibration, compliance, change stack
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 
 ### Source Modules
 
 ```
-src/main.ts (370) — Action entrypoint (exit 0 always)
-src/post.ts (315) — Post review: inline + summary + dedup + VS Code links
-src/config.ts (225) — mizumi.yml parser + env + BYOK + custom provider + validation
+src/main.ts (405) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
+src/post.ts (335) — Post review: inline + summary + dedup + change stack + VS Code links
+src/config.ts (232) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
 src/review.ts (193) — LLM review with AI SDK 6 + Zod schema + prompt caching
 src/memory.ts (209) — MEMORY.md + ghost warnings + auto skills + progressive loading
 src/linemap.ts (195) — Map LLM lines → GitHub diff positions
@@ -136,6 +161,13 @@ src/testgen.ts (80) — /mizumi test (custom provider support)
 src/router.ts (83) — Tier routing + context window guard
 src/classifier.ts (80) — Heuristic PR classification
 src/slop.ts (75) — AI-generated code detector
+src/fuzzy.ts (52) — Fuzzy dedup with rapid-fuzzy tokenSetRatioMany
+src/db.ts (160) — SQLite feedback tracker (node:sqlite), learning weights
+src/agent.ts (140) — Tool-using agent (read_file/search_code/find_usages)
+src/autofix.ts (93) — Auto-commit on 👍 reaction approval
+src/calibrate.ts (133) — Dual-model confidence calibration + badges
+src/compliance.ts (191) — Ticket-to-code compliance check + shields.io badges
+src/changestack.ts (86) — Change Stack cohort ordering
 ```
 
 ### Commit History
