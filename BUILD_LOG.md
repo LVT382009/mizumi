@@ -152,37 +152,53 @@
 - Fixed review.test.ts return shape: { output: result } not { object: result }
 - 498 tests passing, 0 TS errors, bundle rebuilt
 
+### Cycle: Security Hardening + Resilience (2026-05-24)
+
+- Fixed `isDangerousPath` traversal bypass: now uses `path.normalize()` + segment checks
+  (catches UNC paths, backslash traversal, hidden files, empty paths)
+- Fixed `requireApiKey` silent "dummy" for custom provider: now throws like other providers
+- Added pagination to `createOrUpdateSummaryComment` (prevents duplicate summaries on PRs >100 comments)
+- Added `sanitizeSearchQuery` to agent.ts: strips GitHub search operators (repo:, user:, path:,
+  language:, etc.) from LLM-generated queries to prevent search injection
+- Added `/mizumi review [instructions]`: custom review prompts via `/mizumi review focus on security`
+- Added compare-commits fallback for `fetchDiff` (Strategy 2) — resilient against 404/rate-limit
+- Added diff.test.ts fallback test + agent.test.ts sanitizeSearchQuery tests (14 new)
+- improve.test.ts: 4 new isDangerousPath test cases (UNC, hidden, empty, backslash traversal)
+- 520 tests passing, 0 TS errors, bundle rebuilt
+
 ### Source Modules
 
 ```
-src/main.ts (405) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
-src/post.ts (335) — Post review: inline + summary + dedup + change stack + VS Code links
-src/config.ts (232) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
+src/main.ts (505) — Action entrypoint: rules → review → critique → calibrate → compliance → post → memory
+src/post.ts (401) — Post review: inline + summary + dedup + change stack + VS Code links
+src/config.ts (243) — mizumi.yml parser + env + BYOK + custom provider + Phase 2 toggles
 src/review.ts (193) — LLM review with AI SDK 6 + Zod schema + prompt caching
-src/memory.ts (209) — MEMORY.md + ghost warnings + auto skills + progressive loading
+src/memory.ts (210) — MEMORY.md + ghost warnings + auto skills + progressive loading
 src/linemap.ts (195) — Map LLM lines → GitHub diff positions
-src/diff.ts (151) — Fetch PR diff, parse hunks, PII stripping
+src/diff.ts (169) — Fetch PR diff, parse hunks, PII stripping + compare fallback
 src/rules.ts (140) — Deterministic rules (secrets, auth, SQL injection, approval guard)
 src/feedback.ts (169) — Emoji feedback polling + acceptance rates
-src/critique.ts (118) — Self-critique pass (graceful provider fallback)
+src/compliance.ts (173) — Ticket-to-code compliance check + shields.io badges
+src/critique.ts (115) — Self-critique pass (graceful provider fallback)
 src/spend.ts (126) — JSONL spend tracking + digest
-src/context.ts (87) — Build LLM context (diff + memory + rules + ghost)
+src/calibrate.ts (132) — Dual-model confidence calibration + badges
+src/agent.ts (201) — Tool-using agent (read_file/search_code/find_usages) + query sanitization
+src/diagram.ts (137) — Mermaid architecture + severity diagram generators
+src/db.ts (206) — SQLite feedback tracker (node:sqlite), learning weights
+src/persist.ts (124) — Learning persistence via Git Data REST API
 src/idempotency.ts (88) — Atomic check-and-mark dedup (TOCTOU-safe)
 src/sanitize.ts (105) — Input sanitization + output screening
-src/description.ts (51) — PR description quality scorer
-src/describe.ts (80) — /mizumi describe (custom provider support)
-src/improve.ts (85) — /mizumi improve (path traversal guard + hoisted API calls)
-src/testgen.ts (80) — /mizumi test (custom provider support)
+src/autofix.ts (93) — Auto-commit on 👍 reaction approval
+src/improve.ts (96) — /mizumi improve (path.normalize + traversal guard + hoisted API)
+src/context.ts (87) — Build LLM context (diff + memory + rules + ghost)
+src/describe.ts (84) — /mizumi describe (custom provider support)
 src/router.ts (83) — Tier routing + context window guard
 src/classifier.ts (80) — Heuristic PR classification
+src/testgen.ts (74) — /mizumi test (custom provider support)
 src/slop.ts (75) — AI-generated code detector
-src/fuzzy.ts (52) — Fuzzy dedup with rapid-fuzzy tokenSetRatioMany
-src/db.ts (160) — SQLite feedback tracker (node:sqlite), learning weights
-src/agent.ts (140) — Tool-using agent (read_file/search_code/find_usages)
-src/autofix.ts (93) — Auto-commit on 👍 reaction approval
-src/calibrate.ts (133) — Dual-model confidence calibration + badges
-src/compliance.ts (191) — Ticket-to-code compliance check + shields.io badges
-src/changestack.ts (86) — Change Stack cohort ordering
+src/description.ts (51) — PR description quality scorer
+src/fuzzy.ts (89) — Fuzzy dedup with rapid-fuzzy tokenSetRatioMany
+src/changestack.ts (90) — Change Stack cohort ordering
 ```
 
 ### Commit History
@@ -213,15 +229,17 @@ src/changestack.ts (86) — Change Stack cohort ordering
 | 22 | `09b2a72` | Mermaid diagrams, learning persistence, LF enforcement, 491 tests |
 | 23 | `pending` | Competitive reframe (Copilot-first), Macroscope table, CI workflow, bundle fix |
 
-### Build Stats (Current — 491 Tests)
+### Build Stats (Current — 520 Tests)
 
-- **491 tests** passing (30 test files + 1 skipped)
-- **4,448 production lines** (27 source modules)
+- **520 tests** passing (31 test files + 1 skipped)
+- **4,534 production lines** (27+7 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
-- **5 subcommands**: `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
+- **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
 - **2 Mermaid diagram generators**: architecture flowchart + severity distribution
 - **Learning persistence**: memory/feedback/skills committed to default branch via Git Data REST API
-- `dist/index.js` bundle verified (2.6MB, rollup with node: externals)
+- **Security hardening**: path.normalize traversal guard, requireApiKey validation, search query sanitization
+- **Resilience**: diff fallback strategy, paginate summary comments
+- `dist/index.js` bundle verified (rollup with node: externals)
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
