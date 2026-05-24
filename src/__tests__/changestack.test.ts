@@ -184,4 +184,58 @@ describe("buildChangeStack", () => {
     expect(stack).toContain("[CRITICAL] security");
     expect(stack).toContain("Auth bypass");
   });
+
+  it("classifies service files as contract", () => {
+    expect(classifyCohort("src/services/userService.ts")).toBe("contract");
+  });
+
+  it("classifies route files as contract", () => {
+    expect(classifyCohort("src/routes/index.ts")).toBe("contract");
+  });
+
+  it("classifies handler files as contract", () => {
+    expect(classifyCohort("src/handlers/createUser.ts")).toBe("contract");
+  });
+
+  it("classifies module files as logic", () => {
+    expect(classifyCohort("src/modules/auth.ts")).toBe("logic");
+  });
+
+  it("classifies class files as logic", () => {
+    expect(classifyCohort("src/classes/User.ts")).toBe("logic");
+  });
+
+  it("classifies core files as logic", () => {
+    expect(classifyCohort("src/core/engine.ts")).toBe("logic");
+  });
+
+  it("classifies page/view files as consumer", () => {
+    expect(classifyCohort("src/views/Dashboard.tsx")).toBe("consumer");
+  });
+
+  it("classifies import-only files names as consumer", () => {
+    expect(classifyCohort("src/imports/reexport.ts")).toBe("consumer");
+  });
+
+  it("returns other for files with no matching patterns", () => {
+    expect(classifyCohort("scripts/deploy.sh")).toBe("other");
+    expect(classifyCohort("Dockerfile")).toBe("other");
+  });
+
+  it("handles change stack with only one cohort type", () => {
+    const findings = Array.from({ length: 5 }, (_, i) =>
+      makeFinding({ file: `src/models/entity${i}.ts`, severity: "medium", category: "bug", message: `Bug ${i}` })
+    );
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("Data Models & Schemas");
+    expect(stack).not.toContain("API Contracts");
+  });
+
+  it("includes test cohort for spec files", () => {
+    expect(classifyCohort("tests/integration/user.spec.ts")).toBe("test");
+  });
+
+  it("data model matched before contract for model files", () => {
+    expect(classifyCohort("src/models/api.ts")).toBe("data-model");
+  });
 });

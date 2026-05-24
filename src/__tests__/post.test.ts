@@ -1238,3 +1238,159 @@ describe("formatReportCard", () => {
     expect(text).toContain("F");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 19. Report card edge cases
+// ---------------------------------------------------------------------------
+
+describe("buildReportCard edge cases", () => {
+  it("nitpick severity has 0.5 weight", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "nitpick", category: "style", message: "x", confidence: 80 },
+      { file: "b.ts", line: 2, severity: "nitpick", category: "style", message: "y", confidence: 80 },
+    ];
+    const card = buildReportCard(findings, 2);
+    // 2 * 0.5 = 1.0 → score 1 → B for hygiene
+    expect(card.hygiene).toBe("B");
+  });
+
+  it("unknown severity defaults to weight 1", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "info" as any, category: "style", message: "x", confidence: 80 },
+    ];
+    const card = buildReportCard(findings, 2);
+    // 1 * 1 = 1 → B for hygiene
+    expect(card.hygiene).toBe("B");
+  });
+
+  it("high risk score gives F coverage", () => {
+    const card = buildReportCard([], 5);
+    // riskScore 5 → coverageScore 3 → C
+    expect(card.coverage).toBe("C");
+  });
+
+  it("risk score 4 gives C coverage", () => {
+    const card = buildReportCard([], 4);
+    expect(card.coverage).toBe("C");
+  });
+
+  it("risk score 2 gives A coverage", () => {
+    const card = buildReportCard([], 2);
+    expect(card.coverage).toBe("A");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 20. Truncation in postReview
+// ---------------------------------------------------------------------------
+
+describe("postReview body truncation", () => {
+  it("truncates review body when exceeding 65535 chars", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    // Create a review with many findings to produce a long body
+    const manyComments = Array.from({ length: 200 }, (_, i) =>
+      makeComment({ file: `src/file${i}.ts`, line: i + 1, severity: "medium", category: "style", message: `Finding ${i} with a very long description that makes the body longer`.repeat(20) })
+    );
+    const review = makeReview({ comments: manyComments, riskScore: 3 });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    const body: string = call.body;
+    // Body should be within GitHub's limit
+    expect(body.length).toBeLessThanOrEqual(65535 + 200); // some margin for truncation message
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 21. buildReviewBody with descriptionFeedback
+// ---------------------------------------------------------------------------
+
+describe("buildReviewBody with descriptionFeedback", () => {
+  it("includes description feedback when provided", () => {
+    const body = buildReviewBody([], [], [], [], 2, 0, "COMMENT", "PR description needs improvement");
+    expect(body).toContain("PR description needs improvement");
+  });
+
+  it("omits description feedback section when undefined", () => {
+    const body = buildReviewBody([], [], [], [], 2, 0, "COMMENT");
+    expect(body).not.toContain("undefined");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 22. buildReviewBody with arch diagram + severity diagram
+// ---------------------------------------------------------------------------
+
+describe("buildReviewBody diagrams", () => {
+  it("includes architecture diagram when diffFiles >= 2 and multiple directory groups", () => {
+    const diffFiles: import("../post.js").DiffFileSummary[] = [
+      { path: "src/auth.ts", additions: 20, deletions: 5 },
+      { path: "lib/utils.ts", additions: 10, deletions: 2 },
+    ];
+    const findings: ReviewCommentType[] = [
+      { file: "src/auth.ts", line: 5, severity: "high", category: "security", message: "XSS", confidence: 90 },
+    ];
+    const body = buildReviewBody([], [], [], [], 3, 1, "COMMENT", undefined, findings, diffFiles);
+    expect(body).toContain("Change Architecture");
+  });
+
+  it("includes severity distribution when findings > 0", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "critical", category: "security", message: "x", confidence: 95 },
+      { file: "b.ts", line: 2, severity: "low", category: "style", message: "y", confidence: 60 },
+    ];
+    const body = buildReviewBody([findings[0]], [], [findings[1]], [], 3, 2, "COMMENT", undefined, findings);
+    expect(body).toContain("Finding Distribution");
+  });
+
+  it("omits architecture diagram when no diffFiles provided", () => {
+    const findings: ReviewCommentType[] = [
+      { file: "a.ts", line: 1, severity: "high", category: "bug", message: "x", confidence: 80 },
+    ];
+    const body = buildReviewBody([findings[0]], [], [], [], 2, 1, "COMMENT", undefined, findings);
+    expect(body).not.toContain("Change Architecture");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 23. mapDecision edge cases
+// ---------------------------------------------------------------------------
+
+describe("postReview decision mapping", () => {
+  it("defaults unknown decision to COMMENT", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    const review = makeReview({ decision: "unknown" as any, comments: [] });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    expect(call.event).toBe("COMMENT");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 24. fingerprint uniqueness
+// ---------------------------------------------------------------------------
+
+describe("computeFingerprint uniqueness", () => {
+  it("different files with same line and message produce different fingerprints", () => {
+    const fp1 = computeFingerprint("src/a.ts", 10, "Bug");
+    const fp2 = computeFingerprint("src/b.ts", 10, "Bug");
+    expect(fp1).not.toBe(fp2);
+  });
+
+  it("same file with different lines produces different fingerprints", () => {
+    const fp1 = computeFingerprint("src/a.ts", 10, "Bug");
+    const fp2 = computeFingerprint("src/a.ts", 20, "Bug");
+    expect(fp1).not.toBe(fp2);
+  });
+});

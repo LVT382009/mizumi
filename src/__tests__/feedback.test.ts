@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -11,6 +11,7 @@ import {
   categoryAcceptanceRates,
   computeSuppressedPatterns,
   applyNoiseReduction,
+  pollReactions,
 } from "../feedback.js";
 
 let tmpDir: string;
@@ -269,5 +270,146 @@ describe("applyNoiseReduction", () => {
   it("handles empty findings array", () => {
     const result = applyNoiseReduction([], new Set(["style:low"]));
     expect(result).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pollReactions — requires mocking Octokit
+// ---------------------------------------------------------------------------
+
+describe("pollReactions", () => {
+  it("returns helpful count for +1 reactions", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [
+              { content: "+1" },
+              { content: "+1" },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(2);
+    expect(result.unhelpful).toBe(0);
+  });
+
+  it("returns unhelpful count for -1 reactions", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [
+              { content: "-1" },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(0);
+    expect(result.unhelpful).toBe(1);
+  });
+
+  it("counts heart as helpful", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [{ content: "heart" }],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(1);
+  });
+
+  it("counts no_entry as unhelpful", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [{ content: "no_entry" }],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.unhelpful).toBe(1);
+  });
+
+  it("ignores non-voting reactions (rocket, eyes, etc.)", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [
+              { content: "rocket" },
+              { content: "eyes" },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(0);
+    expect(result.unhelpful).toBe(0);
+  });
+
+  it("handles mixed reactions", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({
+            data: [
+              { content: "+1" },
+              { content: "heart" },
+              { content: "-1" },
+              { content: "rocket" },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(2);
+    expect(result.unhelpful).toBe(1);
+  });
+
+  it("returns zeros when API call fails", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockRejectedValue(new Error("API error")),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(0);
+    expect(result.unhelpful).toBe(0);
+  });
+
+  it("returns zeros when no reactions exist", async () => {
+    const octokit = {
+      rest: {
+        reactions: {
+          listForIssueComment: vi.fn().mockResolvedValue({ data: [] }),
+        },
+      },
+    } as any;
+
+    const result = await pollReactions(octokit, "owner", "repo", 42);
+    expect(result.helpful).toBe(0);
+    expect(result.unhelpful).toBe(0);
   });
 });
