@@ -3,11 +3,9 @@
  * Uses LLM to produce test code from review findings + diff context.
  */
 import { generateObject } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { MizumiConfig, requireApiKey } from "./config.js";
+import { MizumiConfig } from "./config.js";
+import { createModel } from "./models.js";
 
 const TestSchema = z.object({
   tests: z.array(z.object({
@@ -15,19 +13,6 @@ const TestSchema = z.object({
     code: z.string().describe("Complete test code block"),
   })).describe("Generated test files"),
 });
-
-function createModel(config: MizumiConfig) {
-  const apiKey = requireApiKey(config.provider);
-  switch (config.provider) {
-    case "anthropic": return createAnthropic({ apiKey })(config.model);
-    case "openai": return createOpenAI({ apiKey })(config.model);
-    case "google": return createGoogleGenerativeAI({ apiKey })(config.model);
-    case "openrouter": return createOpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey, name: "openrouter" }).chat(config.model);
-    case "local": return createOpenAI({ baseURL: config.baseUrl || "http://localhost:11434/v1", apiKey, name: "local" }).chat(config.model);
-    case "custom": return createOpenAI({ baseURL: config.baseUrl || process.env.CUSTOM_BASE_URL || "", apiKey, name: "custom" }).chat(config.model);
-  case "nvidia": return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey, name: "nvidia" }).chat(config.model);
-  }
-}
 
 export async function generateTests(
   diffText: string,
