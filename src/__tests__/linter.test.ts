@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { categorizeRule, runEslint, runTsc, runPrettier, runLinters } from "../linter.js";
+import { categorizeRule, runEslint, runTsc, runPrettier, runLinters, runDependencyAudit, runNpmAudit, runPipAudit, mapNpmSeverity } from "../linter.js";
 
 vi.mock("node:child_process", () => ({
   execFileSync: vi.fn(),
@@ -276,5 +276,217 @@ describe("LinterFinding structure", () => {
     expect(["critical", "high", "medium", "low"]).toContain(finding.severity);
     expect(["style", "bug", "security", "compliance"]).toContain(finding.category);
     expect(finding.linter).toBeTruthy();
+  });
+});
+
+describe("runNpmAudit", () => {
+  it("parses npm audit JSON with vulnerabilities", () => {
+    const auditJson = JSON.stringify({
+      vulnerabilities: {
+        lodash: {
+          severity: "high",
+          via: [{ title: "Prototype Pollution", url: "https://example.com", severity: "high" }],
+          fixAvailable: { name: "lodash", version: "4.17.21" },
+        },
+      },
+    });
+    mockExec.mockImplementation(() => {
+      const err: any = new Error("audit failed");
+      err.stdout = auditJson;
+      throw err;
+    });
+
+    const results = runNpmAudit("/workspace");
+    expect(results).toHaveLength(1);
+    expect(results[0].file).toBe("package.json");
+    expect(results[0].severity).toBe("high");
+    expect(results[0].category).toBe("security");
+    expect(results[0].linter).toBe("npm-audit");
+    expect(results[0].message).toContain("lodash");
+    expect(results[0].message).toContain("Prototype Pollution");
+    expect(results[0].message).toContain("fix available");
+  });
+
+  it("returns empty when no vulnerabilities", () => {
+    mockExec.mockReturnValue("{}");
+    const results = runNpmAudit("/workspace");
+    expect(results).toHaveLength(0);
+  });
+
+  it("indicates no fix available when fixAvailable is false", () => {
+    const auditJson = JSON.stringify({
+      vulnerabilities: {
+        "old-pkg": {
+          severity: "critical",
+          via: [{ title: "RCE", url: "https://example.com", severity: "critical" }],
+          fixAvailable: false,
+        },
+      },
+    });
+    mockExec.mockImplementation(() => {
+      const err: any = new Error("audit failed");
+      err.stdout = auditJson;
+      throw err;
+    });
+
+    const results = runNpmAudit("/workspace");
+    expect(results[0].message).toContain("no fix available");
+  });
+
+  it("handles string via entries (chain references)", () => {
+    const auditJson = JSON.stringify({
+      vulnerabilities: {
+        axios: {
+          severity: "moderate",
+          via: ["lodash"], // Chain reference, not an object
+          fixAvailable: true,
+        },
+      },
+    });
+    mockExec.mockImplementation(() => {
+      const err: any = new Error("audit failed");
+      err.stdout = auditJson;
+      throw err;
+    });
+
+    const results = runNpmAudit("/workspace");
+    expect(results).toHaveLength(1);
+    expect(results[0].severity).toBe("medium"); // "moderate" maps to "medium"
+    expect(results[0].message).toContain("vulnerability found");
+  });
+
+  it("returns empty when exec fails without stdout", () => {
+    mockExec.mockImplementation(() => { throw new Error("no npm"); });
+    const results = runNpmAudit("/workspace");
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe("runPipAudit", () => {
+  it("parses pip-audit JSON with vulnerabilities", () => {
+    const auditJson = JSON.stringify({
+      dependencies: [{
+        name: "requests",
+        version: "2.25.0",
+        vulns: [{
+          vid: "PYSEC-2023-123",
+          aliases: ["CVE-2023-32681"],
+          severity: "high",
+        }],
+      }],
+    });
+    mockExec.mockReturnValue(auditJson);
+
+    const results = runPipAudit("/workspace");
+    expect(results).toHaveLength(1);
+    expect(results[0].file).toBe("requirements.txt");
+    expect(results[0].severity).toBe("high");
+    expect(results[0].category).toBe("security");
+    expect(results[0].linter).toBe("pip-audit");
+    expect(results[0].message).toContain("requests@2.25.0");
+    expect(results[0].message).toContain("CVE-2023-32681");
+  });
+
+  it("returns empty when no dependencies have vulns", () => {
+    const auditJson = JSON.stringify({
+      dependencies: [{
+        name: "flask",
+        version: "3.0.0",
+        vulns: [],
+      }],
+    });
+    mockExec.mockReturnValue(auditJson);
+    const results = runPipAudit("/workspace");
+    expect(results).toHaveLength(0);
+  });
+
+  it("uses worst severity when multiple vulns exist", () => {
+    const auditJson = JSON.stringify({
+      dependencies: [{
+        name: "django",
+        version: "3.1.0",
+        vulns: [
+          { vid: "PYSEC-1", aliases: [], severity: "low" },
+          { vid: "PYSEC-2", aliases: [], severity: "critical" },
+        ],
+      }],
+    });
+    mockExec.mockReturnValue(auditJson);
+    const results = runPipAudit("/workspace");
+    expect(results[0].severity).toBe("critical");
+  });
+
+  it("returns empty when pip-audit not installed", () => {
+    mockExec.mockImplementation(() => { throw new Error("not found"); });
+    const results = runPipAudit("/workspace");
+    expect(results).toHaveLength(0);
+  });
+
+  it("limits alias list to 3 entries", () => {
+    const auditJson = JSON.stringify({
+      dependencies: [{
+        name: "pkg",
+        version: "1.0",
+        vulns: [{
+          vid: "V1",
+          aliases: ["A1", "A2", "A3", "A4", "A5"],
+          severity: "medium",
+        }],
+      }],
+    });
+    mockExec.mockReturnValue(auditJson);
+    const results = runPipAudit("/workspace");
+    // vid + up to 2 aliases = 3 items max
+    const parts = results[0].message.split(": ")[1].split(", ");
+    expect(parts.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("mapNpmSeverity", () => {
+  it("maps critical", () => { expect(mapNpmSeverity("critical")).toBe("critical"); });
+  it("maps high", () => { expect(mapNpmSeverity("high")).toBe("high"); });
+  it("maps moderate to medium", () => { expect(mapNpmSeverity("moderate")).toBe("medium"); });
+  it("maps low", () => { expect(mapNpmSeverity("low")).toBe("low"); });
+  it("maps unknown to medium", () => { expect(mapNpmSeverity("info")).toBe("medium"); });
+});
+
+describe("runDependencyAudit", () => {
+  it("returns combined findings from both auditors", () => {
+    const npmAudit = JSON.stringify({
+      vulnerabilities: {
+        lodash: {
+          severity: "high",
+          via: [{ title: "PP", url: "x", severity: "high" }],
+          fixAvailable: true,
+        },
+      },
+    });
+    const pipAudit = JSON.stringify({
+      dependencies: [{
+        name: "requests",
+        version: "2.25.0",
+        vulns: [{ vid: "V1", aliases: [], severity: "medium" }],
+      }],
+    });
+
+    let callCount = 0;
+    mockExec.mockImplementation((cmd: string) => {
+      callCount++;
+      if (cmd === "npm") {
+        const err: any = new Error("audit");
+        err.stdout = npmAudit;
+        throw err;
+      }
+      return pipAudit;
+    });
+
+    const results = runDependencyAudit("/workspace");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("returns empty when both auditors return nothing", () => {
+    mockExec.mockImplementation(() => { throw new Error("not found"); });
+    const results = runDependencyAudit("/workspace");
+    expect(results).toHaveLength(0);
   });
 });

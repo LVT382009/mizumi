@@ -29,7 +29,7 @@ import { generateFix } from "./improve.js";
 import { generateTests } from "./testgen.js";
 import { checkAndMarkDelivery, checkAndMarkSha } from "./idempotency.js";
 import { runAgentContextGathering } from "./agent.js";
-import { runLinters } from "./linter.js";
+import { runLinters, runDependencyAudit } from "./linter.js";
 import { applyLabels } from "./labels.js";
 import { createRateLimiter } from "./ratelimit.js";
 import { calibrateConfidence } from "./calibrate.js";
@@ -226,6 +226,17 @@ if (slopResult.isSlop) {
    if (linterFindings.length > 0) core.info(`Linters: ${linterFindings.length} finding(s)`);
  } catch (e) {
    core.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+ }
+
+ // 4c. Run dependency vulnerability audit (npm audit / pip-audit)
+ try {
+   const depFindings = runDependencyAudit(workspace);
+   if (depFindings.length > 0) {
+     linterFindings.push(...depFindings);
+     core.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
+   }
+ } catch (e) {
+   core.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
  }
 
     // 5. Build context (diff + memory + rules + PR metadata + classification)
