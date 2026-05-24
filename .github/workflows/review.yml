@@ -11,7 +11,7 @@ jobs:
     if: >
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' &&
-       startsWith(github.event.comment.body, '/mizumi'))
+      startsWith(github.event.comment.body, '/mizumi'))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -23,7 +23,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run Mizumi Review
-        uses: ./
+        uses: LVT382009/mizumi@v0.1
         with:
           anthropic_api_key: ${{ secrets.MIZUMI_ANTHROPIC_API_KEY || secrets.ANTHROPIC_API_KEY }}
           # openai_api_key: ${{ secrets.OPENAI_API_KEY }}

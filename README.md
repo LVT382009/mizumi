@@ -17,6 +17,7 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Noise control** — `chill` profile (default) only flags bugs and security issues. `assertive` adds style/docs
 - **Input sanitization** — Defends against prompt injection from malicious PR content
 - **Output screening** — Redacts secrets, external URLs, and shell commands from review output
+- **Prompt injection defense framework** — Multi-layer defense-in-depth with content provenance tagging and behavioral anomaly detection (first AI code review tool with explicit defense architecture)
 - **Spend tracking** — JSONL append-only log with token usage per review
 - **Webhook idempotency + SHA dedup** — Prevents duplicate reviews from webhook retries
 - **Slop detection** — Skips deep review for low-quality AI-generated PRs
@@ -57,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: mizumi-dev/mizumi@v0.1
+      - uses: LVT382009/mizumi@v0.1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # openai_api_key: ${{ secrets.OPENAI_API_KEY }}
