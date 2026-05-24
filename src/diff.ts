@@ -40,25 +40,43 @@ export interface ParsedDiff {
 
 /**
  * Fetch and parse PR diff from GitHub API.
+ * Strategy 1: diff media type (most efficient).
+ * Strategy 2: compare commits fallback if strategy 1 fails.
  */
 export async function fetchDiff(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  prNumber: number,
-  excludePatterns: string[]
+ octokit: Octokit,
+ owner: string,
+ repo: string,
+ prNumber: number,
+ excludePatterns: string[]
 ): Promise<ParsedDiff> {
-  // Strategy 1: Use the diff media type (most efficient)
-  const { data: diffText } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: prNumber,
-    mediaType: { format: "diff" },
-  });
+ try {
+   // Strategy 1: Use the diff media type (most efficient)
+   const { data: diffText } = await octokit.pulls.get({
+     owner,
+     repo,
+     pull_number: prNumber,
+     mediaType: { format: "diff" },
+   });
 
-  const rawDiff = typeof diffText === "string" ? diffText : JSON.stringify(diffText);
-  const parsed = await parseDiff(rawDiff, excludePatterns);
-  return { ...parsed, rawDiff };
+   const rawDiff = typeof diffText === "string" ? diffText : JSON.stringify(diffText);
+   const parsed = await parseDiff(rawDiff, excludePatterns);
+   return { ...parsed, rawDiff };
+ } catch {
+   // Strategy 2: Compare commits fallback
+   const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+   const base = pr.base?.sha;
+   const head = pr.head?.sha;
+   if (!base || !head) throw new Error("Could not determine base/head SHA for diff fallback");
+
+   const { data: comparison } = await octokit.rest.repos.compareCommits({
+     owner, repo, base, head,
+     mediaType: { format: "diff" },
+   });
+   const rawDiff = typeof comparison === "string" ? comparison : JSON.stringify(comparison);
+   const parsed = await parseDiff(rawDiff, excludePatterns);
+   return { ...parsed, rawDiff };
+ }
 }
 
 /**
