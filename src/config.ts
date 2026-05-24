@@ -29,6 +29,7 @@ export interface MizumiConfig {
   linterScan: boolean;
   autoLabels: boolean;
   spendThreshold: number;
+  gateThreshold: "none" | "critical" | "high" | "medium";
 }
 
 const DEFAULT_EXCLUDE = [
@@ -79,6 +80,9 @@ const dryRun = core.getInput("dry_run") === "true";
 const linterScan = core.getInput("linter_scan") !== "false"; // default true
 const autoLabels = core.getInput("auto_labels") !== "false"; // default true
 const spendThreshold = parseInt(core.getInput("spend_threshold") || "0", 10) || 0; // 0 = disabled
+const VALID_GATE: MizumiConfig["gateThreshold"][] = ["none", "critical", "high", "medium"];
+const rawGate = core.getInput("gate_threshold") || "none";
+const gateThreshold = (VALID_GATE.includes(rawGate as MizumiConfig["gateThreshold"]) ? rawGate : "none") as MizumiConfig["gateThreshold"];
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -150,6 +154,7 @@ const spendThreshold = parseInt(core.getInput("spend_threshold") || "0", 10) || 
     linterScan,
     autoLabels,
     spendThreshold,
+    gateThreshold,
   };
 }
 

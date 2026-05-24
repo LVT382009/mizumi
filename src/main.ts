@@ -36,6 +36,7 @@ import { calibrateConfidence } from "./calibrate.js";
 import { checkCompliance, formatCompliance } from "./compliance.js";
 import { processReactionApprovals } from "./autofix.js";
 import { persistLearningData } from "./persist.js";
+import { postGateStatus } from "./gate.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
 const RetryingOctokit = Octokit.plugin(retry);
@@ -410,6 +411,22 @@ if (config.confidenceCalibration || config.complianceCheck) {
  }
 
   // 10c. Idempotency already marked atomically at step 0
+
+// 10b-gate. Post commit status for merge gate (enforceable via branch protection)
+if (config.gateThreshold !== "none" && !config.dryRun) {
+  try {
+    const gateResult = await postGateStatus({
+      octokit, owner, repo, headSha,
+      findings: mergedReview.comments,
+      riskScore: mergedReview.riskScore,
+      threshold: config.gateThreshold,
+      findingCount: mergedReview.comments.length,
+    });
+    core.info(`Merge gate: ${gateResult} (threshold=${config.gateThreshold})`);
+  } catch (e) {
+    core.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 
 // 10b. Track spend
 const spendEntry = createSpendEntry(

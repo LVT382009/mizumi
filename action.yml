@@ -129,6 +129,11 @@ inputs:
   required: false
   default: "0"
 
+  gate_threshold:
+  description: "Post a commit status (success/failure) that can be used as a required branch protection check. none=disabled, critical=fail on critical findings, high=fail on high+critical, medium=fail on medium+. Default: none."
+  required: false
+  default: "none"
+
 outputs:
   review_id:
     description: ID of the posted PR review

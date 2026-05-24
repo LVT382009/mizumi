@@ -34826,6 +34826,9 @@ function loadConfig() {
     const linterScan = getInput("linter_scan") !== "false"; // default true
     const autoLabels = getInput("auto_labels") !== "false"; // default true
     const spendThreshold = parseInt(getInput("spend_threshold") || "0", 10) || 0; // 0 = disabled
+    const VALID_GATE = ["none", "critical", "high", "medium"];
+    const rawGate = getInput("gate_threshold") || "none";
+    const gateThreshold = (VALID_GATE.includes(rawGate) ? rawGate : "none");
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34907,6 +34910,7 @@ function loadConfig() {
         linterScan,
         autoLabels,
         spendThreshold,
+        gateThreshold,
     };
 }
 /**
@@ -76360,6 +76364,51 @@ function collectLearningFiles(workspace) {
     return results;
 }
 
+const SEVERITY_LEVEL = {
+    critical: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
+    nitpick: 4,
+};
+/** Check if findings exceed the gate threshold. Returns failure if any finding meets or exceeds the threshold. */
+function shouldFailGate(findings, threshold) {
+    if (threshold === "none")
+        return false;
+    const thresholdLevel = SEVERITY_LEVEL[threshold];
+    if (thresholdLevel === undefined)
+        return false;
+    return findings.some((f) => (SEVERITY_LEVEL[f.severity] ?? 4) <= thresholdLevel);
+}
+/** Post a commit status to the HEAD SHA. */
+async function postGateStatus(input) {
+    const { octokit, owner, repo, headSha, findings, riskScore, threshold, findingCount } = input;
+    if (threshold === "none")
+        return "success";
+    const failed = shouldFailGate(findings, threshold);
+    const state = failed ? "failure" : "success";
+    const description = failed
+        ? `Blocked: findings at or above ${threshold} severity (risk ${riskScore}/5, ${findingCount} findings)`
+        : `Passed: no findings at or above ${threshold} severity (risk ${riskScore}/5, ${findingCount} findings)`;
+    try {
+        await octokit.rest.repos.createCommitStatus({
+            owner,
+            repo,
+            sha: headSha,
+            state,
+            target_url: `https://github.com/${owner}/${repo}/pull/${input.headSha}`,
+            description,
+            context: "Mizumi Review Gate",
+        });
+        info(`Gate status: ${state} (threshold=${threshold}, findings=${findingCount})`);
+    }
+    catch (e) {
+        warning(`Failed to post gate status: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setOutput("gate_status", state);
+    return state;
+}
+
 /**
  * Mizumi — Self-Learning PR Review Agent
  * Action entrypoint: parse event → rules → review → critique → post → memory
@@ -76673,6 +76722,22 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             }
         }
         // 10c. Idempotency already marked atomically at step 0
+        // 10b-gate. Post commit status for merge gate (enforceable via branch protection)
+        if (config.gateThreshold !== "none" && !config.dryRun) {
+            try {
+                const gateResult = await postGateStatus({
+                    octokit, owner, repo, headSha,
+                    findings: mergedReview.comments,
+                    riskScore: mergedReview.riskScore,
+                    threshold: config.gateThreshold,
+                    findingCount: mergedReview.comments.length,
+                });
+                info(`Merge gate: ${gateResult} (threshold=${config.gateThreshold})`);
+            }
+            catch (e) {
+                warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
         // 10b. Track spend
         const spendEntry = createSpendEntry(`${owner}/${repo}`, prNumber, config.provider, config.model, { inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, cachedInputTokens: reviewUsage.cachedInputTokens }, classification.tier, mergedReview.comments.length, mergedReview.riskScore);
         appendSpendEntry(workspace, spendEntry);

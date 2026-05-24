@@ -216,6 +216,24 @@ Uses `createOrUpdateSpendComment` with `<!-- mizumi-spend-marker -->` for dedup.
 - Added spend threshold logic tests in spend.test.ts (4 new tests)
 - 595 tests passing, 0 TS errors, 5,204 production lines, bundle rebuilt
 
+### Cycle: Commit Status Merge Gate + Models Test Coverage (2026-05-24)
+
+- **Commit status merge gate** (`gate.ts`): posts success/failure commit status to
+  HEAD SHA based on configurable severity threshold — makes Mizumi an enforceable
+  quality gate via GitHub branch protection rules. No other AI reviewer can block
+  merges today. `gate_threshold` input: none (default), critical, high, medium.
+  `gate_status` output: success/failure.
+- Added `shouldFailGate` pure function: checks if any finding meets or exceeds the
+  configured severity threshold (critical=0, high=1, medium=2, low=3, nitpick=4)
+- Added `postGateStatus`: calls `repos.createCommitStatus` with context "Mizumi
+  Review Gate", includes finding count + risk score in description
+- Added models.test.ts: 17 tests covering createModel for all 7 providers
+  (anthropic, openai, google, openrouter, local, nvidia, custom) and createLightModel
+  haiku selection for anthropic vs fallback for others
+- Added gate.test.ts: 19 tests — shouldFailGate pure logic (13) + postGateStatus
+  integration with mocked Octokit (6)
+- 631 tests passing, 0 TS errors, 5,278 production lines, bundle rebuilt
+
 ### Source Modules
 
 ```
@@ -288,10 +306,10 @@ src/ratelimit.ts (122) — Provider rate limiter (token bucket RPM/RPS) — Chan
 | 27 | `7083ab2` | Add walkthrough summary + review effort score |
 | 28 | `1d2d9da` | Add provider rate limiter with configurable RPM/RPS |
 
-### Build Stats (Current — 595 Tests)
+### Build Stats (Current — 631 Tests)
 
-- **595 tests** passing (35 test files + 1 skipped)
-- **5,204 production lines** (31 source modules)
+- **631 tests** passing (38 test files + 1 skipped)
+- **5,294 production lines** (32 source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)

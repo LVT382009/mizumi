@@ -56,6 +56,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     smallDiffThreshold: 50,
     securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**"],
     spendThreshold: 0,
+    gateThreshold: "none",
     ...overrides,
   };
 }
