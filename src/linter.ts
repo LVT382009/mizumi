@@ -5,9 +5,13 @@
  *
  * This is a best-effort scan: linters are optional and may not be installed.
  * Failures are logged as warnings and skipped gracefully.
+ *
+ * Security: uses execFileSync (argv array) instead of execSync to prevent
+ * shell injection via malicious file paths.
  */
 import * as core from "@actions/core";
-import { execSync } from "node:child_process";
+import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 
 export interface LinterFinding {
   file: string;
@@ -16,6 +20,16 @@ export interface LinterFinding {
   category: "style" | "bug" | "security" | "compliance";
   message: string;
   linter: string;
+}
+
+/** Normalize workspace-relative path (handles both / and \ on Windows) */
+function relativePath(workspace: string, absPath: string): string {
+  const normWs = path.normalize(workspace);
+  const normAbs = path.normalize(absPath);
+  if (normAbs.startsWith(normWs)) {
+    return normAbs.slice(normWs.length).replace(/^[\\/]+/, "");
+  }
+  return absPath;
 }
 
 /**
@@ -64,17 +78,17 @@ export function runLinters(
   return findings;
 }
 
-/** Run ESLint with JSON output format and parse results */
+/** Run ESLint with JSON output format and parse results (execFileSync — no shell injection) */
 export function runEslint(
   workspace: string,
   files: string[]
 ): LinterFinding[] {
   const findings: LinterFinding[] = [];
-  const fileArgs = files.slice(0, 50).join(" ");
+  const fileArgs = files.slice(0, 50);
 
   try {
-    const output = execSync(
-      `npx eslint --format json --no-error-on-unmatched-pattern ${fileArgs}`,
+    const output = execFileSync(
+      "npx", ["eslint", "--format", "json", "--no-error-on-unmatched-pattern", ...fileArgs],
       { cwd: workspace, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     );
 
@@ -89,7 +103,7 @@ export function runEslint(
     }>;
 
     for (const result of results) {
-      const relPath = result.filePath.replace(workspace + "/", "").replace(workspace + "\\", "");
+      const relPath = relativePath(workspace, result.filePath);
       for (const msg of result.messages) {
         findings.push({
           file: relPath,
@@ -116,7 +130,7 @@ export function runEslint(
         }>;
 
         for (const result of results) {
-          const relPath = result.filePath.replace(workspace + "/", "").replace(workspace + "\\", "");
+          const relPath = relativePath(workspace, result.filePath);
           for (const msg of result.messages) {
             findings.push({
               file: relPath,
@@ -141,7 +155,7 @@ export function runEslint(
 export function runTsc(workspace: string): LinterFinding[] {
   const findings: LinterFinding[] = [];
   try {
-    execSync("npx tsc --noEmit --pretty false", {
+    execFileSync("npx", ["tsc", "--noEmit", "--pretty", "false"], {
       cwd: workspace, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"],
     });
     // No errors — tsc exits 0
@@ -153,7 +167,7 @@ export function runTsc(workspace: string): LinterFinding[] {
       const match = line.match(/^(.+?)\((\d+),\d+\):\s*(error|warning)\s+(TS\d+):\s*(.+)$/);
       if (match) {
         findings.push({
-          file: match[1].replace(workspace + "/", "").replace(workspace + "\\", ""),
+          file: relativePath(workspace, match[1]),
           line: parseInt(match[2], 10),
           severity: match[3] === "error" ? "high" : "low",
           category: "bug",
@@ -172,10 +186,10 @@ export function runPrettier(
   files: string[]
 ): LinterFinding[] {
   const findings: LinterFinding[] = [];
-  const fileArgs = files.slice(0, 50).join(" ");
+  const fileArgs = files.slice(0, 50);
 
   try {
-    execSync(`npx prettier --check ${fileArgs}`, {
+    execFileSync("npx", ["prettier", "--check", ...fileArgs], {
       cwd: workspace, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"],
     });
     // All formatted — exit 0

@@ -167,9 +167,10 @@ export async function postReview(
 
     // Truncate if exceeding GitHub's 65,535 char limit
     if (reviewBody.length > MAX_COMMENT_BODY) {
-      const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
+      const originalLen = reviewBody.length;
+    const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
       reviewBody = truncated + `\n\n... Too many findings to display. (${review.comments.length} findings, body truncated to ${MAX_COMMENT_BODY} chars)`;
-      core.warning(`Review body truncated from ${reviewBody.length} to ${MAX_COMMENT_BODY} chars`);
+      core.warning(`Review body truncated from ${originalLen} to ${MAX_COMMENT_BODY} chars`);
     }
 
     const { data: createdReview } = await octokit.rest.pulls.createReview({
