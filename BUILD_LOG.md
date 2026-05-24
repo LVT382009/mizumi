@@ -457,6 +457,39 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 ### Cycle 2026-05-25b — 1067 tests, agent context gathering, pollReactions, post edge cases
 
 - **Test expansion**: 1067 tests (from 1000), 0 TS errors
+
+### Cycle 2026-05-25c — 1140 tests, broad coverage expansion, competitive research
+
+- **Test expansion**: 1140 tests (from 1067), 0 TS errors
+- classifier.test.ts: 17→32 — security keywords (token, permission, secret),
+  config patterns (YAML, JSON, .github/), cosmetic thresholds, mixed file logic,
+  confidence values, reason string assertions
+- ghost.test.ts: 14→25 — medium/nitpick severity, asterisk marker stripping,
+  basename false positives, whitespace-only memory, Windows paths,
+  cross-file matching, dedup of marker-variant warnings
+- describe.test.ts: 17→27 — calibrate/labels commands, multi-word args,
+  prefix boundary checks, breaking changes undefined, system prompt,
+  maxOutputTokens, bullet list formatting, imperative mood title
+- ratelimit.test.ts: 14→24 — RPM bucket drain+wait, dual RPM/RPS enforcement,
+  refill after time, maxTokens cap, provider default exact values
+  (anthropic=50, openai=60, nvidia=30), custom=openai equivalency
+- slop.test.ts: 17→27 — Copyright/@Generated/DO NOT EDIT/Auto-generated
+  boilerplate, addition ratio thresholds (add/del >10), repetitive boundary,
+  mixed added/deleted lines, separate numeric prefix counting
+- improve.test.ts: 24→31 — encoded traversal behavior, .ssh directory,
+  drive letter paths, short-original bracket acceptance, trailing newline
+  stripping, no-trailing-newline handling
+- spend.test.ts: 16→24 — all-field verification, large number totals,
+  outputTokens default, empty/whitespace file handling, .github dir creation,
+  total cached tokens, all provider/model table rows
+- **Competitive research**: 2026 AI PR review landscape analysis completed.
+  Top 5 competitive gaps identified:
+  1. CI-Validated Fix Loop (HIGH, Macroscope only competitor)
+  2. AST Cross-File Contract Analysis (MEDIUM, no TS-specific tool exists)
+  3. Persistent Rule Engine with Auto-Discovery (MEDIUM, Qodo 2.1 leads)
+  4. Prompt Injection Defense Layer (LOW-MEDIUM, NO tool has this — Mizumi
+     already has sanitize/screen but no explicit defense framework)
+  5. Multi-Platform Support (MEDIUM, CodeRabbit/Qodo lead)
 - agent.test.ts: 49→67 — runAgentContextGathering tests (11 new): model
   routing (light/standard/thorough), empty text, LLM error, truncation,
   diff length cap, stopWhen=8, maxOutputTokens=2048. Also added
