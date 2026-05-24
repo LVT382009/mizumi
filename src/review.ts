@@ -3,11 +3,13 @@
  * BYOK from day 1: any provider, same code path.
  */
 import { generateObject } from "ai";
+import * as core from "@actions/core";
 import { z } from "zod";
 import { MizumiConfig } from "./config.js";
 import { createModel, createLightModel } from "./models.js";
 import { DiffClassification } from "./router.js";
 import { wrapDiff } from "./sanitize.js";
+import { validateReviewOutput } from "./defense.js";
 
 export const ReviewComment = z.object({
   file: z.string().describe("File path relative to repo root"),
@@ -166,5 +168,13 @@ export async function runReview(
     maxOutputTokens: 4096,
   });
 
-  return { output: sanitizeReviewOutput(output), usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
+  const sanitized = sanitizeReviewOutput(output);
+
+  // Prompt injection defense: validate output for behavioral anomalies
+  const validation = validateReviewOutput(sanitized);
+  if (!validation.valid) {
+    core.warning(`Defense anomaly detected: ${validation.anomalies.join("; ")}`);
+  }
+
+  return { output: sanitized, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
 }
