@@ -4,6 +4,8 @@
 
 Mizumi is a GitHub Action that reviews pull requests using AI, learns from past reviews, and posts actionable findings — with deterministic rules that never hallucinate.
 
+**The numbers:** Teams with high AI adoption merge 98% more PRs — but review time increases 91% and PRs merging with zero review are up 31% ([Faros AI](https://www.getfaros.com), [AI Engineering Report 2026](https://dev.to/code-board/the-review-bottleneck-why-faster-code-generation-isnt-faster-delivery-4273)). Mizumi closes this gap: instant, consistent AI review for every PR.
+
 **Why not use Anthropic's own Code Review?** It costs $15–$25 per review and takes ~20 minutes. Mizumi's BYOK model costs $0.001–$0.08 per review — a 100–10,000x price gap — and runs in seconds, not minutes. Plus Mizumi works with any provider, not just Anthropic.
 
 ## Features

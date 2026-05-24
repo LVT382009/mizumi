@@ -83,6 +83,13 @@ async function run(): Promise<void> {
       return;
     }
     if (cmd?.command === "improve") {
+      if (!config.improveEnabled) {
+        await octokit.rest.issues.createComment({
+          owner, repo, issue_number: prNumber,
+          body: "/mizumi improve is disabled. Set improve_enabled: true in your workflow to enable.",
+        });
+        return;
+      }
       core.info("Running /mizumi improve...");
       const result = await generateFix(octokit, owner, repo, prNumber, config);
       await octokit.rest.issues.createComment({

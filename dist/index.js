@@ -167,6 +167,7 @@ function loadConfig() {
   const autoFix = core.getInput("auto_fix") === "true";
   const confidenceCalibration = core.getInput("confidence_calibration") !== "false";
   const changeStack = core.getInput("change_stack") !== "false";
+  const improveEnabled = core.getInput("improve_enabled") === "true";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -230,7 +231,8 @@ function loadConfig() {
     complianceCheck,
     autoFix,
     confidenceCalibration,
-    changeStack
+    changeStack,
+    improveEnabled
   };
 }
 function parseSimpleYaml(text) {
@@ -18911,6 +18913,15 @@ async function run() {
         return;
       }
       if (cmd?.command === "improve") {
+        if (!config2.improveEnabled) {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: "/mizumi improve is disabled. Set improve_enabled: true in your workflow to enable."
+          });
+          return;
+        }
         core13.info("Running /mizumi improve...");
         const result2 = await generateFix(octokit, owner, repo, prNumber, config2);
         await octokit.rest.issues.createComment({

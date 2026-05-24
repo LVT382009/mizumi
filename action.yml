@@ -94,6 +94,10 @@ inputs:
     description: Reorganize large review output into cohort/layer ordering (data models → contracts → logic → consumers → tests)
     required: false
     default: "true"
+  improve_enabled:
+    description: Enable /mizumi improve command (applies fix suggestions via Git Data API — requires contents: write permission). Default false for safety.
+    required: false
+    default: "false"
 
 outputs:
   review_id:

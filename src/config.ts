@@ -24,6 +24,7 @@ export interface MizumiConfig {
   autoFix: boolean;
   confidenceCalibration: boolean;
   changeStack: boolean;
+  improveEnabled: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -69,6 +70,7 @@ export function loadConfig(): MizumiConfig {
   const autoFix = core.getInput("auto_fix") === "true";
   const confidenceCalibration = core.getInput("confidence_calibration") !== "false";
   const changeStack = core.getInput("change_stack") !== "false";
+  const improveEnabled = core.getInput("improve_enabled") === "true";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -135,6 +137,7 @@ export function loadConfig(): MizumiConfig {
     autoFix,
     confidenceCalibration,
     changeStack,
+    improveEnabled,
   };
 }
 
