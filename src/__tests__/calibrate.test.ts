@@ -112,6 +112,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     blastRadius: true,
     specCompliance: true,
     authBoundary: true,
+    fatigueDashboard: true,
     ...overrides,
   };
 }

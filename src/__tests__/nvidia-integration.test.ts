@@ -63,6 +63,7 @@ describe("NVIDIA NIM provider configuration", () => {
     blastRadius: true,
     specCompliance: true,
     authBoundary: true,
+    fatigueDashboard: true,
     ...overrides,
   });
 

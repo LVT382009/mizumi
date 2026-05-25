@@ -634,3 +634,66 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
   PlatformClient interface compliance for both GitHub and GitLab clients,
   getProjectId format verification, InlineComment type compliance
 - 1913 tests, 0 TS errors
+
+### Cycle 2026-05-26 — 2058 tests, blast radius + spec compliance
+
+- **Blast Radius Analysis (Gap P1-4)**: `src/blast-radius.ts` — computes which
+  UNCHANGED files are transitively impacted by the PR's changed files. Extracts
+  import/require/re-export edges from diff hunks, builds forward and reverse
+  dependency graphs, BFS from changed files through reverse graph (depth-capped
+  at 5). Results inject into LLM review prompt. Zero LLM cost. No other AI
+  code reviewer traces the blast radius of a change.
+  - 5 import patterns: ESM import, re-export, side-effect, CJS require, dynamic import
+  - `resolveImportPath`: handles ./ ../ extensionless imports
+  - `buildDependencyGraphs`: forward (imports) + reverse (dependents) adjacency maps
+  - `computeBlastRadius`: BFS with dedup, depth cap at 5, sorted output
+  - `buildBlastRadiusContext`: groups by changed file, truncates at 8 per group
+  - Integration: main.ts step 4a5 (analysis) + step 5c4 (context injection)
+  - Config: `blastRadius` boolean (default true), action.yml `blast_radius` input
+  - 40 tests in blast-radius.test.ts
+- **Spec-to-Diff Compliance (Gap #3)**: `src/spec-compliance.ts` — extracts
+  acceptance criteria from linked issues and verifies each criterion against
+  PR changes. Only Atlassian Code Reviewer has AC checking (Jira only), no
+  GitHub-native AI reviewer does this.
+  - AC parsing: task lists (- [ ]/- [x]), AC/DoD heading sections, numbered/bulleted lists
+  - Hybrid matching: keyword extraction (camelCase, UPPER_SNAKE, paths, kebab-case)
+  then grep diff for matches; unmatched items fall through to LLM semantic check
+  - Non-code detector: flags deploy/staging/manual/approve/monitoring/SLA items
+  - LLM fallback: generateObject with zod schema (met/partially-met/unaddressed)
+  - Coverage percentage: met / code criteria count
+  - Integration: main.ts step 4a6 (fetch+check) + step 5c5 (context injection)
+  - Config: `specCompliance` boolean (default true), action.yml `spec_compliance` input
+  - 49 tests in spec-compliance.test.ts
+- **Test expansion**: persist.test.ts 19->29, autofix.test.ts 20->27
+- Fixed double-comma bug from automated blastRadius field injection (7 test files)
+- 2058 tests, 0 TS errors, bundle rebuilt
+
+- **Auth Boundary Detector (Gap #4)**: `src/auth-boundary.ts` — deterministic
+  pre-scan for missing authentication on route handler boundaries. OWASP #1
+  is broken access control, but no AI code reviewer checks whether route
+  handlers enforce auth. Supports 6 frameworks:
+  Express (app.get/post/...), Fastify, Koa (router.get/...),
+  Next.js API routes (export default function handler),
+  NestJS (@Get/@Post decorators in *.controller.* files),
+  Hono (app.get/...). Auth signals: requireAuth, isAuthenticated,
+  jwt.verify, passport.authenticate, @UseGuards, req.user, etc.
+  Whitelists public endpoints: /health, /status, /login, /register,
+  /auth/callback, /webhook/*, /api-docs. @Public/@NoAuth decorators
+  opt out per-route. Findings merged as engineFindings in main.ts.
+  Integration: step 4a7 (analysis) + step 5c6 (context injection).
+  Config: `authBoundary` boolean (default true), action.yml `auth_boundary` input.
+  59 tests in auth-boundary.test.ts.
+- 2117 tests, 0 TS errors, bundle rebuilt
+
+#### Competitive Gap #5: Review Fatigue Dashboard (2026-05-26)
+
+`fatigue-dashboard.ts` — Per-category review fatigue metrics from the feedback
+store: acceptance rates, dismissal trends (improving/declining/stable), fatigue
+score (dismissal rate × volume factor), noisiest category, suppressed categories
+from adaptive noise. Formats as collapsible `<details>` markdown table with
+shields.io trend badges and actionable recommendations ("Consider reducing style
+findings — 10% acceptance"). Marker: `<!-- mizumi-fatigue-dashboard -->` for dedup.
+Integration: step 4a8 (build dashboard from feedback store) + comment posting
+after review. Config: `fatigueDashboard` boolean (default true), action.yml
+`fatigue_dashboard` input. 26 tests in fatigue-dashboard.test.ts.
+- 2143 tests, 0 TS errors, bundle rebuilt

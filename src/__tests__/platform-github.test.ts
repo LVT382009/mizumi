@@ -140,6 +140,7 @@ vi.mock("../config.js", () => ({
     blastRadius: true,
     specCompliance: true,
     authBoundary: true,
+    fatigueDashboard: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

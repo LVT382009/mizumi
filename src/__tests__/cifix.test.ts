@@ -100,6 +100,7 @@ const testConfig = {
     blastRadius: true,
     specCompliance: true,
     authBoundary: true,
+    fatigueDashboard: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

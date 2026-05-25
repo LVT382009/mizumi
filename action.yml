@@ -182,6 +182,10 @@ inputs:
     description: "Enable auth boundary detector - scan route handlers for missing authentication. Supports Express, Fastify, Koa, Next.js, NestJS, and Hono. Flags unauthenticated routes as security findings."
     required: false
     default: "true"
+  fatigue_dashboard:
+    description: "Enable review fatigue dashboard - post per-category acceptance rates, dismissal trends, fatigue scores, and recommendations as a collapsible PR comment."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

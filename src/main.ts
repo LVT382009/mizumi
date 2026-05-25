@@ -50,6 +50,7 @@ import { runReviewLearning, buildLearningContext, applyNegativeRules } from "./r
 import { runBlastRadiusAnalysis, buildBlastRadiusContext } from "./blast-radius.js";
 import { checkSpecCompliance, buildSpecComplianceContext } from "./spec-compliance.js";
 import { runAuthBoundaryAnalysis, buildAuthBoundaryContext } from "./auth-boundary.js";
+import { buildFatigueDashboard, formatFatigueDashboard } from "./fatigue-dashboard.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -390,6 +391,22 @@ core.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message
 }
 }
 
+// 4a8. Fatigue dashboard — build per-category acceptance/trend metrics from feedback store
+let fatigueDashboardBody = "";
+if (config.fatigueDashboard) {
+  try {
+    const feedbackStore = readFeedbackStore(workspace);
+    const suppressed = computeSuppressedPatterns(feedbackStore);
+    const fatigueResult = buildFatigueDashboard(workspace, suppressed);
+    if (fatigueResult.categories.length > 0) {
+      fatigueDashboardBody = formatFatigueDashboard(fatigueResult);
+      core.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
+    }
+  } catch (e) {
+    core.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -698,6 +715,17 @@ if (behavioralBody) {
     core.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+
+  // Post fatigue dashboard as a separate comment
+  if (fatigueDashboardBody) {
+    try {
+      await octokit.rest.issues.createComment({
+        owner, repo, issue_number: prNumber, body: fatigueDashboardBody,
+      });
+    } catch (e) {
+      core.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
 
 // Post ownership summary as a separate comment
