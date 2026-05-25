@@ -98,6 +98,7 @@ const testConfig = {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

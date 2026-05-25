@@ -328,6 +328,107 @@ describe("processReactionApprovals", () => {
     expect(generateFix).toHaveBeenCalled();
   });
 
+  it("posts confirmation comment with line number in body", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "src/auth.ts", line: 42 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("42"),
+      })
+    );
+  });
+
+  it("posts confirmation comment with short commit SHA (7 chars)", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "a.ts", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("abc123d"),
+      })
+    );
+  });
+
+  it("processes first 👍 comment and breaks before checking second", async () => {
+    const reactionFor1 = vi.fn().mockResolvedValue({ data: [{ content: "+1" }] });
+    const reactionFor2 = vi.fn().mockResolvedValue({ data: [{ content: "+1" }] });
+    const reactionFn = vi.fn().mockImplementation(({ comment_id }: { comment_id: number }) => {
+      return comment_id === 1 ? reactionFor1() : reactionFor2();
+    });
+    const octokit = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: { number: 1 } }),
+          listReviewComments: vi.fn().mockImplementation(({ page }) => {
+            if (page === 1) return { data: [
+              { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix1\n```", path: "a.ts", line: 1 },
+              { id: 2, body: MOCK_MARKER + "\n```suggestion\nfix2\n```", path: "b.ts", line: 5 },
+            ] };
+            return { data: [] };
+          }),
+        },
+        reactions: { listForPullRequestReviewComment: reactionFn },
+        issues: { createComment: vi.fn().mockResolvedValue({ data: { id: 999 } }) },
+      },
+    };
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(1);
+    // Only first comment's reactions should be fetched; second never checked
+    expect(reactionFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles comment with undefined body gracefully", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: undefined, path: "src/a.ts", line: 1 },
+    ], []);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+  });
+
+  it("handles empty comments list gracefully", async () => {
+    const octokit = makeOctokit([]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    expect(generateFix).not.toHaveBeenCalled();
+  });
+
+  it("does not call generateFix for comment with only marker but no suggestion", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\nThis code looks fine but could be improved.", path: "a.ts", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    expect(generateFix).not.toHaveBeenCalled();
+  });
+
+  it("handles multiple 👍 reactions on the same comment (counts as one approval)", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "a.ts", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(1);
+    expect(generateFix).toHaveBeenCalledTimes(1);
+  });
+
   it("paginates through multiple pages of comments", async () => {
     const page1 = Array.from({ length: 100 }, (_, i) => ({
       id: i + 1,

@@ -110,6 +110,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
     ...overrides,
   };
 }

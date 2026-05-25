@@ -48,6 +48,7 @@ import { discoverADRs, buildADRContext, checkADRViolations } from "./adr.js";
 import { runTaintAnalysis, buildTaintContext } from "./taint.js";
 import { runReviewLearning, buildLearningContext, applyNegativeRules } from "./review-learning.js";
 import { runBlastRadiusAnalysis, buildBlastRadiusContext } from "./blast-radius.js";
+import { checkSpecCompliance, buildSpecComplianceContext } from "./spec-compliance.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -353,6 +354,20 @@ core.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message 
 }
 }
 
+// 4a6. Spec compliance - extract acceptance criteria from linked issues
+let specComplianceResults: import("./spec-compliance.js").SpecComplianceResult[] = [];
+if (config.specCompliance) {
+try {
+const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+specComplianceResults = await checkSpecCompliance(
+octokit, owner, repo, prData.body || "", prData.title || "", diff.files, config
+);
+if (specComplianceResults.length > 0) core.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
+} catch (e) {
+core.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+}
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -423,6 +438,16 @@ if (blastCtxStr) {
 context.rulesContent += `
 
 ${blastCtxStr}`;
+}
+}
+
+// 5c5. Spec compliance context injection
+if (specComplianceResults.length > 0) {
+const specCtxStr = buildSpecComplianceContext(specComplianceResults);
+if (specCtxStr) {
+context.rulesContent += `
+
+${specCtxStr}`;
 }
 }
 

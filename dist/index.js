@@ -34841,6 +34841,7 @@ function loadConfig() {
     const taintAnalysis = getInput("taint_analysis") !== "false"; // default true
     const reviewLearning = getInput("review_learning") !== "false"; // default true
     const blastRadius = getInput("blast_radius") !== "false"; // default true
+    const specCompliance = getInput("spec_compliance") !== "false"; // default true
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34935,6 +34936,7 @@ function loadConfig() {
         taintAnalysis,
         reviewLearning,
         blastRadius,
+        specCompliance,
     };
 }
 /**
@@ -79727,6 +79729,386 @@ function buildBlastRadiusContext(result) {
 }
 
 /**
+ * Spec-to-Diff Compliance — verify PR implements acceptance criteria from linked issues.
+ *
+ * Competitive gap: Only Atlassian Code Reviewer checks acceptance criteria,
+ * and only for Jira. No GitHub-native AI reviewer extracts AC from issue bodies
+ * and cross-references each item against the diff.
+ *
+ * Algorithm:
+ * 1. Extract issue refs from PR body/title (closes #X, fixes #Y)
+ * 2. Fetch issue bodies via GitHub API
+ * 3. Parse acceptance criteria from issue body:
+ *    - Task lists: - [ ] / - [x] items
+ *    - Heading sections: "Acceptance Criteria:", "AC:", "Definition of Done:"
+ *    - Numbered/bulleted lists under those headings
+ *    - Fallback: use LLM to extract criteria from free text
+ * 4. For each criterion, check against diff content:
+ *    - Keyword matching: extract identifiers from criterion, grep diff for them
+ *    - Unmatched items fall through to LLM semantic check
+ * 5. Classify each criterion: met / partially-met / unaddressed / non-code
+ * 6. Return structured results for injection into review context
+ *
+ * Hybrid approach: keyword matching first (cheap, fast), LLM fallback for
+ * unmatched items (higher recall). Non-code items (deploy, manual steps)
+ * are flagged as "needs manual check" — not false-positived.
+ */
+// ---------------------------------------------------------------------------
+// AC extraction patterns
+// ---------------------------------------------------------------------------
+/** Task list item: - [ ] or - [x] */
+const TASK_LIST_RE = /^[\s]*[-*]\s*\[([ xX])\]\s*(.+)/gm;
+/** Heading that signals AC section */
+const AC_HEADING_RE = /^#{1,3}\s*(?:acceptance\s+criteria|ac|definition\s+of\s+done|doD|criteria|requirements?):?\s*$/gim;
+/** Numbered list item: 1. text or 1) text */
+const NUMBERED_LIST_RE = /^[\s]*(\d+)[.)]\s+(.+)/gm;
+/** Bulleted list item: - text or * text (but not task list) */
+const BULLET_LIST_RE = /^[\s]*[-*]\s+(?!\[[ xX]\])(.+)/gm;
+/** Identifier patterns: path-like (most specific first), kebab-case, UPPER_SNAKE, camelCase */
+const IDENTIFIER_RE = /\b([a-zA-Z][a-zA-Z0-9]*[-\/.][a-zA-Z0-9_.\-\/]+|[a-z][a-z0-9]+(?:-[a-z0-9]+)+|[A-Z][A-Z0-9_]{2,}|[a-z][a-zA-Z0-9]{2,})\b/g;
+// ---------------------------------------------------------------------------
+// AC parsing from issue body
+// ---------------------------------------------------------------------------
+/**
+ * Parse acceptance criteria from an issue body.
+ * Priority: task lists > AC heading sections > numbered lists > bullet lists > LLM fallback
+ */
+function parseAcceptanceCriteria(body) {
+    if (!body)
+        return [];
+    const criteria = [];
+    const seen = new Set();
+    // 1. Extract task list items
+    let match;
+    TASK_LIST_RE.lastIndex = 0;
+    while ((match = TASK_LIST_RE.exec(body)) !== null) {
+        const text = match[2].trim();
+        if (text && !seen.has(text.toLowerCase())) {
+            criteria.push(text);
+            seen.add(text.toLowerCase());
+        }
+    }
+    // 2. If we found task list items, those ARE the AC — return them
+    if (criteria.length > 0)
+        return criteria;
+    // 3. Look for AC heading sections
+    AC_HEADING_RE.lastIndex = 0;
+    const headingMatch = AC_HEADING_RE.exec(body);
+    if (headingMatch) {
+        const afterHeading = body.slice(headingMatch.index + headingMatch[0].length);
+        // Take content until the next heading or end of body
+        const nextHeading = afterHeading.search(/^#{1,3}\s+/m);
+        const section = nextHeading > 0 ? afterHeading.slice(0, nextHeading) : afterHeading;
+        // Extract numbered items from this section
+        NUMBERED_LIST_RE.lastIndex = 0;
+        while ((match = NUMBERED_LIST_RE.exec(section)) !== null) {
+            const text = match[2].trim();
+            if (text && !seen.has(text.toLowerCase())) {
+                criteria.push(text);
+                seen.add(text.toLowerCase());
+            }
+        }
+        // Extract bullet items from this section
+        BULLET_LIST_RE.lastIndex = 0;
+        while ((match = BULLET_LIST_RE.exec(section)) !== null) {
+            const text = match[1].trim();
+            if (text && !seen.has(text.toLowerCase())) {
+                criteria.push(text);
+                seen.add(text.toLowerCase());
+            }
+        }
+        if (criteria.length > 0)
+            return criteria;
+    }
+    // 4. Fall back to numbered/bullet lists in the entire body
+    NUMBERED_LIST_RE.lastIndex = 0;
+    while ((match = NUMBERED_LIST_RE.exec(body)) !== null) {
+        const text = match[2].trim();
+        if (text.length > 5 && !seen.has(text.toLowerCase())) {
+            criteria.push(text);
+            seen.add(text.toLowerCase());
+        }
+    }
+    if (criteria.length > 0)
+        return criteria;
+    BULLET_LIST_RE.lastIndex = 0;
+    while ((match = BULLET_LIST_RE.exec(body)) !== null) {
+        const text = match[1].trim();
+        if (text.length > 5 && !seen.has(text.toLowerCase())) {
+            criteria.push(text);
+            seen.add(text.toLowerCase());
+        }
+    }
+    return criteria;
+}
+/** Parse task list items with checked/unchecked status */
+function parseTaskListStatus(body) {
+    if (!body)
+        return [];
+    const items = [];
+    const seen = new Set();
+    TASK_LIST_RE.lastIndex = 0;
+    let match;
+    while ((match = TASK_LIST_RE.exec(body)) !== null) {
+        const text = match[2].trim();
+        const checked = match[1].toLowerCase() === "x";
+        if (text && !seen.has(text.toLowerCase())) {
+            items.push({ text, checked });
+            seen.add(text.toLowerCase());
+        }
+    }
+    return items;
+}
+// ---------------------------------------------------------------------------
+// Keyword-based matching
+// ---------------------------------------------------------------------------
+/** Extract identifiers from criterion text for grepping the diff */
+function extractKeywords(criterion) {
+    const keywords = [];
+    const seen = new Set();
+    IDENTIFIER_RE.lastIndex = 0;
+    let match;
+    while ((match = IDENTIFIER_RE.exec(criterion)) !== null) {
+        const kw = match[1];
+        // Skip very short keywords and common stop words
+        if (kw.length < 3)
+            continue;
+        if (/^(the|and|for|not|but|are|has|can|all|any|use|new|old|get|set|add|put|let|run|key|way|may|via)\b/i.test(kw))
+            continue;
+        if (!seen.has(kw.toLowerCase())) {
+            keywords.push(kw);
+            seen.add(kw.toLowerCase());
+        }
+    }
+    return keywords;
+}
+/** Check if a keyword appears in any added line of the diff */
+function keywordInDiff(keyword, files) {
+    const kwLower = keyword.toLowerCase();
+    for (const file of files) {
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                if (change.content.toLowerCase().includes(kwLower)) {
+                    return { found: true, file: file.path };
+                }
+            }
+        }
+    }
+    return { found: false };
+}
+/** Non-code criterion detector — deploy, manual, staging, etc. */
+const NON_CODE_PATTERNS = /\b(deploy|staging|production|prod|manual|review|approve|sign.?off|sla|uptime|monitoring|monitor|alert|dashboard|documentation|readme|changelog)\b/i;
+/** Check if criterion is a non-code item (needs manual verification) */
+function isNonCodeCriterion(text) {
+    return NON_CODE_PATTERNS.test(text);
+}
+// ---------------------------------------------------------------------------
+// LLM-based semantic matching (fallback for keyword-unmatched criteria)
+// ---------------------------------------------------------------------------
+const SpecCheckSchema = object$1({
+    status: _enum(["met", "partially-met", "unaddressed"]).describe("Assessment of this criterion"),
+    evidence: string().describe("Brief evidence from the diff, or 'no evidence found'"),
+});
+async function llmCheckCriterion(criterion, diffText, config) {
+    let model;
+    try {
+        switch (config.provider) {
+            case "anthropic":
+                model = createAnthropic({ apiKey: requireApiKey("anthropic") })("claude-haiku-4-5-20251001");
+                break;
+            default:
+                model = createOpenAI({ apiKey: requireApiKey(config.provider) })(config.model);
+        }
+    }
+    catch {
+        return { status: "unaddressed", evidence: "API key unavailable" };
+    }
+    const safeCriterion = sanitizeInput(criterion);
+    const safeDiff = sanitizeInput(diffText.slice(0, 4000));
+    try {
+        const { object } = await generateObject({
+            model,
+            prompt: `You are verifying whether a pull request implements a specific acceptance criterion.
+
+## Acceptance Criterion
+${safeCriterion}
+
+## PR Changes (diff)
+${safeDiff}
+
+Does this PR implement the criterion? If partially, some aspects are covered but not all. If there is no evidence, mark as unaddressed.`,
+            schema: SpecCheckSchema,
+            maxOutputTokens: 256,
+        });
+        return { status: object.status, evidence: object.evidence };
+    }
+    catch (e) {
+        warning(`Spec compliance LLM check failed: ${e instanceof Error ? e.message : String(e)}`);
+        return { status: "unaddressed", evidence: "LLM check failed" };
+    }
+}
+// ---------------------------------------------------------------------------
+// Main pipeline
+// ---------------------------------------------------------------------------
+/** Build a textual diff summary for LLM context (paths + added lines) */
+function buildDiffText(files) {
+    const parts = [];
+    for (const file of files.slice(0, 30)) {
+        const addedLines = [];
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type === "add")
+                    addedLines.push(change.content);
+            }
+        }
+        if (addedLines.length > 0) {
+            parts.push(`--- ${file.path} ---\n${addedLines.join("\n")}`);
+        }
+    }
+    return parts.join("\n\n");
+}
+/**
+ * Check spec-to-diff compliance for a PR.
+ * Fetches linked issues, parses AC, matches against diff.
+ */
+async function checkSpecCompliance(octokit, owner, repo, prBody, prTitle, diffFiles, config) {
+    const issueRefs = extractIssueRefsSimple(prBody + " " + prTitle);
+    if (issueRefs.length === 0)
+        return [];
+    const results = [];
+    const diffText = buildDiffText(diffFiles);
+    for (const issueNum of issueRefs.slice(0, 3)) {
+        try {
+            const { data: issue } = await octokit.rest.issues.get({
+                owner, repo, issue_number: issueNum,
+            });
+            if (issue.pull_request)
+                continue; // Skip PRs
+            const body = issue.body || "";
+            const taskListItems = parseTaskListStatus(body);
+            const criteriaTexts = parseAcceptanceCriteria(body);
+            if (criteriaTexts.length === 0)
+                continue; // No AC to check
+            const criteria = [];
+            const unmatchedForLLM = [];
+            for (let i = 0; i < criteriaTexts.length; i++) {
+                const text = criteriaTexts[i];
+                const taskItem = taskListItems.find((t) => t.text === text);
+                // Check if it's a non-code criterion
+                if (isNonCodeCriterion(text)) {
+                    criteria.push({
+                        text,
+                        isTaskList: !!taskItem,
+                        isChecked: taskItem?.checked ?? false,
+                        status: "non-code",
+                        evidence: "Manual verification needed",
+                    });
+                    continue;
+                }
+                // Keyword matching first
+                const keywords = extractKeywords(text);
+                let matched = false;
+                let matchFile = "";
+                for (const kw of keywords.slice(0, 5)) {
+                    const result = keywordInDiff(kw, diffFiles);
+                    if (result.found) {
+                        matched = true;
+                        matchFile = result.file || "";
+                        break;
+                    }
+                }
+                if (matched) {
+                    criteria.push({
+                        text,
+                        isTaskList: !!taskItem,
+                        isChecked: taskItem?.checked ?? false,
+                        status: "met",
+                        evidence: matchFile ? `Keyword found in ${matchFile}` : "Keyword matched",
+                    });
+                }
+                else {
+                    // Queue for LLM check
+                    unmatchedForLLM.push({ index: i, text });
+                    criteria.push({
+                        text,
+                        isTaskList: !!taskItem,
+                        isChecked: taskItem?.checked ?? false,
+                        status: "unaddressed", // Will be updated by LLM
+                        evidence: "",
+                    });
+                }
+            }
+            // LLM fallback for unmatched criteria (batch of 1 LLM call per issue)
+            if (unmatchedForLLM.length > 0 && unmatchedForLLM.length <= 5) {
+                for (const { index, text } of unmatchedForLLM) {
+                    const llmResult = await llmCheckCriterion(text, diffText, config);
+                    criteria[index] = {
+                        ...criteria[index],
+                        status: llmResult.status,
+                        evidence: llmResult.evidence,
+                    };
+                }
+            }
+            // Compute coverage
+            const met = criteria.filter((c) => c.status === "met" || c.status === "partially-met").length;
+            const codeCriteria = criteria.filter((c) => c.status !== "non-code").length;
+            const coverage = codeCriteria > 0 ? Math.round((met / codeCriteria) * 100) : 0;
+            results.push({
+                issueNumber: issueNum,
+                issueTitle: issue.title || "",
+                criteria,
+                summary: `${met}/${codeCriteria} criteria met${criteria.some((c) => c.status === "non-code") ? ` (+${criteria.filter((c) => c.status === "non-code").length} non-code)` : ""}`,
+                coverage,
+            });
+            info(`Spec compliance: #${issueNum} → ${coverage}% (${met}/${codeCriteria})`);
+        }
+        catch {
+            warning(`Failed to fetch issue #${issueNum} for spec compliance`);
+        }
+    }
+    return results;
+}
+/** Simple issue reference extraction (reuses compliance.ts pattern) */
+const ISSUE_REF_SIMPLE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#(\d+)|#(\d+)/gi;
+function extractIssueRefsSimple(text) {
+    const refs = new Set();
+    let match;
+    ISSUE_REF_SIMPLE.lastIndex = 0;
+    while ((match = ISSUE_REF_SIMPLE.exec(text)) !== null) {
+        const num = match[1] || match[2];
+        if (num)
+            refs.add(parseInt(num, 10));
+    }
+    return [...refs].slice(0, 5);
+}
+// ---------------------------------------------------------------------------
+// Context formatting for LLM prompt injection
+// ---------------------------------------------------------------------------
+/** Build spec compliance context string for the LLM review prompt */
+function buildSpecComplianceContext(results) {
+    if (results.length === 0)
+        return "";
+    let ctx = `## Spec Compliance — Acceptance Criteria Coverage\n`;
+    ctx += "The PR references issues with acceptance criteria. Check whether the changes address each criterion:\n\n";
+    for (const result of results) {
+        ctx += `### Issue #${result.issueNumber}: ${result.issueTitle} (${result.coverage}% coverage)\n`;
+        for (const c of result.criteria) {
+            const icon = c.status === "met" ? "[PASS]" :
+                c.status === "partially-met" ? "[WARN]" :
+                    c.status === "non-code" ? "[SKIP]" : "[FAIL]";
+            ctx += `- ${icon} ${c.text}`;
+            if (c.evidence)
+                ctx += ` — ${c.evidence}`;
+            ctx += "\n";
+        }
+        ctx += "\n";
+    }
+    return ctx.trim();
+}
+
+/**
  * Mizumi â€” Self-Learning PR Review Agent
  * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
  *
@@ -80002,6 +80384,19 @@ async function run() {
                 warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
             }
         }
+        // 4a6. Spec compliance - extract acceptance criteria from linked issues
+        let specComplianceResults = [];
+        if (config.specCompliance) {
+            try {
+                const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+                specComplianceResults = await checkSpecCompliance(octokit, owner, repo, prData.body || "", prData.title || "", diff.files, config);
+                if (specComplianceResults.length > 0)
+                    info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
+            }
+            catch (e) {
+                warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
         // 4b. Run linter pre-scan (deterministic, zero LLM cost)
         let linterFindings = [];
         try {
@@ -80069,6 +80464,15 @@ ${learningContextStr}`;
                 context.rulesContent += `
 
 ${blastCtxStr}`;
+            }
+        }
+        // 5c5. Spec compliance context injection
+        if (specComplianceResults.length > 0) {
+            const specCtxStr = buildSpecComplianceContext(specComplianceResults);
+            if (specCtxStr) {
+                context.rulesContent += `
+
+${specCtxStr}`;
             }
         }
         if (skills.loaded)

@@ -64,6 +64,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
     ...overrides,
   };
 }

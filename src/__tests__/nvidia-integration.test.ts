@@ -61,6 +61,7 @@ describe("NVIDIA NIM provider configuration", () => {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
     ...overrides,
   });
 
@@ -233,6 +234,7 @@ describe("NVIDIA NIM provider configuration", () => {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
     };
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
     try {
@@ -301,6 +303,7 @@ skipIfNoKey("NVIDIA NIM live integration", () => {
       taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
   };
 
   it("calls NVIDIA NIM and returns structured review output", async () => {

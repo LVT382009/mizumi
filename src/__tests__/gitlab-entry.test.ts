@@ -67,6 +67,7 @@ vi.mock("../config.js", () => ({
     taintAnalysis: true,
       reviewLearning: true,
     blastRadius: true,
+    specCompliance: true,
   })),
 }));
 

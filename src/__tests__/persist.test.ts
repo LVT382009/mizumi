@@ -264,6 +264,140 @@ describe("persistLearningData", () => {
     expect(result.commitSha).toBeNull();
   });
 
+  it("skips feedback file if it has only whitespace", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "valid content");
+    fs.writeFileSync(path.join(githubDir, "mizumi-feedback.json"), "\n  \n");
+
+    const octokit = makeOctokit();
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(true);
+    expect(result.filesPushed).toBe(1);
+  });
+
+  it("skips non-.md files in skills directory", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    const skillsDir = path.join(githubDir, "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    fs.writeFileSync(path.join(skillsDir, "notes.txt"), "text notes");
+    fs.writeFileSync(path.join(skillsDir, "data.yaml"), "key: value");
+
+    const octokit = makeOctokit();
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(false);
+    expect(result.filesPushed).toBe(0);
+  });
+
+  it("handles unreadable skills directory gracefully", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    const skillsDir = path.join(githubDir, "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    // Create a file then make directory unreadable via permission
+    fs.writeFileSync(path.join(skillsDir, "skill.md"), "test");
+    // On Windows, chmod doesn't fully prevent reads, so just test the path exists
+    // by removing the directory after creating it (simulates readdirSync failure)
+    fs.rmSync(skillsDir, { recursive: true, force: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "memory content");
+
+    const octokit = makeOctokit();
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(true);
+    expect(result.filesPushed).toBe(1);
+  });
+
+  it("creates commit with correct parent SHA", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "content");
+
+    const octokit = makeOctokit();
+    await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(octokit.rest.git.createCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parents: ["abc123"],
+      })
+    );
+  });
+
+  it("creates tree with correct number of entries matching files", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "memory");
+    fs.writeFileSync(path.join(githubDir, "mizumi-feedback.json"), '{"data":1}');
+
+    const octokit = makeOctokit();
+    await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    const treeCall = octokit.rest.git.createTree.mock.calls[0][0];
+    expect(treeCall.tree).toHaveLength(2);
+  });
+
+  it("persists all 3 sources together (memory + feedback + skill)", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    const skillsDir = path.join(githubDir, "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "patterns");
+    fs.writeFileSync(path.join(githubDir, "mizumi-feedback.json"), '{"entries":3}');
+    fs.writeFileSync(path.join(skillsDir, "rule.md"), "# Rule");
+
+    const octokit = makeOctokit();
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(true);
+    expect(result.filesPushed).toBe(3);
+  });
+
+  it("handles createBlob failure gracefully", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "content");
+
+    const octokit = makeOctokit();
+    octokit.rest.git.createBlob = vi.fn().mockRejectedValue(new Error("blob creation failed"));
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(false);
+    expect(result.filesPushed).toBe(0);
+    expect(result.commitSha).toBeNull();
+  });
+
+  it("handles createTree failure gracefully", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "content");
+
+    const octokit = makeOctokit();
+    octokit.rest.git.createTree = vi.fn().mockRejectedValue(new Error("tree creation failed"));
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(false);
+  });
+
+  it("handles createCommit failure gracefully", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), "content");
+
+    const octokit = makeOctokit();
+    octokit.rest.git.createCommit = vi.fn().mockRejectedValue(new Error("commit failed"));
+    const result = await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(result.committed).toBe(false);
+    expect(result.commitSha).toBeNull();
+  });
+
+  it("creates blobs with file content from workspace", async () => {
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    const memoryContent = "## 2026-05-25\n- learned X";
+    fs.writeFileSync(path.join(githubDir, "mizumi-memory.md"), memoryContent);
+
+    const octokit = makeOctokit();
+    await persistLearningData(octokit as any, "owner", "repo", "main", tmpDir);
+    expect(octokit.rest.git.createBlob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: memoryContent,
+        encoding: "utf-8",
+      })
+    );
+  });
+
   it("uses base tree from current commit for tree creation", async () => {
     const githubDir = path.join(tmpDir, ".github");
     fs.mkdirSync(githubDir, { recursive: true });
