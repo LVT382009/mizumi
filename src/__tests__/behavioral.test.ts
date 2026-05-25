@@ -30,7 +30,6 @@ describe("shouldRunBehavioralAnalysis", () => {
       { path: "b.ts", status: "modified" as const, additions: 25, deletions: 5, hunks: [] },
       { path: "c.ts", status: "modified" as const, additions: 20, deletions: 5, hunks: [] },
     ];
-    // Total: 95 lines
     expect(shouldRunBehavioralAnalysis(files)).toBe(true);
   });
 
@@ -38,7 +37,6 @@ describe("shouldRunBehavioralAnalysis", () => {
     const files = Array.from({ length: 10 }, (_, i) => ({
       path: `file${i}.ts`, status: "modified" as const, additions: 1, deletions: 0, hunks: [],
     }));
-    // Total: 10 lines
     expect(shouldRunBehavioralAnalysis(files)).toBe(false);
   });
 
@@ -48,8 +46,38 @@ describe("shouldRunBehavioralAnalysis", () => {
       { path: "b.ts", status: "modified" as const, additions: 10, deletions: 5, hunks: [] },
       { path: "c.ts", status: "modified" as const, additions: 3, deletions: 2, hunks: [] },
     ];
-    // Total: 50 lines
     expect(shouldRunBehavioralAnalysis(files)).toBe(true);
+  });
+
+  it("returns false for exactly 49 lines across 3 files", () => {
+    const files = [
+      { path: "a.ts", status: "modified" as const, additions: 20, deletions: 9, hunks: [] },
+      { path: "b.ts", status: "modified" as const, additions: 10, deletions: 5, hunks: [] },
+      { path: "c.ts", status: "modified" as const, additions: 3, deletions: 2, hunks: [] },
+    ];
+    // Total: 49 lines — just below threshold
+    expect(shouldRunBehavioralAnalysis(files)).toBe(false);
+  });
+
+  it("counts additions and deletions separately", () => {
+    const files = [
+      { path: "a.ts", status: "modified" as const, additions: 25, deletions: 0, hunks: [] },
+      { path: "b.ts", status: "modified" as const, additions: 0, deletions: 25, hunks: [] },
+      { path: "c.ts", status: "modified" as const, additions: 1, deletions: 0, hunks: [] },
+    ];
+    // Total: 51 lines (25+0+0+25+1+0)
+    expect(shouldRunBehavioralAnalysis(files)).toBe(true);
+  });
+
+  it("returns false for empty files array", () => {
+    expect(shouldRunBehavioralAnalysis([])).toBe(false);
+  });
+
+  it("returns false for single file with many lines", () => {
+    const files = [
+      { path: "big.ts", status: "modified" as const, additions: 500, deletions: 200, hunks: [] },
+    ];
+    expect(shouldRunBehavioralAnalysis(files)).toBe(false);
   });
 });
 
@@ -168,5 +196,86 @@ describe("formatBehavioralSummary", () => {
     expect(result).toContain("**Modified**");
     expect(result).toContain("**Refactored**");
     expect(result).toContain("⚪");
+  });
+
+  it("handles summary with single change", () => {
+    const single: BehavioralSummaryType = {
+      headline: "Adds rate limiting",
+      changes: [
+        { type: "added", area: "API", description: "Rate limiting middleware added", impact: "high", files: ["src/middleware/rate-limit.ts"] },
+      ],
+      riskAreas: ["Performance"],
+      testingFocus: "Load test with concurrent requests",
+    };
+    const result = formatBehavioralSummary(single);
+    expect(result).toContain("**Added**");
+    expect(result).toContain("Rate limiting middleware added");
+    expect(result).toContain("**Risk Areas:** Performance");
+  });
+
+  it("capitalizes change type labels", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("**Replaced**");
+    expect(result).toContain("**Added**");
+    expect(result).toContain("**Removed**");
+    // Should NOT contain lowercase versions as bold labels
+    expect(result).not.toContain("**replaced**");
+    expect(result).not.toContain("**added**");
+  });
+
+  it("formats change descriptions as blockquotes", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("> Session-based authentication replaced");
+  });
+
+  it("formats file references in sup tags", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("<sup>");
+    expect(result).toContain("</sup>");
+  });
+
+  it("formats each file with backticks", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("`src/auth/pkce.ts`");
+    expect(result).toContain("`src/auth/oauth.ts`");
+  });
+
+  it("handles high impact badge for high-impact changes", () => {
+    const high: BehavioralSummaryType = {
+      headline: "Test",
+      changes: [
+        { type: "added", area: "core", description: "Big change", impact: "high", files: ["a.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test everything",
+    };
+    const result = formatBehavioralSummary(high);
+    expect(result).toContain("⚠️");
+  });
+
+  it("handles summary with 5 changes", () => {
+    const many: BehavioralSummaryType = {
+      headline: "Major refactor",
+      changes: [
+        { type: "added", area: "a", description: "Add a", impact: "high", files: ["a.ts"] },
+        { type: "removed", area: "b", description: "Remove b", impact: "high", files: ["b.ts"] },
+        { type: "replaced", area: "c", description: "Replace c", impact: "medium", files: ["c.ts"] },
+        { type: "modified", area: "d", description: "Modify d", impact: "medium", files: ["d.ts"] },
+        { type: "refactored", area: "e", description: "Refactor e", impact: "low", files: ["e.ts"] },
+      ],
+      riskAreas: ["a", "b", "c"],
+      testingFocus: "Everything",
+    };
+    const result = formatBehavioralSummary(many);
+    expect(result).toContain("**Added**");
+    expect(result).toContain("**Removed**");
+    expect(result).toContain("**Replaced**");
+    expect(result).toContain("**Modified**");
+    expect(result).toContain("**Refactored**");
+  });
+
+  it("includes multiple risk areas in comma-separated list", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("Session management, Token refresh flow, Cookie fallback");
   });
 });
