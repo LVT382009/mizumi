@@ -314,11 +314,9 @@ describe("createAgentTools", () => {
           items: [
             {
               path: "src/auth.ts",
-              text_matches: [{ fragment: "function authenticate()" }],
             },
             {
               path: "src/login.ts",
-              text_matches: [{ fragment: "import { authenticate }" }],
             },
           ],
         },
@@ -327,8 +325,7 @@ describe("createAgentTools", () => {
       const result = await tools.search_code.execute({ query: "authenticate" });
       expect(result).toContain("src/auth.ts");
       expect(result).toContain("src/login.ts");
-      expect(result).toContain("authenticate");
-    });
+          });
 
     it("sanitizes query before sending to GitHub API", async () => {
       const octokit = makeMockOctokit();
@@ -377,8 +374,8 @@ describe("createAgentTools", () => {
       octokit.rest.search.code.mockResolvedValue({
         data: {
           items: [
-            { path: "src/caller.ts", text_matches: [{ fragment: "authenticate(user)" }] },
-            { path: "src/routes.ts", text_matches: [{ fragment: "await authenticate(req)" }] },
+            { path: "src/caller.ts" },
+            { path: "src/routes.ts" },
           ],
         },
       });
@@ -616,7 +613,7 @@ describe("runAgentContextGathering", () => {
     expect(promptText.length).toBeLessThan(20000);
   });
 
-  it("limits agent to 8 steps via stopWhen", async () => {
+  it("limits agent to 6 steps via stopWhen", async () => {
     mockGenerateText.mockResolvedValue({
       text: "context",
       usage: { inputTokens: 100, outputTokens: 50 },
@@ -628,7 +625,7 @@ describe("runAgentContextGathering", () => {
     );
 
     const callOpts = mockGenerateText.mock.calls[0][0] as any;
-    expect(callOpts.stopWhen).toBe(8);
+    expect(callOpts.stopWhen).toBe(6);
   });
 
   it("sets maxOutputTokens to 2048", async () => {

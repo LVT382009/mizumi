@@ -75964,9 +75964,21 @@ const BLOCKED_PATHS = [
 function isBlockedPath(filePath) {
     return BLOCKED_PATHS.some((pattern) => pattern.test(filePath));
 }
+/** Simple rate-limiter for search API calls (GitHub allows ~30 req/min for search) */
+let lastSearchTime = 0;
+const SEARCH_INTERVAL_MS = 2500; // 2.5s between searches to avoid 429
+async function rateLimitedSearch(fn) {
+    const now = Date.now();
+    const elapsed = now - lastSearchTime;
+    if (elapsed < SEARCH_INTERVAL_MS) {
+        await new Promise((r) => setTimeout(r, SEARCH_INTERVAL_MS - elapsed));
+    }
+    lastSearchTime = Date.now();
+    return fn();
+}
 function createAgentTools(octokit, owner, repo, headSha) {
     const read_file = tool({
-        description: `Read the contents of a file from the repository at the PR branch version. Use this to understand the full context around a code change. Do NOT read files that are not in the diff — focus on changed files and their imports/dependencies.`,
+        description: `Read the contents of a file from the repository at the PR branch version. Use this to understand the full context around a code change. Do NOT read files that are not in the diff - focus on changed files and their imports/dependencies.`,
         inputSchema: object$1({
             path: string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'"),
         }),
@@ -75991,7 +76003,7 @@ function createAgentTools(octokit, owner, repo, headSha) {
                     const decoded = Buffer.from(data.content, "base64").toString("utf-8");
                     return truncate(decoded, 5000);
                 }
-                return `File: ${path} — could not read content`;
+                return `File: ${path} - could not read content`;
             }
             catch {
                 return `File not found or inaccessible: ${path}`;
@@ -75999,24 +76011,18 @@ function createAgentTools(octokit, owner, repo, headSha) {
         },
     });
     const search_code = tool({
-        description: `Search for code patterns in the repository. Returns matching files and text snippets. Searches the default branch only. Useful for finding how a function/class is used across the codebase.`,
+        description: `Search for code patterns in the repository. Returns matching file paths. Searches the default branch only. Useful for finding how a function/class is used across the codebase.`,
         inputSchema: object$1({
             query: string().describe("Search query, e.g. 'authenticate' or 'class UserService'"),
         }),
         execute: async ({ query }) => {
             try {
                 const safeQuery = sanitizeSearchQuery(query);
-                const { data } = await octokit.rest.search.code({
+                const { data } = await rateLimitedSearch(() => octokit.rest.search.code({
                     q: `${safeQuery} repo:${owner}/${repo}`,
                     per_page: 10,
-                });
-                const results = data.items.slice(0, 10).map((item) => {
-                    const matches = item.text_matches
-                        ?.map((m) => m.fragment?.trim())
-                        ?.filter(Boolean)
-                        ?.slice(0, 2) ?? [];
-                    return `**${item.path}**${matches.length ? ":\n" + matches.join("\n") : ""}`;
-                });
+                }));
+                const results = data.items.slice(0, 10).map((item) => `**${item.path}**`);
                 return results.length > 0
                     ? results.join("\n")
                     : `No results for "${query}"`;
@@ -76027,17 +76033,17 @@ function createAgentTools(octokit, owner, repo, headSha) {
         },
     });
     const find_usages = tool({
-        description: `Find references to a symbol (function, class, variable) across the repository. Returns files and lines where the symbol is used. Useful for understanding the blast radius of a change.`,
+        description: `Find references to a symbol (function, class, variable) across the repository. Returns file paths where the symbol is used. Useful for understanding the blast radius of a change.`,
         inputSchema: object$1({
             symbol: string().describe("Symbol name to search for, e.g. 'authenticate' or 'UserService'"),
         }),
         execute: async ({ symbol }) => {
             try {
                 const safeSymbol = sanitizeSearchQuery(symbol);
-                const { data } = await octokit.rest.search.code({
-                    q: `"${safeSymbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
+                const { data } = await rateLimitedSearch(() => octokit.rest.search.code({
+                    q: `"${safeSymbol}" repo:${owner}/${repo}`,
                     per_page: 15,
-                });
+                }));
                 const usages = data.items.slice(0, 15).map((item) => `- \`${item.path}\``);
                 return usages.length > 0
                     ? `**${usages.length} references to "${symbol}":**\n\n${usages.join("\n")}`
@@ -76076,6 +76082,8 @@ Given this diff, use your tools to:
 2. Search for how changed functions/classes are used elsewhere
 3. Find callers/callees that might be affected by the changes
 
+IMPORTANT: Space out your search calls. Do NOT call search multiple times in quick succession - wait between searches.
+
 Return a concise summary (max 2000 chars) of cross-file context that would help a reviewer understand the blast radius and integration points. Focus on:
 - Functions/classes that are called from many places
 - Missing error handling that could cascade
@@ -76088,7 +76096,7 @@ ${diffContent.slice(0, 15000)}`;
         const { text } = await generateText({
             model,
             tools,
-            stopWhen: stepCountIs(8),
+            stopWhen: stepCountIs(6),
             prompt: agentPrompt,
             maxOutputTokens: 2048,
         });
@@ -76099,7 +76107,7 @@ ${diffContent.slice(0, 15000)}`;
         return "";
     }
     catch (e) {
-        warning(`Agent context gathering failed: ${e instanceof Error ? e.message : String(e)} — continuing without agent context`);
+        warning(`Agent context gathering failed: ${e instanceof Error ? e.message : String(e)} - continuing without agent context`);
         return "";
     }
 }
