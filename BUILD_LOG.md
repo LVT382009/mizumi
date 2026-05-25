@@ -14,7 +14,7 @@
 | 1.6 Self-critique | ✅ | `critique.ts` — obra "subterfuge" framing, graceful provider fallback |
 | 1.7 Confidence scoring | ✅ | Zod schema 0-100, filterByConfidence with threshold |
 | 1.8 HTML marker dedup | ✅ | `<!-- mizumi-review-marker -->` update-in-place |
-| 1.9 Incremental review | ⏳ v1 | Re-review entire diff is fine for v0.1 |
+| 1.9 Incremental review | ✅ | `delta.ts` — SHA tracking store, compare-commits incremental diff, 50-80% token savings |
 | 1.10 Config | ✅ | `.github/mizumi.yml` parser + env + BYOK |
 | 1.11 BYOK | ✅ | 7 providers: anthropic, openai, google, openrouter, nvidia, local, custom |
 | 1.12 Exclude patterns | ✅ | minimatch in diff.ts, 9 default patterns |
