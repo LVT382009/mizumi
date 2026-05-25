@@ -725,3 +725,18 @@ Expanded test coverage on thinnest modules:
 - spend.test.ts: 24→31 (+7: single entry digest, ISO timestamp, zero tokens,
   provider/model/pr preservation, light tier formatting)
 - 2210 tests, 0 TS errors
+
+#### Competitive Gap P0-A: Attribution-Driven Feedback Loop (2026-05-26)
+
+`attribution.ts` — Proportional confidence adjustment based on per-category
+dismissal rates from the feedback store. Unlike the flat -25 penalty in
+feedback.ts adaptive noise, this scales: 60% dismissal → -45 confidence,
+80% → -60, 100% → -75 (capped). Recency-weighted (30-day half-life decay)
+so stale feedback doesn't permanently suppress categories that improved.
+Minimum 10 samples for reliable attribution (vs 5 in adaptive noise).
+Categories with <40% dismissal get zero penalty. Only Sourcery has this
+among AI code reviewers. Integration: step 5 (compute attribution from
+feedback store), step 5c8 (context injection), step 8b3 (proportional
+confidence adjustment after adaptive noise reduction). 21 tests in
+attribution.test.ts.
+- 2231 tests, 0 TS errors, bundle rebuilt

@@ -52,6 +52,7 @@ import { checkSpecCompliance, buildSpecComplianceContext } from "./spec-complian
 import { runAuthBoundaryAnalysis, buildAuthBoundaryContext } from "./auth-boundary.js";
 import { buildFatigueDashboard, formatFatigueDashboard } from "./fatigue-dashboard.js";
 import { runEntropyAnalysis, buildEntropyContext } from "./secret-entropy.js";
+import { runAttributionAnalysis, applyAttributionConfidence, buildAttributionContext } from "./attribution.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -452,6 +453,7 @@ if (config.secretEntropy) {
     const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
 const preFeedbackStore = readFeedbackStore(workspace);
 const preAcceptanceRates = categoryAcceptanceRates(preFeedbackStore);
+const preAttributionResult = runAttributionAnalysis(workspace);
 const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification, {
   learningWeights: preLearningWeights,
   acceptanceRates: preAcceptanceRates,
@@ -528,6 +530,16 @@ if (entropyResult && entropyResult.findings.length > 0) {
     context.rulesContent += `
 
 ${entropyCtxStr}`;
+  }
+}
+
+// 5c8. Attribution context injection
+if (preAttributionResult && preAttributionResult.reliableCategories > 0) {
+  const attrCtxStr = buildAttributionContext(preAttributionResult);
+  if (attrCtxStr) {
+    context.rulesContent += `
+
+${attrCtxStr}`;
   }
 }
 
@@ -615,6 +627,17 @@ if (Object.keys(learningWeights).length > 0) {
       // Non-critical
     }
 
+
+  // 8b3. Attribution-driven confidence adjustment
+  // Attribution already computed at step 5
+  try {
+    // Use preAttributionResult from step 5
+    if (preAttributionResult && preAttributionResult.reliableCategories > 0) {
+      filtered.comments = applyAttributionConfidence(filtered.comments, preAttributionResult) as typeof filtered.comments;
+    }
+  } catch {
+    // Non-critical
+  }
     // 8c. Confidence calibration + compliance check (parallel)
 let complianceResults: import("./compliance.js").ComplianceResult[] = [];
 if (config.confidenceCalibration || config.complianceCheck) {
