@@ -121,4 +121,129 @@ describe("checkAndMarkSha", () => {
   it("returns false for empty SHA", () => {
     expect(checkAndMarkSha(tmpDir, "")).toBe(false);
   });
+
+  it("different SHAs are independent within checkAndMarkSha", () => {
+    checkAndMarkSha(tmpDir, "sha-aaa");
+    expect(checkAndMarkSha(tmpDir, "sha-bbb")).toBe(false);
+    expect(checkAndMarkSha(tmpDir, "sha-aaa")).toBe(true);
+  });
+
+  it("persists SHA to disk via checkAndMarkSha", () => {
+    checkAndMarkSha(tmpDir, "sha-disk-check");
+    const store = JSON.parse(fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8"));
+    expect("sha-disk-check" in store.reviewedShas).toBe(true);
+  });
+});
+
+describe("hashDeliveryId — additional edge cases", () => {
+  it("produces consistent hash for unicode input", () => {
+    const h1 = hashDeliveryId(".delivery-日本語");
+    const h2 = hashDeliveryId("delivery-日本語");
+    expect(h1).toMatch(/^[0-9a-f]{16}$/);
+    expect(h2).toMatch(/^[0-9a-f]{16}$/);
+    expect(h1).not.toBe(h2);
+  });
+
+  it("produces different hashes for similar inputs", () => {
+    expect(hashDeliveryId("del-1")).not.toBe(hashDeliveryId("del-2"));
+    expect(hashDeliveryId("abc")).not.toBe(hashDeliveryId("abcd"));
+  });
+
+  it("handles very long delivery IDs", () => {
+    const longId = "x".repeat(10000);
+    const h = hashDeliveryId(longId);
+    expect(h).toMatch(/^[0-9a-f]{16}$/);
+  });
+});
+
+describe("store persistence and eviction", () => {
+  it("stores delivery id with timestamp", () => {
+    isDuplicateDelivery(tmpDir, "del-timestamp");
+    const store = JSON.parse(fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8"));
+    const key = hashDeliveryId("del-timestamp");
+    expect(store.deliveryIds[key]).toBeTypeOf("number");
+    expect(store.deliveryIds[key]).toBeGreaterThan(0);
+  });
+
+  it("stores SHA with timestamp", () => {
+    isReviewedSha(tmpDir, "sha-timestamp");
+    const store = JSON.parse(fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8"));
+    expect(store.reviewedShas["sha-timestamp"]).toBeTypeOf("number");
+  });
+
+  it("handles concurrent check-and-mark of different IDs", () => {
+    // Simulate rapid sequential marking of different IDs
+    const results: boolean[] = [];
+    for (let i = 0; i < 10; i++) {
+      results.push(checkAndMarkDelivery(tmpDir, `del-concurrent-${i}`));
+    }
+    // All first-checks should return false
+    expect(results.every((r) => r === false)).toBe(true);
+    // Re-checking all should return true
+    for (let i = 0; i < 10; i++) {
+      expect(checkAndMarkDelivery(tmpDir, `del-concurrent-${i}`)).toBe(true);
+    }
+  });
+
+  it("handles concurrent check-and-mark of different SHAs", () => {
+    const results: boolean[] = [];
+    for (let i = 0; i < 10; i++) {
+      results.push(checkAndMarkSha(tmpDir, `sha-concurrent-${i}`));
+    }
+    expect(results.every((r) => r === false)).toBe(true);
+    for (let i = 0; i < 10; i++) {
+      expect(checkAndMarkSha(tmpDir, `sha-concurrent-${i}`)).toBe(true);
+    }
+  });
+
+  it("creates .github directory if not present", () => {
+    const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-nodir-"));
+    try {
+      expect(fs.existsSync(path.join(freshDir, ".github"))).toBe(false);
+      checkAndMarkDelivery(freshDir, "del-auto-create");
+      expect(fs.existsSync(path.join(freshDir, ".github"))).toBe(true);
+    } finally {
+      fs.rmSync(freshDir, { recursive: true, force: true });
+    }
+  });
+
+  it("survives corrupted store file by resetting", () => {
+    // Write garbage to the store file
+    fs.mkdirSync(path.join(tmpDir, ".github"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, ".github", "mizumi-idempotency.json"),
+      "NOT VALID JSON{{{{",
+      "utf-8"
+    );
+    // Should not throw, should treat as empty store
+    expect(checkAndMarkDelivery(tmpDir, "del-after-corrupt")).toBe(false);
+    // After writing, it should be valid
+    const raw = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8");
+    const store = JSON.parse(raw);
+    expect(store.deliveryIds).toBeDefined();
+    expect(store.reviewedShas).toBeDefined();
+  });
+
+  it("evicts oldest entries when store exceeds MAX_ENTRIES", () => {
+    // Insert MAX_ENTRIES + 10 delivery IDs
+    for (let i = 0; i < 510; i++) {
+      checkAndMarkDelivery(tmpDir, `del-evict-${i}`);
+    }
+    // The store file should still be valid JSON
+    const raw = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8");
+    const store = JSON.parse(raw);
+    const entryCount = Object.keys(store.deliveryIds).length;
+    // Should cap at MAX_ENTRIES (500)
+    expect(entryCount).toBeLessThanOrEqual(500);
+  });
+});
+
+describe("markDeliveryProcessed and markShaReviewed (legacy no-ops)", () => {
+  it("markDeliveryProcessed does not throw", () => {
+    expect(() => markDeliveryProcessed(tmpDir, "del-noop")).not.toThrow();
+  });
+
+  it("markShaReviewed does not throw", () => {
+    expect(() => markShaReviewed(tmpDir, "sha-noop")).not.toThrow();
+  });
 });

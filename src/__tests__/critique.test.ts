@@ -300,4 +300,201 @@ describe("runCritique", () => {
     expect(result.comments).toHaveLength(1);
     expect(result.comments[0].confidence).toBe(90);
   });
+
+  it("applies confidence filter even when selfCritique is true and LLM succeeds", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Some filtered",
+        riskScore: 2,
+        comments: [
+          { file: "src/app.ts", line: 10, severity: "high", category: "bug", message: "Real bug", confidence: 95 },
+          { file: "src/util.ts", line: 5, severity: "low", category: "style", message: "Nit", confidence: 40 },
+        ],
+        decision: "comment",
+      },
+    } as any);
+
+    const result = await runCritique(reviewWithComments, baseConfig);
+    // confidenceThreshold is 80, so the low-confidence nit should be filtered
+    expect(result.comments.every((c) => c.confidence >= 80)).toBe(true);
+  });
+
+  it("returns approve when critique filters out all comments", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "All filtered",
+        riskScore: 1,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    const result = await runCritique(reviewWithComments, baseConfig);
+    expect(result.comments).toHaveLength(0);
+    expect(result.decision).toBe("approve");
+  });
+
+  it("passes review comments JSON in critique prompt", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Filtered",
+        riskScore: 2,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    await runCritique(reviewWithComments, baseConfig);
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.prompt).toContain("Null pointer");
+    expect(callOpts.prompt).toContain("Critically evaluate");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterByConfidence — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("filterByConfidence — additional edge cases", () => {
+  it("keeps comments exactly at threshold", () => {
+    const review: ReviewResponseType = {
+      summary: "Edge",
+      riskScore: 3,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high", category: "bug", message: "Bug", confidence: 80 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 80);
+    expect(result.comments).toHaveLength(1);
+  });
+
+  it("filters comments just below threshold", () => {
+    const review: ReviewResponseType = {
+      summary: "Edge",
+      riskScore: 3,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high", category: "bug", message: "Bug", confidence: 79 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 80);
+    expect(result.comments).toHaveLength(0);
+    expect(result.decision).toBe("approve");
+  });
+
+  it("handles threshold of 1 correctly", () => {
+    const review: ReviewResponseType = {
+      summary: "Low bar",
+      riskScore: 2,
+      comments: [
+        { file: "a.ts", line: 1, severity: "low", category: "style", message: "Style", confidence: 1 },
+      ],
+      decision: "comment",
+    };
+    const result = filterByConfidence(review, 1);
+    expect(result.comments).toHaveLength(1);
+  });
+
+  it("handles single high-confidence comment preserving decision", () => {
+    const review: ReviewResponseType = {
+      summary: "One issue",
+      riskScore: 4,
+      comments: [
+        { file: "a.ts", line: 1, severity: "critical", category: "security", message: "XSS", confidence: 99 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 90);
+    expect(result.comments).toHaveLength(1);
+    expect(result.decision).toBe("request_changes");
+  });
+
+  it("downgrades to comment when only medium/low survive at high threshold", () => {
+    const review: ReviewResponseType = {
+      summary: "Mixed",
+      riskScore: 3,
+      comments: [
+        { file: "a.ts", line: 1, severity: "critical", category: "security", message: "XSS", confidence: 50 },
+        { file: "b.ts", line: 2, severity: "medium", category: "performance", message: "Slow", confidence: 85 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 60);
+    expect(result.comments).toHaveLength(1);
+    expect(result.decision).toBe("comment");
+  });
+
+  it("preserves summary and riskScore unchanged", () => {
+    const review: ReviewResponseType = {
+      summary: "Custom summary",
+      riskScore: 5,
+      comments: [
+        { file: "a.ts", line: 1, severity: "low", category: "style", message: "X", confidence: 10 },
+      ],
+      decision: "comment",
+    };
+    const result = filterByConfidence(review, 50);
+    expect(result.summary).toBe("Custom summary");
+    expect(result.riskScore).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseCritiqueOutput — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("parseCritiqueOutput — additional edge cases", () => {
+  const original: ReviewResponseType = {
+    summary: "Original",
+    riskScore: 3,
+    comments: [
+      { file: "a.ts", line: 1, severity: "critical", category: "bug", message: "Bug", confidence: 90 },
+    ],
+    decision: "request_changes",
+  };
+
+  it("handles markdown code block without json label", () => {
+    const text = "```\n" + JSON.stringify(original) + "\n```";
+    const result = parseCritiqueOutput(text, original);
+    expect(result.summary).toBe("Original");
+  });
+
+  it("returns original for whitespace-only input", () => {
+    const result = parseCritiqueOutput("   \n  \t  ", original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for partial/truncated JSON", () => {
+    const truncated = '{"summary": "Test", "riskScore": 3, "comments": [';
+    const result = parseCritiqueOutput(truncated, original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for valid JSON that does not match schema", () => {
+    const wrongSchema = JSON.stringify({ totally: "wrong", fields: true });
+    const result = parseCritiqueOutput(wrongSchema, original);
+    expect(result).toBe(original);
+  });
+
+  it("handles JSON with extra text before code block", () => {
+    const text = "Here is the result:\n```json\n" + JSON.stringify(original) + "\n```";
+    const result = parseCritiqueOutput(text, original);
+    expect(result.summary).toBe("Original");
+  });
+
+  it("handles nested code blocks gracefully", () => {
+    // Unlikely but edge case: inner code block in message
+    const reviewWithCode: ReviewResponseType = {
+      summary: "Has code",
+      riskScore: 2,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high", category: "bug", message: "Use `const x = 1;`", confidence: 85 },
+      ],
+      decision: "comment",
+    };
+    const text = "```json\n" + JSON.stringify(reviewWithCode) + "\n```";
+    const result = parseCritiqueOutput(text, original);
+    expect(result.summary).toBe("Has code");
+  });
 });

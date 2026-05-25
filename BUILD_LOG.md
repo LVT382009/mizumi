@@ -124,12 +124,20 @@
 - **Test expansion**: context 16→29, models 17→28, calibrate 17→33, memory 19→32, cifix 0→26
 - **1305 tests passing, 0 TS errors, bundle rebuilt**
 
-### Deferred to v1
+### Multi-Platform Support (This Cycle — Competitive Gap #5)
+
+- **Platform abstraction**: `src/platform.ts` — `PlatformClient` interface (10 methods), `detectPlatform()` (GITHUB_ACTION/GITLAB_CI), `createPlatformClient()` factory with lazy loading
+- **GitHub adapter**: `src/platform-github.ts` — wraps existing Octokit calls, backward-compatible with main.ts
+- **GitLab adapter**: `src/platform-gitlab.ts` — GitLab REST API v4 via native fetch (zero dependencies), positioned MR discussions, pipeline status, note CRUD
+- **GitLab entry point**: `src/gitlab-entry.ts` — CI/CD pipeline script for GitLab MR reviews
+- **Diff parsing**: `parseGitLabDiff()` / `parseGitLabDiffHunks()` — converts GitLab diff format to shared `DiffFile[]`
+- **Platform tests**: `platform.test.ts` (12 tests), `platform-gitlab.test.ts` (29 tests) — env detection, API mocking, diff parsing, CI status, postReview, error recovery
+- **Test expansion**: fuzzy 13→31, testgen 16→28, critique 18→33, idempotency 19→33
+- **1446 tests passing, 0 TS errors, bundle rebuilt**
 
 - Checks API (1.5, 1.21)
 - Incremental review (1.9)
 - Batch API (3.12)
-- Platform abstraction (3.14)
 - Qdrant vector memory (3.7) + RAG pipeline (3.8)
 - Postgres migration (3.6)
 - Marketplace listing (3.19)
