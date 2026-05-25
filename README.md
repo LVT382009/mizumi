@@ -13,6 +13,7 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **BYOK from day 1** — Bring your own key for Anthropic, OpenAI, Google, NVIDIA NIM, OpenRouter, or any OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, Fireworks, Ollama, llama.cpp, LM Studio)
 - **Self-learning** — Remembers past review patterns per repository via `.github/mizumi-memory.md`
 - **Deterministic rules** — Catches hardcoded secrets, missing auth middleware, and SQL injection WITHOUT any LLM call
+- **Persistent rule engine** — Custom regex/glob rules in `.github/mizumi-rules.yml`, auto-discovered rules from PR review history, and rule decay that retires stale patterns
 - **Two-pass review** — LLM review + self-critique on a cheaper model to reduce false positives
 - **Noise control** — `chill` profile (default) only flags bugs and security issues. `assertive` adds style/docs
 - **Input sanitization** — Defends against prompt injection from malicious PR content
@@ -99,6 +100,7 @@ jobs:
 | `confidence_calibration` | `true` | Dual-model voting on borderline findings |
 | `change_stack` | `true` | Reorganize output into dependency order |
 | `improve_enabled` | `false` | Enable /mizumi improve (requires contents: write) |
+| `rule_engine` | `true` | Enable persistent rule engine with auto-discovery |
 
 ### Per-Repository Config (`.github/mizumi.yml`)
 
@@ -133,6 +135,38 @@ Create `REVIEW.md` or `CLAUDE.md` in your repo root or `.github/` directory. Miz
 ### Self-Learning Memory
 
 Mizumi writes to `.github/mizumi-memory.md` after each review, capturing patterns from critical/high findings. This memory is injected into future reviews, helping Mizumi learn repository-specific patterns. You can edit or delete this file at any time.
+
+### Custom Rules (`.github/mizumi-rules.yml`)
+
+Define project-specific regex or glob rules that run deterministically before LLM review:
+
+```yaml
+rules:
+  - name: no-console-log
+    pattern: "console\\.log"
+    file_glob: "src/**/*.ts"
+    severity: low
+    category: style
+    message: "Avoid console.log in production code"
+
+  - name: no-eval
+    pattern: "\\beval\\s*\\("
+    severity: critical
+    category: security
+    message: "eval() is a security risk"
+
+  - name: check-auth-files
+    type: glob
+    file_glob: "src/auth/**"
+    severity: medium
+    category: security
+    pattern: ""
+    message: "Auth file modified — verify authorization logic"
+```
+
+### Auto-Discovered Rules
+
+Mizumi mines patterns from review history stored in SQLite. When the same file+category pattern appears 3+ times with 40%+ acceptance rate, Mizumi auto-discovers a rule that flags similar files in future reviews. Discovered rules decay over time when their category has low acceptance — rules below 30 confidence are automatically retired.
 
 ### Manual Trigger
 
@@ -200,12 +234,13 @@ When Mizumi detects recurring review patterns, it writes reusable skill files to
 |---|---|---|---|---|---|
 | **Cost/review** | $0.001–$0.08 (BYOK) | $19–$39/user/mo | Free / $24+/user/mo | $15–$25 | ~$0.95 avg |
 | **Providers** | 7 + any OpenAI-compat | Multi-model | OpenAI/Anthropic | Anthropic-only | Own model + AST |
-| **Self-learning** | Memory + SQLite + skills | No | Learnable prefs | No | No |
-| **Deterministic rules** | Secrets, auth, SQL injection | ESLint/CodeQL only | 40+ built-in linters | No | AST graph analysis |
+| **Self-learning** | Memory + SQLite + skills + auto-discovery | No | Learnable prefs | No | No |
+| **Deterministic rules** | 12 built-in + custom YAML + auto-discovered | ESLint/CodeQL only | 40+ built-in linters | No | AST graph analysis |
 | **Mermaid diagrams** | Architecture + severity | No | No | No | No |
 | **Speed** | Seconds | Seconds | ~30s | ~20 min | Fast |
 | **Review depth** | Two-pass + calibration | Surface (36.7% recall) | Standard (46% detect) | Deep (multi-agent) | Deep (48% detect) |
-| **Custom rules** | REVIEW.md + CLAUDE.md | copilot-instructions.md | .coderabbit.yaml | Custom instructions | Config file |
+| **Custom rules** | mizumi-rules.yml + REVIEW.md + CLAUDE.md | copilot-instructions.md | .coderabbit.yaml | Custom instructions | Config file |
+| **Auto-discovered rules** | Yes (SQLite mining + decay) | Suggested rules (beta) | No | No | No |
 | **Auto-fix** | 👍 reaction → commit | No | Yes | No | CI-validated fix loop |
 | **Platforms** | GitHub (v0.1) | GitHub-only | GitHub + GitLab + Azure + Bitbucket | GitHub-only | GitHub-only |
 | **CI-validated fixes** | No (v0.1) | No | No | No | Yes |

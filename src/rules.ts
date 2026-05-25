@@ -11,7 +11,7 @@ export interface RuleFinding {
   file: string;
   line: number;
   severity: "critical" | "high" | "medium" | "low";
-  category: "security" | "compliance";
+  category: "security" | "compliance" | "performance" | "bug" | "style" | "architecture";
   message: string;
   rule: string;
 }

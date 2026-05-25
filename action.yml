@@ -126,6 +126,10 @@ inputs:
     description: "Post a commit status (success/failure) usable as required branch protection check. none=disabled, critical=fail on critical, high=fail on high+critical, medium=fail on medium+"
     required: false
     default: "none"
+rule_engine:
+description: "Enable persistent rule engine with auto-discovery from PR history. Custom rules in .github/mizumi-rules.yml, auto-discovered from SQLite suggestion history, with rule decay."
+required: false
+default: "true"
 
 outputs:
   review_id:

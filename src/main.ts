@@ -1,6 +1,6 @@
-/**
- * Mizumi — Self-Learning PR Review Agent
- * Action entrypoint: parse event → rules → review → critique → post → memory
+﻿/**
+ * Mizumi â€” Self-Learning PR Review Agent
+ * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
  *
  * Philosophy: Exit code 0 always. Build-breaking is opt-in.
  * Error messages belong in the PR, not the Actions log.
@@ -38,6 +38,7 @@ import { processReactionApprovals } from "./autofix.js";
 import { persistLearningData } from "./persist.js";
 import { postGateStatus, postPendingGate } from "./gate.js";
 import { countMizumiReviews, getLatestFindings, createOrUpdateSpendComment } from "./helpers.js";
+import { executeRuleEngine } from "./rule-engine.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -59,7 +60,7 @@ async function run(): Promise<void> {
 
     const prNumber = getPrNumber(ctx);
     if (!prNumber) {
-      core.info("No PR number found — skipping review");
+      core.info("No PR number found â€” skipping review");
       return;
     }
 
@@ -139,9 +140,9 @@ const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindi
     }
   }
 
-    // Respect auto_review: false — only run on manual /mizumi trigger
+    // Respect auto_review: false â€” only run on manual /mizumi trigger
     if (!config.autoReview && !isManualTrigger) {
-      core.info("auto_review is false — skipping. Use /mizumi to trigger.");
+      core.info("auto_review is false â€” skipping. Use /mizumi to trigger.");
       return;
     }
 
@@ -156,20 +157,20 @@ const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindi
 
 
   if (checkAndMarkDelivery(workspace, deliveryId)) {
-    core.info("Duplicate webhook delivery — skipping");
+    core.info("Duplicate webhook delivery â€” skipping");
     return;
   }
   if (!isManualTrigger && checkAndMarkSha(workspace, headSha)) {
-    core.info(`Already reviewed SHA ${headSha.slice(0, 7)} — skipping. Use /mizumi to force.`);
+    core.info(`Already reviewed SHA ${headSha.slice(0, 7)} â€” skipping. Use /mizumi to force.`);
     return;
   }
 
-    // 0b. Process 👍 reaction auto-fixes before running new review
+    // 0b. Process ðŸ‘ reaction auto-fixes before running new review
   if (config.autoFix) {
     try {
       const autoFixed = await processReactionApprovals(octokit, owner, repo, prNumber, config);
       if (autoFixed > 0) {
-        core.info(`Auto-fixed ${autoFixed} suggestion(s) via 👍 reaction approval`);
+        core.info(`Auto-fixed ${autoFixed} suggestion(s) via ðŸ‘ reaction approval`);
         core.setOutput("auto_fixed", autoFixed);
       }
     } catch (e) {
@@ -182,11 +183,11 @@ const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindi
     core.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
 
     if (diff.files.length === 0) {
-      core.info("No changed files after exclusions — skipping review");
+      core.info("No changed files after exclusions â€” skipping review");
       return;
     }
 
-    // 2. Classify PR type (heuristic — zero LLM cost)
+    // 2. Classify PR type (heuristic â€” zero LLM cost)
   const prClassification = classifyPR(
     diff.files.map((f) => ({ from: f.path, additions: f.additions, deletions: f.deletions })),
     diff.totalAdditions,
@@ -203,7 +204,7 @@ const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindi
   );
   core.info(`Classification: ${classification.tier} (${classification.reason})`);
 
-// 2c. Slop detection — skip deep review for low-quality AI-generated PRs
+// 2c. Slop detection â€” skip deep review for low-quality AI-generated PRs
 const slopResult = detectSlop(
   diff.rawDiff, diff.totalAdditions, diff.totalDeletions,
   diff.files.length, diff.files.map((f) => f.path),
@@ -219,6 +220,16 @@ if (slopResult.isSlop) {
     const ruleFindings = runRules(diff.files);
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
 
+// 4a. Run persistent rule engine (custom + auto-discovered rules)ntry {n  engineFindings = engineResult.findings;n} catch (e) {n}n
+  // 4a. Run persistent rule engine (custom + auto-discovered rules)
+  let engineFindings: import("./rules.js").RuleFinding[] = [];
+  try {
+    const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
+    engineFindings = engineResult.findings;
+    core.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
+  } catch (e) {
+    core.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -242,7 +253,7 @@ if (slopResult.isSlop) {
     // 5. Build context (diff + memory + rules + PR metadata + classification)
     const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
 
-// 5b. Progressive skill loading — inject matching skills into rules context
+// 5b. Progressive skill loading â€” inject matching skills into rules context
 const skills = loadSkills(workspace, diff.files.map((f) => f.path));
 if (manualInstructions) {
     context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
@@ -255,7 +266,7 @@ ${skills.loaded}`;
     // 6. Build position hint for LLM
     const positionHint = buildPositionHint(diff.files);
 
-  // 6b. Guard context window — truncate diff if it exceeds model’s limit
+  // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
   const guarded = guardContextWindow(context.diffText, config.provider);
   if (guarded.truncated) {
     core.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config.provider})`);
@@ -269,8 +280,8 @@ if (slopResult.isSlop) {
 This PR appears to contain low-quality AI-generated code (score: ${slopResult.score}/100). Reasons: ${slopResult.reasons.join("; ")}. Focus review on structural issues rather than line-by-line quality.`;
 }
 
-    // 7. Run review (first pass — LLM)
-    // 6c. Agent context gathering — explore codebase with tools for cross-file context
+    // 7. Run review (first pass â€” LLM)
+    // 6c. Agent context gathering â€” explore codebase with tools for cross-file context
 let agentContext = "";
 if (classification.tier !== "light") {
   try {
@@ -298,7 +309,7 @@ core.info("Running review pass...");
     );
   core.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
 
-    // 8. Self-critique (second pass — cheaper model)
+    // 8. Self-critique (second pass â€” cheaper model)
     core.info("Running self-critique pass...");
     await rateLimiter.acquire();
 const filtered = await runCritique(review, config);
@@ -312,12 +323,12 @@ if (Object.keys(learningWeights).length > 0) {
   filtered.comments = adjusted as typeof filtered.comments;
 }
 
-// 8b2. Adaptive noise reduction — suppress repeatedly-dismissed patterns
+// 8b2. Adaptive noise reduction â€” suppress repeatedly-dismissed patterns
     try {
       const feedbackStore = readFeedbackStore(workspace);
       const suppressed = computeSuppressedPatterns(feedbackStore);
       if (suppressed.size > 0) {
-        core.info(`Adaptive noise: ${suppressed.size} suppressed patterns — ${[...suppressed].join(", ")}`);
+        core.info(`Adaptive noise: ${suppressed.size} suppressed patterns â€” ${[...suppressed].join(", ")}`);
         filtered.comments = applyNoiseReduction(filtered.comments, suppressed) as typeof filtered.comments;
         const reduced = filtered.comments.filter((c) => c.confidence < config.confidenceThreshold).length;
         if (reduced > 0) core.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
@@ -369,17 +380,26 @@ if (config.confidenceCalibration || config.complianceCheck) {
 }
 
 // 9. Merge deterministic rule findings into LLM findings
-    // Rule findings are always posted — they're deterministic and high-confidence
+    // Rule findings are always posted â€” they're deterministic and high-confidence
     const mergedComments = [
       ...ruleFindings.map((r) => ({
-        file: r.file,
-        line: r.line,
-        severity: r.severity as "critical" | "high" | "medium" | "low",
-        category: r.category as "security" | "compliance",
-        message: r.message,
-        suggestion: undefined as string | undefined,
-        confidence: 100, // Deterministic = always 100 confidence
-      })),
+    file: r.file,
+    line: r.line,
+    severity: r.severity as "critical" | "high" | "medium" | "low",
+    category: r.category as "security" | "compliance" | "performance" | "bug" | "style" | "architecture",
+    message: r.message,
+    suggestion: undefined as string | undefined,
+    confidence: 100, // Deterministic = always 100 confidence
+  })),
+  ...engineFindings.map((r) => ({
+    file: r.file,
+    line: r.line,
+    severity: r.severity as "critical" | "high" | "medium" | "low",
+    category: r.category as "security" | "compliance" | "performance" | "bug" | "style" | "architecture",
+    message: r.message,
+    suggestion: undefined as string | undefined,
+    confidence: 85, // Rule engine findings
+  })),
       ...filtered.comments,
     ];
 
@@ -398,7 +418,7 @@ if (config.confidenceCalibration || config.complianceCheck) {
  if (config.dryRun) {
    core.info("DRY RUN: Skipping review post. Findings:");
    for (const c of mergedReview.comments) {
-     core.info(`  [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message.slice(0, 200)}`);
+     core.info(`  [${c.severity}] ${c.file}:${c.line} â€” ${c.category}: ${c.message.slice(0, 200)}`);
    }
    core.setOutput("review_id", 0);
    core.setOutput("finding_count", mergedReview.comments.length);
@@ -473,7 +493,7 @@ if (config.spendThreshold > 0 && spendEntry.totalTokens > config.spendThreshold 
     const allEntries = readSpendLog(workspace);
     const recentEntries = allEntries.filter((e: import("./spend.js").SpendEntry) => e.repo === `${owner}/${repo}`);
     const digest = formatSpendDigest(recentEntries);
-    const dashboardBody = `<!-- mizumi-spend-marker -->\n## Spend Dashboard\n\n${digest}\n\n*Threshold: ${config.spendThreshold.toLocaleString()} tokens — this review used ${spendEntry.totalTokens.toLocaleString()} tokens.*\n\n---\n*Posted by Mizumi*`;
+    const dashboardBody = `<!-- mizumi-spend-marker -->\n## Spend Dashboard\n\n${digest}\n\n*Threshold: ${config.spendThreshold.toLocaleString()} tokens â€” this review used ${spendEntry.totalTokens.toLocaleString()} tokens.*\n\n---\n*Posted by Mizumi*`;
     await createOrUpdateSpendComment(octokit, owner, repo, prNumber, dashboardBody);
     core.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config.spendThreshold}`);
   } catch (e) {
@@ -486,10 +506,10 @@ recordFindings(workspace, `${owner}/${repo}`, prNumber,
   mergedReview.comments.map((c) => ({ file: c.file, line: c.line, category: c.category, severity: c.severity, message: c.message }))
 );
 
-    // 11. Update memory — learn from this review
+    // 11. Update memory â€” learn from this review
     const memoryUpdate = filtered.comments
       .filter((c) => c.severity === "critical" || c.severity === "high")
-      .map((c) => `- [${c.severity}] ${c.file}:${c.line} — ${c.category}: ${c.message}`)
+      .map((c) => `- [${c.severity}] ${c.file}:${c.line} â€” ${c.category}: ${c.message}`)
       .join("\n");
 
     // Record suggestions to SQLite for feedback tracking
@@ -515,7 +535,7 @@ if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.leng
     core.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
   }
 
-  // Always exit 0 — never fail the build by default
+  // Always exit 0 â€” never fail the build by default
     core.info("Mizumi review complete");
   } catch (error) {
     core.error(`Mizumi error: ${error instanceof Error ? (error.stack || error.message) : String(error)}`);
@@ -541,3 +561,4 @@ function getPrNumber(ctx: typeof github.context): number | null {
 }
 
 void run().catch((e) => { core.setFailed(`Fatal: ${e}`); process.exit(0); });
+
