@@ -97,6 +97,7 @@ const testConfig = {
   deltaReview: true,
       taintAnalysis: true,
       reviewLearning: true,
+    blastRadius: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

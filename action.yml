@@ -170,6 +170,10 @@ inputs:
     description: "Enable review-to-review learning — auto-generates negative rules from repeatedly-dismissed feedback patterns. Suppresses noisy finding categories across PRs."
     required: false
     default: "true"
+  blast_radius:
+    description: "Enable blast radius analysis - compute the set of files transitively impacted by each changed file using import/re-export dependency graphs. Injects impact context into LLM review."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

@@ -137,6 +137,7 @@ vi.mock("../config.js", () => ({
     deltaReview: true,
       taintAnalysis: true,
       reviewLearning: true,
+    blastRadius: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));
@@ -192,6 +193,7 @@ function makeOpts(overrides: Partial<GitHubClientOptions> = {}): GitHubClientOpt
       deltaReview: true,
       taintAnalysis: true,
       reviewLearning: true,
+    blastRadius: true,
     },
     headSha: "head-sha-1",
     ...overrides,

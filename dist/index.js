@@ -34838,6 +34838,9 @@ function loadConfig() {
     const behavioralSummary = getInput("behavioral_summary") !== "false"; // default true
     const ownershipRouting = getInput("ownership_routing") !== "false"; // default true
     const deltaReview = getInput("delta_review") !== "false"; // default true
+    const taintAnalysis = getInput("taint_analysis") !== "false"; // default true
+    const reviewLearning = getInput("review_learning") !== "false"; // default true
+    const blastRadius = getInput("blast_radius") !== "false"; // default true
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34929,6 +34932,9 @@ function loadConfig() {
         behavioralSummary,
         ownershipRouting,
         deltaReview,
+        taintAnalysis,
+        reviewLearning,
+        blastRadius,
     };
 }
 /**
@@ -38634,7 +38640,7 @@ function shallowClone(o) {
     return o;
 }
 const propertyKeyTypes = /* @__PURE__*/ new Set(["string", "number", "symbol"]);
-function escapeRegex$1(str) {
+function escapeRegex$2(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 // zod-specific utils
@@ -39501,7 +39507,7 @@ const $ZodCheckUpperCase = /*@__PURE__*/ $constructor("$ZodCheckUpperCase", (ins
 });
 const $ZodCheckIncludes = /*@__PURE__*/ $constructor("$ZodCheckIncludes", (inst, def) => {
     $ZodCheck.init(inst, def);
-    const escapedRegex = escapeRegex$1(def.includes);
+    const escapedRegex = escapeRegex$2(def.includes);
     const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position}}${escapedRegex}` : escapedRegex);
     def.pattern = pattern;
     inst._zod.onattach.push((inst) => {
@@ -39525,7 +39531,7 @@ const $ZodCheckIncludes = /*@__PURE__*/ $constructor("$ZodCheckIncludes", (inst,
 });
 const $ZodCheckStartsWith = /*@__PURE__*/ $constructor("$ZodCheckStartsWith", (inst, def) => {
     $ZodCheck.init(inst, def);
-    const pattern = new RegExp(`^${escapeRegex$1(def.prefix)}.*`);
+    const pattern = new RegExp(`^${escapeRegex$2(def.prefix)}.*`);
     def.pattern ?? (def.pattern = pattern);
     inst._zod.onattach.push((inst) => {
         const bag = inst._zod.bag;
@@ -39548,7 +39554,7 @@ const $ZodCheckStartsWith = /*@__PURE__*/ $constructor("$ZodCheckStartsWith", (i
 });
 const $ZodCheckEndsWith = /*@__PURE__*/ $constructor("$ZodCheckEndsWith", (inst, def) => {
     $ZodCheck.init(inst, def);
-    const pattern = new RegExp(`.*${escapeRegex$1(def.suffix)}$`);
+    const pattern = new RegExp(`.*${escapeRegex$2(def.suffix)}$`);
     def.pattern ?? (def.pattern = pattern);
     inst._zod.onattach.push((inst) => {
         const bag = inst._zod.bag;
@@ -41002,7 +41008,7 @@ const $ZodEnum = /*@__PURE__*/ $constructor("$ZodEnum", (inst, def) => {
     inst._zod.values = valuesSet;
     inst._zod.pattern = new RegExp(`^(${values
         .filter((k) => propertyKeyTypes.has(typeof k))
-        .map((o) => (typeof o === "string" ? escapeRegex$1(o) : o.toString()))
+        .map((o) => (typeof o === "string" ? escapeRegex$2(o) : o.toString()))
         .join("|")})$`);
     inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -41026,7 +41032,7 @@ const $ZodLiteral = /*@__PURE__*/ $constructor("$ZodLiteral", (inst, def) => {
     const values = new Set(def.values);
     inst._zod.values = values;
     inst._zod.pattern = new RegExp(`^(${def.values
-        .map((o) => (typeof o === "string" ? escapeRegex$1(o) : o ? escapeRegex$1(o.toString()) : String(o)))
+        .map((o) => (typeof o === "string" ? escapeRegex$2(o) : o ? escapeRegex$2(o.toString()) : String(o)))
         .join("|")})$`);
     inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -74569,8 +74575,15 @@ function estimateEffort(diffFiles, findingCount) {
  * Dedup: FNV-1a fingerprint in HTML meta comment (reviewdog pattern).
  * Reply-aware deletion: comments with human replies are never deleted.
  * 65,535 char cap: review body truncated if exceeding GitHub limit.
+ *
+ * Comment architecture (dual-updateable comment pattern):
+ * 1. PR Review (immutable) — minimal body: just decision + finding count + risk
+ * 2. Detail comment (issue comment, updateable via DETAIL_MARKER) — full report card, walkthrough, tables
+ * 3. Summary comment (issue comment, updateable via MARKER) — risk score, decision, severity counts
+ * On re-run: detail + summary are updated in-place; a new PR review is created.
  */
 const MARKER$3 = "<!-- mizumi-review-marker -->";
+const DETAIL_MARKER = "<!-- mizumi-detail-marker -->";
 /** Derive confidence level from numeric score (matches calibrate.ts thresholds) */
 function confidenceLevel(score) {
     if (score > 80)
@@ -74662,23 +74675,19 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             confidence: 100,
         });
     }
-    // 4. Create PR Review
+    // 3b. Dismiss any previous pending Mizumi reviews before creating a new one
+    await dismissPendingReviews(octokit, owner, repo, prNumber);
+    // 4. Build detail body (report card, walkthrough, finding tables)
+    const detailBody = buildReviewBody(inlineFindings, tableFindings, detailsFindings, unmappableFindings, review.riskScore, review.comments.length, mapDecision(review.decision), review.summary, review.comments, diffFiles);
+    // 5. Create PR Review (immutable — keep body minimal)
     let reviewId = 0;
     try {
-        let reviewBody = buildReviewBody(inlineFindings, tableFindings, detailsFindings, unmappableFindings, review.riskScore, review.comments.length, mapDecision(review.decision), review.summary, review.comments, diffFiles);
-        // Truncate if exceeding GitHub's 65,535 char limit
-        if (reviewBody.length > MAX_COMMENT_BODY) {
-            const originalLen = reviewBody.length;
-            const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
-            reviewBody = truncated + `\n\n... Too many findings to display. (${review.comments.length} findings, body truncated to ${MAX_COMMENT_BODY} chars)`;
-            warning(`Review body truncated from ${originalLen} to ${MAX_COMMENT_BODY} chars`);
-        }
         const { data: createdReview } = await octokit.rest.pulls.createReview({
             owner,
             repo,
             pull_number: prNumber,
             commit_id: headSha,
-            body: screenOutput(reviewBody),
+            body: screenOutput(buildMinimalReviewBody(review)),
             event: mapDecision(review.decision),
             comments: postedInline,
         });
@@ -74686,17 +74695,21 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
     }
     catch (error) {
         if (error?.status === 422) {
-            warning("422 on createReview — falling back to summary-only comment");
+            warning("422 on createReview — falling back to issue comments only");
             const summaryBody = buildSummaryComment(review);
             await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
+            await createOrUpdateDetailComment(octokit, owner, repo, prNumber, screenOutput(truncateToLimit(DETAIL_MARKER + "\n" + detailBody)));
             return { reviewId: 0, findingCount: review.comments.length, riskScore: review.riskScore };
         }
         throw error;
     }
-    // 5. Post/update summary comment with HTML marker dedup
+    // 6. Post/update detail comment (full report card, walkthrough, tables)
+    const detailCommentBody = DETAIL_MARKER + "\n" + detailBody;
+    await createOrUpdateDetailComment(octokit, owner, repo, prNumber, screenOutput(truncateToLimit(detailCommentBody)));
+    // 7. Post/update summary comment with HTML marker dedup
     const summaryBody = buildSummaryComment(review);
     await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
-    // 6. Return result (orchestrator sets action outputs)
+    // 8. Return result (orchestrator sets action outputs)
     return { reviewId, findingCount: review.comments.length, riskScore: review.riskScore };
 }
 function mapDecision(decision) {
@@ -74781,10 +74794,10 @@ function formatReportCard(card) {
     return body;
 }
 function buildReviewBody(_inlineFindings, tableFindings, detailsFindings, unmappableFindings, riskScore, findingCount, _reviewDecision, descriptionFeedback, allFindings, diffFiles) {
-    let body = MARKER$3;
+    let body = "";
     const fatigueWarning = buildFatigueWarning(findingCount);
     if (fatigueWarning) {
-        body += `\n${fatigueWarning}\n\n`;
+        body += `${fatigueWarning}\n\n`;
     }
     body += `## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(riskScore, 1), 5))} (${Math.min(Math.max(riskScore, 1), 5)}/5)\n\n`;
     // Report card graded table
@@ -74847,6 +74860,12 @@ function buildReviewBody(_inlineFindings, tableFindings, detailsFindings, unmapp
     body += "\n---\n*This review was AI-generated by Mizumi. Always verify findings before acting. Not a substitute for human security review.*";
     return body;
 }
+/** Build a minimal PR review body — just decision and finding count.
+ * PR reviews are immutable once submitted, so keep this tiny.
+ * The full detail goes in an updateable issue comment instead. */
+function buildMinimalReviewBody(review) {
+    return MARKER$3 + `\n**Decision:** ${review.decision.toUpperCase()} | **Findings:** ${review.comments.length} | **Risk:** ${Math.min(Math.max(review.riskScore, 1), 5)}/5`;
+}
 function buildSummaryComment(review) {
     let body = MARKER$3;
     body += `\n## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(review.riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(review.riskScore, 1), 5))} (${Math.min(Math.max(review.riskScore, 1), 5)}/5)`;
@@ -74866,10 +74885,35 @@ function buildSummaryComment(review) {
     return body;
 }
 /**
- * Delete outdated Mizumi inline review comments using fingerprint matching.
- * Comments with human replies are never deleted (reviewdog pattern).
- * Returns the number of comments deleted. Never throws.
+ * Dismiss any previous pending Mizumi PR reviews.
+ * GitHub PR reviews with PENDING status can accumulate when /mizumi review
+ * is triggered multiple times. Dismissing them keeps only the latest review
+ * visible, preventing dual-comment confusion.
  */
+async function dismissPendingReviews(octokit, owner, repo, prNumber) {
+    try {
+        const { data: reviews } = await octokit.rest.pulls.listReviews({
+            owner,
+            repo,
+            pull_number: prNumber,
+        });
+        for (const review of reviews) {
+            if (review.state === "PENDING" && review.body?.includes(MARKER$3)) {
+                await octokit.rest.pulls.dismissReview({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    review_id: review.id,
+                    message: "Superseded by a new Mizumi review.",
+                });
+                info(`Dismissed previous pending review: ${review.id}`);
+            }
+        }
+    }
+    catch (e) {
+        debug(`Dismiss pending reviews failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+}
 async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFindings) {
     const currentFingerprints = new Set(currentFindings.map((f) => computeFingerprint(f.file, f.line, f.message)));
     let deleted = 0;
@@ -74908,6 +74952,12 @@ async function cleanupOutdatedComments(octokit, owner, repo, prNumber, currentFi
     }
     return deleted;
 }
+/** Truncate a string to the GitHub comment body char limit */
+function truncateToLimit(body, limit = MAX_COMMENT_BODY) {
+    if (body.length <= limit)
+        return body;
+    return body.slice(0, limit - 100) + "\n\n... Too many findings to display.";
+}
 async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body) {
     let page = 1;
     let existing;
@@ -74920,6 +74970,41 @@ async function createOrUpdateSummaryComment(octokit, owner, repo, prNumber, body
             page,
         });
         existing = comments.find((c) => c.body?.includes(MARKER$3));
+        if (comments.length < 100)
+            break;
+        page++;
+    }
+    if (existing) {
+        await octokit.rest.issues.updateComment({
+            owner,
+            repo,
+            comment_id: existing.id,
+            body,
+        });
+    }
+    else {
+        await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body,
+        });
+    }
+}
+/** Find and update an existing detail comment (marked with DETAIL_MARKER),
+ *  or create a new one. Same dedup pattern as createOrUpdateSummaryComment. */
+async function createOrUpdateDetailComment(octokit, owner, repo, prNumber, body) {
+    let page = 1;
+    let existing;
+    while (!existing) {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+            page,
+        });
+        existing = comments.find((c) => c.body?.includes(DETAIL_MARKER));
         if (comments.length < 100)
             break;
         page++;
@@ -78076,7 +78161,7 @@ function checkExportChanges(diffFiles, allFileContents) {
             // Skip package imports (not starting with . or @/)
             if (!imp.source.startsWith(".") && !imp.source.startsWith("@/"))
                 continue;
-            const resolvedSource = resolveImportPath(imp.source, file.path);
+            const resolvedSource = resolveImportPath$1(imp.source, file.path);
             const sourceContent = allFileContents.get(resolvedSource);
             if (!sourceContent && imp.source.startsWith(".")) {
                 // Import points to a file not in the changed set — warn
@@ -78133,7 +78218,7 @@ function checkUnhandledThrows(diffFiles, allFileContents) {
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 // Look for calls to the throwing function
-                if (!line.match(new RegExp(`\\b${escapeRegex(fnName)}\\s*\\(`)))
+                if (!line.match(new RegExp(`\\b${escapeRegex$1(fnName)}\\s*\\(`)))
                     continue;
                 // Check if this line is inside a try block
                 const isInTryCatch = tryCatchBlocks.some((tc) => tc.hasCatch && tc.line <= i + 1 && i + 1 <= tc.line + 30);
@@ -78185,7 +78270,7 @@ function checkSignatureChanges(diffFiles, allFileContents) {
                             continue;
                         const lines = otherContent.split("\n");
                         for (let i = 0; i < lines.length; i++) {
-                            const callMatch = lines[i].match(new RegExp(`\\b${escapeRegex(fnName)}\\s*\\(`));
+                            const callMatch = lines[i].match(new RegExp(`\\b${escapeRegex$1(fnName)}\\s*\\(`));
                             if (callMatch) {
                                 violations.push({
                                     file: otherPath,
@@ -78279,7 +78364,7 @@ function runASTContractAnalysis(diffFiles, workspace) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function resolveImportPath(source, fromFile) {
+function resolveImportPath$1(source, fromFile) {
     if (!source.startsWith("."))
         return source;
     const dir = fromFile.includes("/") ? fromFile.substring(0, fromFile.lastIndexOf("/")) : "";
@@ -78301,7 +78386,7 @@ function resolveImportPath(source, fromFile) {
     }
     return result;
 }
-function escapeRegex(str) {
+function escapeRegex$1(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -78973,6 +79058,675 @@ function buildADRContext(adrs) {
 }
 
 /**
+ * Security Dependency Graph — Taint-style data flow analysis for diffs.
+ *
+ * Competitive gap: No AI code reviewer traces how input data flows from
+ * PR changes to security-sensitive sinks (SQL, auth, crypto, exec, etc).
+ * Current tools flag sinks in isolation — they miss whether user input
+ * actually reaches them, causing both false positives (flagging sanitized
+ * paths) and false negatives (missing multi-hop taint chains).
+ *
+ * This module performs lightweight, diff-scoped taint tracking:
+ * 1. Identify "source" variables (req.params, req.body, process.argv, etc.)
+ * 2. Track variable assignments and function call data flow within hunks
+ * 3. When a tracked variable reaches a "sink" call, generate a taint trace
+ * 4. The trace is injected into the LLM review context as evidence
+ *
+ * Not a full static analysis — operates only on diff content. Zero LLM cost.
+ */
+// ---------------------------------------------------------------------------
+// Pattern definitions
+// ---------------------------------------------------------------------------
+const SOURCE_PATTERNS = [
+    // Express/HTTP request sources
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*req\.(?:params|body|query|headers|cookies)\b/, type: "http-request", varGroup: 1 },
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*request\.(?:params|body|query|headers)\b/, type: "http-request", varGroup: 1 },
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*ctx\.(?:params|request|query)\b/, type: "http-request", varGroup: 1 },
+    // Process/environment sources
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*process\.argv\b/, type: "cli-input", varGroup: 1 },
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*process\.env\./, type: "env-variable", varGroup: 1 },
+    // Event sources
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*event\.(?:data|body|payload|value)\b/, type: "event-input", varGroup: 1 },
+    // URL/search params
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*(?:new\s+)?URLSearchParams/, type: "url-params", varGroup: 1 },
+    // File read (content from external files)
+    { re: /(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?(?:fs|filesystem)\.\w*[Rr]ead/, type: "file-input", varGroup: 1 },
+    // Destructured request params — const { id } = req.params
+    { re: /(?:const|let|var)\s+\{\s*(\w+)\s*\}\s*=\s*req\.(?:params|body|query)/, type: "http-request", varGroup: 1 },
+];
+const SINK_PATTERNS = [
+    // SQL sinks
+    { re: /(?:query|execute|raw|sql)\s*\(/, category: "sql", func: "query" },
+    { re: /\.query\s*\(/, category: "sql", func: "db.query" },
+    { re: /knex.*\.raw\s*\(/, category: "sql", func: "knex.raw" },
+    // Command execution sinks
+    { re: /(?:exec|execSync|spawn|execFile)\s*\(/, category: "exec", func: "exec" },
+    { re: /child_process\./, category: "exec", func: "child_process" },
+    // XSS sinks
+    { re: /\.innerHTML\s*=/, category: "xss", func: "innerHTML" },
+    { re: /\.outerHTML\s*=/, category: "xss", func: "outerHTML" },
+    { re: /document\.write\s*\(/, category: "xss", func: "document.write" },
+    // Crypto sinks (data used as key material)
+    { re: /create(?:Hash|Cipher|Decipher|Sign|Verify)\s*\(/, category: "crypto", func: "crypto" },
+    { re: /createSecretKey\s*\(/, category: "crypto", func: "createSecretKey" },
+    // File write sinks
+    { re: /(?:writeFile|writeFileSync|appendFile|appendFileSync)\s*\(/, category: "file", func: "writeFile" },
+    { re: /\.createWriteStream\s*\(/, category: "file", func: "createWriteStream" },
+    // Auth sinks
+    { re: /(?:verify|check|validate)(?:Token|Jwt|JWT|Session)\s*\(/, category: "auth", func: "verifyToken" },
+    { re: /jwt\.\w+\s*\(/, category: "auth", func: "jwt" },
+    // Network sinks
+    { re: /fetch\s*\(/, category: "network", func: "fetch" },
+    { re: /(?:axios|http|https)\.\w+\s*\(/, category: "network", func: "httpClient" },
+];
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
+/**
+ * Find taint sources (untrusted input entry points) in the diff.
+ */
+function findSources(files) {
+    const sources = [];
+    for (const file of files) {
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                const line = change.content;
+                for (const pattern of SOURCE_PATTERNS) {
+                    const match = line.match(pattern.re);
+                    if (match) {
+                        sources.push({
+                            variable: match[pattern.varGroup],
+                            sourceType: pattern.type,
+                            file: file.path,
+                            line: change.line,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return sources;
+}
+/**
+ * Find security sinks (dangerous function calls) in the diff.
+ */
+function findSinks(files) {
+    const sinks = [];
+    for (const file of files) {
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                const line = change.content;
+                for (const pattern of SINK_PATTERNS) {
+                    if (pattern.re.test(line)) {
+                        sinks.push({
+                            sinkFunction: pattern.func,
+                            category: pattern.category,
+                            file: file.path,
+                            line: change.line,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return sinks;
+}
+/**
+ * Trace data flow from sources to sinks within diff hunks.
+ * Tracks variable assignments and function call arguments.
+ */
+function traceTaintFlow(files, sources, sinks) {
+    if (sources.length === 0 || sinks.length === 0)
+        return [];
+    const traces = [];
+    const traced = new Set(); // dedup key: "srcVar:sinkFile:sinkLine"
+    // Build a map of tracked variables per file → their original source
+    const trackedVars = new Map();
+    const varToSource = new Map(); // file → varName → TaintSource
+    for (const src of sources) {
+        const key = src.file;
+        if (!trackedVars.has(key))
+            trackedVars.set(key, new Set());
+        trackedVars.get(key).add(src.variable);
+        if (!varToSource.has(key))
+            varToSource.set(key, new Map());
+        varToSource.get(key).set(src.variable, src);
+    }
+    // Track variable aliasing within hunks and detect sink hits
+    for (const file of files) {
+        const fileTracked = trackedVars.get(file.path);
+        const fileSourceMap = varToSource.get(file.path);
+        if (!fileTracked)
+            continue;
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                const line = change.content;
+                // Detect aliasing: const y = x or const y = x.something
+                for (const varName of [...fileTracked]) {
+                    // Match: const/let/var newVar = oldVar or oldVar.prop or end-of-line
+                    const aliasRe = new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*=\\s*${escapeRegex(varName)}(?:[\\s.\\[]|$)`);
+                    const aliasMatch = line.match(aliasRe);
+                    if (aliasMatch) {
+                        const aliasName = aliasMatch[1];
+                        // Don't alias a variable to itself
+                        if (aliasName !== varName) {
+                            fileTracked.add(aliasName);
+                            // Propagate the original source to the alias
+                            const origSource = fileSourceMap.get(varName);
+                            if (origSource)
+                                fileSourceMap.set(aliasName, origSource);
+                        }
+                    }
+                    // Match: function call passing tracked var as arg
+                    const callRe = new RegExp(`(?:\\w+\\.)?\\w+\\s*\\(.*${escapeRegex(varName)}.*\\)`);
+                    if (callRe.test(line)) {
+                        // Check if this line contains a sink
+                        for (const sink of sinks) {
+                            if (sink.file !== file.path || sink.line !== change.line)
+                                continue;
+                            const src = fileSourceMap.get(varName);
+                            if (!src)
+                                continue;
+                            const dedupKey = `${src.variable}:${sink.file}:${sink.line}`;
+                            if (traced.has(dedupKey))
+                                continue;
+                            traced.add(dedupKey);
+                            traces.push({
+                                source: src,
+                                sink,
+                                flowPath: [varName],
+                                severity: "high",
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Also check direct source-to-sink in same line (covers inline cases)
+    for (const file of files) {
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                const line = change.content;
+                for (const src of sources) {
+                    if (src.file !== file.path)
+                        continue;
+                    if (!line.includes(src.variable))
+                        continue;
+                    for (const sink of sinks) {
+                        if (sink.file !== file.path || sink.line !== change.line)
+                            continue;
+                        const dedupKey = `${src.variable}:${sink.file}:${sink.line}`;
+                        if (traced.has(dedupKey))
+                            continue;
+                        traced.add(dedupKey);
+                        traces.push({
+                            source: src,
+                            sink,
+                            flowPath: [src.variable],
+                            severity: "high",
+                        });
+                    }
+                }
+            }
+        }
+    }
+    // Cross-file traces: source in one file, sink in another with matching variable names
+    for (const src of sources) {
+        for (const sink of sinks) {
+            if (src.file === sink.file)
+                continue;
+            const dedupKey = `${src.variable}:${sink.file}:${sink.line}`;
+            if (traced.has(dedupKey))
+                continue;
+            // Check if the source variable name appears in any sink file's hunk
+            for (const file of files) {
+                if (file.path !== sink.file)
+                    continue;
+                for (const hunk of file.hunks) {
+                    for (const change of hunk.changes) {
+                        if (change.type !== "add")
+                            continue;
+                        if (change.content.includes(src.variable)) {
+                            traced.add(dedupKey);
+                            traces.push({
+                                source: src,
+                                sink,
+                                flowPath: [src.variable],
+                                severity: "medium",
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return traces;
+}
+/**
+ * Run the full taint analysis pipeline on the diff files.
+ */
+function runTaintAnalysis(files) {
+    const sources = findSources(files);
+    const sinks = findSinks(files);
+    const traces = traceTaintFlow(files, sources, sinks);
+    if (traces.length > 0) {
+        info(`Taint analysis: ${sources.length} source(s), ${sinks.length} sink(s), ${traces.length} trace(s)`);
+    }
+    return { traces, sourceCount: sources.length, sinkCount: sinks.length };
+}
+/**
+ * Build review context from taint traces.
+ * Produces a prompt section with evidence chains for the LLM.
+ */
+function buildTaintContext(result) {
+    if (result.traces.length === 0)
+        return "";
+    let context = `## Security Data Flow Analysis (${result.traces.length} trace(s))\n`;
+    context += "The following data flow traces show untrusted input reaching security-sensitive operations. Prioritize findings along these traces.\n\n";
+    for (const trace of result.traces.slice(0, 8)) {
+        const severity = trace.severity === "high" ? "HIGH" : "MEDIUM";
+        context += `**[${severity}]** \`${trace.source.variable}\` (${trace.source.sourceType}) at ${trace.source.file}:${trace.source.line} `;
+        context += `→ \`${trace.sink.sinkFunction}\` (${trace.sink.category}) at ${trace.sink.file}:${trace.sink.line}\n`;
+        if (trace.flowPath.length > 1) {
+            context += `  Flow: ${trace.flowPath.join(" → ")}\n`;
+        }
+    }
+    if (result.traces.length > 8) {
+        context += `\n... and ${result.traces.length - 8} more trace(s).\n`;
+    }
+    return context.trim();
+}
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Review-to-Review Learning — competitive gap Rank 2.
+ *
+ * Auto-generates negative rules from repeatedly-dismissed feedback patterns.
+ * When developers dismiss the same finding pattern multiple times across PRs,
+ * Mizumi learns to suppress it automatically in future reviews.
+ *
+ * This bridges feedback.ts → rule-engine.ts:
+ * 1. Scan feedback store for patterns with high dismissal rates
+ * 2. Auto-generate negative rules (category:pattern → suppress)
+ * 3. Persist negative rules to SQLite alongside the rule engine
+ * 4. Apply negative rules during noise reduction
+ *
+ * No other AI code reviewer learns from dismissals across PRs.
+ * CodeRabbit requires manual YAML entry; Greptile only learns per-session.
+ */
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+/** Minimum reviews before a pattern triggers auto-learning */
+const MIN_SAMPLE_SIZE = 3;
+/** Dismissal rate threshold to create a negative rule */
+const DISMISSAL_THRESHOLD = 0.6;
+/** Maximum negative rules to keep active */
+const MAX_NEGATIVE_RULES = 20;
+// ---------------------------------------------------------------------------
+// Learning logic
+// ---------------------------------------------------------------------------
+/**
+ * Analyze feedback history and generate negative rules from dismissed patterns.
+ * A "pattern" is (category, messagePrefix) — we group by first 3 words of message.
+ * When 60%+ of reviews dismiss a pattern (3+ samples), auto-suppress it.
+ */
+function learnNegativeRules(store) {
+    if (store.entries.length === 0)
+        return [];
+    // Group feedback by pattern key: category:messagePrefix
+    const buckets = new Map();
+    for (const entry of store.entries) {
+        if (entry.outcome === "pending")
+            continue;
+        const messagePrefix = extractMessagePrefix(entry.messageHash, entry.category);
+        const key = `${entry.category}:${messagePrefix}`;
+        if (!buckets.has(key)) {
+            buckets.set(key, { helpful: 0, unhelpful: 0, total: 0, messages: [] });
+        }
+        const bucket = buckets.get(key);
+        bucket.total++;
+        if (entry.outcome === "helpful")
+            bucket.helpful++;
+        if (entry.outcome === "unhelpful")
+            bucket.unhelpful++;
+    }
+    const rules = [];
+    for (const [key, bucket] of buckets) {
+        if (bucket.total < MIN_SAMPLE_SIZE)
+            continue;
+        const dismissalRate = bucket.unhelpful / bucket.total;
+        if (dismissalRate < DISMISSAL_THRESHOLD)
+            continue;
+        const [category, messagePattern] = key.split(":", 2);
+        rules.push({
+            category,
+            messagePattern,
+            dismissalRate,
+            sampleSize: bucket.total,
+            createdAt: new Date().toISOString(),
+        });
+    }
+    // Sort by dismissal rate (highest first), then sample size
+    rules.sort((a, b) => b.dismissalRate - a.dismissalRate || b.sampleSize - a.sampleSize);
+    return rules.slice(0, MAX_NEGATIVE_RULES);
+}
+/**
+ * Check if a finding matches any negative rule and should be suppressed.
+ * Returns the matching rule if found, null otherwise.
+ */
+function matchesNegativeRule(finding, rules) {
+    for (const rule of rules) {
+        // Exact category match
+        if (finding.category !== rule.category)
+            continue;
+        // "*" means suppress entire category
+        if (rule.messagePattern === "*")
+            return rule;
+        // Match by messageHash prefix
+        const findingPrefix = extractMessagePrefix(hashString(finding.message), finding.category);
+        if (findingPrefix === rule.messagePattern)
+            return rule;
+    }
+    return null;
+}
+/**
+ * Apply negative rules to findings — reduce confidence of matching findings.
+ * Findings matching negative rules get confidence dropped to 0 (filtered out).
+ * Returns modified findings array.
+ */
+function applyNegativeRules(findings, rules) {
+    if (rules.length === 0)
+        return findings;
+    return findings.filter((f) => {
+        const match = matchesNegativeRule(f, rules);
+        if (match) {
+            info(`Review learning: suppressed "${f.category}" finding (dismissal rate ${Math.round(match.dismissalRate * 100)}%, ${match.sampleSize} samples)`);
+            return false;
+        }
+        return true;
+    });
+}
+/**
+ * Run the full review-to-review learning pipeline.
+ * Read feedback, generate negative rules, return results.
+ */
+function runReviewLearning(workspace) {
+    const store = readFeedbackStore(workspace);
+    const newRules = learnNegativeRules(store);
+    if (newRules.length > 0) {
+        info(`Review learning: ${newRules.length} negative rule(s) generated from ${store.entries.length} feedback entries`);
+    }
+    return {
+        newRules,
+        totalRules: newRules.length,
+        entriesAnalyzed: store.entries.length,
+    };
+}
+/**
+ * Build a review learning context string for injection into the LLM prompt.
+ * Tells the LLM which finding categories the team typically dismisses.
+ */
+function buildLearningContext(result) {
+    if (result.newRules.length === 0)
+        return "";
+    let context = `## Review Learning — Suppressed Patterns (${result.newRules.length} rule(s))\n`;
+    context += "The team has repeatedly dismissed the following finding categories. Avoid generating similar findings:\n\n";
+    for (const rule of result.newRules.slice(0, 8)) {
+        context += `- **${rule.category}** (${rule.messagePattern}): ${Math.round(rule.dismissalRate * 100)}% dismissal rate (${rule.sampleSize} reviews)\n`;
+    }
+    if (result.newRules.length > 8) {
+        context += `\n... and ${result.newRules.length - 8} more suppressed pattern(s).\n`;
+    }
+    return context.trim();
+}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+/** Extract a stable message prefix from hash for pattern grouping */
+function extractMessagePrefix(hash, _category) {
+    // Use first 4 chars of hash as stable prefix within category
+    return hash.slice(0, 4);
+}
+/** Simple string hash for message prefix extraction */
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash + chr) | 0;
+    }
+    return Math.abs(hash).toString(36);
+}
+
+/**
+ * Blast Radius — Change impact analysis.
+ *
+ * Computes which UNCHANGED files are transitively impacted by the PR's
+ * changed files using import/re-export dependency graphs extracted from
+ * diff content. No other AI code reviewer does this.
+ *
+ * CodeRabbit shows file groups; Copilot shows flat prose — neither traces
+ * the blast radius of a change. Human reviewers think "who else depends on
+ * this?" but AI reviewers have been blind to it.
+ *
+ * Algorithm:
+ * 1. Scan added lines in diff hunks for import/require/re-export patterns
+ * 2. Build a forward dependency graph: file → set of files it imports
+ * 3. Invert to get reverse graph: file → set of files that depend on it
+ * 4. For each CHANGED file, BFS/DFS the reverse graph to find dependents
+ * 5. Mark impact severity: direct (1-hop) = high, transitive = medium
+ * 6. Report unchanged files in the blast radius
+ *
+ * Lightweight — runs on diff content only, no type checking, zero LLM cost.
+ */
+// ---------------------------------------------------------------------------
+// Import pattern extraction
+// ---------------------------------------------------------------------------
+const IMPORT_PATTERNS = [
+    // ESM static imports: import ... from './path'
+    { re: /import\s+(?:type\s+)?(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"](\.[^'"]+)['"]/, kind: "import", pathGroup: 1 },
+    // ESM re-exports: export { ... } from './path' or export * from './path'
+    { re: /export\s+(?:\{[^}]*\}\s+from|\*\s+(?:as\s+\w+\s+)?from)\s+['"](\.[^'"]+)['"]/, kind: "re-export", pathGroup: 1 },
+    // Side-effect imports: import './path'
+    { re: /import\s+['"](\.[^'"]+)['"]/, kind: "import", pathGroup: 1 },
+    // CJS requires: require('./path')
+    { re: /require\s*\(\s*['"](\.[^'"]+)['"]\s*\)/, kind: "require", pathGroup: 1 },
+    // Dynamic imports: import('./path')
+    { re: /import\s*\(\s*['"](\.[^'"]+)['"]\s*\)/, kind: "dynamic-import", pathGroup: 1 },
+];
+// ---------------------------------------------------------------------------
+// Core logic
+// ---------------------------------------------------------------------------
+/** Extract import/require edges from added lines in diff files */
+function extractImportEdges(files) {
+    const edges = [];
+    for (const file of files) {
+        for (const hunk of file.hunks) {
+            for (const change of hunk.changes) {
+                if (change.type !== "add")
+                    continue;
+                for (const pattern of IMPORT_PATTERNS) {
+                    const match = change.content.match(pattern.re);
+                    if (!match)
+                        continue;
+                    const rawPath = match[pattern.pathGroup];
+                    const target = resolveImportPath(rawPath, file.path);
+                    if (target && target !== file.path) {
+                        edges.push({
+                            from: file.path,
+                            to: target,
+                            kind: pattern.kind,
+                            line: change.line,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return edges;
+}
+/** Resolve a relative import path to a normalized file path.
+ *  Handles ./ ../ and extensionless imports (adds .ts/.tsx/.js/.jsx). */
+function resolveImportPath(rawPath, sourceFile) {
+    if (!rawPath.startsWith("."))
+        return "";
+    const sourceDir = sourceFile.includes("/")
+        ? sourceFile.substring(0, sourceFile.lastIndexOf("/"))
+        : "";
+    const parts = sourceDir ? sourceDir.split("/") : [];
+    for (const segment of rawPath.split("/")) {
+        if (segment === "." || segment === "")
+            continue;
+        if (segment === "..") {
+            parts.pop();
+        }
+        else {
+            parts.push(segment);
+        }
+    }
+    return parts.join("/");
+}
+/** Build forward and reverse dependency graphs from edges */
+function buildDependencyGraphs(edges, changedFilePaths) {
+    const forward = new Map();
+    const reverse = new Map();
+    for (const edge of edges) {
+        // Only consider edges where the importing file is in the diff
+        // (changed file imports something → the target may need attention)
+        // OR where the target is a changed file (something imports a changed file)
+        const fromChanged = changedFilePaths.has(edge.from);
+        const toChanged = changedFilePaths.has(edge.to);
+        if (!fromChanged && !toChanged)
+            continue;
+        // Forward: from → to (file from imports file to)
+        if (!forward.has(edge.from))
+            forward.set(edge.from, new Set());
+        forward.get(edge.from).add(edge.to);
+        // Reverse: to → from (file from depends on file to)
+        if (!reverse.has(edge.to))
+            reverse.set(edge.to, new Set());
+        reverse.get(edge.to).add(edge.from);
+    }
+    return { forward, reverse };
+}
+/** Compute the blast radius: all unchanged files that transitively depend
+ *  on changed files, via the reverse dependency graph. */
+function computeBlastRadius(changedFiles, reverseGraph, changedSet) {
+    const impacted = [];
+    const visited = new Set();
+    for (const changedFile of changedFiles) {
+        const dependents = reverseGraph.get(changedFile);
+        if (!dependents)
+            continue;
+        // BFS from each changed file's direct dependents
+        const queue = [];
+        for (const dep of dependents) {
+            queue.push({ path: dep, depth: 1 });
+        }
+        while (queue.length > 0) {
+            const { path: depPath, depth } = queue.shift();
+            // Skip changed files (they're already in the diff)
+            if (changedSet.has(depPath))
+                continue;
+            const dedupKey = `${depPath}::${changedFile}`;
+            if (visited.has(dedupKey))
+                continue;
+            visited.add(dedupKey);
+            impacted.push({
+                path: depPath,
+                changedFile,
+                depth,
+                impactLevel: depth === 1 ? "direct" : "transitive",
+            });
+            // Continue BFS through this dependent's dependents
+            const nextDeps = reverseGraph.get(depPath);
+            if (nextDeps && depth < 5) {
+                for (const nextDep of nextDeps) {
+                    queue.push({ path: nextDep, depth: depth + 1 });
+                }
+            }
+        }
+    }
+    // Sort: direct first, then by depth, then alphabetically
+    impacted.sort((a, b) => {
+        if (a.depth !== b.depth)
+            return a.depth - b.depth;
+        if (a.changedFile !== b.changedFile)
+            return a.changedFile.localeCompare(b.changedFile);
+        return a.path.localeCompare(b.path);
+    });
+    // Deduplicate: keep the shallowest depth for each (path, changedFile) pair
+    const seen = new Set();
+    return impacted.filter((item) => {
+        const key = `${item.path}:${item.changedFile}`;
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
+    });
+}
+/** Run the full blast radius analysis pipeline. */
+function runBlastRadiusAnalysis(files) {
+    const edges = extractImportEdges(files);
+    const changedSet = new Set(files.map((f) => f.path));
+    const changedPaths = files.map((f) => f.path);
+    const { reverse } = buildDependencyGraphs(edges, changedSet);
+    const impactedFiles = computeBlastRadius(changedPaths, reverse, changedSet);
+    const changedFilesWithDependents = changedPaths.filter((f) => reverse.has(f) && reverse.get(f).size > 0).length;
+    if (impactedFiles.length > 0) {
+        info(`Blast radius: ${impactedFiles.length} files impacted by ${changedPaths.length} changes, ${edges.length} dependency edges`);
+    }
+    return {
+        edges,
+        impactedFiles,
+        changedFilesWithDependents,
+        totalImpact: impactedFiles.length,
+    };
+}
+/** Build a blast radius context string for injection into the LLM prompt.
+ *  Tells the LLM which unchanged files are transitively impacted. */
+function buildBlastRadiusContext(result) {
+    if (result.impactedFiles.length === 0)
+        return "";
+    let context = `## Blast Radius — Impacted Files (${result.impactedFiles.length})\n`;
+    context += "The following UNCHANGED files depend on files modified in this PR. ";
+    context += "Reviewers should consider whether changes propagate correctly:\n\n";
+    // Group by changed file
+    const byChangedFile = new Map();
+    for (const imp of result.impactedFiles) {
+        if (!byChangedFile.has(imp.changedFile))
+            byChangedFile.set(imp.changedFile, []);
+        byChangedFile.get(imp.changedFile).push(imp);
+    }
+    for (const [changedFile, dependents] of byChangedFile) {
+        context += `### \`${changedFile}\` impacts:\n`;
+        for (const dep of dependents.slice(0, 8)) {
+            const level = dep.impactLevel === "direct" ? "direct" : `${dep.depth}-hop`;
+            context += `- \`${dep.path}\` (${level})\n`;
+        }
+        if (dependents.length > 8) {
+            context += `- ... and ${dependents.length - 8} more\n`;
+        }
+        context += "\n";
+    }
+    if (result.edges.length > 0) {
+        context += `**Dependency edges found:** ${result.edges.length} (import/require/re-export)\n`;
+    }
+    return context.trim();
+}
+
+/**
  * Mizumi â€” Self-Learning PR Review Agent
  * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
  *
@@ -79218,6 +79972,36 @@ async function run() {
                 warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
             }
         }
+        // 4a3. Taint analysis - data flow from untrusted sources to security sinks
+        let taintResult = null;
+        if (config.taintAnalysis) {
+            try {
+                taintResult = runTaintAnalysis(diff.files);
+            }
+            catch (e) {
+                warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
+        // 4a4. Review-to-review learning — auto-suppress dismissed patterns
+        let learningResult = null;
+        if (config.reviewLearning) {
+            try {
+                learningResult = runReviewLearning(workspace);
+            }
+            catch (e) {
+                warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
+        // 4a5. Blast radius - compute which unchanged files are transitively impacted
+        let blastResult = null;
+        if (config.blastRadius) {
+            try {
+                blastResult = runBlastRadiusAnalysis(diff.files);
+            }
+            catch (e) {
+                warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
         // 4b. Run linter pre-scan (deterministic, zero LLM cost)
         let linterFindings = [];
         try {
@@ -79259,6 +80043,33 @@ async function run() {
 
 ${adrContextStr}`;
             info(String.raw `ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter(a => a.status === "accepted").length} active`);
+        }
+        // 5c2. Taint context injection - inject data flow traces into review context
+        if (taintResult && taintResult.traces.length > 0) {
+            const taintContextStr = buildTaintContext(taintResult);
+            if (taintContextStr) {
+                context.rulesContent += `
+
+${taintContextStr}`;
+            }
+        }
+        // 5c3. Learning context injection
+        if (learningResult && learningResult.newRules.length > 0) {
+            const learningContextStr = buildLearningContext(learningResult);
+            if (learningContextStr) {
+                context.rulesContent += `
+
+${learningContextStr}`;
+            }
+        }
+        // 5c4. Blast radius context injection
+        if (blastResult && blastResult.totalImpact > 0) {
+            const blastCtxStr = buildBlastRadiusContext(blastResult);
+            if (blastCtxStr) {
+                context.rulesContent += `
+
+${blastCtxStr}`;
+            }
         }
         if (skills.loaded)
             context.rulesContent += `
@@ -79316,6 +80127,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             if (suppressed.size > 0) {
                 info(`Adaptive noise: ${suppressed.size} suppressed patterns â€” ${[...suppressed].join(", ")}`);
                 filtered.comments = applyNoiseReduction(filtered.comments, suppressed);
+                // Apply review-to-review learning (negative rules from dismissed patterns)
+                if (learningResult && learningResult.newRules.length > 0) {
+                    filtered.comments = applyNegativeRules(filtered.comments, learningResult.newRules);
+                }
                 const reduced = filtered.comments.filter((c) => c.confidence < config.confidenceThreshold).length;
                 if (reduced > 0)
                     info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);

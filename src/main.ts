@@ -47,6 +47,7 @@ import { computeDeltaReview, recordReviewedSha, formatDeltaSummary } from "./del
 import { discoverADRs, buildADRContext, checkADRViolations } from "./adr.js";
 import { runTaintAnalysis, buildTaintContext } from "./taint.js";
 import { runReviewLearning, buildLearningContext, applyNegativeRules } from "./review-learning.js";
+import { runBlastRadiusAnalysis, buildBlastRadiusContext } from "./blast-radius.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -342,6 +343,16 @@ if (config.astContractAnalysis) {
  }
  }
 
+// 4a5. Blast radius - compute which unchanged files are transitively impacted
+let blastResult: import("./blast-radius.js").BlastRadiusResult | null = null;
+if (config.blastRadius) {
+try {
+blastResult = runBlastRadiusAnalysis(diff.files);
+} catch (e) {
+core.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
+}
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -403,6 +414,16 @@ if (learningResult && learningResult.newRules.length > 0) {
 
 ${learningContextStr}`;
   }
+}
+
+// 5c4. Blast radius context injection
+if (blastResult && blastResult.totalImpact > 0) {
+const blastCtxStr = buildBlastRadiusContext(blastResult);
+if (blastCtxStr) {
+context.rulesContent += `
+
+${blastCtxStr}`;
+}
 }
 
 if (skills.loaded) context.rulesContent += `

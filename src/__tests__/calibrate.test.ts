@@ -109,6 +109,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
   deltaReview: true,
       taintAnalysis: true,
       reviewLearning: true,
+    blastRadius: true,
     ...overrides,
   };
 }
