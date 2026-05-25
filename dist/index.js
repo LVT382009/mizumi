@@ -75971,7 +75971,6 @@ function createAgentTools(octokit, owner, repo, headSha) {
                 const { data } = await octokit.rest.search.code({
                     q: `${safeQuery} repo:${owner}/${repo}`,
                     per_page: 10,
-                    headers: { accept: "application/vnd.github.v3.text-match+json" },
                 });
                 const results = data.items.slice(0, 10).map((item) => {
                     const matches = item.text_matches
@@ -75981,7 +75980,7 @@ function createAgentTools(octokit, owner, repo, headSha) {
                     return `**${item.path}**${matches.length ? ":\n" + matches.join("\n") : ""}`;
                 });
                 return results.length > 0
-                    ? results.join("\n\n")
+                    ? results.join("\n")
                     : `No results for "${query}"`;
             }
             catch {
@@ -76000,18 +75999,8 @@ function createAgentTools(octokit, owner, repo, headSha) {
                 const { data } = await octokit.rest.search.code({
                     q: `"${safeSymbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
                     per_page: 15,
-                    headers: { accept: "application/vnd.github.v3.text-match+json" },
                 });
-                const usages = data.items.slice(0, 15).map((item) => {
-                    const matches = item.text_matches
-                        ?.map((m) => {
-                        const frag = m.fragment?.trim();
-                        return frag ? `  ${frag}` : null;
-                    })
-                        ?.filter(Boolean)
-                        ?.slice(0, 1) ?? [];
-                    return `- \`${item.path}\`${matches.length ? "\n" + matches[0] : ""}`;
-                });
+                const usages = data.items.slice(0, 15).map((item) => `- \`${item.path}\``);
                 return usages.length > 0
                     ? `**${usages.length} references to "${symbol}":**\n\n${usages.join("\n")}`
                     : `No usages found for "${symbol}"`;

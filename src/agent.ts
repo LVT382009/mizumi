@@ -103,7 +103,6 @@ export function createAgentTools(
         const { data } = await octokit.rest.search.code({
           q: `${safeQuery} repo:${owner}/${repo}`,
           per_page: 10,
-          headers: { accept: "application/vnd.github.v3.text-match+json" },
         });
         const results = data.items.slice(0, 10).map((item: any) => {
           const matches = item.text_matches
@@ -113,7 +112,7 @@ export function createAgentTools(
           return `**${item.path}**${matches.length ? ":\n" + matches.join("\n") : ""}`;
         });
         return results.length > 0
-          ? results.join("\n\n")
+          ? results.join("\n")
           : `No results for "${query}"`;
       } catch {
         return `Search failed for "${query}"`;
@@ -132,18 +131,8 @@ export function createAgentTools(
         const { data } = await octokit.rest.search.code({
           q: `"${safeSymbol}" repo:${owner}/${repo} language:typescript language:javascript language:python`,
           per_page: 15,
-          headers: { accept: "application/vnd.github.v3.text-match+json" },
         });
-        const usages = data.items.slice(0, 15).map((item: any) => {
-          const matches = item.text_matches
-            ?.map((m: any) => {
-              const frag = m.fragment?.trim();
-              return frag ? `  ${frag}` : null;
-            })
-            ?.filter(Boolean)
-            ?.slice(0, 1) ?? [];
-          return `- \`${item.path}\`${matches.length ? "\n" + matches[0] : ""}`;
-        });
+      const usages = data.items.slice(0, 15).map((item: any) => `- \`${item.path}\``);
         return usages.length > 0
           ? `**${usages.length} references to "${symbol}":**\n\n${usages.join("\n")}`
           : `No usages found for "${symbol}"`;
