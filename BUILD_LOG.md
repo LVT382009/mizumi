@@ -114,6 +114,16 @@
 - Added MizumiConfig fields: complianceCheck, autoFix, confidenceCalibration, changeStack
 - 451 tests passing, 0 TS errors, bundle rebuilt
 
+### Competitive Gap Fill (This Cycle)
+
+- **CI-validated fix loop (P0-1)**: `src/cifix.ts` — apply suggestions, poll CI with `getCombinedStatusForRef` + `listForRef`, revert broken fixes via `git.updateRef`, retry up to N times. Only Macroscope has a similar feature.
+- **Persistent rule engine (P1-3)**: `src/rule-engine.ts` — 3-source rules (built-in/custom YAML/auto-discovered), SQLite mining, rule decay. Only Qodo has suggested rules (beta), no decay.
+- **Rule engine gating**: `config.ruleEngine` now gates `executeRuleEngine` call (was unconditional)
+- **Config additions**: `ruleEngine`, `ciValidatedFix`, `ciFixTimeout`, `ciFixMaxRetries`, `ciFixRevertOnFailure` fields in MizumiConfig
+- **Action inputs**: `rule_engine`, `ci_validated_fix`, `ci_fix_timeout`, `ci_fix_max_retries`, `ci_fix_revert_on_failure`
+- **Test expansion**: context 16→29, models 17→28, calibrate 17→33, memory 19→32, cifix 0→26
+- **1305 tests passing, 0 TS errors, bundle rebuilt**
+
 ### Deferred to v1
 
 - Checks API (1.5, 1.21)
