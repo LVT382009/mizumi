@@ -29,7 +29,7 @@ inputs:
     required: false
     default: "dummy"
   base_url:
-    description: "Custom base URL for OpenAI-compatible endpoint. Local: Ollama (http://localhost:11434/v1), llama.cpp (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). Custom: Together AI, Groq, DeepSeek, Fireworks, etc."
+    description: "Custom base URL for OpenAI-compatible endpoint. Local: Ollama (http://localhost:11434/v1), llama.cpp (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). Custom: Together AI, Groq, etc."
     required: false
   model:
     description: "Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)"
@@ -126,30 +126,30 @@ inputs:
     description: "Post a commit status (success/failure) usable as required branch protection check. none=disabled, critical=fail on critical, high=fail on high+critical, medium=fail on medium+"
     required: false
     default: "none"
-rule_engine:
-description: "Enable persistent rule engine with auto-discovery from PR history. Custom rules in .github/mizumi-rules.yml, auto-discovered from SQLite suggestion history, with rule decay."
-required: false
-default: "true"
-ci_validated_fix:
-  description: "Enable CI-validated fix loop: apply suggestions, poll CI, revert on failure (requires improve_enabled=true)"
-  required: false
-  default: "false"
-ci_fix_timeout:
-  description: "Max seconds to wait for CI checks on fix commit (0=no timeout)"
-  required: false
-  default: "600"
-ci_fix_max_retries:
-  description: "Max number of fix attempts before giving up"
-  required: false
-  default: "3"
-ci_fix_revert_on_failure:
-  description: "Revert fix commit if CI fails (recommended — prevents broken branches)"
-  required: false
-  default: "true"
-ast_contract_analysis:
-  description: "Enable AST cross-file contract analysis (detects missing exports, unhandled throws, signature changes across files)"
-  required: false
-  default: "true"
+  rule_engine:
+    description: "Enable persistent rule engine with auto-discovery from PR history. Custom rules in .github/mizumi-rules.yml, auto-discovered from SQLite suggestion history, with rule decay."
+    required: false
+    default: "true"
+  ci_validated_fix:
+    description: "Enable CI-validated fix loop: apply suggestions, poll CI, revert on failure (requires improve_enabled=true)"
+    required: false
+    default: "false"
+  ci_fix_timeout:
+    description: "Max seconds to wait for CI checks on fix commit (0=no timeout)"
+    required: false
+    default: "600"
+  ci_fix_max_retries:
+    description: "Max number of fix attempts before giving up"
+    required: false
+    default: "3"
+  ci_fix_revert_on_failure:
+    description: "Revert fix commit if CI fails (recommended — prevents broken branches)"
+    required: false
+    default: "true"
+  ast_contract_analysis:
+    description: "Enable AST cross-file contract analysis (detects missing exports, unhandled throws, signature changes across files)"
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"
