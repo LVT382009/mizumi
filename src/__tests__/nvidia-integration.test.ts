@@ -64,6 +64,7 @@ describe("NVIDIA NIM provider configuration", () => {
     specCompliance: true,
     authBoundary: true,
     fatigueDashboard: true,
+    secretEntropy: true,
     ...overrides,
   });
 

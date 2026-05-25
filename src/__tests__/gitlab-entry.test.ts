@@ -70,6 +70,7 @@ vi.mock("../config.js", () => ({
     specCompliance: true,
     authBoundary: true,
     fatigueDashboard: true,
+    secretEntropy: true,
   })),
 }));
 

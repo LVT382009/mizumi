@@ -697,3 +697,18 @@ Integration: step 4a8 (build dashboard from feedback store) + comment posting
 after review. Config: `fatigueDashboard` boolean (default true), action.yml
 `fatigue_dashboard` input. 26 tests in fatigue-dashboard.test.ts.
 - 2143 tests, 0 TS errors, bundle rebuilt
+
+#### Competitive Gap #6: Entropy-Based Secret Detection (2026-05-26)
+
+`secret-entropy.ts` — Shannon entropy analysis on string literals in added
+lines. Catches hardcoded secrets that regex patterns miss: high-entropy hex
+tokens (AWS keys), base64 credentials, random API keys with innocuous variable
+names. Whitelists imports, URLs, UUIDs, file paths, CSS colors, hash/commit
+context, test files. Snippets truncated for safety (never echoes full secret).
+Thresholds: general strings ≥20 chars & ≥4.5 entropy, hex ≥32 chars & ≥3.0,
+base64 ≥24 chars & ≥4.0. Requires ≥2 character types (lower/upper/digit/special).
+Findings merged as engineFindings (rule: "entropy-secret").
+Integration: step 4a9 (analysis) + step 5c7 (context injection).
+Config: `secretEntropy` boolean (default true), action.yml `secret_entropy` input.
+38 tests in secret-entropy.test.ts.
+- 2181 tests, 0 TS errors, bundle rebuilt

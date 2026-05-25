@@ -113,6 +113,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     specCompliance: true,
     authBoundary: true,
     fatigueDashboard: true,
+    secretEntropy: true,
     ...overrides,
   };
 }

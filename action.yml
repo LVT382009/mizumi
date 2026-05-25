@@ -186,6 +186,10 @@ inputs:
     description: "Enable review fatigue dashboard - post per-category acceptance rates, dismissal trends, fatigue scores, and recommendations as a collapsible PR comment."
     required: false
     default: "true"
+  secret_entropy:
+    description: "Enable entropy-based secret detection - use Shannon entropy analysis on string literals to detect hardcoded secrets that regex patterns miss (random API keys, hex tokens, base64 credentials)."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

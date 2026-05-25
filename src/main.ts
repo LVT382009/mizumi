@@ -51,6 +51,7 @@ import { runBlastRadiusAnalysis, buildBlastRadiusContext } from "./blast-radius.
 import { checkSpecCompliance, buildSpecComplianceContext } from "./spec-compliance.js";
 import { runAuthBoundaryAnalysis, buildAuthBoundaryContext } from "./auth-boundary.js";
 import { buildFatigueDashboard, formatFatigueDashboard } from "./fatigue-dashboard.js";
+import { runEntropyAnalysis, buildEntropyContext } from "./secret-entropy.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -407,6 +408,26 @@ if (config.fatigueDashboard) {
   }
 }
 
+// 4a9. Entropy-based secret detection — Shannon entropy on string literals
+let entropyResult: import("./secret-entropy.js").EntropyResult | null = null;
+if (config.secretEntropy) {
+  try {
+    entropyResult = runEntropyAnalysis(diff.files);
+    for (const f of entropyResult.findings) {
+      engineFindings.push({
+        file: f.file,
+        line: f.line,
+        severity: f.severity,
+        category: "security",
+        message: `Possible hardcoded secret (entropy=${f.entropy.toFixed(1)}, ${f.reason}) — snippet: ${f.snippet}`,
+        rule: "entropy-secret",
+      });
+    }
+  } catch (e) {
+    core.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -498,6 +519,16 @@ context.rulesContent += `
 
 ${authCtxStr}`;
 }
+}
+
+// 5c7. Entropy analysis context injection
+if (entropyResult && entropyResult.findings.length > 0) {
+  const entropyCtxStr = buildEntropyContext(entropyResult);
+  if (entropyCtxStr) {
+    context.rulesContent += `
+
+${entropyCtxStr}`;
+  }
 }
 
 if (skills.loaded) context.rulesContent += `
