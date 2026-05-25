@@ -739,4 +739,14 @@ among AI code reviewers. Integration: step 5 (compute attribution from
 feedback store), step 5c8 (context injection), step 8b3 (proportional
 confidence adjustment after adaptive noise reduction). 21 tests in
 attribution.test.ts.
-- 2231 tests, 0 TS errors, bundle rebuilt
+- **P2-E: PR Safety Score** (f90bf4e)
+safety-score.ts -- 0-100 composite score posted as a separate commit
+status ("Mizumi Safety Score") alongside the gate. Aggregates:
+finding severity penalties (critical -25, high -10, medium -5, low -2,
+nitpick -1), blast radius penalty (>5 files -5, >10 -10), attribution
+bonus (+2 per reliable high-dismissal category, capped at +10), risk
+adjustment (score 4+ -> -10, score 3 -> -5). Clamped 0-100.
+State: >=70 success, >=40 pending, <40 failure.
+Integration: step 10b-gate2 (after merge gate), gated on config
+`safetyScore` boolean (default true). 19 tests in safety-score.test.ts.
+- 2250 tests, 0 TS errors, bundle rebuilt
