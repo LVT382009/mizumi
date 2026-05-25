@@ -94,6 +94,7 @@ const testConfig = {
   astContractAnalysis: true,
   behavioralSummary: true,
   ownershipRouting: true,
+  deltaReview: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

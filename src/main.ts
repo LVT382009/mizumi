@@ -43,6 +43,7 @@ import { runCIFixLoop } from "./cifix.js";
 import { runASTContractAnalysis } from "./ast-contracts.js";
 import { generateBehavioralSummary, shouldRunBehavioralAnalysis, formatBehavioralSummary } from "./behavioral.js";
 import { loadCodeowners, matchOwnership, applyOwnershipToFindings, buildOwnershipSummary } from "./ownership.js";
+import { computeDeltaReview, recordReviewedSha, formatDeltaSummary } from "./delta.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -210,6 +211,32 @@ if (config.ciValidatedFix && config.improveEnabled) {
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
     core.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
 
+
+  // 1b. Incremental delta review - only review NEW diff since last Mizumi review
+  let deltaBody = "";
+  if (config.deltaReview) {
+    try {
+      const deltaResult = await computeDeltaReview(
+        octokit, owner, repo, prNumber, headSha, diff, workspace, config.excludePatterns,
+      );
+      if (deltaResult.isIncremental && deltaResult.incrementalDiff) {
+        if (deltaResult.incrementalDiff.files.length === 0) {
+          core.info("Delta review: no new changes since last review - skipping");
+          return;
+        }
+        core.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
+        diff.files = deltaResult.incrementalDiff.files;
+        diff.totalAdditions = deltaResult.incrementalDiff.totalAdditions;
+        diff.totalDeletions = deltaResult.incrementalDiff.totalDeletions;
+        diff.rawDiff = deltaResult.incrementalDiff.rawDiff;
+        deltaBody = formatDeltaSummary(deltaResult);
+      } else {
+        core.info("Delta review: full review (no previous SHA or non-incremental)");
+      }
+    } catch (e) {
+      core.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
     if (diff.files.length === 0) {
       core.info("No changed files after exclusions â€” skipping review");
       return;
@@ -528,6 +555,30 @@ ${ownershipBody}
   } catch (e) {
     core.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
+// Post delta review summary as a separate comment
+if (deltaBody) {
+  try {
+    const deltaComment = `<!-- mizumi-delta-marker -->
+## Incremental Review
+
+${deltaBody}
+---
+*Posted by Mizumi*`;
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: deltaComment,
+    });
+  } catch (e) {
+    core.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+// Record last-reviewed SHA for delta review
+if (config.deltaReview) {
+  try {
+    recordReviewedSha(workspace, owner, repo, prNumber, headSha);
+  } catch (e) {
+    core.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
    // 10a. Set action outputs
    core.setOutput("review_id", result.reviewId);

@@ -60,6 +60,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
   astContractAnalysis: true,
   behavioralSummary: true,
   ownershipRouting: true,
+  deltaReview: true,
     ...overrides,
   };
 }

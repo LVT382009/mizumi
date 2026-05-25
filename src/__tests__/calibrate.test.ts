@@ -106,6 +106,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
   astContractAnalysis: true,
   behavioralSummary: true,
   ownershipRouting: true,
+  deltaReview: true,
     ...overrides,
   };
 }

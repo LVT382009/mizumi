@@ -38,6 +38,7 @@ export interface MizumiConfig {
   astContractAnalysis: boolean;
   behavioralSummary: boolean;
   ownershipRouting: boolean;
+  deltaReview: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -99,6 +100,7 @@ const ciFixRevertOnFailure = core.getInput("ci_fix_revert_on_failure") !== "fals
 const astContractAnalysis = core.getInput("ast_contract_analysis") !== "false"; // default true
 const behavioralSummary = core.getInput("behavioral_summary") !== "false"; // default true
 const ownershipRouting = core.getInput("ownership_routing") !== "false"; // default true
+const deltaReview = core.getInput("delta_review") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -179,6 +181,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     astContractAnalysis,
   behavioralSummary,
   ownershipRouting,
+  deltaReview,
   };
 }
 

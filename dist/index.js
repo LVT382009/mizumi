@@ -34837,6 +34837,7 @@ function loadConfig() {
     const astContractAnalysis = getInput("ast_contract_analysis") !== "false"; // default true
     const behavioralSummary = getInput("behavioral_summary") !== "false"; // default true
     const ownershipRouting = getInput("ownership_routing") !== "false"; // default true
+    const deltaReview = getInput("delta_review") !== "false"; // default true
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34927,6 +34928,7 @@ function loadConfig() {
         astContractAnalysis,
         behavioralSummary,
         ownershipRouting,
+        deltaReview,
     };
 }
 /**
@@ -75814,11 +75816,11 @@ Respond with structured JSON matching the schema.`,
 const IDEM_FILENAME = "mizumi-idempotency.json";
 const MAX_ENTRIES = 500;
 const MAX_FILE_BYTES = 100_000;
-function storePath(workspace) {
+function storePath$1(workspace) {
     return path$1.join(workspace, ".github", IDEM_FILENAME);
 }
-function readStore(workspace) {
-    const p = storePath(workspace);
+function readStore$1(workspace) {
+    const p = storePath$1(workspace);
     if (!fs$1.existsSync(p))
         return { deliveryIds: {}, reviewedShas: {} };
     try {
@@ -75829,8 +75831,8 @@ function readStore(workspace) {
         return { deliveryIds: {}, reviewedShas: {} };
     }
 }
-function writeStore(workspace, store) {
-    const p = storePath(workspace);
+function writeStore$1(workspace, store) {
+    const p = storePath$1(workspace);
     const dir = path$1.dirname(p);
     if (!fs$1.existsSync(dir))
         fs$1.mkdirSync(dir, { recursive: true });
@@ -75860,23 +75862,23 @@ function hashDeliveryId(deliveryId) {
 function checkAndMarkDelivery(workspace, deliveryId) {
     if (!deliveryId)
         return false;
-    const store = readStore(workspace);
+    const store = readStore$1(workspace);
     const key = hashDeliveryId(deliveryId);
     if (key in store.deliveryIds)
         return true;
     store.deliveryIds[key] = Date.now();
-    writeStore(workspace, store);
+    writeStore$1(workspace, store);
     return false;
 }
 /** Atomic check-and-mark: returns true if SHA was already reviewed. */
 function checkAndMarkSha(workspace, headSha) {
     if (!headSha)
         return false;
-    const store = readStore(workspace);
+    const store = readStore$1(workspace);
     if (headSha in store.reviewedShas)
         return true;
     store.reviewedShas[headSha] = Date.now();
-    writeStore(workspace, store);
+    writeStore$1(workspace, store);
     return false;
 }
 
@@ -78420,6 +78422,157 @@ function loadCodeowners(workspace) {
     return [];
 }
 
+// ---------------------------------------------------------------------------
+// SHA tracking store
+// ---------------------------------------------------------------------------
+const DELTA_FILENAME = "mizumi-delta.json";
+const MAX_PR_ENTRIES = 1000;
+function storePath(workspace) {
+    return path$1.join(workspace, ".github", DELTA_FILENAME);
+}
+function readStore(workspace) {
+    const p = storePath(workspace);
+    if (!fs$1.existsSync(p))
+        return { prShas: {}, timestamps: {} };
+    try {
+        const raw = fs$1.readFileSync(p, "utf-8");
+        return JSON.parse(raw);
+    }
+    catch {
+        return { prShas: {}, timestamps: {} };
+    }
+}
+function writeStore(workspace, store) {
+    const p = storePath(workspace);
+    const dir = path$1.dirname(p);
+    if (!fs$1.existsSync(dir))
+        fs$1.mkdirSync(dir, { recursive: true });
+    // Evict oldest entries if over limit
+    const entries = Object.entries(store.timestamps).sort(([, a], [, b]) => a - b);
+    while (entries.length > MAX_PR_ENTRIES) {
+        const [key] = entries.shift();
+        delete store.prShas[key];
+        delete store.timestamps[key];
+    }
+    fs$1.writeFileSync(p, JSON.stringify(store), "utf-8");
+}
+/** Build the PR key for the store */
+function prKey(owner, repo, prNumber) {
+    return `${owner}/${repo}#${prNumber}`;
+}
+// ---------------------------------------------------------------------------
+// SHA tracking API
+// ---------------------------------------------------------------------------
+/** Get the last-reviewed SHA for a PR (undefined if never reviewed) */
+function getLastReviewedSha(workspace, owner, repo, prNumber) {
+    const store = readStore(workspace);
+    return store.prShas[prKey(owner, repo, prNumber)];
+}
+/** Record the SHA that was just reviewed for a PR */
+function recordReviewedSha(workspace, owner, repo, prNumber, sha) {
+    const store = readStore(workspace);
+    const key = prKey(owner, repo, prNumber);
+    store.prShas[key] = sha;
+    store.timestamps[key] = Date.now();
+    writeStore(workspace, store);
+}
+// ---------------------------------------------------------------------------
+// Incremental diff fetching
+// ---------------------------------------------------------------------------
+/**
+ * Fetch the incremental diff between the last-reviewed SHA and the current head.
+ * Returns undefined if no previous review exists or if the compare fails.
+ */
+async function fetchIncrementalDiff(octokit, owner, repo, lastSha, headSha, excludePatterns) {
+    try {
+        const { data: comparison } = await octokit.rest.repos.compareCommits({
+            owner,
+            repo,
+            base: lastSha,
+            head: headSha,
+            mediaType: { format: "diff" },
+        });
+        const rawDiff = typeof comparison === "string"
+            ? comparison
+            : comparison.data
+                ? JSON.stringify(comparison.data)
+                : JSON.stringify(comparison);
+        if (!rawDiff || rawDiff.trim().length === 0) {
+            return undefined;
+        }
+        return parseDiff$1(rawDiff, excludePatterns);
+    }
+    catch (e) {
+        // compareCommits can fail if the base SHA no longer exists (force push)
+        // In that case, fall back to full review
+        return undefined;
+    }
+}
+/**
+ * Compute the incremental review result:
+ * - Find the last-reviewed SHA
+ * - Fetch the incremental diff
+ * - Calculate savings stats
+ */
+async function computeDeltaReview(octokit, owner, repo, prNumber, headSha, fullDiff, workspace, excludePatterns) {
+    const lastSha = getLastReviewedSha(workspace, owner, repo, prNumber);
+    if (!lastSha || lastSha === headSha) {
+        return {
+            isIncremental: false,
+            lastReviewedSha: lastSha,
+            incrementalDiff: undefined,
+            savings: {
+                fullFiles: fullDiff.files.length,
+                incrementalFiles: fullDiff.files.length,
+                fullLines: fullDiff.totalAdditions + fullDiff.totalDeletions,
+                incrementalLines: fullDiff.totalAdditions + fullDiff.totalDeletions,
+                percentSaved: 0,
+            },
+        };
+    }
+    const incrementalDiff = await fetchIncrementalDiff(octokit, owner, repo, lastSha, headSha, excludePatterns);
+    if (!incrementalDiff) {
+        return {
+            isIncremental: false,
+            lastReviewedSha: lastSha,
+            incrementalDiff: undefined,
+            savings: {
+                fullFiles: fullDiff.files.length,
+                incrementalFiles: fullDiff.files.length,
+                fullLines: fullDiff.totalAdditions + fullDiff.totalDeletions,
+                incrementalLines: fullDiff.totalAdditions + fullDiff.totalDeletions,
+                percentSaved: 0,
+            },
+        };
+    }
+    const fullLines = fullDiff.totalAdditions + fullDiff.totalDeletions;
+    const incrementalLines = incrementalDiff.totalAdditions + incrementalDiff.totalDeletions;
+    return {
+        isIncremental: true,
+        lastReviewedSha: lastSha,
+        incrementalDiff,
+        savings: {
+            fullFiles: fullDiff.files.length,
+            incrementalFiles: incrementalDiff.files.length,
+            fullLines,
+            incrementalLines,
+            percentSaved: fullLines > 0
+                ? Math.round(((fullLines - incrementalLines) / fullLines) * 100)
+                : 0,
+        },
+    };
+}
+/**
+ * Format the delta savings summary for the review body.
+ */
+function formatDeltaSummary(result) {
+    if (!result.isIncremental)
+        return "";
+    const { savings, lastReviewedSha } = result;
+    const shaShort = lastReviewedSha?.slice(0, 7) || "unknown";
+    return `<details><summary><strong>Incremental Review</strong> - ${savings.percentSaved}% token savings</summary>\n\nOnly reviewed changes since \`${shaShort}\`.\n\n| Metric | Full Diff | Incremental | Savings |\n|--------|-----------|-------------|---------|\n| Files | ${savings.fullFiles} | ${savings.incrementalFiles} | ${savings.fullFiles - savings.incrementalFiles} |\n| Lines | ${savings.fullLines} | ${savings.incrementalLines} | ${savings.fullLines - savings.incrementalLines} |\n\n</details>\n`;
+}
+
 /**
  * Mizumi â€” Self-Learning PR Review Agent
  * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
@@ -78575,6 +78728,31 @@ async function run() {
         // 1. Fetch and parse diff
         const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
         info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
+        // 1b. Incremental delta review - only review NEW diff since last Mizumi review
+        let deltaBody = "";
+        if (config.deltaReview) {
+            try {
+                const deltaResult = await computeDeltaReview(octokit, owner, repo, prNumber, headSha, diff, workspace, config.excludePatterns);
+                if (deltaResult.isIncremental && deltaResult.incrementalDiff) {
+                    if (deltaResult.incrementalDiff.files.length === 0) {
+                        info("Delta review: no new changes since last review - skipping");
+                        return;
+                    }
+                    info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
+                    diff.files = deltaResult.incrementalDiff.files;
+                    diff.totalAdditions = deltaResult.incrementalDiff.totalAdditions;
+                    diff.totalDeletions = deltaResult.incrementalDiff.totalDeletions;
+                    diff.rawDiff = deltaResult.incrementalDiff.rawDiff;
+                    deltaBody = formatDeltaSummary(deltaResult);
+                }
+                else {
+                    info("Delta review: full review (no previous SHA or non-incremental)");
+                }
+            }
+            catch (e) {
+                warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+        }
         if (diff.files.length === 0) {
             info("No changed files after exclusions â€” skipping review");
             return;
@@ -78848,6 +79026,32 @@ ${ownershipBody}
                 }
                 catch (e) {
                     warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+                }
+                // Post delta review summary as a separate comment
+                if (deltaBody) {
+                    try {
+                        const deltaComment = `<!-- mizumi-delta-marker -->
+## Incremental Review
+
+${deltaBody}
+---
+*Posted by Mizumi*`;
+                        await octokit.rest.issues.createComment({
+                            owner, repo, issue_number: prNumber, body: deltaComment,
+                        });
+                    }
+                    catch (e) {
+                        warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+                    }
+                }
+                // Record last-reviewed SHA for delta review
+                if (config.deltaReview) {
+                    try {
+                        recordReviewedSha(workspace, owner, repo, prNumber, headSha);
+                    }
+                    catch (e) {
+                        warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
+                    }
                 }
             }
             // 10a. Set action outputs

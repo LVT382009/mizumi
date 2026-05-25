@@ -158,6 +158,10 @@ inputs:
     description: "Enable CODEOWNERS-aware review routing (tag owning teams, boost confidence for owned files)"
     required: false
     default: "true"
+  delta_review:
+    description: "Enable incremental delta review - on push to existing PR, only review the NEW diff since the last Mizumi review. Cuts token costs 50-80%."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"
