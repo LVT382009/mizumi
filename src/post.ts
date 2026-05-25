@@ -9,6 +9,12 @@
  * Dedup: FNV-1a fingerprint in HTML meta comment (reviewdog pattern).
  * Reply-aware deletion: comments with human replies are never deleted.
  * 65,535 char cap: review body truncated if exceeding GitHub limit.
+ *
+ * Comment architecture (dual-updateable comment pattern):
+ * 1. PR Review (immutable) — minimal body: just decision + finding count + risk
+ * 2. Detail comment (issue comment, updateable via DETAIL_MARKER) — full report card, walkthrough, tables
+ * 3. Summary comment (issue comment, updateable via MARKER) — risk score, decision, severity counts
+ * On re-run: detail + summary are updated in-place; a new PR review is created.
  */
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
@@ -22,6 +28,7 @@ import { generateArchDiagram, generateSeverityDiagram } from "./diagram.js";
 import { buildWalkthrough, estimateEffort } from "./walkthrough.js";
 
 const MARKER = "<!-- mizumi-review-marker -->";
+const DETAIL_MARKER = "<!-- mizumi-detail-marker -->";
 
 /** Derive confidence level from numeric score (matches calibrate.ts thresholds) */
 function confidenceLevel(score: number): "high" | "medium" | "low" {
@@ -154,51 +161,52 @@ export async function postReview(
     });
   }
 
-  // 4. Create PR Review
+  // 3b. Dismiss any previous pending Mizumi reviews before creating a new one
+  await dismissPendingReviews(octokit, owner, repo, prNumber);
+
+  // 4. Build detail body (report card, walkthrough, finding tables)
+  const detailBody = buildReviewBody(
+    inlineFindings, tableFindings, detailsFindings, unmappableFindings,
+    review.riskScore, review.comments.length,
+    mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
+    review.summary,
+    review.comments,
+    diffFiles
+  );
+
+  // 5. Create PR Review (immutable — keep body minimal)
   let reviewId = 0;
   try {
-    let reviewBody = buildReviewBody(
-      inlineFindings, tableFindings, detailsFindings, unmappableFindings,
-      review.riskScore, review.comments.length,
-      mapDecision(review.decision) as "APPROVE" | "COMMENT" | "REQUEST_CHANGES",
-      review.summary,
-      review.comments,
-      diffFiles
-    );
-
-    // Truncate if exceeding GitHub's 65,535 char limit
-    if (reviewBody.length > MAX_COMMENT_BODY) {
-      const originalLen = reviewBody.length;
-      const truncated = reviewBody.slice(0, MAX_COMMENT_BODY - 100);
-      reviewBody = truncated + `\n\n... Too many findings to display. (${review.comments.length} findings, body truncated to ${MAX_COMMENT_BODY} chars)`;
-      core.warning(`Review body truncated from ${originalLen} to ${MAX_COMMENT_BODY} chars`);
-    }
-
     const { data: createdReview } = await octokit.rest.pulls.createReview({
       owner,
       repo,
       pull_number: prNumber,
       commit_id: headSha,
-      body: screenOutput(reviewBody),
+      body: screenOutput(buildMinimalReviewBody(review)),
       event: mapDecision(review.decision),
       comments: postedInline,
     });
     reviewId = createdReview.id;
   } catch (error: any) {
     if (error?.status === 422) {
-      core.warning("422 on createReview — falling back to summary-only comment");
+      core.warning("422 on createReview — falling back to issue comments only");
       const summaryBody = buildSummaryComment(review);
       await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
+      await createOrUpdateDetailComment(octokit, owner, repo, prNumber, screenOutput(truncateToLimit(DETAIL_MARKER + "\n" + detailBody)));
       return { reviewId: 0, findingCount: review.comments.length, riskScore: review.riskScore };
     }
     throw error;
   }
 
-  // 5. Post/update summary comment with HTML marker dedup
+  // 6. Post/update detail comment (full report card, walkthrough, tables)
+  const detailCommentBody = DETAIL_MARKER + "\n" + detailBody;
+  await createOrUpdateDetailComment(octokit, owner, repo, prNumber, screenOutput(truncateToLimit(detailCommentBody)));
+
+  // 7. Post/update summary comment with HTML marker dedup
   const summaryBody = buildSummaryComment(review);
   await createOrUpdateSummaryComment(octokit, owner, repo, prNumber, summaryBody);
 
-  // 6. Return result (orchestrator sets action outputs)
+  // 8. Return result (orchestrator sets action outputs)
   return { reviewId, findingCount: review.comments.length, riskScore: review.riskScore };
 }
 
@@ -312,10 +320,10 @@ export function buildReviewBody(
   allFindings?: ReviewCommentType[],
   diffFiles?: DiffFileSummary[]
 ): string {
-  let body = MARKER;
+  let body = "";
   const fatigueWarning = buildFatigueWarning(findingCount);
   if (fatigueWarning) {
-    body += `\n${fatigueWarning}\n\n`;
+    body += `${fatigueWarning}\n\n`;
   }
   body += `## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(riskScore, 1), 5))} (${Math.min(Math.max(riskScore, 1), 5)}/5)\n\n`;
 
@@ -385,6 +393,13 @@ export function buildReviewBody(
   return body;
 }
 
+/** Build a minimal PR review body — just decision and finding count.
+ * PR reviews are immutable once submitted, so keep this tiny.
+ * The full detail goes in an updateable issue comment instead. */
+function buildMinimalReviewBody(review: ReviewResponseType): string {
+  return MARKER + `\n**Decision:** ${review.decision.toUpperCase()} | **Findings:** ${review.comments.length} | **Risk:** ${Math.min(Math.max(review.riskScore, 1), 5)}/5`;
+}
+
 function buildSummaryComment(review: ReviewResponseType): string {
   let body = MARKER;
   body += `\n## Mizumi Review — Risk: ${"🔴".repeat(Math.min(Math.max(review.riskScore, 1), 5))}${"⚪".repeat(5 - Math.min(Math.max(review.riskScore, 1), 5))} (${Math.min(Math.max(review.riskScore, 1), 5)}/5)`;
@@ -408,10 +423,41 @@ function buildSummaryComment(review: ReviewResponseType): string {
 }
 
 /**
- * Delete outdated Mizumi inline review comments using fingerprint matching.
- * Comments with human replies are never deleted (reviewdog pattern).
- * Returns the number of comments deleted. Never throws.
+ * Dismiss any previous pending Mizumi PR reviews.
+ * GitHub PR reviews with PENDING status can accumulate when /mizumi review
+ * is triggered multiple times. Dismissing them keeps only the latest review
+ * visible, preventing dual-comment confusion.
  */
+async function dismissPendingReviews(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<void> {
+  try {
+    const { data: reviews } = await octokit.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+
+    for (const review of reviews) {
+      if (review.state === "PENDING" && review.body?.includes(MARKER)) {
+        await octokit.rest.pulls.dismissReview({
+          owner,
+          repo,
+          pull_number: prNumber,
+          review_id: review.id,
+          message: "Superseded by a new Mizumi review.",
+        });
+        core.info(`Dismissed previous pending review: ${review.id}`);
+      }
+    }
+  } catch (e) {
+    core.debug(`Dismiss pending reviews failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 export async function cleanupOutdatedComments(
   octokit: Octokit,
   owner: string,
@@ -487,6 +533,50 @@ async function createOrUpdateSummaryComment(
     });
 
     existing = comments.find((c) => c.body?.includes(MARKER)) as { id: number } | undefined;
+
+    if (comments.length < 100) break;
+    page++;
+  }
+
+  if (existing) {
+    await octokit.rest.issues.updateComment({
+      owner,
+      repo,
+      comment_id: existing.id,
+      body,
+    });
+  } else {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body,
+    });
+  }
+}
+
+/** Find and update an existing detail comment (marked with DETAIL_MARKER),
+ *  or create a new one. Same dedup pattern as createOrUpdateSummaryComment. */
+async function createOrUpdateDetailComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  body: string
+): Promise<void> {
+  let page = 1;
+  let existing: { id: number } | undefined;
+
+  while (!existing) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+      per_page: 100,
+      page,
+    });
+
+    existing = comments.find((c) => c.body?.includes(DETAIL_MARKER)) as { id: number } | undefined;
 
     if (comments.length < 100) break;
     page++;

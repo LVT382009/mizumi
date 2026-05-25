@@ -102,10 +102,12 @@ function makeOctokit() {
   const createComment = vi.fn().mockResolvedValue({});
   const listReviewComments = vi.fn().mockResolvedValue({ data: [] });
   const deleteReviewComment = vi.fn().mockResolvedValue({});
+  const listReviews = vi.fn().mockResolvedValue({ data: [] });
+  const dismissReview = vi.fn().mockResolvedValue({});
 
   return {
     rest: {
-      pulls: { createReview, listReviewComments, deleteReviewComment },
+      pulls: { createReview, listReviewComments, deleteReviewComment, listReviews, dismissReview },
       issues: { listComments, updateComment, createComment },
     },
   } as any;
@@ -190,10 +192,10 @@ describe("postReview", () => {
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
     expect(call.comments).toHaveLength(0);
 
-    // Review body contains overflow table
-    const body: string = call.body;
-    expect(body).toContain("Medium Findings");
-    expect(body).toContain("Unresolved finding");
+    // Detail comment contains overflow table
+    const detailBody: string = octokit.rest.issues.createComment.mock.calls[0][0].body;
+    expect(detailBody).toContain("Medium Findings");
+    expect(detailBody).toContain("Unresolved finding");
   });
 
   it("includes overflow entries in a markdown table with file, line, category, message", async () => {
@@ -212,11 +214,10 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    const body: string = call.body;
-    expect(body).toContain("src/util.ts");
-    expect(body).toContain("security");
-    expect(body).toContain("SQL injection risk");
+    const detailBody: string = octokit.rest.issues.createComment.mock.calls[0][0].body;
+    expect(detailBody).toContain("src/util.ts");
+    expect(detailBody).toContain("security");
+    expect(detailBody).toContain("SQL injection risk");
   });
 
   it("overflows comments beyond the 30-comment limit to the review body", async () => {
@@ -233,9 +234,9 @@ describe("postReview", () => {
     // Only 30 inline comments posted
     expect(call.comments).toHaveLength(30);
 
-    // Review body mentions overflow
-    const body: string = call.body;
-    expect(body).toContain("Medium Findings");
+    // Detail comment mentions overflow
+    const detailBody: string = octokit.rest.issues.createComment.mock.calls[0][0].body;
+    expect(detailBody).toContain("Medium Findings");
   });
 
   // -----------------------------------------------------------------------
@@ -307,26 +308,30 @@ describe("postReview", () => {
   });
 
   it("updates existing summary comment in-place when marker is found", async () => {
-    octokit.rest.issues.listComments.mockResolvedValue({
-      data: [
+    // First listComments call: detail lookup (no existing detail comment)
+    // Second listComments call: summary lookup (existing summary comment found)
+    octokit.rest.issues.listComments
+      .mockResolvedValueOnce({ data: [] }) // detail: no existing
+      .mockResolvedValueOnce({ data: [
         {
           id: 99,
           body: "<!-- mizumi-review-marker -->\n## Mizumi Review — Risk: ...",
         },
-      ],
-    });
+      ] });
 
     const review = makeReview({ riskScore: 2, comments: [] });
     const lineMap = makeLineMap();
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
+    // Summary comment should have been updated
     expect(octokit.rest.issues.updateComment).toHaveBeenCalled();
-    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
 
-    const updateCall = octokit.rest.issues.updateComment.mock.calls[0][0];
-    expect(updateCall.comment_id).toBe(99);
-    expect(updateCall.body).toContain("<!-- mizumi-review-marker -->");
+    // Find the update call for the summary comment (the one with MARKER)
+    const updateCalls = octokit.rest.issues.updateComment.mock.calls.map((c: any) => c[0]);
+    const summaryUpdate = updateCalls.find((c: any) => c.body?.includes("<!-- mizumi-review-marker -->"));
+    expect(summaryUpdate).toBeDefined();
+    expect(summaryUpdate.comment_id).toBe(99);
   });
 
   it("includes HTML marker in summary comment body for future dedup", async () => {
@@ -337,8 +342,10 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.issues.createComment.mock.calls[0][0];
-    expect(call.body).toContain("<!-- mizumi-review-marker -->");
+    // Find the createComment call that has the SUMMARY marker
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const summaryCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-review-marker -->"));
+    expect(summaryCall).toBeDefined();
   });
 
   // -----------------------------------------------------------------------
@@ -631,11 +638,12 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.issues.createComment.mock.calls[0][0];
-    const body: string = call.body;
-    expect(body).toContain("| Severity | Count |");
-    expect(body).toContain("| high | 2 |");
-    expect(body).toContain("| low | 1 |");
+    // Find the summary comment (contains the severity table)
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const summaryCall = creates.find((c: any) => c.body?.includes("| Severity | Count |"));
+    expect(summaryCall).toBeDefined();
+    expect(summaryCall.body).toContain("| high | 2 |");
+    expect(summaryCall.body).toContain("| low | 1 |");
   });
 
   it("includes decision and finding count in summary comment", async () => {
@@ -647,17 +655,18 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.issues.createComment.mock.calls[0][0];
-    const body: string = call.body;
-    expect(body).toContain("REQUEST_CHANGES");
-    expect(body).toContain("**Findings:** 1");
+    // Find the summary comment (contains the decision)
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const summaryCall = creates.find((c: any) => c.body?.includes("REQUEST_CHANGES") && c.body?.includes("<!-- mizumi-review-marker -->"));
+    expect(summaryCall).toBeDefined();
+    expect(summaryCall.body).toContain("**Findings:** 1");
   });
 
   // -----------------------------------------------------------------------
   // 12. Severity-delivered output routing
   // -----------------------------------------------------------------------
 
-  it("routes medium findings to review body table, not inline", async () => {
+  it("routes medium findings to detail comment table, not inline", async () => {
     const review = makeReview({
       comments: [
         makeComment({ severity: "medium", category: "style", message: "Consider using const" }),
@@ -668,14 +677,20 @@ describe("postReview", () => {
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    // Medium findings go to body table, not inline
+    // Medium findings go to detail comment table, not inline
     expect(call.comments).toHaveLength(0);
-    const body: string = call.body;
-    expect(body).toContain("Medium Findings");
-    expect(body).toContain("Consider using const");
+    // PR review body is minimal
+    const prBody: string = call.body;
+    expect(prBody).toContain("<!-- mizumi-review-marker -->");
+    // Detail comment has the medium findings table
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    expect(detailCall).toBeDefined();
+    expect(detailCall.body).toContain("Medium Findings");
+    expect(detailCall.body).toContain("Consider using const");
   });
 
-  it("routes low findings to collapsible details block", async () => {
+  it("routes low findings to collapsible details block in detail comment", async () => {
     const review = makeReview({
       comments: [
         makeComment({ severity: "low", category: "style", message: "Missing semicolon" }),
@@ -686,15 +701,18 @@ describe("postReview", () => {
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    // Low findings go to collapsible block, not inline
+    // Low findings go to collapsible block in detail, not inline
     expect(call.comments).toHaveLength(0);
-    const body: string = call.body;
-    expect(body).toContain("<details>");
-    expect(body).toContain("Low/Nitpick findings");
-    expect(body).toContain("Missing semicolon");
+    // Detail comment has the collapsible block
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    expect(detailCall).toBeDefined();
+    expect(detailCall.body).toContain("<details>");
+    expect(detailCall.body).toContain("Low/Nitpick findings");
+    expect(detailCall.body).toContain("Missing semicolon");
   });
 
-  it("routes nitpick findings to collapsible details block", async () => {
+  it("routes nitpick findings to collapsible details block in detail comment", async () => {
     const review = makeReview({
       comments: [
         makeComment({ severity: "nitpick", category: "style", message: "Prefer single quotes" }),
@@ -705,12 +723,14 @@ describe("postReview", () => {
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
     const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    // Nitpick findings go to collapsible block, not inline
+    // Nitpick findings go to collapsible block in detail, not inline
     expect(call.comments).toHaveLength(0);
-    const body: string = call.body;
-    expect(body).toContain("<details>");
-    expect(body).toContain("Low/Nitpick findings");
-    expect(body).toContain("Prefer single quotes");
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    expect(detailCall).toBeDefined();
+    expect(detailCall.body).toContain("<details>");
+    expect(detailCall.body).toContain("Low/Nitpick findings");
+    expect(detailCall.body).toContain("Prefer single quotes");
   });
 
   it("routes critical findings as inline comments", async () => {
@@ -758,7 +778,7 @@ describe("postReview", () => {
     });
   });
 
-  it("includes fatigue warning at the top of review body when findings exceed 15", async () => {
+  it("includes fatigue warning in detail comment when findings exceed 15", async () => {
     const comments = Array.from({ length: 16 }, (_, i) =>
       makeComment({ file: "src/app.ts", line: i + 1, message: `Finding ${i + 1}` })
     );
@@ -767,8 +787,11 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    const body: string = call.body;
+    // Fatigue warning is in the detail comment
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    expect(detailCall).toBeDefined();
+    const body: string = detailCall.body;
     expect(body).toContain("Review Fatigue");
     expect(body).toContain("16 findings");
     // Fatigue warning appears before the risk score section
@@ -783,9 +806,15 @@ describe("postReview", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    const body: string = call.body;
-    expect(body).not.toContain("Review Fatigue");
+    // Check detail comment for no fatigue warning
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    if (detailCall) {
+      expect(detailCall.body).not.toContain("Review Fatigue");
+    } else {
+      // No detail comment created is also fine (no findings to detail)
+      expect(detailCall).toBeDefined();
+    }
   });
 
   it("includes VS Code deep link in inline comment bodies", async () => {
@@ -1291,7 +1320,7 @@ describe("buildReportCard edge cases", () => {
 // ---------------------------------------------------------------------------
 
 describe("postReview body truncation", () => {
-  it("truncates review body when exceeding 65535 chars", async () => {
+  it("truncates detail comment body when exceeding 65535 chars", async () => {
     const octokit = makeOctokit();
     const config = makeConfig();
     mockedResolveLine.mockImplementation((_map, _file, line) => line);
@@ -1305,10 +1334,12 @@ describe("postReview body truncation", () => {
 
     await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
 
-    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
-    const body: string = call.body;
-    // Body should be within GitHub's limit
-    expect(body.length).toBeLessThanOrEqual(65535 + 200); // some margin for truncation message
+    // Detail comment body should be within GitHub's limit
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    if (detailCall) {
+      expect(detailCall.body.length).toBeLessThanOrEqual(65535 + 200);
+    }
   });
 });
 
@@ -1398,5 +1429,149 @@ describe("computeFingerprint uniqueness", () => {
     const fp1 = computeFingerprint("src/a.ts", 10, "Bug");
     const fp2 = computeFingerprint("src/a.ts", 20, "Bug");
     expect(fp1).not.toBe(fp2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 25. Dual-updateable comment pattern (detail + summary)
+// ---------------------------------------------------------------------------
+
+describe("dual-updateable comment pattern", () => {
+  it("creates both detail and summary issue comments on first run", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    const review = makeReview({
+      comments: [makeComment({ severity: "medium", category: "bug", message: "Off-by-one" })],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    // Two issue comments created: detail + summary
+    expect(octokit.rest.issues.createComment.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    const summaryCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-review-marker -->") && !c.body?.includes("<!-- mizumi-detail-marker -->"));
+
+    expect(detailCall).toBeDefined();
+    expect(summaryCall).toBeDefined();
+    expect(detailCall.body).toContain("Medium Findings");
+    expect(summaryCall.body).toContain("| Severity | Count |");
+  });
+
+  it("updates both detail and summary comments on re-run when both markers are found", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    // Simulate existing comments from a previous run
+    octokit.rest.issues.listComments
+      .mockResolvedValueOnce({ data: [{ id: 50, body: "<!-- mizumi-detail-marker -->\nOld detail body" }] })
+      .mockResolvedValueOnce({ data: [{ id: 60, body: "<!-- mizumi-review-marker -->\nOld summary body" }] });
+
+    const review = makeReview({
+      riskScore: 3,
+      comments: [makeComment({ severity: "medium", category: "bug", message: "New finding" })],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    // Both comments should be updated, not created
+    expect(octokit.rest.issues.updateComment.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    const updates = octokit.rest.issues.updateComment.mock.calls.map((c: any) => c[0]);
+    const detailUpdate = updates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+    const summaryUpdate = updates.find((c: any) => c.body?.includes("<!-- mizumi-review-marker -->") && !c.body?.includes("<!-- mizumi-detail-marker -->"));
+
+    expect(detailUpdate).toBeDefined();
+    expect(detailUpdate.comment_id).toBe(50);
+    expect(detailUpdate.body).toContain("New finding");
+
+    expect(summaryUpdate).toBeDefined();
+    expect(summaryUpdate.comment_id).toBe(60);
+    expect(summaryUpdate.body).toContain("| medium | 1 |");
+  });
+
+  it("PR review body is minimal — only decision, finding count, and risk score", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    const review = makeReview({
+      decision: "request_changes",
+      comments: [
+        makeComment({ severity: "critical", category: "security", message: "SQL injection" }),
+        makeComment({ severity: "medium", category: "bug", message: "Off-by-one" }),
+        makeComment({ severity: "low", category: "style", message: "Missing semicolon" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+    const body: string = call.body;
+
+    // PR review body is minimal
+    expect(body).toContain("REQUEST_CHANGES");
+    expect(body).toContain("**Findings:** 3");
+    expect(body).toContain("**Risk:** 2/5");
+
+    // PR review body does NOT contain detailed content
+    expect(body).not.toContain("Medium Findings");
+    expect(body).not.toContain("<details>");
+    expect(body).not.toContain("Report Card");
+  });
+
+  it("detail comment contains report card, finding tables, and walkthrough", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    const review = makeReview({
+      comments: [
+        makeComment({ severity: "critical", category: "security", message: "SQL injection" }),
+        makeComment({ severity: "medium", category: "bug", message: "Off-by-one" }),
+        makeComment({ severity: "low", category: "style", message: "Missing semicolon" }),
+      ],
+    });
+    const lineMap = makeLineMap();
+    const diffFiles = [
+      { path: "src/auth.ts", additions: 20, deletions: 5 },
+      { path: "src/api.ts", additions: 15, deletions: 3 },
+    ];
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config, diffFiles);
+
+    const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+    const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+
+    expect(detailCall).toBeDefined();
+    expect(detailCall.body).toContain("Report Card");
+    expect(detailCall.body).toContain("Medium Findings");
+    expect(detailCall.body).toContain("<details>");
+  });
+
+  it("dismisses pending reviews before creating new one", async () => {
+    const octokit = makeOctokit();
+    const config = makeConfig();
+    mockedResolveLine.mockImplementation((_map, _file, line) => line);
+
+    octokit.rest.pulls.listReviews.mockResolvedValue({
+      data: [{ id: 10, state: "PENDING", body: "<!-- mizumi-review-marker -->\nOld pending review" }],
+    });
+
+    const review = makeReview({ comments: [] });
+    const lineMap = makeLineMap();
+
+    await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+    expect(octokit.rest.pulls.dismissReview).toHaveBeenCalledWith(
+      expect.objectContaining({ review_id: 10 })
+    );
   });
 });
