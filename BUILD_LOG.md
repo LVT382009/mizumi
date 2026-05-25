@@ -550,3 +550,42 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - sanitize.test.ts: 28→41 — JWT redaction, short base64 passthrough,
   ruby/perl/nc/sh command redaction, nested HTML comments, override
   all rules, combined injection patterns, repetition with normal text
+
+
+### Cycle 2026-05-25d — 1698 tests, ADR enforcement, adaptive learning prompt
+
+- **ADR enforcement (Gap 1, blue ocean)**: `src/adr.ts` — auto-discovers
+  Architecture Decision Records from docs/adr/ and .github/adr/, parses
+  Nygard/simple markdown format, checks code against forbidden patterns
+  (do not use / avoid / never use / must not use), injects ADR context
+  into LLM prompt. No other AI code reviewer enforces ADRs today.
+- **Adaptive learning prompt**: `buildLearningPrompt()` in memory.ts injects
+  acceptance-rate weights into the LLM review prompt so it focuses on
+  categories the team values and skips those they dismiss. Previously
+  learning weights only adjusted severity AFTER review; now they also
+  shape the prompt BEFORE review for better findings from the start.
+- **Extended readRules()**: now auto-ingests `.cursorrules` and
+  `.github/copilot-instructions.md` — discovers team coding standards
+  without manual setup.
+- **ADR integration in main.ts**: ADR discovery runs before step 4a (needed
+  for both violation check and context injection). Violations merge into
+  engineFindings. ADR context appended to rulesContent.
+- **Test expansion**: 1698 tests (from 1574), 0 TS errors
+  - adr.test.ts: 50 new — extractSection, parseADR, inferAppliesTo,
+    extractForbiddenPatterns, checkADRViolations, buildADRContext,
+    discoverADRs (with real filesystem)
+  - memory.test.ts: 32→44 — .cursorrules, copilot-instructions.md,
+    buildLearningPrompt (9: empty, neutral, demoted, promoted, both,
+    low-acceptance, skip <5 responses, header, multiple demoted)
+  - context.test.ts: 29→32 — learningContent (from buildLearningPrompt,
+    empty, passes learning data)
+  - delta.test.ts: 15→26 — store dir creation, SHA overwrite, multi-PR,
+    different owner/repo, empty store, partial savings, zero fullLines,
+    excludePatterns, SHA truncation, undefined lastReviewedSha
+  - ownership-load.test.ts: 4→43 — parseCodeowners, globToRegex,
+    findOwners, matchOwnership, applyOwnershipToFindings,
+    buildOwnershipSummary
+  - platform.test.ts: 13→16 — github client creation, gitlab missing
+    CI_PROJECT_ID, missing CI_MERGE_REQUEST_IID
+  - nvidia-integration.test.ts: fixed require('../config.js') → ESM
+    import { getApiKey, requireApiKey } from '../config.js'
