@@ -39,6 +39,7 @@ import { persistLearningData } from "./persist.js";
 import { postGateStatus, postPendingGate } from "./gate.js";
 import { countMizumiReviews, getLatestFindings, createOrUpdateSpendComment } from "./helpers.js";
 import { executeRuleEngine } from "./rule-engine.js";
+import { runCIFixLoop } from "./cifix.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -178,7 +179,31 @@ const testOutput = await generateTests(diff.rawDiff.slice(0, 30000), recentFindi
     }
   }
 
-  // 1. Fetch and parse diff
+
+// 0c. CI-validated fix loop (apply fixes, verify CI, revert on failure)
+if (config.ciValidatedFix && config.improveEnabled) {
+  try {
+    core.info("Running CI-validated fix loop...");
+    const ciResult = await runCIFixLoop(octokit, owner, repo, prNumber, {
+      enabled: config.ciValidatedFix,
+      timeoutSeconds: config.ciFixTimeout,
+      maxRetries: config.ciFixMaxRetries,
+      revertOnFailure: config.ciFixRevertOnFailure,
+      pollIntervalSeconds: 30,
+    }, config);
+    const ciSuccess = ciResult.success;
+    const ciRetries = ciResult.retriesUsed;
+    const ciReverted = ciResult.reverted;
+    const ciStatus = ciResult.ciStatus;
+    core.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
+  } catch (e) {
+    core.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+} else if (config.ciValidatedFix && !config.improveEnabled) {
+  core.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
+}
+
+// 1. Fetch and parse diff
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config.excludePatterns);
     core.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
 

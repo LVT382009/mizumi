@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills } from "../memory.js";
+import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills, ghostWarnings } from "../memory.js";
 
 describe("readMemory", () => {
   it("returns empty string when memory file does not exist", () => {
@@ -57,7 +57,7 @@ describe("writeMemory", () => {
   it("skips writing when reviewFindings is empty/whitespace", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-mem-"));
     try {
-      writeMemory(tmpDir, "# Original\n", "   \n  \t  ");
+      writeMemory(tmpDir, "# Original\n", " \n \t ");
       const written = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-memory.md"), "utf-8");
       // No date header appended for empty findings
       expect(written).toBe("# Original\n");
@@ -80,6 +80,56 @@ describe("writeMemory", () => {
       const written = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-memory.md"), "utf-8");
       // After consolidation, sections should be reduced
       expect(Buffer.byteLength(written, "utf-8")).toBeLessThanOrEqual(2048);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("creates .github directory if missing", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-mem-"));
+    const githubDir = path.join(tmpDir, ".github");
+    // Ensure .github does NOT exist before write
+    expect(fs.existsSync(githubDir)).toBe(false);
+    try {
+      writeMemory(tmpDir, "# Memory\n", "- some finding");
+      expect(fs.existsSync(githubDir)).toBe(true);
+      const written = fs.readFileSync(path.join(githubDir, "mizumi-memory.md"), "utf-8");
+      expect(written).toContain("some finding");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("appends findings with date section header", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-mem-"));
+    try {
+      writeMemory(tmpDir, "# Memory\n", "- new finding here");
+      const written = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-memory.md"), "utf-8");
+      // Should contain a date section header like ## 2026-05-25
+      expect(written).toMatch(/## \d{4}-\d{2}-\d{2}/);
+      expect(written).toContain("new finding here");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("hardCap truncates from the top keeping recent entries", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-mem-"));
+    try {
+      // Build a very large memory that exceeds the 2KB hard cap
+      let hugeMemory = "# Memory\nline2\nline3\nline4\nline5\n";
+      for (let i = 0; i < 30; i++) {
+        hugeMemory += `\n## 2026-01-${String(i + 1).padStart(2, "0")}\n`;
+        hugeMemory += ("- finding " + "x".repeat(50) + "\n").repeat(3);
+      }
+      writeMemory(tmpDir, hugeMemory, "- latest finding");
+      const written = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-memory.md"), "utf-8");
+      // Must be within 2KB hard cap
+      expect(Buffer.byteLength(written, "utf-8")).toBeLessThanOrEqual(2048);
+      // Should keep the header (first 5 lines)
+      expect(written).toContain("# Memory");
+      // Should keep the most recent content
+      expect(written).toContain("latest finding");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -139,6 +189,73 @@ describe("readRules", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
+  });
+
+  it("reads multiple rules files and joins them with double newline", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-rules-"));
+    fs.writeFileSync(path.join(tmpDir, "REVIEW.md"), "Rule A content", "utf-8");
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "Rule B content", "utf-8");
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "REVIEW.md"), "Rule C content", "utf-8");
+    try {
+      const rules = readRules(tmpDir);
+      expect(rules).toContain("Rule A content");
+      expect(rules).toContain("Rule B content");
+      expect(rules).toContain("Rule C content");
+      // Joined with "\n\n"
+      expect(rules).toContain("\n\n");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+describe("ghostWarnings", () => {
+  it("returns empty when no memory content", () => {
+    expect(ghostWarnings("", ["src/auth.ts"])).toEqual([]);
+  });
+
+  it("returns empty when no changed files", () => {
+    expect(ghostWarnings("- [high] src/auth.ts:10 — security: sql injection", [])).toEqual([]);
+  });
+
+  it("caps at 5 warnings maximum", () => {
+    const memory = [
+      "- [high] src/a.ts:1 — security: issue a",
+      "- [high] src/b.ts:2 — security: issue b",
+      "- [high] src/c.ts:3 — security: issue c",
+      "- [high] src/d.ts:4 — security: issue d",
+      "- [high] src/e.ts:5 — security: issue e",
+      "- [high] src/f.ts:6 — security: issue f",
+    ].join("\n");
+    const changedFiles = ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts", "src/f.ts"];
+    const warnings = ghostWarnings(memory, changedFiles);
+    expect(warnings.length).toBeLessThanOrEqual(5);
+  });
+
+  it("deduplicates identical warnings", () => {
+    const memory = [
+      "- [high] src/auth.ts:10 — security: sql injection",
+      "- [high] src/auth.ts:10 — security: sql injection",
+    ].join("\n");
+    const warnings = ghostWarnings(memory, ["src/auth.ts"]);
+    expect(warnings).toHaveLength(1);
+  });
+
+  it("matches by basename as well as full path", () => {
+    const memory = "- [high] src/auth.ts:10 — security: sql injection";
+    // Use a different path that shares the same basename
+    const warnings = ghostWarnings(memory, ["lib/auth.ts"]);
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    expect(warnings[0]).toContain("auth.ts");
+  });
+
+  it("strips leading list marker from warning summary", () => {
+    const memory = "- [high] src/auth.ts:10 — security: sql injection";
+    const warnings = ghostWarnings(memory, ["src/auth.ts"]);
+    expect(warnings[0]).not.toMatch(/^[-*]\s/);
+    expect(warnings[0]).toContain("[high]");
   });
 });
 
@@ -203,6 +320,33 @@ describe("autoGenerateSkills", () => {
       fs.rmSync(tmpDir, { recursive: true });
     }
   });
+
+  it("returns empty when memory is empty string", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    try {
+      expect(autoGenerateSkills("", tmpDir)).toEqual([]);
+      // No skills directory should be created for empty memory
+      expect(fs.existsSync(path.join(tmpDir, ".github", "mizumi-skills"))).toBe(false);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("does not create files for patterns with fewer than 3 occurrences", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [low] src/utils.ts:5 — style: naming",
+      "- [low] src/utils.ts:10 — style: whitespace",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      expect(generated).toEqual([]);
+      // No skills directory should have been created
+      expect(fs.existsSync(path.join(tmpDir, ".github", "mizumi-skills"))).toBe(false);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
 });
 
 describe("loadSkills", () => {
@@ -260,6 +404,23 @@ describe("loadSkills", () => {
       const result = loadSkills(tmpDir, changedFiles);
       expect(result.names).toHaveLength(7);
       expect(result.loaded.length).toBeLessThanOrEqual(2000);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("returns empty loaded when no skill files match changed files", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = "---\nname: security-auth\ndescription: desc\nfile_pattern: \"src/auth.ts\"\n---\nAuth security guidance.\n";
+    fs.writeFileSync(path.join(skillsDir, "security-auth.md"), skillContent, "utf-8");
+    // Also add a non-matching skill
+    const otherSkill = "---\nname: other\ndescription: desc\nfile_pattern: \"src/other.ts\"\n---\nOther guidance.\n";
+    fs.writeFileSync(path.join(skillsDir, "other.md"), otherSkill, "utf-8");
+    try {
+      const result = loadSkills(tmpDir, ["src/unrelated.ts"]);
+      expect(result.loaded).toBe("");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }

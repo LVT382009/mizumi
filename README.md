@@ -28,6 +28,7 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Ticket compliance** — Checks if PR changes match referenced GitHub Issues (3-tier: fully/partially/not)
 - **Change Stack** — Reorganizes large PR output into dependency order (data models → contracts → logic → consumers → tests)
 - **Auto-fix on 👍** — React with thumbs-up on any Mizumi suggestion to auto-apply the fix
+- **CI-validated fix loop** — Apply suggestions, poll CI checks, revert on failure, and retry (only Macroscope has similar)
 - **Fuzzy dedup** — Suppresses near-duplicate findings and cleans stale comments using rapid-fuzzy matching
 - **SQLite learning** — Tracks suggestion acceptance rates, promotes/demotes categories based on past feedback
 - **Mermaid diagrams** — Auto-generates architecture and severity distribution diagrams in review output (GitHub renders natively)
@@ -101,6 +102,10 @@ jobs:
 | `change_stack` | `true` | Reorganize output into dependency order |
 | `improve_enabled` | `false` | Enable /mizumi improve (requires contents: write) |
 | `rule_engine` | `true` | Enable persistent rule engine with auto-discovery |
+| `ci_validated_fix` | `false` | CI-validated fix loop: apply suggestions, poll CI, revert on failure (requires `improve_enabled`) |
+| `ci_fix_timeout` | `600` | Max seconds to wait for CI checks on fix commit |
+| `ci_fix_max_retries` | `3` | Max fix attempts before giving up |
+| `ci_fix_revert_on_failure` | `true` | Revert fix commit if CI fails |
 
 ### Per-Repository Config (`.github/mizumi.yml`)
 
@@ -167,6 +172,27 @@ rules:
 ### Auto-Discovered Rules
 
 Mizumi mines patterns from review history stored in SQLite. When the same file+category pattern appears 3+ times with 40%+ acceptance rate, Mizumi auto-discovers a rule that flags similar files in future reviews. Discovered rules decay over time when their category has low acceptance — rules below 30 confidence are automatically retired.
+
+### CI-Validated Fix Loop
+
+When `ci_validated_fix` and `improve_enabled` are both `true`, Mizumi enters a self-healing loop after applying fix suggestions:
+
+1. **Apply** — Commit suggestion blocks to the PR branch (via Git Data API)
+2. **Poll** — Wait for CI checks on the fix commit (`repos.getCombinedStatusForRef` + `checks.listForRef`)
+3. **Validate** — If CI passes: done. If CI fails: revert the fix commit and retry (up to `ci_fix_max_retries`)
+4. **Revert** — Uses `git.updateRef` (force) to reset the branch to the pre-fix parent SHA
+
+This prevents broken code from landing: every auto-fix is validated against your CI before being accepted. No other AI reviewer (except Macroscope) offers this.
+
+```yaml
+- uses: LVT382009/mizumi@v0.1
+  with:
+    improve_enabled: true
+    ci_validated_fix: true
+    ci_fix_timeout: 600        # 10 min max CI wait
+    ci_fix_max_retries: 3      # up to 3 fix attempts
+    ci_fix_revert_on_failure: true  # revert broken fixes
+```
 
 ### Manual Trigger
 
@@ -243,7 +269,7 @@ When Mizumi detects recurring review patterns, it writes reusable skill files to
 | **Auto-discovered rules** | Yes (SQLite mining + decay) | Suggested rules (beta) | No | No | No |
 | **Auto-fix** | 👍 reaction → commit | No | Yes | No | CI-validated fix loop |
 | **Platforms** | GitHub (v0.1) | GitHub-only | GitHub + GitLab + Azure + Bitbucket | GitHub-only | GitHub-only |
-| **CI-validated fixes** | No (v0.1) | No | No | No | Yes |
+| **CI-validated fixes** | Yes (poll+revert+retry) | No | No | No | Yes |
 
 > **Note:** Published detection benchmarks (including Macroscope's 48% rate, 98% precision) are vendor self-reported and should be treated as directional rather than definitive. Every vendor wins their own benchmark.
 

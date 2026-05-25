@@ -330,4 +330,188 @@ describe("buildContext", () => {
 
     expect(ctx.descriptionFeedback).toContain("PR Description Quality");
   });
+
+  it("handles PR with no body (null body → empty string)", async () => {
+    mockPullsGet.mockResolvedValue({
+      data: { title: "No body PR", body: null as any },
+    });
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.prDescription).toBe("");
+    expect(scorePRDescription).toHaveBeenCalledWith("No body PR", "");
+  });
+
+  it("handles PR with undefined title → empty string", async () => {
+    mockPullsGet.mockResolvedValue({
+      data: { title: undefined as any, body: "PR body" },
+    });
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.prTitle).toBe("");
+  });
+
+  it("handles empty files array → empty diff text, empty changedFiles", async () => {
+    const emptyDiff: ParsedDiff = {
+      files: [],
+      totalAdditions: 0,
+      totalDeletions: 0,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, emptyDiff, "/workspace"
+    );
+    expect(ctx.diffText).toBe("");
+    expect(ctx.changedFiles).toEqual([]);
+  });
+
+  it("formats multi-hunk diff correctly (two hunks in same file)", async () => {
+    const multiHunkDiff: ParsedDiff = {
+      files: [{
+        path: "src/foo.ts",
+        status: "modified",
+        additions: 4,
+        deletions: 2,
+        hunks: [
+          {
+            oldStart: 1, oldLines: 2, newStart: 1, newLines: 3,
+            content: "@@ -1,2 +1,3 @@",
+            changes: [
+              { type: "normal", line: 1, oldLine: 1, content: "line1" },
+              { type: "add", line: 2, oldLine: 0, content: "added1" },
+            ],
+          },
+          {
+            oldStart: 10, oldLines: 5, newStart: 11, newLines: 5,
+            content: "@@ -10,5 +11,5 @@",
+            changes: [
+              { type: "delete", line: 0, oldLine: 10, content: "removed" },
+            ],
+          },
+        ],
+      }],
+      totalAdditions: 4,
+      totalDeletions: 2,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, multiHunkDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("@@ -1,2 +1,3 @@");
+    expect(ctx.diffText).toContain("@@ -10,5 +11,5 @@");
+    expect(ctx.diffText).toContain("+added1");
+    expect(ctx.diffText).toContain("-removed");
+  });
+
+  it("includes hunk content headers with @@ notation", async () => {
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("@@ -1,2 +1,3 @@");
+  });
+
+  it("handles PR with very long body (should still work)", async () => {
+    const longBody = "x".repeat(10000);
+    mockPullsGet.mockResolvedValue({
+      data: { title: "Big PR", body: longBody },
+    });
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.prDescription).toBe(longBody);
+    expect(ctx.prDescription.length).toBe(10000);
+  });
+
+  it("includes classification reason in diff text when provided", async () => {
+    const classification = {
+      category: "security" as const,
+      confidence: 80,
+      reason: "auth-related changes detected",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace", classification
+    );
+    expect(ctx.diffText).toContain("auth-related changes detected");
+  });
+
+  it("formats added file status in header correctly", async () => {
+    const addedDiff: ParsedDiff = {
+      files: [{
+        path: "src/new.ts",
+        status: "added",
+        additions: 10,
+        deletions: 0,
+        hunks: [{
+          oldStart: 0, oldLines: 0, newStart: 1, newLines: 10,
+          content: "@@ -0,0 +1,10 @@",
+          changes: [{ type: "add", line: 1, oldLine: 0, content: "new code" }],
+        }],
+      }],
+      totalAdditions: 10,
+      totalDeletions: 0,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, addedDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("(added, +10/-0)");
+  });
+
+  it("formats deleted file status in header correctly", async () => {
+    const deletedDiff: ParsedDiff = {
+      files: [{
+        path: "src/old.ts",
+        status: "deleted",
+        additions: 0,
+        deletions: 5,
+        hunks: [{
+          oldStart: 1, oldLines: 5, newStart: 0, newLines: 0,
+          content: "@@ -1,5 +0,0 @@",
+          changes: [{ type: "delete", line: 0, oldLine: 1, content: "removed code" }],
+        }],
+      }],
+      totalAdditions: 0,
+      totalDeletions: 5,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, deletedDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("(deleted, +0/-5)");
+  });
+
+  it("includes additions/deletions count per file", async () => {
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("+5/-2");
+  });
+
+  it("ghostContent is empty string when ghostWarnings returns empty", async () => {
+    vi.mocked(ghostWarnings).mockReturnValueOnce([]);
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.ghostContent).toBe("");
+    expect(typeof ctx.ghostContent).toBe("string");
+  });
+
+  it("descriptionFeedback is included in returned context", async () => {
+    vi.mocked(formatDescriptionFeedback).mockReturnValueOnce("## Feedback content");
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx).toHaveProperty("descriptionFeedback");
+    expect(ctx.descriptionFeedback).toContain("Feedback content");
+  });
+
+  it("calls stripPatchPII on the diff text", async () => {
+    vi.mocked(stripPatchPII).mockReturnValueOnce("stripped-diff");
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(stripPatchPII).toHaveBeenCalled();
+    expect(ctx.diffText).toBe("stripped-diff");
+  });
 });

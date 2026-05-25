@@ -36,7 +36,7 @@ const mockGenerateObject = vi.mocked(generateObject);
 const mockGetApiKey = vi.mocked(getApiKey);
 
 // ---------------------------------------------------------------------------
-// confidenceBadge — pure function
+// confidenceBadge - pure function
 // ---------------------------------------------------------------------------
 
 describe("confidenceBadge", () => {
@@ -59,10 +59,22 @@ describe("confidenceBadge", () => {
   it("includes 'confidence' in badge label", () => {
     expect(confidenceBadge("medium")).toContain("confidence");
   });
+
+  it("returns correct markdown for high level", () => {
+    expect(confidenceBadge("high")).toBe("![High](https://img.shields.io/badge/confidence-high-green)");
+  });
+
+  it("returns correct markdown for medium level", () => {
+    expect(confidenceBadge("medium")).toBe("![Medium](https://img.shields.io/badge/confidence-medium-yellow)");
+  });
+
+  it("returns correct markdown for low level", () => {
+    expect(confidenceBadge("low")).toBe("![Low](https://img.shields.io/badge/confidence-low-lightgray)");
+  });
 });
 
 // ---------------------------------------------------------------------------
-// calibrateConfidence — borderline + non-borderline logic
+// calibrateConfidence - borderline + non-borderline logic
 // ---------------------------------------------------------------------------
 
 function makeConfig(overrides: Record<string, any> = {}) {
@@ -259,11 +271,143 @@ describe("calibrateConfidence", () => {
   it("returns all findings including non-borderline", async () => {
     mockGetApiKey.mockReturnValue("");
     const review = makeReview([
-      { confidence: 95 },  // high → "high"
-      { confidence: 70 },  // borderline → "medium" (no model)
-      { confidence: 30 },  // low → "low"
+      { confidence: 95 },
+      { confidence: 70 },
+      { confidence: 30 },
     ]);
     const result = await calibrateConfidence(review, makeConfig());
     expect(result).toHaveLength(3);
+  });
+
+  it("handles empty comments array", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review: ReviewResponseType = {
+      summary: "empty",
+      riskScore: 0,
+      comments: [],
+      decision: "comment",
+    };
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result).toHaveLength(0);
+  });
+
+  it("maps all-high-confidence findings (all >80) to 'high'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([
+      { confidence: 85 },
+      { confidence: 90 },
+      { confidence: 95 },
+    ]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result.every((c) => c.calibratedConfidence === "high")).toBe(true);
+  });
+
+  it("maps all-low-confidence findings (all <=50) to 'low'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([
+      { confidence: 10 },
+      { confidence: 30 },
+      { confidence: 50 },
+    ]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result.every((c) => c.calibratedConfidence === "low")).toBe(true);
+  });
+
+  it("handles mixed findings with some borderline, some not", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([
+      { confidence: 90 },
+      { confidence: 70 },
+      { confidence: 30 },
+    ]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result).toHaveLength(3);
+    const high = result.find((c) => c.confidence === 90);
+    const medium = result.find((c) => c.confidence === 70);
+    const low = result.find((c) => c.confidence === 30);
+    expect(high?.calibratedConfidence).toBe("high");
+    expect(medium?.calibratedConfidence).toBe("medium");
+    expect(low?.calibratedConfidence).toBe("low");
+  });
+
+  it("non-borderline high-confidence finding stays at original confidence level", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 92 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].confidence).toBe(92);
+    expect(result[0].calibratedConfidence).toBe("high");
+  });
+
+  it("non-borderline low-confidence finding stays at original confidence level", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 25 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].confidence).toBe(25);
+    expect(result[0].calibratedConfidence).toBe("low");
+  });
+
+  it("borderline finding with no second model returns 'medium'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 70 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("confidence 59 (below BORDERLINE_MIN, but >50) maps to 'medium'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 59 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    // 59 is non-borderline (<60) but >50, so it maps to "medium"
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("confidence 50 (below BORDERLINE_MIN and <=50) maps to 'low'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 50 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].calibratedConfidence).toBe("low");
+  });
+
+  it("confidence 81 (above BORDERLINE_MAX) maps to 'high'", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 81 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].calibratedConfidence).toBe("high");
+  });
+
+  it("confidence exactly 60 is borderline and maps to 'medium' without second model", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 60 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("confidence exactly 80 is borderline and maps to 'medium' without second model", async () => {
+    mockGetApiKey.mockReturnValue("");
+    const review = makeReview([{ confidence: 80 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("multiple borderline findings each get independent calibration", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject
+      .mockResolvedValueOnce({ object: { confirmed: "yes" } } as any)
+      .mockResolvedValueOnce({ object: { confirmed: "no" } } as any)
+      .mockResolvedValueOnce({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([
+      { confidence: 65 },
+      { confidence: 70 },
+      { confidence: 75 },
+    ]);
+    const result = await calibrateConfidence(review, makeConfig());
+    expect(result).toHaveLength(3);
+    expect(result[0].calibratedConfidence).toBe("high");
+    expect(result[1].calibratedConfidence).toBe("low");
+    expect(result[2].calibratedConfidence).toBe("high");
   });
 });

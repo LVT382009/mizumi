@@ -148,6 +148,82 @@ describe("createModel", () => {
     createModel(config);
     expect(requireApiKey).toHaveBeenCalledWith("openai");
   });
+
+  it("createModel with openrouter passes correct API key", () => {
+    const config = makeConfig({ provider: "openrouter", model: "anthropic/claude-3.5" });
+    createModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "test-api-key" })
+    );
+  });
+
+  it("createModel with nvidia passes correct API key", () => {
+    const config = makeConfig({ provider: "nvidia", model: "meta/llama-3.3-70b-instruct" });
+    createModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "test-api-key" })
+    );
+  });
+
+  it("createModel returns undefined for unknown provider", () => {
+    const config = makeConfig({ provider: "unknown-provider" as any, model: "test" });
+    const result = createModel(config);
+    // No case matches in the switch, function implicitly returns undefined
+    expect(result).toBeUndefined();
+  });
+
+  it("createModel with google passes API key to createGoogleGenerativeAI", () => {
+    const config = makeConfig({ provider: "google", model: "gemini-2.5-flash" });
+    createModel(config);
+    expect(createGoogleGenerativeAI).toHaveBeenCalledWith({ apiKey: "test-api-key" });
+  });
+
+  it("createModel with local uses MIZUMI_BASE_URL over default URL", () => {
+    process.env.MIZUMI_BASE_URL = "http://mizumi-host:1234/v1";
+    const config = makeConfig({ provider: "local", model: "llama3" });
+    createModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: "http://mizumi-host:1234/v1",
+        name: "local",
+      })
+    );
+    delete process.env.MIZUMI_BASE_URL;
+  });
+
+  it("createModel with openrouter uses .chat() method path", () => {
+    const config = makeConfig({ provider: "openrouter", model: "anthropic/claude-3.5" });
+    createModel(config);
+    const instance = vi.mocked(createOpenAI).mock.results[0].value;
+    expect(instance.chat).toHaveBeenCalledWith("anthropic/claude-3.5");
+  });
+
+  it("createModel with local uses .chat() method path", () => {
+    const config = makeConfig({ provider: "local", model: "llama3" });
+    createModel(config);
+    const instance = vi.mocked(createOpenAI).mock.results[0].value;
+    expect(instance.chat).toHaveBeenCalledWith("llama3");
+  });
+
+  it("createModel with nvidia uses .chat() method path", () => {
+    const config = makeConfig({ provider: "nvidia", model: "meta/llama-3.3-70b-instruct" });
+    createModel(config);
+    const instance = vi.mocked(createOpenAI).mock.results[0].value;
+    expect(instance.chat).toHaveBeenCalledWith("meta/llama-3.3-70b-instruct");
+  });
+
+  it("createModel with custom provider uses CUSTOM_BASE_URL env var", () => {
+    process.env.CUSTOM_BASE_URL = "https://api.custom-endpoint.com/v1";
+    const config = makeConfig({ provider: "custom", model: "test-model", baseUrl: "" });
+    createModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: "https://api.custom-endpoint.com/v1",
+        name: "custom",
+      })
+    );
+    delete process.env.CUSTOM_BASE_URL;
+  });
 });
 
 describe("createLightModel", () => {
@@ -190,5 +266,23 @@ describe("createLightModel", () => {
     expect(createOpenAI).toHaveBeenCalledWith(
       expect.objectContaining({ name: "nvidia" })
     );
+  });
+
+  it("delegates to createModel for openrouter provider", () => {
+    const config = makeConfig({ provider: "openrouter", model: "anthropic/claude-3.5" });
+    createLightModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "openrouter" })
+    );
+  });
+
+  it("delegates to createModel for custom provider", () => {
+    process.env.CUSTOM_BASE_URL = "https://api.custom.com/v1";
+    const config = makeConfig({ provider: "custom", model: "my-model", baseUrl: "" });
+    createLightModel(config);
+    expect(createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "custom" })
+    );
+    delete process.env.CUSTOM_BASE_URL;
   });
 });

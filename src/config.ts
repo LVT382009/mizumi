@@ -30,6 +30,11 @@ export interface MizumiConfig {
   autoLabels: boolean;
   spendThreshold: number;
   gateThreshold: "none" | "critical" | "high" | "medium";
+  ruleEngine: boolean;
+  ciValidatedFix: boolean;
+  ciFixTimeout: number;
+  ciFixMaxRetries: number;
+  ciFixRevertOnFailure: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -83,7 +88,12 @@ const spendThreshold = parseInt(core.getInput("spend_threshold") || "0", 10) || 
 const VALID_GATE: MizumiConfig["gateThreshold"][] = ["none", "critical", "high", "medium"];
 const rawGate = core.getInput("gate_threshold") || "none";
 const gateThreshold = (VALID_GATE.includes(rawGate as MizumiConfig["gateThreshold"]) ? rawGate : "none") as MizumiConfig["gateThreshold"];
-  let securityPaths = [...DEFAULT_SECURITY_PATHS];
+  const ruleEngine = core.getInput("rule_engine") !== "false"; // default true
+const ciValidatedFix = core.getInput("ci_validated_fix") === "true"; // default false
+const ciFixTimeout = parseInt(core.getInput("ci_fix_timeout") || "600", 10) || 600;
+const ciFixMaxRetries = parseInt(core.getInput("ci_fix_max_retries") || "3", 10) || 3;
+const ciFixRevertOnFailure = core.getInput("ci_fix_revert_on_failure") !== "false"; // default true
+let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -155,6 +165,11 @@ const gateThreshold = (VALID_GATE.includes(rawGate as MizumiConfig["gateThreshol
     autoLabels,
     spendThreshold,
     gateThreshold,
+    ruleEngine,
+    ciValidatedFix,
+    ciFixTimeout,
+    ciFixMaxRetries,
+    ciFixRevertOnFailure,
   };
 }
 
