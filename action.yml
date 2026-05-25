@@ -1,38 +1,38 @@
 name: Mizumi Review
-description: Self-learning PR review agent with BYOK, multi-provider support, and memory
+description: "Self-learning PR review agent with BYOK, multi-provider support, and memory"
 branding:
   icon: eye
   color: purple
 
 inputs:
   github_token:
-    description: GitHub token for API access (default: automatically provided by Actions)
+    description: "GitHub token for API access (automatically provided by Actions)"
     required: false
-    default: ${{ github.token }}
+    default: "${{ github.token }}"
   anthropic_api_key:
-    description: Anthropic API key (recommended: use MIZUMI_ANTHROPIC_API_KEY secret to avoid credential collisions)
+    description: "Anthropic API key (use MIZUMI_ANTHROPIC_API_KEY secret to avoid credential collisions)"
     required: false
   openai_api_key:
-    description: OpenAI API key
+    description: "OpenAI API key"
     required: false
   google_api_key:
-    description: Google AI API key
+    description: "Google AI API key"
     required: false
   openrouter_api_key:
-    description: OpenRouter API key
+    description: "OpenRouter API key"
     required: false
   nvidia_api_key:
-    description: NVIDIA NIM API key (nvapi-*)
+    description: "NVIDIA NIM API key (nvapi-*)"
     required: false
   local_api_key:
-    description: API key for local/self-hosted model (optional — Ollama/llama.cpp/LM Studio usually don't need one)
+    description: "API key for local/self-hosted model (Ollama/llama.cpp/LM Studio usually don't need one)"
     required: false
     default: "dummy"
   base_url:
-    description: "Custom base URL for OpenAI-compatible endpoint. For local: Ollama (http://localhost:11434/v1), llama.cpp server (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). For custom: Together AI, Groq, DeepSeek, Fireworks, etc."
+    description: "Custom base URL for OpenAI-compatible endpoint. Local: Ollama (http://localhost:11434/v1), llama.cpp (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). Custom: Together AI, Groq, DeepSeek, Fireworks, etc."
     required: false
   model:
-    description: Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)
+    description: "Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)"
     required: false
     default: "claude-sonnet-4-6"
   provider:
@@ -40,111 +40,104 @@ inputs:
     required: false
     default: "anthropic"
   custom_api_key:
-    description: API key for custom OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, Fireworks, etc.)
+    description: "API key for custom OpenAI-compatible endpoint (Together AI, Groq, DeepSeek, Fireworks, etc.)"
     required: false
   profile:
-    description: Review profile — chill (bugs/security only) | assertive (+ style/docs) | followup (+ check previous comments)
+    description: "Review profile: chill (bugs/security), assertive (+ style/docs), followup (+ check previous comments)"
     required: false
     default: "chill"
   max_comments:
-    description: Maximum inline review comments per PR
+    description: "Maximum inline review comments per PR"
     required: false
     default: "15"
   language:
-    description: Review comment language (ISO locale code, e.g. en-US, ja-JP)
+    description: "Review comment language (ISO locale code, e.g. en-US, ja-JP)"
     required: false
     default: "en-US"
   self_critique:
-    description: Enable two-pass self-critique (recommended)
+    description: "Enable two-pass self-critique (recommended)"
     required: false
     default: "true"
   confidence_threshold:
-    description: Filter findings with confidence below this value (0-100)
+    description: "Filter findings with confidence below this value (0-100)"
     required: false
     default: "80"
   auto_review:
-    description: Auto-review on PR open/push (false = manual /mizumi trigger only)
+    description: "Auto-review on PR open/push (false = manual /mizumi trigger only)"
     required: false
     default: "true"
   auto_pause_after:
-    description: Stop auto-reviewing after this many reviews per PR (resume with /mizumi)
+    description: "Stop auto-reviewing after this many reviews per PR (resume with /mizumi)"
     required: false
     default: "5"
   tier_routing:
-    description: Enable model tier routing (small diffs use cheaper model, security files get thorough review)
+    description: "Enable model tier routing (small diffs use cheaper model, security files get thorough review)"
     required: false
     default: "true"
   small_diff_threshold:
-    description: Line count threshold below which a diff is considered "small" for tier routing
+    description: "Line count threshold below which a diff is considered small for tier routing"
     required: false
     default: "50"
   compliance_check:
-    description: Check ticket-to-code compliance when PR references a GitHub Issue (closes #N, fixes #N)
+    description: "Check ticket-to-code compliance when PR references a GitHub Issue (closes #N, fixes #N)"
     required: false
     default: "true"
   auto_fix:
-    description: Auto-apply suggestion blocks when a 👍 reaction is found on Mizumi's review comments
+    description: "Auto-apply suggestion blocks when a thumbs-up reaction is found on Mizumi review comments"
     required: false
     default: "false"
   confidence_calibration:
-    description: Enable dual-model confidence calibration for borderline findings (confidence 60-80)
+    description: "Enable dual-model confidence calibration for borderline findings (confidence 60-80)"
     required: false
     default: "true"
   change_stack:
-    description: Reorganize large review output into cohort/layer ordering (data models → contracts → logic → consumers → tests)
+    description: "Reorganize large review output into cohort ordering (data models, contracts, logic, consumers, tests)"
     required: false
     default: "true"
   improve_enabled:
-    description: Enable /mizumi improve command (applies fix suggestions via Git Data API — requires contents: write permission). Default false for safety.
+    description: "Enable /mizumi improve command (applies fix suggestions via Git Data API, requires contents: write)"
     required: false
     default: "false"
-
   dry_run:
-    description: Run analysis without posting review comments (logs findings to Actions output instead). Safe for testing config changes.
+    description: "Run analysis without posting review comments (logs findings to Actions output instead)"
     required: false
     default: "false"
-
   linter_scan:
-    description: Run project linters (ESLint, tsc, Prettier) before LLM review. Linter findings are deterministic and never hallucinate. Requires linters to be installed in the workflow.
+    description: "Run project linters (ESLint, tsc, Prettier) before LLM review. Linter findings never hallucinate."
     required: false
     default: "true"
-
   auto_labels:
-    description: Auto-label PRs based on review findings (security, bug, style, needs-attention, review-heavy)
+    description: "Auto-label PRs based on review findings (security, bug, style, needs-attention, review-heavy)"
     required: false
     default: "true"
-
   rpm:
     description: "Max requests per minute to the LLM provider (0 = use provider default: anthropic 50, openai 60, local unlimited)"
     required: false
     default: "0"
-
   rps:
     description: "Max requests per second to the LLM provider (0 = use provider default: anthropic 5, openai 5, local unlimited)"
     required: false
     default: "0"
-
   spend_threshold:
-  description: "Post a spend dashboard comment when a single review exceeds this many tokens (0 = disabled). Typical: 50000-200000."
-  required: false
-  default: "0"
-
+    description: "Post a spend dashboard comment when a single review exceeds this many tokens (0 = disabled)"
+    required: false
+    default: "0"
   gate_threshold:
-  description: "Post a commit status (success/failure) that can be used as a required branch protection check. none=disabled, critical=fail on critical findings, high=fail on high+critical, medium=fail on medium+. Default: none."
-  required: false
-  default: "none"
+    description: "Post a commit status (success/failure) usable as required branch protection check. none=disabled, critical=fail on critical, high=fail on high+critical, medium=fail on medium+"
+    required: false
+    default: "none"
 
 outputs:
   review_id:
-    description: ID of the posted PR review
+    description: "ID of the posted PR review"
   finding_count:
-    description: Number of findings posted
+    description: "Number of findings posted"
   risk_score:
-    description: Risk score 1-5
+    description: "Risk score 1-5"
   compliance:
-    description: Ticket-to-code compliance level (fully/partially/not/none)
+    description: "Ticket-to-code compliance level (fully/partially/not/none)"
   auto_fixed:
-    description: Number of suggestions auto-applied via 👍 reaction approval
+    description: "Number of suggestions auto-applied via thumbs-up reaction approval"
 
 runs:
   using: node24
