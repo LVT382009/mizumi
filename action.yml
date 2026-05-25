@@ -166,6 +166,10 @@ inputs:
     description: "Enable taint-style data flow analysis - tracks untrusted input (req.params, process.argv, etc.) to security-sensitive sinks (SQL, exec, XSS, etc.). Generates evidence chains for LLM review context."
     required: false
     default: "true"
+  review_learning:
+    description: "Enable review-to-review learning — auto-generates negative rules from repeatedly-dismissed feedback patterns. Suppresses noisy finding categories across PRs."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

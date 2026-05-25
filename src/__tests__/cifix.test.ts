@@ -96,6 +96,7 @@ const testConfig = {
   ownershipRouting: true,
   deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

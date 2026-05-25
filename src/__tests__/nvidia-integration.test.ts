@@ -59,6 +59,7 @@ describe("NVIDIA NIM provider configuration", () => {
     ownershipRouting: true,
     deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
     ...overrides,
   });
 
@@ -229,6 +230,7 @@ describe("NVIDIA NIM provider configuration", () => {
       ownershipRouting: true,
       deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
     };
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
     try {
@@ -295,6 +297,7 @@ skipIfNoKey("NVIDIA NIM live integration", () => {
     ownershipRouting: true,
     deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
   };
 
   it("calls NVIDIA NIM and returns structured review output", async () => {

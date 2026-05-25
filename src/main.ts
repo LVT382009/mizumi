@@ -46,6 +46,7 @@ import { loadCodeowners, matchOwnership, applyOwnershipToFindings, buildOwnershi
 import { computeDeltaReview, recordReviewedSha, formatDeltaSummary } from "./delta.js";
 import { discoverADRs, buildADRContext, checkADRViolations } from "./adr.js";
 import { runTaintAnalysis, buildTaintContext } from "./taint.js";
+import { runReviewLearning, buildLearningContext, applyNegativeRules } from "./review-learning.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -331,6 +332,16 @@ if (config.astContractAnalysis) {
  }
  }
 
+ // 4a4. Review-to-review learning — auto-suppress dismissed patterns
+ let learningResult: import("./review-learning.js").LearningResult | null = null;
+ if (config.reviewLearning) {
+ try {
+   learningResult = runReviewLearning(workspace);
+ } catch (e) {
+   core.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+ }
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -381,6 +392,16 @@ if (taintResult && taintResult.traces.length > 0) {
     context.rulesContent += `
 
 ${taintContextStr}`;
+  }
+}
+
+// 5c3. Learning context injection
+if (learningResult && learningResult.newRules.length > 0) {
+  const learningContextStr = buildLearningContext(learningResult);
+  if (learningContextStr) {
+    context.rulesContent += `
+
+${learningContextStr}`;
   }
 }
 
@@ -457,6 +478,10 @@ if (Object.keys(learningWeights).length > 0) {
       if (suppressed.size > 0) {
         core.info(`Adaptive noise: ${suppressed.size} suppressed patterns â€” ${[...suppressed].join(", ")}`);
         filtered.comments = applyNoiseReduction(filtered.comments, suppressed) as typeof filtered.comments;
+  // Apply review-to-review learning (negative rules from dismissed patterns)
+  if (learningResult && learningResult.newRules.length > 0) {
+    filtered.comments = applyNegativeRules(filtered.comments, learningResult.newRules) as typeof filtered.comments;
+  }
         const reduced = filtered.comments.filter((c) => c.confidence < config.confidenceThreshold).length;
         if (reduced > 0) core.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
       }

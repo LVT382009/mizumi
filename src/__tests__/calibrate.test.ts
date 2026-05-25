@@ -108,6 +108,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
   ownershipRouting: true,
   deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
     ...overrides,
   };
 }

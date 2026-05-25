@@ -62,6 +62,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
   ownershipRouting: true,
   deltaReview: true,
       taintAnalysis: true,
+      reviewLearning: true,
     ...overrides,
   };
 }
