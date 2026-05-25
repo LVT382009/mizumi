@@ -137,6 +137,22 @@ describe("computeFatigueScore", () => {
     const highDismiss = computeFatigueScore(50, 0.9);
     expect(highDismiss).toBeGreaterThan(lowDismiss);
   });
+
+  it("returns 0 for zero total even with non-zero dismissal rate", () => {
+    expect(computeFatigueScore(0, 0.8)).toBe(0);
+  });
+
+  it("returns 0 for zero dismissal rate", () => {
+    expect(computeFatigueScore(100, 0)).toBe(0);
+  });
+
+  it("volume factor increases with total findings", () => {
+    const s10 = computeFatigueScore(10, 0.5);
+    const s100 = computeFatigueScore(100, 0.5);
+    const s1000 = computeFatigueScore(1000, 0.5);
+    expect(s100).toBeGreaterThan(s10);
+    expect(s1000).toBeGreaterThan(s100);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -238,6 +254,37 @@ describe("buildFatigueDashboard", () => {
     const bug = result.categories.find((c) => c.category === "bug");
     expect(bug?.pending).toBe(1);
     expect(bug?.total).toBe(2);
+  });
+
+  it("counts totalFeedback excluding pending", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "high", messageHash: "h1", outcome: "helpful", createdAt: "2026-01-01" },
+      { repo: "r", pr: 1, commentId: 2, file: "b.ts", line: 2, category: "bug", severity: "high", messageHash: "h2", outcome: "pending", createdAt: "2026-01-02" },
+      { repo: "r", pr: 1, commentId: 3, file: "c.ts", line: 3, category: "bug", severity: "high", messageHash: "h3", outcome: "unhelpful", createdAt: "2026-01-03" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.totalFindings).toBe(3);
+    expect(result.totalFeedback).toBe(2); // only helpful + unhelpful
+  });
+
+  it("sets noisiestCategory to null when all fatigue scores <= 5", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "high", messageHash: "h1", outcome: "helpful", createdAt: "2026-01-01" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.noisiestCategory).toBeNull();
+  });
+
+  it("handles multiple categories with different fatigue scores", () => {
+    const entries: FeedbackEntry[] = [];
+    // bug: 100% acceptance (low fatigue)
+    for (let i = 0; i < 5; i++) entries.push({ repo: "r", pr: 1, commentId: i, file: "a.ts", line: i, category: "bug", severity: "medium", messageHash: `h${i}`, outcome: "helpful", createdAt: `2026-01-${String(i + 1).padStart(2, "0")}` });
+    // style: 0% acceptance (high fatigue)
+    for (let i = 0; i < 5; i++) entries.push({ repo: "r", pr: 1, commentId: i + 10, file: "a.ts", line: i + 10, category: "style", severity: "low", messageHash: `h${i + 10}`, outcome: "unhelpful", createdAt: `2026-01-${String(i + 11).padStart(2, "0")}` });
+    writeFeedbackStore(entries);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.categories[0].category).toBe("style");
+    expect(result.noisiestCategory).toBe("style");
   });
 });
 

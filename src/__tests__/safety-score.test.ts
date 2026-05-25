@@ -250,4 +250,88 @@ describe("computeSafetyScore", () => {
     });
     expect(result.score).toBe(99);
   });
+
+  it("accumulates unknown severity penalties", () => {
+    const result = computeSafetyScore({
+      findings: [
+        { severity: "unknown", category: "other" },
+        { severity: "unknown", category: "other" },
+        { severity: "unknown", category: "other" },
+      ],
+      riskScore: 1,
+      blastRadiusFiles: 0,
+      attribution: null,
+    });
+    expect(result.score).toBe(97);
+    expect(result.factors.findingPenalty).toBe(3);
+  });
+
+  it("combines all penalty types", () => {
+    const result = computeSafetyScore({
+      findings: [{ severity: "high", category: "bug" }],
+      riskScore: 4,
+      blastRadiusFiles: 15,
+      attribution: null,
+    });
+    expect(result.score).toBe(70); // 100 - 10 (high) - 10 (blast) - 10 (risk) = 70
+    expect(result.factors.findingPenalty).toBe(10);
+    expect(result.factors.blastRadiusPenalty).toBe(10);
+    expect(result.factors.riskAdjustment).toBe(-10);
+  });
+
+  it("combines findings and attribution bonus", () => {
+    const attribution: AttributionResult = {
+      categories: [{
+        category: "style", total: 15, helpful: 2, dismissed: 13,
+        dismissalRate: 0.87, confidencePenalty: 65, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 15,
+    };
+    const result = computeSafetyScore({
+      findings: [{ severity: "medium", category: "bug" }],
+      riskScore: 1,
+      blastRadiusFiles: 0,
+      attribution,
+    });
+    expect(result.score).toBe(97); // 100 - 5 (medium) + 2 (attribution) = 97
+  });
+
+  it("risk score 5 gives same penalty as 4", () => {
+    const r4 = computeSafetyScore({ findings: [], riskScore: 4, blastRadiusFiles: 0, attribution: null });
+    const r5 = computeSafetyScore({ findings: [], riskScore: 5, blastRadiusFiles: 0, attribution: null });
+    expect(r5.factors.riskAdjustment).toBe(-10);
+    expect(r5.score).toBe(r4.score);
+  });
+
+  it("blast radius exactly 6 gets penalty", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 6, attribution: null });
+    expect(result.factors.blastRadiusPenalty).toBe(5);
+  });
+
+  it("attribution with 0.61 dismissal rate is high-dismissal", () => {
+    const attribution: AttributionResult = {
+      categories: [{
+        category: "style", total: 15, helpful: 6, dismissed: 9,
+        dismissalRate: 0.61, confidencePenalty: 45, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 15,
+    };
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
+    expect(result.factors.attributionAdjustment).toBe(2);
+  });
+
+  it("attribution with <0.6 dismissal rate is not high-dismissal", () => {
+    const attribution: AttributionResult = {
+      categories: [{
+        category: "style", total: 15, helpful: 7, dismissed: 8,
+        dismissalRate: 0.53, confidencePenalty: 0, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 15,
+    };
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
+    expect(result.factors.attributionAdjustment).toBe(0);
+  });
 });
