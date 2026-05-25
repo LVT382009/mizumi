@@ -206,3 +206,77 @@ describe("generateSeverityDiagram", () => {
     expect(highIdx).toBeLessThan(lowIdx);
   });
 });
+
+  it("handles deeply nested src subdirectories", () => {
+    const files = [
+      makeFile("src/core/services/auth.ts"),
+      makeFile("src/api/routes/health.ts"),
+    ];
+    const result = generateArchDiagram(files);
+    // src/core and src/api are the group keys
+    expect(result).toContain("src_core");
+    expect(result).toContain("src_api");
+  });
+
+  it("handles mixed root and src files", () => {
+    const files = [
+      makeFile("package.json", 5, 0),
+      makeFile("src/app.ts", 10, 2),
+      makeFile("test/main.ts", 3, 1),
+    ];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("root");
+    expect(result).toContain("src");
+    expect(result).toContain("test");
+  });
+
+  it("applies critical class for high severity findings", () => {
+    const files = [makeFile("src/core/a.ts"), makeFile("lib/b.ts")];
+    const findings: ReviewCommentType[] = [
+      makeFinding({ file: "src/core/a.ts", severity: "high" }),
+    ];
+    const result = generateArchDiagram(files, findings);
+    expect(result).toContain(":::critical");
+  });
+
+  it("does not apply critical class for medium findings", () => {
+    const files = [makeFile("src/core/a.ts"), makeFile("lib/b.ts")];
+    const findings: ReviewCommentType[] = [
+      makeFinding({ file: "src/core/a.ts", severity: "medium" }),
+    ];
+    const result = generateArchDiagram(files, findings);
+    expect(result).not.toContain(":::critical");
+  });
+
+  it("sums additions/deletions across files in same group", () => {
+    const files = [
+      makeFile("src/core/a.ts", 15, 3),
+      makeFile("src/core/b.ts", 5, 7),
+      makeFile("lib/c.ts", 2, 1),
+    ];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("+20/-10");
+  });
+
+  it("handles files with underscore in directory name", () => {
+    const files = [
+      makeFile("my_app/src/a.ts"),
+      makeFile("other/b.ts"),
+    ];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("my_app");
+  });
+
+  it("generates severity diagram with single finding", () => {
+    const findings = [makeFinding({ severity: "critical" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("1 findings");
+    expect(result).toContain("critical<br/>1");
+  });
+
+  it("handles nitpick severity in severity diagram", () => {
+    const findings = [makeFinding({ severity: "nitpick" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("nitpick<br/>1");
+    expect(result).toContain("classDef nitpick");
+  });

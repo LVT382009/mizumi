@@ -69,7 +69,7 @@ function getPrNumber(ctx: typeof github.context): number | null {
   return null;
 }
 
-class GitHubPlatformClient implements PlatformClient {
+export class GitHubPlatformClient implements PlatformClient {
   platform = "github" as const;
   private opts: GitHubClientOptions;
 
