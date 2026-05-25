@@ -57,6 +57,9 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**"],
     spendThreshold: 0,
     gateThreshold: "none",
+  astContractAnalysis: true,
+  behavioralSummary: true,
+  ownershipRouting: true,
     ...overrides,
   };
 }

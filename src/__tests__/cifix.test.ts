@@ -91,6 +91,9 @@ const testConfig = {
   ciFixTimeout: 600,
   ciFixMaxRetries: 3,
   ciFixRevertOnFailure: true,
+  astContractAnalysis: true,
+  behavioralSummary: true,
+  ownershipRouting: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

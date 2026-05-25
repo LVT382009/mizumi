@@ -94,6 +94,51 @@ describe("countMizumiReviews", () => {
     await countMizumiReviews(octokit, "owner", "repo", 7);
     expect(octokit.rest.issues.listComments.mock.calls.length).toBeLessThanOrEqual(10);
   });
+
+  it("skips comments with null body without error", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({
+      data: [{ body: null }, { body: undefined }, { body: `${MARKER}\nReview` }],
+    });
+    octokit.rest.pulls.listReviews.mockResolvedValue({ data: [] });
+    const count = await countMizumiReviews(octokit, "owner", "repo", 7);
+    expect(count).toBe(1);
+  });
+
+  it("skips reviews with null body without error", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    octokit.rest.pulls.listReviews.mockResolvedValue({
+      data: [{ body: null }, { body: `${MARKER}\nReview 1` }, { body: undefined }],
+    });
+    const count = await countMizumiReviews(octokit, "owner", "repo", 7);
+    expect(count).toBe(1);
+  });
+
+  it("exact combined count across issue comments and reviews", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({
+      data: [
+        { body: `${MARKER}\nComment A` },
+        { body: "regular" },
+        { body: `${MARKER}\nComment B` },
+      ],
+    });
+    octokit.rest.pulls.listReviews.mockResolvedValue({
+      data: [
+        { body: `${MARKER}\nReview C` },
+        { body: "normal review" },
+      ],
+    });
+    const count = await countMizumiReviews(octokit, "owner", "repo", 7);
+    expect(count).toBe(3);
+  });
+
+  it("propagates error when issues.listComments API fails", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockRejectedValue(new Error("API rate limit"));
+    await expect(countMizumiReviews(octokit, "owner", "repo", 7)).rejects.toThrow("API rate limit");
+  });
 });
 
 describe("getLatestFindings", () => {
@@ -188,6 +233,47 @@ describe("getLatestFindings", () => {
     expect(findings[0].message).not.toContain("<details>");
     expect(findings[0].message).not.toContain("</details>");
   });
+
+  it("returns empty array when no comments match the marker", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        { body: "Generic review comment", path: "a.ts", line: 1 },
+        { body: "LGTM", path: "b.ts", line: 2 },
+      ],
+    });
+    const findings = await getLatestFindings(octokit, "owner", "repo", 7);
+    expect(findings).toEqual([]);
+  });
+
+  it("defaults line to 0 when line field is null", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [{
+        body: `${MARKER}\n**Severity:** High\n**Category:** Security\nFinding`,
+        path: "src/x.ts",
+        line: null,
+      }],
+    });
+    const findings = await getLatestFindings(octokit, "owner", "repo", 7);
+    expect(findings[0].line).toBe(0);
+  });
+
+  it("truncates message to 200 characters", async () => {
+    const octokit = makeMockOctokit();
+    const longBody = `${MARKER}\n**Severity:** Low\n**Category:** Style\n` + "A".repeat(300);
+    octokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [{ body: longBody, path: "src/long.ts", line: 1 }],
+    });
+    const findings = await getLatestFindings(octokit, "owner", "repo", 7);
+    expect(findings[0].message.length).toBeLessThanOrEqual(200);
+  });
+
+  it("propagates error when pulls.listReviewComments API fails", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.pulls.listReviewComments.mockRejectedValue(new Error("server error"));
+    await expect(getLatestFindings(octokit, "owner", "repo", 7)).rejects.toThrow("server error");
+  });
 });
 
 describe("createOrUpdateSpendComment", () => {
@@ -241,6 +327,38 @@ describe("createOrUpdateSpendComment", () => {
     });
     await createOrUpdateSpendComment(octokit, "owner", "repo", 7, "new spend");
     expect(octokit.rest.issues.listComments).toHaveBeenCalledTimes(1);
+  });
+
+  it("finds existing comment to update among mixed comments", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({
+      data: [
+        { id: 10, body: "some regular comment" },
+        { id: 20, body: `${SPEND_MARKER}\nprevious spend data` },
+        { id: 30, body: "another comment" },
+      ],
+    });
+    await createOrUpdateSpendComment(octokit, "owner", "repo", 7, "updated spend");
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 20, body: "updated spend" })
+    );
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("propagates error when issues.updateComment API fails", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({
+      data: [{ id: 50, body: `${SPEND_MARKER}\nold` }],
+    });
+    octokit.rest.issues.updateComment.mockRejectedValue(new Error("update failed"));
+    await expect(createOrUpdateSpendComment(octokit, "owner", "repo", 7, "body")).rejects.toThrow("update failed");
+  });
+
+  it("propagates error when issues.createComment API fails", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    octokit.rest.issues.createComment.mockRejectedValue(new Error("create failed"));
+    await expect(createOrUpdateSpendComment(octokit, "owner", "repo", 7, "body")).rejects.toThrow("create failed");
   });
 });
 

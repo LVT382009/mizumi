@@ -180,6 +180,154 @@ describe("processReactionApprovals", () => {
     );
   });
 
+  it("ignores various non-+1 emoji reactions (rocket, eyes, hooray, confused, laugh)", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfixed code\n```", path: "src/file.ts", line: 10 },
+    ], [
+      { commentId: 1, content: "rocket" },
+      { commentId: 1, content: "eyes" },
+      { commentId: 1, content: "hooray" },
+      { commentId: 1, content: "confused" },
+      { commentId: 1, content: "laugh" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    expect(generateFix).not.toHaveBeenCalled();
+  });
+
+  it("triggers fix when +1 is among multiple emoji reactions on the same comment", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfixed code\n```", path: "src/file.ts", line: 10 },
+    ], [
+      { commentId: 1, content: "heart" },
+      { commentId: 1, content: "+1" },
+      { commentId: 1, content: "rocket" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(1);
+    expect(generateFix).toHaveBeenCalled();
+  });
+
+  it("propagates error when octokit pulls.get fails (no top-level catch)", async () => {
+    const octokit = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockRejectedValue(new Error("API rate limit exceeded")),
+          listReviewComments: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        reactions: {
+          listForPullRequestReviewComment: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        issues: {
+          createComment: vi.fn(),
+        },
+      },
+    };
+    const config = { provider: "anthropic" } as any;
+    await expect(
+      processReactionApprovals(octokit as any, "owner", "repo", 1, config)
+    ).rejects.toThrow("API rate limit exceeded");
+  });
+
+  it("skips comment and continues when reactions API call fails", async () => {
+    const octokit = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: { number: 1 } }),
+          listReviewComments: vi.fn().mockImplementation(({ page }) => {
+            if (page === 1) return { data: [
+              { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "a.ts", line: 1 },
+            ] };
+            return { data: [] };
+          }),
+        },
+        reactions: {
+          listForPullRequestReviewComment: vi.fn().mockRejectedValue(new Error("403 Forbidden")),
+        },
+        issues: {
+          createComment: vi.fn(),
+        },
+      },
+    };
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    expect(generateFix).not.toHaveBeenCalled();
+  });
+
+  it("handles path traversal pattern in comment path gracefully", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "../../etc/passwd", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    // Function proceeds; generateFix handles Git Data API path semantics
+    expect(result).toBe(1);
+    expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("../../etc/passwd"),
+      })
+    );
+  });
+
+  it("returns 0 when generateFix returns fixedCount 0 (partial/no fix)", async () => {
+    vi.mocked(generateFix).mockResolvedValueOnce({ fixedCount: 0, commitSha: undefined });
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "a.ts", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    // No confirmation comment posted since fixedCount is 0
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("stops paginating at page 5 (max page limit)", async () => {
+    const pageFn = vi.fn().mockImplementation(({ page }: { page: number }) => {
+      // Return 100 comments for pages 1-5 to trigger max-page guard
+      if (page <= 5) return { data: Array.from({ length: 100 }, (_, i) => ({ id: page * 100 + i, body: "regular", path: "a.ts", line: i })) };
+      return { data: [] };
+    });
+    const octokit = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: { number: 1 } }),
+          listReviewComments: pageFn,
+        },
+        reactions: {
+          listForPullRequestReviewComment: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        issues: {
+          createComment: vi.fn(),
+        },
+      },
+    };
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    expect(result).toBe(0);
+    expect(pageFn).toHaveBeenCalledTimes(5);
+  });
+
+  it("still reports applied fix when issues.createComment fails after successful generateFix", async () => {
+    const octokit = makeOctokit([
+      { id: 1, body: MOCK_MARKER + "\n```suggestion\nfix\n```", path: "a.ts", line: 1 },
+    ], [
+      { commentId: 1, content: "+1" },
+    ]);
+    octokit.rest.issues.createComment = vi.fn().mockRejectedValue(new Error("comment creation failed"));
+    const config = { provider: "anthropic" } as any;
+    const result = await processReactionApprovals(octokit as any, "owner", "repo", 1, config);
+    // generateFix succeeded and applied was incremented before createComment threw
+    expect(result).toBe(1);
+    expect(generateFix).toHaveBeenCalled();
+  });
+
   it("paginates through multiple pages of comments", async () => {
     const page1 = Array.from({ length: 100 }, (_, i) => ({
       id: i + 1,

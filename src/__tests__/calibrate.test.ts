@@ -103,6 +103,9 @@ function makeConfig(overrides: Record<string, any> = {}) {
     autoLabels: false,
     spendThreshold: 0,
     gateThreshold: "none" as const,
+  astContractAnalysis: true,
+  behavioralSummary: true,
+  ownershipRouting: true,
     ...overrides,
   };
 }

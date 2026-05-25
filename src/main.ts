@@ -42,6 +42,7 @@ import { executeRuleEngine } from "./rule-engine.js";
 import { runCIFixLoop } from "./cifix.js";
 import { runASTContractAnalysis } from "./ast-contracts.js";
 import { generateBehavioralSummary, shouldRunBehavioralAnalysis, formatBehavioralSummary } from "./behavioral.js";
+import { loadCodeowners, matchOwnership, applyOwnershipToFindings, buildOwnershipSummary } from "./ownership.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -447,6 +448,22 @@ if (config.confidenceCalibration || config.complianceCheck) {
 
     const mergedReview = { ...filtered, comments: mergedComments };
 
+// 9-own. CODEOWNERS-aware routing (tag owning teams, boost confidence)
+let ownershipBody = "";
+if (config.ownershipRouting) {
+  try {
+    const ownershipRules = loadCodeowners(workspace);
+    if (ownershipRules.length > 0) {
+      const ownership = matchOwnership(diff.files, ownershipRules);
+      mergedReview.comments = applyOwnershipToFindings(mergedReview.comments, ownership);
+      ownershipBody = buildOwnershipSummary(ownership);
+      if (ownershipBody) core.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter(o => o.owners.length > 0).length + " file(s) matched");
+    }
+  } catch (e) {
+    core.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 9a. Behavioral diff summary (describe WHAT the code DOES differently)
 let behavioralBody = "";
 if (config.behavioralSummary && shouldRunBehavioralAnalysis(diff.files)) {
@@ -495,6 +512,23 @@ if (behavioralBody) {
   }
 }
 
+
+// Post ownership summary as a separate comment
+if (ownershipBody) {
+  try {
+      const ownershipComment = `<!-- mizumi-ownership-marker -->
+## Ownership Coverage
+
+${ownershipBody}
+---
+*Posted by Mizumi*`;
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: ownershipComment,
+    });
+  } catch (e) {
+    core.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
    // 10a. Set action outputs
    core.setOutput("review_id", result.reviewId);
    core.setOutput("finding_count", result.findingCount);

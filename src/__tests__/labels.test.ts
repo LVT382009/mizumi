@@ -122,6 +122,64 @@ describe("computeLabels", () => {
     const securityCount = labels.filter((l) => l === "security").length;
     expect(securityCount).toBe(1);
   });
+
+  it("returns empty array for empty findings and low risk", () => {
+    const labels = computeLabels([], 0);
+    expect(labels).toHaveLength(0);
+  });
+
+  it("returns only needs-attention for empty findings with high risk", () => {
+    const labels = computeLabels([], 5);
+    expect(labels).toEqual(["needs-attention"]);
+  });
+
+  it("deduplicates when multiple findings map to same category label", () => {
+    const labels = computeLabels(
+      [
+        { severity: "critical", category: "bug" },
+        { severity: "high", category: "bug" },
+        { severity: "medium", category: "bug" },
+      ],
+      2
+    );
+    const bugCount = labels.filter((l) => l === "bug").length;
+    expect(bugCount).toBe(1);
+  });
+
+  it("applies needs-attention at risk score boundary 4", () => {
+    const labels = computeLabels([], 4);
+    expect(labels).toContain("needs-attention");
+  });
+
+  it("does not apply needs-attention at risk score just below boundary", () => {
+    const labels = computeLabels([], 3);
+    expect(labels).not.toContain("needs-attention");
+  });
+
+  it("applies review-heavy at exactly 10 findings", () => {
+    const findings = Array.from({ length: 10 }, () => ({
+      severity: "low" as const, category: "style" as const,
+    }));
+    const labels = computeLabels(findings, 1);
+    expect(labels).toContain("review-heavy");
+  });
+
+  it("produces correct label set for mixed severity findings", () => {
+    const labels = computeLabels(
+      [
+        { severity: "critical", category: "security" },
+        { severity: "high", category: "bug" },
+        { severity: "medium", category: "style" },
+        { severity: "low", category: "compliance" },
+      ],
+      5
+    );
+    expect(labels).toContain("security");
+    expect(labels).toContain("bug");
+    expect(labels).toContain("style");
+    expect(labels).toContain("compliance");
+    expect(labels).toContain("needs-attention");
+  });
 });
 
 describe("applyLabels", () => {
@@ -212,5 +270,29 @@ describe("applyLabels", () => {
       3
     );
     expect(result.removed).toContain("bug");
+  });
+
+  it("returns empty result with no findings and risk below 4", async () => {
+    const octokit = makeOctokit();
+    const result = await applyLabels(octokit as any, "owner", "repo", 1, [], 1);
+    expect(result.added).toHaveLength(0);
+    expect(result.removed).toHaveLength(0);
+  });
+
+  it("handles addLabels API failure gracefully", async () => {
+    const octokit = makeOctokit([]);
+    octokit.rest.issues.addLabels.mockRejectedValueOnce(new Error("add failed"));
+    await expect(
+      applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3)
+    ).rejects.toThrow("add failed");
+  });
+
+  it("handles listLabelsOnIssue API failure gracefully", async () => {
+    const octokit = makeOctokit([]);
+    octokit.rest.issues.listLabelsOnIssue.mockRejectedValueOnce(new Error("label list failed"));
+    // computeLabels returns ["security"], so applyLabels proceeds past ensureLabel
+    await expect(
+      applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3)
+    ).rejects.toThrow("label list failed");
   });
 });

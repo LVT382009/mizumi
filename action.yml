@@ -154,6 +154,10 @@ inputs:
     description: "Generate behavioral diff summary describing what the system DOES differently (not just which files changed). Runs for 3+ files with 50+ lines changed."
     required: false
     default: "true"
+  ownership_routing:
+    description: "Enable CODEOWNERS-aware review routing (tag owning teams, boost confidence for owned files)"
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"
