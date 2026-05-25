@@ -68,6 +68,7 @@ vi.mock("../config.js", () => ({
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
   })),
 }));
 

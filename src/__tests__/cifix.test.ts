@@ -99,6 +99,7 @@ const testConfig = {
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

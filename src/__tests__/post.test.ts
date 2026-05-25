@@ -65,6 +65,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
     ...overrides,
   };
 }

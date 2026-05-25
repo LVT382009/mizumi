@@ -178,6 +178,10 @@ inputs:
     description: "Enable spec-to-diff compliance - extract acceptance criteria from linked issues and verify each criterion against PR changes. Hybrid keyword + LLM matching."
     required: false
     default: "true"
+  auth_boundary:
+    description: "Enable auth boundary detector - scan route handlers for missing authentication. Supports Express, Fastify, Koa, Next.js, NestJS, and Hono. Flags unauthenticated routes as security findings."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

@@ -111,6 +111,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
     ...overrides,
   };
 }

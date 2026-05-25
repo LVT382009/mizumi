@@ -139,6 +139,7 @@ vi.mock("../config.js", () => ({
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));
@@ -196,6 +197,7 @@ function makeOpts(overrides: Partial<GitHubClientOptions> = {}): GitHubClientOpt
       reviewLearning: true,
     blastRadius: true,
     specCompliance: true,
+    authBoundary: true,
     },
     headSha: "head-sha-1",
     ...overrides,

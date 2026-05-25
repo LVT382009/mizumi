@@ -43,6 +43,7 @@ export interface MizumiConfig {
   reviewLearning: boolean;
   blastRadius: boolean;
   specCompliance: boolean;
+  authBoundary: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -109,6 +110,7 @@ const taintAnalysis = core.getInput("taint_analysis") !== "false"; // default tr
 const reviewLearning = core.getInput("review_learning") !== "false"; // default true
 const blastRadius = core.getInput("blast_radius") !== "false"; // default true
 const specCompliance = core.getInput("spec_compliance") !== "false"; // default true
+const authBoundary = core.getInput("auth_boundary") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -194,6 +196,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   reviewLearning,
     blastRadius,
     specCompliance,
+  authBoundary,
   };
 }
 

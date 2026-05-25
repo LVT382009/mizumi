@@ -49,6 +49,7 @@ import { runTaintAnalysis, buildTaintContext } from "./taint.js";
 import { runReviewLearning, buildLearningContext, applyNegativeRules } from "./review-learning.js";
 import { runBlastRadiusAnalysis, buildBlastRadiusContext } from "./blast-radius.js";
 import { checkSpecCompliance, buildSpecComplianceContext } from "./spec-compliance.js";
+import { runAuthBoundaryAnalysis, buildAuthBoundaryContext } from "./auth-boundary.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -368,6 +369,27 @@ core.warning("Spec compliance check failed: " + (e instanceof Error ? e.message 
 }
 }
 
+// 4a7. Auth boundary analysis - detect routes without authentication
+let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
+if (config.authBoundary) {
+try {
+authBoundaryResult = runAuthBoundaryAnalysis(diff.files);
+// Merge auth boundary findings as engine findings (like taint analysis)
+for (const f of authBoundaryResult.findings) {
+engineFindings.push({
+  file: f.file,
+  line: f.line,
+  severity: f.severity,
+  category: "security",
+  message: `Unauthenticated ${f.method.toUpperCase()} ${f.route} (${f.framework}) — no auth middleware/guard detected`,
+  rule: "auth-boundary",
+});
+}
+} catch (e) {
+core.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
+}
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -448,6 +470,16 @@ if (specCtxStr) {
 context.rulesContent += `
 
 ${specCtxStr}`;
+}
+}
+
+// 5c6. Auth boundary context injection
+if (authBoundaryResult && authBoundaryResult.unprotectedRoutes > 0) {
+const authCtxStr = buildAuthBoundaryContext(authBoundaryResult);
+if (authCtxStr) {
+context.rulesContent += `
+
+${authCtxStr}`;
 }
 }
 
