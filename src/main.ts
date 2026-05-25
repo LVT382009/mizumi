@@ -53,6 +53,7 @@ import { runAuthBoundaryAnalysis, buildAuthBoundaryContext } from "./auth-bounda
 import { buildFatigueDashboard, formatFatigueDashboard } from "./fatigue-dashboard.js";
 import { runEntropyAnalysis, buildEntropyContext } from "./secret-entropy.js";
 import { runAttributionAnalysis, applyAttributionConfidence, buildAttributionContext } from "./attribution.js";
+import { computeSafetyScore, postSafetyScore } from "./safety-score.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -866,6 +867,23 @@ if (config.gateThreshold !== "none" && !config.dryRun) {
     core.info(`Merge gate: ${gateResult} (threshold=${config.gateThreshold})`);
   } catch (e) {
     core.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+
+  // 10b-gate2. Post safety score as a separate commit status
+  if (config.safetyScore && !config.dryRun) {
+    try {
+      const safetyInput = {
+        findings: mergedReview.comments.map((c) => ({ severity: c.severity, category: c.category })),
+        riskScore: mergedReview.riskScore,
+        blastRadiusFiles: blastResult?.totalImpact ?? diff.files.length,
+        attribution: preAttributionResult,
+      };
+      const safetyResult = computeSafetyScore(safetyInput);
+      await postSafetyScore(octokit, owner, repo, headSha, prNumber, safetyResult.score);
+      core.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
+    } catch (e) {
+      core.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
+    }
   }
 }
 

@@ -101,7 +101,7 @@ const testConfig = {
     specCompliance: true,
     authBoundary: true,
     fatigueDashboard: true,
-    secretEntropy: true,
+    secretEntropy: true, safetyScore: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

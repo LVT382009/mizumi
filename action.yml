@@ -190,6 +190,10 @@ inputs:
     description: "Enable entropy-based secret detection - use Shannon entropy analysis on string literals to detect hardcoded secrets that regex patterns miss (random API keys, hex tokens, base64 credentials)."
     required: false
     default: "true"
+  safety_score:
+    description: "Enable PR safety score - post a 0-100 composite score as a separate commit status (finding severity, blast radius, attribution, risk). Gives maintainers a quantitative signal even when the gate is disabled."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"
