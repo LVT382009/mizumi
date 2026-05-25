@@ -143,7 +143,8 @@ export async function runReview(
   rulesContent: string,
   ghostContent: string,
   config: MizumiConfig,
-  classification?: DiffClassification
+  classification?: DiffClassification,
+  learningContent?: string,
 ): Promise<{ output: ReviewResponseType; usage: { inputTokens: number; outputTokens: number; cachedInputTokens: number } }> {
   const model = classification ? selectModel(config, classification) : createModel(config);
   const systemPrompt = buildSystemPrompt(validPositions, config);
@@ -160,6 +161,10 @@ export async function runReview(
 
   if (ghostContent) {
     userPrompt += `\n\n${ghostContent}`;
+  }
+
+  if (learningContent) {
+    userPrompt += `\n\n${learningContent}`;
   }
 
   // Build user message — Anthropic gets prompt caching via providerOptions

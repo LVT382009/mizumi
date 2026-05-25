@@ -169,6 +169,63 @@ describe("SHA tracking store", () => {
     const sha = getLastReviewedSha("/workspace", "owner", "repo", 42);
     expect(sha).toBeUndefined();
   });
+
+  it("creates store directory on first write", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    recordReviewedSha("/workspace", "owner", "repo", 1, "sha1");
+    expect(fs.mkdirSync).toHaveBeenCalledWith(
+      expect.stringContaining(".github"),
+      expect.objectContaining({ recursive: true }),
+    );
+  });
+
+  it("overwrites existing SHA for same PR", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "old-sha" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    recordReviewedSha("/workspace", "owner", "repo", 42, "new-sha");
+    const written = (fs.writeFileSync as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const store = JSON.parse(written);
+    expect(store.prShas["owner/repo#42"]).toBe("new-sha");
+  });
+
+  it("stores multiple PRs independently", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#1": "sha1" },
+        timestamps: { "owner/repo#1": 1000000 },
+      }),
+    );
+    recordReviewedSha("/workspace", "owner", "repo", 2, "sha2");
+    const written = (fs.writeFileSync as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const store = JSON.parse(written);
+    expect(store.prShas["owner/repo#1"]).toBe("sha1");
+    expect(store.prShas["owner/repo#2"]).toBe("sha2");
+  });
+
+  it("handles different owner/repo combinations", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "org1/repo1#1": "sha-a", "org2/repo2#1": "sha-b" },
+        timestamps: { "org1/repo1#1": 1000, "org2/repo2#1": 2000 },
+      }),
+    );
+    expect(getLastReviewedSha("/ws", "org1", "repo1", 1)).toBe("sha-a");
+    expect(getLastReviewedSha("/ws", "org2", "repo2", 1)).toBe("sha-b");
+    expect(getLastReviewedSha("/ws", "org1", "repo1", 99)).toBeUndefined();
+  });
+
+  it("handles empty store file", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("");
+    expect(getLastReviewedSha("/ws", "owner", "repo", 1)).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -311,6 +368,70 @@ describe("computeDeltaReview", () => {
     expect(result.isIncremental).toBe(true);
     expect(result.savings.percentSaved).toBe(100);
   });
+
+  it("calculates partial savings correctly", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff --git a/src/b.ts b/src/b.ts\n+new line\n");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 50, deletions: 50 }]);
+    // Incremental: 10+5=15 out of 100 → 85% saved
+    const incrementalParsed = mockParsedDiff([{ path: "src/a.ts", additions: 10, deletions: 5 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+
+    expect(result.isIncremental).toBe(true);
+    expect(result.savings.percentSaved).toBe(85);
+    expect(result.savings.fullLines).toBe(100);
+    expect(result.savings.incrementalLines).toBe(15);
+  });
+
+  it("handles zero fullLines without division by zero", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff --git a/src/b.ts b/src/b.ts\n+new line\n");
+    const fullDiff = mockParsedDiff([]); // 0 lines
+    const incrementalParsed = mockParsedDiff([{ path: "src/b.ts", additions: 5, deletions: 3 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+
+    expect(result.savings.percentSaved).toBe(0); // 0 full lines guard
+  });
+
+  it("passes excludePatterns to fetchIncrementalDiff", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff --git a/src/b.ts b/src/b.ts\n+line\n");
+    const fullDiff = mockParsedDiff([{ path: "src/b.ts", additions: 10, deletions: 5 }]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/b.ts", additions: 5, deletions: 0 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", ["*.lock"],
+    );
+
+    expect(parseDiff).toHaveBeenCalledWith(expect.any(String), ["*.lock"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -352,5 +473,40 @@ describe("formatDeltaSummary", () => {
     };
     const summary = formatDeltaSummary(result);
     expect(summary).toContain("0% token savings");
+  });
+
+  it("truncates SHA to 7 chars", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abcdef1234567890abcdef1234567890",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 5, incrementalFiles: 1, fullLines: 100, incrementalLines: 10, percentSaved: 90 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("abcdef1");
+    expect(summary).not.toContain("abcdef12");
+  });
+
+  it("handles undefined lastReviewedSha", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: undefined,
+      incrementalDiff: undefined,
+      savings: { fullFiles: 5, incrementalFiles: 2, fullLines: 100, incrementalLines: 30, percentSaved: 70 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("unknown");
+  });
+
+  it("includes delta marker in summary", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 5, incrementalFiles: 2, fullLines: 100, incrementalLines: 30, percentSaved: 70 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("Incremental Review");
+    expect(summary).toContain("<details>");
   });
 });

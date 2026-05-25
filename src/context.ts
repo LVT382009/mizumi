@@ -4,7 +4,7 @@
  */
 import { Octokit } from "@octokit/rest";
 import { DiffFile, ParsedDiff } from "./diff.js";
-import { readMemory, readRules, ghostWarnings } from "./memory.js";
+import { readMemory, readRules, ghostWarnings, buildLearningPrompt } from "./memory.js";
 import { stripPatchPII } from "./diff.js";
 import { ClassificationResult } from "./classifier.js";
 import { scorePRDescription, formatDescriptionFeedback } from "./description.js";
@@ -16,6 +16,7 @@ export interface ReviewContext {
   memoryContent: string;
   rulesContent: string;
   ghostContent: string;
+  learningContent: string;
   descriptionFeedback: string;
   prTitle: string;
   prDescription: string;
@@ -26,6 +27,11 @@ export interface ReviewContext {
 /**
  * Build the full review context for the LLM.
  */
+export interface LearningData {
+  learningWeights: Record<string, "demote" | "promote" | "neutral">;
+  acceptanceRates: Record<string, { helpful: number; unhelpful: number; rate: number }>;
+}
+
 export async function buildContext(
   octokit: Octokit,
   owner: string,
@@ -33,7 +39,8 @@ export async function buildContext(
   prNumber: number,
   diff: ParsedDiff,
   workspace: string,
-  classification?: ClassificationResult
+  classification?: ClassificationResult,
+  learning?: LearningData,
 ): Promise<ReviewContext> {
   const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
 
@@ -59,6 +66,10 @@ export async function buildContext(
   // Read memory + rules
   const memoryContent = readMemory(workspace);
   const rulesContent = readRules(workspace);
+  const learningContent = buildLearningPrompt(
+    learning?.learningWeights ?? {},
+    learning?.acceptanceRates ?? {},
+  );
 
   // Review Ghost
   const changedFiles = diff.files.map((f: DiffFile) => f.path);
@@ -78,6 +89,7 @@ export async function buildContext(
     memoryContent,
     rulesContent,
     ghostContent,
+    learningContent,
     descriptionFeedback,
     prTitle: pr.title || "",
     prDescription: pr.body || "",

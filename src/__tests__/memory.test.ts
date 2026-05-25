@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills, ghostWarnings } from "../memory.js";
+import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills, ghostWarnings, buildLearningPrompt } from "../memory.js";
 
 describe("readMemory", () => {
   it("returns empty string when memory file does not exist", () => {
@@ -205,6 +205,41 @@ describe("readRules", () => {
       expect(rules).toContain("Rule C content");
       // Joined with "\n\n"
       expect(rules).toContain("\n\n");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("reads .cursorrules file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-rules-"));
+    fs.writeFileSync(path.join(tmpDir, ".cursorrules"), "Always use TypeScript strict mode", "utf-8");
+    try {
+      const rules = readRules(tmpDir);
+      expect(rules).toContain("TypeScript strict mode");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("reads .github/copilot-instructions.md file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-rules-"));
+    const githubDir = path.join(tmpDir, ".github");
+    fs.mkdirSync(githubDir, { recursive: true });
+    fs.writeFileSync(path.join(githubDir, "copilot-instructions.md"), "Follow the project's coding standards", "utf-8");
+    try {
+      const rules = readRules(tmpDir);
+      expect(rules).toContain("coding standards");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("skips empty rules files", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-rules-"));
+    fs.writeFileSync(path.join(tmpDir, ".cursorrules"), "  \n  ", "utf-8");
+    try {
+      const rules = readRules(tmpDir);
+      expect(rules).toBe("");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -424,5 +459,72 @@ describe("loadSkills", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildLearningPrompt
+// ---------------------------------------------------------------------------
+
+describe("buildLearningPrompt", () => {
+  it("returns empty string when no learning data", () => {
+    expect(buildLearningPrompt({}, {})).toBe("");
+  });
+
+  it("returns empty when all weights are neutral", () => {
+    const weights = { bug: "neutral" as const, security: "neutral" as const };
+    expect(buildLearningPrompt(weights, {})).toBe("");
+  });
+
+  it("includes demoted categories", () => {
+    const weights = { style: "demote" as const, bug: "neutral" as const };
+    const prompt = buildLearningPrompt(weights, {});
+    expect(prompt).toContain("style");
+    expect(prompt).toContain("dismisses");
+  });
+
+  it("includes promoted categories", () => {
+    const weights = { security: "promote" as const };
+    const prompt = buildLearningPrompt(weights, {});
+    expect(prompt).toContain("security");
+    expect(prompt).toContain("values");
+  });
+
+  it("includes both demoted and promoted", () => {
+    const weights = { style: "demote" as const, security: "promote" as const };
+    const prompt = buildLearningPrompt(weights, {});
+    expect(prompt).toContain("dismisses");
+    expect(prompt).toContain("values");
+  });
+
+  it("includes low-acceptance categories from reaction rates", () => {
+    const rates = {
+      style: { helpful: 2, unhelpful: 8, rate: 0.2 },
+      security: { helpful: 9, unhelpful: 1, rate: 0.9 },
+    };
+    const prompt = buildLearningPrompt({}, rates);
+    expect(prompt).toContain("Low-acceptance");
+    expect(prompt).toContain("style");
+    expect(prompt).toContain("20% accepted");
+  });
+
+  it("skips categories with fewer than 5 responses", () => {
+    const rates = {
+      style: { helpful: 1, unhelpful: 2, rate: 0.33 },
+    };
+    const prompt = buildLearningPrompt({}, rates);
+    expect(prompt).not.toContain("style");
+  });
+
+  it("includes Adaptive Learning header", () => {
+    const weights = { style: "demote" as const };
+    const prompt = buildLearningPrompt(weights, {});
+    expect(prompt).toContain("Adaptive Learning");
+  });
+
+  it("handles multiple demoted categories joined with slash", () => {
+    const weights = { style: "demote" as const, nitpick: "demote" as const };
+    const prompt = buildLearningPrompt(weights, {});
+    expect(prompt).toContain("style/nitpick");
   });
 });

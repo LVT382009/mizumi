@@ -146,4 +146,33 @@ describe("createPlatformClient", () => {
     const client = await createPlatformClient();
     expect(client.platform).toBe("gitlab");
   });
+
+  it("creates github client by default", async () => {
+    process.env.GITHUB_ACTION = "true";
+    process.env.GITHUB_TOKEN = "ghp-test";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_EVENT_PATH = "/dev/null";
+    process.env.GITHUB_SHA = "abc123";
+    const { createPlatformClient } = await import("../platform.js");
+    const client = await createPlatformClient();
+    expect(client.platform).toBe("github");
+  });
+
+  it("gitlab client throws when CI_PROJECT_ID is missing", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.GITLAB_TOKEN = "glpat-test";
+    process.env.CI_MERGE_REQUEST_IID = "456";
+    delete process.env.CI_PROJECT_ID;
+    const { createPlatformClient } = await import("../platform.js");
+    await expect(createPlatformClient()).rejects.toThrow();
+  });
+
+  it("gitlab client throws when CI_MERGE_REQUEST_IID is missing", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.GITLAB_TOKEN = "glpat-test";
+    process.env.CI_PROJECT_ID = "123";
+    delete process.env.CI_MERGE_REQUEST_IID;
+    const { createPlatformClient } = await import("../platform.js");
+    await expect(createPlatformClient()).rejects.toThrow();
+  });
 });

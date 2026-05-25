@@ -13,6 +13,7 @@ vi.mock("../memory.js", () => ({
   readMemory: vi.fn().mockReturnValue("# Memory patterns\n- Use parameterized queries"),
   readRules: vi.fn().mockReturnValue("# Rules\n- No hardcoded secrets"),
   ghostWarnings: vi.fn().mockReturnValue([]),
+  buildLearningPrompt: vi.fn().mockReturnValue(""),
 }));
 
 // Mock diff.stripPatchPII to pass through
@@ -34,7 +35,7 @@ vi.mock("../description.js", () => ({
 
 import { buildContext } from "../context.js";
 import type { ParsedDiff } from "../diff.js";
-import { ghostWarnings } from "../memory.js";
+import { ghostWarnings, buildLearningPrompt } from "../memory.js";
 import { stripPatchPII } from "../diff.js";
 import { scorePRDescription, formatDescriptionFeedback } from "../description.js";
 
@@ -513,5 +514,33 @@ describe("buildContext", () => {
     );
     expect(stripPatchPII).toHaveBeenCalled();
     expect(ctx.diffText).toBe("stripped-diff");
+  });
+
+  it("includes learningContent from buildLearningPrompt", async () => {
+    vi.mocked(buildLearningPrompt).mockReturnValueOnce("## Adaptive Learning\nThis team dismisses style findings");
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.learningContent).toContain("Adaptive Learning");
+    expect(ctx.learningContent).toContain("style");
+  });
+
+  it("has empty learningContent when buildLearningPrompt returns empty", async () => {
+    vi.mocked(buildLearningPrompt).mockReturnValueOnce("");
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.learningContent).toBe("");
+  });
+
+  it("passes learning data to buildLearningPrompt", async () => {
+    const learning = {
+      learningWeights: { style: "demote" as const, security: "promote" as const },
+      acceptanceRates: { style: { helpful: 2, unhelpful: 8, rate: 0.2 } },
+    };
+    await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace", undefined, learning
+    );
+    expect(buildLearningPrompt).toHaveBeenCalledWith(learning.learningWeights, learning.acceptanceRates);
   });
 });

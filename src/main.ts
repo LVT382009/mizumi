@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Mizumi â€” Self-Learning PR Review Agent
  * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
  *
@@ -22,7 +22,7 @@ import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
 import { createSpendEntry, appendSpendEntry, readSpendLog, formatSpendDigest } from "./spend.js";
 import { computeLearningWeights, applyLearningWeights, recordSuggestion } from "./db.js";
-import { recordFindings, computeSuppressedPatterns, applyNoiseReduction, readFeedbackStore } from "./feedback.js";
+import { recordFindings, computeSuppressedPatterns, applyNoiseReduction, readFeedbackStore, categoryAcceptanceRates } from "./feedback.js";
 import { generateDescription, parseCommand } from "./describe.js";
 import { detectSlop } from "./slop.js";
 import { generateFix } from "./improve.js";
@@ -44,6 +44,7 @@ import { runASTContractAnalysis } from "./ast-contracts.js";
 import { generateBehavioralSummary, shouldRunBehavioralAnalysis, formatBehavioralSummary } from "./behavioral.js";
 import { loadCodeowners, matchOwnership, applyOwnershipToFindings, buildOwnershipSummary } from "./ownership.js";
 import { computeDeltaReview, recordReviewedSha, formatDeltaSummary } from "./delta.js";
+import { discoverADRs, buildADRContext, checkADRViolations } from "./adr.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -275,13 +276,32 @@ if (slopResult.isSlop) {
     const ruleFindings = runRules(diff.files);
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
 
-  // 4a. Run persistent rule engine (custom + auto-discovered rules)
+  // 4a-pre. ADR discovery (needed for both rule check and context injection)
+ const adrs = discoverADRs(workspace);
+
+ // 4a. Run persistent rule engine (custom + auto-discovered rules)
   let engineFindings: import("./rules.js").RuleFinding[] = [];
   try {
     const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
     engineFindings = engineResult.findings;
     core.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
-  } catch (e) {
+
+  // 4a1b. ADR enforcement - check code against architecture decision records
+  let adrViolations: import("./adr.js").ADRViolation[] = [];
+  if (adrs.length > 0) {
+    try {
+      adrViolations = checkADRViolations(diff.files, adrs);
+      if (adrViolations.length > 0) {
+        engineFindings = [...engineFindings, ...adrViolations.map(v => ({
+          file: v.file, line: v.line, severity: v.severity,
+          category: v.category, message: v.message, rule: v.rule,
+        }))];
+        core.info("ADR violations: " + adrViolations.length);
+      }
+    } catch (e) {
+      core.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }  } catch (e) {
     core.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 // 4a2. AST cross-file contract analysis
@@ -321,14 +341,29 @@ if (config.astContractAnalysis) {
  }
 
     // 5. Build context (diff + memory + rules + PR metadata + classification)
-    const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
+    const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
+const preFeedbackStore = readFeedbackStore(workspace);
+const preAcceptanceRates = categoryAcceptanceRates(preFeedbackStore);
+const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification, {
+  learningWeights: preLearningWeights,
+  acceptanceRates: preAcceptanceRates,
+});
 
 // 5b. Progressive skill loading â€” inject matching skills into rules context
 const skills = loadSkills(workspace, diff.files.map((f) => f.path));
 if (manualInstructions) {
     context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
   }
-  if (skills.loaded) context.rulesContent += `
+  
+// 5c. ADR context injection - inject ADR context into review
+const adrContextStr = buildADRContext(adrs);
+if (adrContextStr) {
+  context.rulesContent += String.raw`
+
+${adrContextStr}`;
+  core.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter(a => a.status === "accepted").length} active`);
+}
+if (skills.loaded) context.rulesContent += `
 
 ## Project Skills
 ${skills.loaded}`;
@@ -375,7 +410,8 @@ core.info("Running review pass...");
       context.rulesContent,
       context.ghostContent,
       config,
-      classification
+      classification,
+      context.learningContent,
     );
   core.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
 

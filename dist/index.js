@@ -37889,24 +37889,60 @@ function loadSkills(workspace, changedFiles) {
     return { names, loaded: loaded.trim() };
 }
 /**
- * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
+ * Read project rules files — highest priority context.
+ * Ingests: REVIEW.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md
+ * Auto-discovers team coding standards without manual setup.
  */
 function readRules(workspace) {
     const rulesPaths = [
         path$1.join(workspace, "REVIEW.md"),
         path$1.join(workspace, "CLAUDE.md"),
         path$1.join(workspace, ".github", "REVIEW.md"),
+        path$1.join(workspace, ".cursorrules"),
+        path$1.join(workspace, ".github", "copilot-instructions.md"),
     ];
     const parts = [];
     for (const p of rulesPaths) {
         if (fs$1.existsSync(p)) {
             try {
-                parts.push(fs$1.readFileSync(p, "utf-8"));
+                const content = fs$1.readFileSync(p, "utf-8");
+                if (content.trim())
+                    parts.push(content.trim());
             }
             catch { /* skip unreadable files */ }
         }
     }
     return parts.join("\n\n");
+}
+/**
+ * Build a learning prompt from past review feedback.
+ * Tells the LLM which finding categories this team accepts vs dismisses,
+ * so it focuses on valuable findings and avoids noise.
+ */
+function buildLearningPrompt(learningWeights, acceptanceRates) {
+    const lines = [];
+    const demoted = Object.entries(learningWeights)
+        .filter(([, w]) => w === "demote")
+        .map(([cat]) => cat);
+    const promoted = Object.entries(learningWeights)
+        .filter(([, w]) => w === "promote")
+        .map(([cat]) => cat);
+    if (demoted.length > 0) {
+        lines.push(`This team dismisses most ${demoted.join("/")} findings — reduce severity or skip unless clearly critical.`);
+    }
+    if (promoted.length > 0) {
+        lines.push(`This team values ${promoted.join("/")} findings — be thorough for these categories.`);
+    }
+    // Add per-category detail from reaction rates
+    const lowAcceptance = Object.entries(acceptanceRates)
+        .filter(([, r]) => r.rate < 0.3 && (r.helpful + r.unhelpful) >= 5)
+        .map(([cat, r]) => `${cat} (${Math.round(r.rate * 100)}% accepted, ${r.helpful + r.unhelpful} responses)`);
+    if (lowAcceptance.length > 0) {
+        lines.push(`Low-acceptance categories (consider skipping): ${lowAcceptance.join(", ")}`);
+    }
+    if (lines.length === 0)
+        return "";
+    return `## Adaptive Learning (from ${demoted.length + promoted.length} categories)\n${lines.join("\n")}`;
 }
 
 /**
@@ -37984,10 +38020,7 @@ function stripAnsi(string) {
 	return string.replace(regex, '');
 }
 
-/**
- * Build the full review context for the LLM.
- */
-async function buildContext(octokit, owner, repo, prNumber, diff, workspace, classification) {
+async function buildContext(octokit, owner, repo, prNumber, diff, workspace, classification, learning) {
     const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
     // Build diff text (PII-stripped, ANSI-cleaned)
     let diffText = "";
@@ -38008,6 +38041,7 @@ async function buildContext(octokit, owner, repo, prNumber, diff, workspace, cla
     // Read memory + rules
     const memoryContent = readMemory(workspace);
     const rulesContent = readRules(workspace);
+    const learningContent = buildLearningPrompt(learning?.learningWeights ?? {}, learning?.acceptanceRates ?? {});
     // Review Ghost
     const changedFiles = diff.files.map((f) => f.path);
     const warnings = ghostWarnings(memoryContent, changedFiles);
@@ -38024,6 +38058,7 @@ async function buildContext(octokit, owner, repo, prNumber, diff, workspace, cla
         memoryContent,
         rulesContent,
         ghostContent,
+        learningContent,
         descriptionFeedback,
         prTitle: pr.title || "",
         prDescription: pr.body || "",
@@ -74026,7 +74061,7 @@ function parseTextOutput(text) {
         return { summary: "Review failed - model did not produce valid JSON output.", riskScore: 3, comments: [], decision: "comment" };
     }
 }
-async function runReview(diffContent, validPositions, memoryContent, rulesContent, ghostContent, config, classification) {
+async function runReview(diffContent, validPositions, memoryContent, rulesContent, ghostContent, config, classification, learningContent) {
     const model = classification ? selectModel(config, classification) : createModel(config);
     const systemPrompt = buildSystemPrompt(validPositions, config);
     let userPrompt = wrapDiff(diffContent);
@@ -74038,6 +74073,9 @@ async function runReview(diffContent, validPositions, memoryContent, rulesConten
     }
     if (ghostContent) {
         userPrompt += `\n\n${ghostContent}`;
+    }
+    if (learningContent) {
+        userPrompt += `\n\n${learningContent}`;
     }
     // Build user message — Anthropic gets prompt caching via providerOptions
     const anthropicCacheOptions = config.provider === "anthropic"
@@ -75499,6 +75537,26 @@ function recordFindings(workspace, repo, pr, findings) {
         });
     }
     writeFeedbackStore(workspace, store);
+}
+/** Compute acceptance rate per category for use in prompt tuning. */
+function categoryAcceptanceRates(store) {
+    const buckets = {};
+    for (const entry of store.entries) {
+        if (entry.outcome === "pending")
+            continue;
+        if (!buckets[entry.category])
+            buckets[entry.category] = { helpful: 0, unhelpful: 0 };
+        if (entry.outcome === "helpful")
+            buckets[entry.category].helpful++;
+        if (entry.outcome === "unhelpful")
+            buckets[entry.category].unhelpful++;
+    }
+    const result = {};
+    for (const [cat, counts] of Object.entries(buckets)) {
+        const total = counts.helpful + counts.unhelpful;
+        result[cat] = { ...counts, rate: total > 0 ? counts.helpful / total : 0.5 };
+    }
+    return result;
 }
 /**
  * Adaptive noise reduction — compute suppressed patterns from feedback history.
@@ -78680,6 +78738,241 @@ function formatDeltaSummary(result) {
 }
 
 /**
+ * ADR (Architecture Decision Record) Enforcement — competitive gap, blue ocean.
+ *
+ * No AI code reviewer currently enforces ADRs. This module:
+ * 1. Auto-discovers ADR files from docs/adr/ or .github/adr/
+ * 2. Parses structured ADR format (Status/Context/Decision/Consequences)
+ * 3. Generates review context from ADR decisions
+ * 4. Creates deterministic rules for common ADR patterns
+ *
+ * When ADRs live in docs but nothing checks PRs against them, architecture erodes.
+ * This bridges the gap — the LLM reviews code against documented architecture decisions.
+ */
+// ---------------------------------------------------------------------------
+// ADR discovery
+// ---------------------------------------------------------------------------
+const ADR_DIRS = ["docs/adr", ".github/adr", "ADR", "adr"];
+const ADR_PATTERN = /^ADR-?(\d+)|^(\d+)[-\s]/;
+/**
+ * Discover ADR files from standard directories.
+ * Returns parsed ADR records sorted by number.
+ */
+function discoverADRs(workspace) {
+    const adrs = [];
+    for (const dir of ADR_DIRS) {
+        const fullDir = path$1.join(workspace, dir);
+        if (!fs$1.existsSync(fullDir))
+            continue;
+        try {
+            const files = fs$1.readdirSync(fullDir)
+                .filter((f) => f.endsWith(".md") || f.endsWith(".MD"))
+                .sort();
+            for (const file of files) {
+                const filePath = path$1.join(fullDir, file);
+                try {
+                    const content = fs$1.readFileSync(filePath, "utf-8");
+                    const adr = parseADR(content, file, filePath);
+                    if (adr)
+                        adrs.push(adr);
+                }
+                catch {
+                    warning(`Failed to read ADR: ${file}`);
+                }
+            }
+        }
+        catch {
+            // Directory not readable
+        }
+    }
+    return adrs;
+}
+/**
+ * Parse an ADR markdown file into a structured record.
+ * Supports multiple ADR formats:
+ * - Nygard format (title, Context, Decision, Status)
+ * - Michael Nygard YAML-frontmatter style
+ * - Simple markdown headers
+ */
+function parseADR(content, filename, filePath) {
+    // Extract ADR number from filename
+    const numMatch = filename.match(ADR_PATTERN);
+    const number = numMatch ? (numMatch[1] || numMatch[2]) : "0";
+    // Extract title from first heading or filename
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : filename.replace(/\.md$/i, "");
+    // Extract sections by header
+    const status = extractSection(content, "status") || "accepted";
+    const context = extractSection(content, "context") || "";
+    const decision = extractSection(content, "decision") || "";
+    const consequences = extractSection(content, "consequences") || "";
+    // Skip superseded/deprecated ADRs
+    if (status.toLowerCase() === "superseded" || status.toLowerCase() === "deprecated") {
+        return null;
+    }
+    // Infer file globs from decision/context content
+    const appliesTo = inferAppliesTo(context + " " + decision);
+    return { number, title, status, context, decision, consequences, appliesTo, filePath };
+}
+/**
+ * Extract a section from ADR markdown content.
+ * Looks for ## Section Name or # Section Name headers.
+ */
+function extractSection(content, sectionName) {
+    const re = new RegExp(`^##?\\s+${sectionName}\\s*\\n([\\s\\S]*?)(?=^##?\\s+\\w|$(?!\\n))`, "mi");
+    const match = content.match(re);
+    if (!match)
+        return "";
+    return match[1].trim();
+}
+/**
+ * Infer which file patterns an ADR applies to from its text.
+ * Looks for mentions of directories, technologies, and patterns.
+ */
+function inferAppliesTo(text) {
+    const patterns = [];
+    const lower = text.toLowerCase();
+    // Common directory patterns
+    const dirPatterns = {
+        "api": "src/api/**",
+        "route": "src/routes/**",
+        "handler": "src/handlers/**",
+        "controller": "src/controllers/**",
+        "service": "src/services/**",
+        "db": "src/db/**",
+        "database": "src/db/**",
+        "sql": "src/db/**",
+        "auth": "src/auth/**",
+        "security": "src/auth/**",
+        "crypto": "src/crypto/**",
+        "frontend": "src/frontend/**",
+        "ui": "src/ui/**",
+        "component": "src/components/**",
+        "test": "test/**",
+        "model": "src/models/**",
+        "schema": "src/models/**",
+        "config": "src/config/**",
+        "middleware": "src/middleware/**",
+    };
+    for (const [keyword, pattern] of Object.entries(dirPatterns)) {
+        if (lower.includes(keyword)) {
+            patterns.push(pattern);
+        }
+    }
+    // Detect technology-specific files
+    if (lower.includes("docker") || lower.includes("container"))
+        patterns.push("Dockerfile*");
+    if (lower.includes("kubernetes") || lower.includes("k8s"))
+        patterns.push("k8s/**");
+    if (lower.includes("terraform") || lower.includes("infra"))
+        patterns.push("*.tf");
+    if (lower.includes("graphql"))
+        patterns.push("**/*.graphql");
+    if (lower.includes("rest") || lower.includes("endpoint"))
+        patterns.push("src/api/**");
+    return [...new Set(patterns)];
+}
+// ---------------------------------------------------------------------------
+// ADR-based rule checking
+// ---------------------------------------------------------------------------
+/**
+ * Check diff files against ADR decisions.
+ * Generates violations when code contradicts documented decisions.
+ */
+function checkADRViolations(files, adrs) {
+    if (adrs.length === 0)
+        return [];
+    const violations = [];
+    const acceptedADRs = adrs.filter((a) => a.status.toLowerCase() === "accepted");
+    for (const adr of acceptedADRs) {
+        const applicableFiles = files.filter((f) => adr.appliesTo.some((pattern) => minimatch(f.path, pattern)));
+        if (applicableFiles.length === 0)
+            continue;
+        // Check for common ADR violation patterns in the diff
+        for (const file of applicableFiles) {
+            for (const hunk of file.hunks) {
+                for (const change of hunk.changes) {
+                    if (change.type !== "add")
+                        continue;
+                    const line = change.content;
+                    const violation = checkLineAgainstADR(line, change.line, file.path, adr);
+                    if (violation)
+                        violations.push(violation);
+                }
+            }
+        }
+    }
+    return violations;
+}
+/**
+ * Check a single line against an ADR's decision.
+ */
+function checkLineAgainstADR(line, lineNum, filePath, adr) {
+    const lower = line.toLowerCase();
+    const decisionLower = adr.decision.toLowerCase();
+    // Pattern: ADR says "use X" but code uses alternative Y
+    // Check for explicitly forbidden patterns
+    const forbiddenPatterns = extractForbiddenPatterns(decisionLower);
+    for (const pattern of forbiddenPatterns) {
+        if (lower.includes(pattern)) {
+            return {
+                file: filePath,
+                line: lineNum,
+                severity: "high",
+                category: "architecture",
+                message: `ADR-${adr.number}: ${adr.title} — This code appears to use "${pattern}" which violates the architecture decision.`,
+                rule: `ADR-${adr.number}`,
+            };
+        }
+    }
+    return null;
+}
+/**
+ * Extract forbidden patterns from ADR decision text.
+ * Looks for patterns like "do not use X", "avoid X", "never use X"
+ */
+function extractForbiddenPatterns(decision) {
+    const patterns = [];
+    const re = /(?:do not use|avoid|never use|must not use|should not use|don't use)\s+([^\s,.:;]+)/gi;
+    let match;
+    while ((match = re.exec(decision)) !== null) {
+        patterns.push(match[1].toLowerCase());
+    }
+    return patterns;
+}
+// ---------------------------------------------------------------------------
+// ADR review context generation
+// ---------------------------------------------------------------------------
+/**
+ * Build review context from ADR records.
+ * Produces a prompt section that tells the LLM which ADRs apply
+ * so it can flag violations during review.
+ */
+function buildADRContext(adrs) {
+    if (adrs.length === 0)
+        return "";
+    const accepted = adrs.filter((a) => a.status.toLowerCase() === "accepted");
+    if (accepted.length === 0)
+        return "";
+    let context = `## Architecture Decision Records (${accepted.length} active)\n`;
+    context += "The following architecture decisions are in effect. Flag any code that violates these decisions.\n\n";
+    for (const adr of accepted.slice(0, 10)) {
+        context += `### ADR-${adr.number}: ${adr.title}\n`;
+        if (adr.decision) {
+            context += `**Decision:** ${adr.decision.slice(0, 300)}\n`;
+        }
+        if (adr.appliesTo.length > 0) {
+            context += `**Applies to:** ${adr.appliesTo.join(", ")}\n`;
+        }
+        context += "\n";
+    }
+    if (accepted.length > 10) {
+        context += `... and ${accepted.length - 10} more ADRs.\n`;
+    }
+    return context;
+}
+
+/**
  * Mizumi â€” Self-Learning PR Review Agent
  * Action entrypoint: parse event â†’ rules â†’ review â†’ critique â†’ post â†’ memory
  *
@@ -78879,12 +79172,31 @@ async function run() {
         // 4. Run deterministic rules (zero LLM cost, never hallucinates)
         const ruleFindings = runRules(diff.files);
         info(`Rules: ${ruleFindings.length} deterministic findings`);
+        // 4a-pre. ADR discovery (needed for both rule check and context injection)
+        const adrs = discoverADRs(workspace);
         // 4a. Run persistent rule engine (custom + auto-discovered rules)
         let engineFindings = [];
         try {
             const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
             engineFindings = engineResult.findings;
             info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
+            // 4a1b. ADR enforcement - check code against architecture decision records
+            let adrViolations = [];
+            if (adrs.length > 0) {
+                try {
+                    adrViolations = checkADRViolations(diff.files, adrs);
+                    if (adrViolations.length > 0) {
+                        engineFindings = [...engineFindings, ...adrViolations.map(v => ({
+                                file: v.file, line: v.line, severity: v.severity,
+                                category: v.category, message: v.message, rule: v.rule,
+                            }))];
+                        info("ADR violations: " + adrViolations.length);
+                    }
+                }
+                catch (e) {
+                    warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
+                }
+            }
         }
         catch (e) {
             warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -78928,11 +79240,25 @@ async function run() {
             debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
         }
         // 5. Build context (diff + memory + rules + PR metadata + classification)
-        const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification);
+        const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
+        const preFeedbackStore = readFeedbackStore(workspace);
+        const preAcceptanceRates = categoryAcceptanceRates(preFeedbackStore);
+        const context = await buildContext(octokit, owner, repo, prNumber, diff, workspace, prClassification, {
+            learningWeights: preLearningWeights,
+            acceptanceRates: preAcceptanceRates,
+        });
         // 5b. Progressive skill loading â€” inject matching skills into rules context
         const skills = loadSkills(workspace, diff.files.map((f) => f.path));
         if (manualInstructions) {
             context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
+        }
+        // 5c. ADR context injection - inject ADR context into review
+        const adrContextStr = buildADRContext(adrs);
+        if (adrContextStr) {
+            context.rulesContent += String.raw `
+
+${adrContextStr}`;
+            info(String.raw `ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter(a => a.status === "accepted").length} active`);
         }
         if (skills.loaded)
             context.rulesContent += `
@@ -78969,7 +79295,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             }
         }
         info("Running review pass...");
-        const { output: review, usage: reviewUsage } = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, context.ghostContent, config, classification);
+        const { output: review, usage: reviewUsage } = await runReview(context.diffText, positionHint, context.memoryContent, context.rulesContent, context.ghostContent, config, classification, context.learningContent);
         info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
         // 8. Self-critique (second pass â€” cheaper model)
         info("Running self-critique pass...");

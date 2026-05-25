@@ -188,23 +188,66 @@ export function loadSkills(workspace: string, changedFiles: string[]): { names: 
 }
 
 /**
- * Read project rules files (CLAUDE.md, REVIEW.md) — highest priority context.
+ * Read project rules files — highest priority context.
+ * Ingests: REVIEW.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md
+ * Auto-discovers team coding standards without manual setup.
  */
 export function readRules(workspace: string): string {
   const rulesPaths = [
     path.join(workspace, "REVIEW.md"),
     path.join(workspace, "CLAUDE.md"),
     path.join(workspace, ".github", "REVIEW.md"),
+    path.join(workspace, ".cursorrules"),
+    path.join(workspace, ".github", "copilot-instructions.md"),
   ];
 
   const parts: string[] = [];
   for (const p of rulesPaths) {
     if (fs.existsSync(p)) {
       try {
-        parts.push(fs.readFileSync(p, "utf-8"));
+        const content = fs.readFileSync(p, "utf-8");
+        if (content.trim()) parts.push(content.trim());
       } catch { /* skip unreadable files */ }
     }
   }
 
   return parts.join("\n\n");
+}
+
+/**
+ * Build a learning prompt from past review feedback.
+ * Tells the LLM which finding categories this team accepts vs dismisses,
+ * so it focuses on valuable findings and avoids noise.
+ */
+export function buildLearningPrompt(
+  learningWeights: Record<string, "demote" | "promote" | "neutral">,
+  acceptanceRates: Record<string, { helpful: number; unhelpful: number; rate: number }>,
+): string {
+  const lines: string[] = [];
+
+  const demoted = Object.entries(learningWeights)
+    .filter(([, w]) => w === "demote")
+    .map(([cat]) => cat);
+  const promoted = Object.entries(learningWeights)
+    .filter(([, w]) => w === "promote")
+    .map(([cat]) => cat);
+
+  if (demoted.length > 0) {
+    lines.push(`This team dismisses most ${demoted.join("/")} findings — reduce severity or skip unless clearly critical.`);
+  }
+  if (promoted.length > 0) {
+    lines.push(`This team values ${promoted.join("/")} findings — be thorough for these categories.`);
+  }
+
+  // Add per-category detail from reaction rates
+  const lowAcceptance = Object.entries(acceptanceRates)
+    .filter(([, r]) => r.rate < 0.3 && (r.helpful + r.unhelpful) >= 5)
+    .map(([cat, r]) => `${cat} (${Math.round(r.rate * 100)}% accepted, ${r.helpful + r.unhelpful} responses)`);
+
+  if (lowAcceptance.length > 0) {
+    lines.push(`Low-acceptance categories (consider skipping): ${lowAcceptance.join(", ")}`);
+  }
+
+  if (lines.length === 0) return "";
+  return `## Adaptive Learning (from ${demoted.length + promoted.length} categories)\n${lines.join("\n")}`;
 }
