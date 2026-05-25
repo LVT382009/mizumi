@@ -261,4 +261,119 @@ describe("postPendingGate", () => {
     await expect(postPendingGate(octokit, "owner", "repo", "abc123", 7)).resolves.toBeUndefined();
     expect(mockWarning).toHaveBeenCalled();
   });
+
+  it("posts with correct owner and repo", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "acme", "widgets", "sha789", 99);
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.owner).toBe("acme");
+    expect(call.repo).toBe("widgets");
+    expect(call.sha).toBe("sha789");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional shouldFailGate edge cases
+// ---------------------------------------------------------------------------
+
+describe("shouldFailGate additional edge cases", () => {
+  it("handles empty findings array with all thresholds", () => {
+    expect(shouldFailGate([], "none")).toBe(false);
+    expect(shouldFailGate([], "critical")).toBe(false);
+    expect(shouldFailGate([], "high")).toBe(false);
+    expect(shouldFailGate([], "medium")).toBe(false);
+  });
+
+  it("treats missing severity as lowest (never fails gate)", () => {
+    expect(shouldFailGate([{ severity: "" }], "medium")).toBe(false);
+  });
+
+  it("works with single severity types at each threshold boundary", () => {
+    // critical threshold: only critical fails
+    expect(shouldFailGate([{ severity: "critical" }], "critical")).toBe(true);
+    expect(shouldFailGate([{ severity: "high" }], "critical")).toBe(false);
+    // high threshold: critical and high fail
+    expect(shouldFailGate([{ severity: "critical" }], "high")).toBe(true);
+    expect(shouldFailGate([{ severity: "high" }], "high")).toBe(true);
+    expect(shouldFailGate([{ severity: "medium" }], "high")).toBe(false);
+    // medium threshold: critical, high, and medium fail
+    expect(shouldFailGate([{ severity: "medium" }], "medium")).toBe(true);
+    expect(shouldFailGate([{ severity: "low" }], "medium")).toBe(false);
+    expect(shouldFailGate([{ severity: "nitpick" }], "medium")).toBe(false);
+  });
+
+  it("handles large findings arrays efficiently", () => {
+    const findings = Array.from({ length: 1000 }, (_, i) => ({
+      severity: i === 500 ? "critical" : "low",
+    }));
+    expect(shouldFailGate(findings, "critical")).toBe(true);
+    expect(shouldFailGate(findings, "medium")).toBe(true);
+  });
+
+  it("returns true for any invalid threshold string", () => {
+    expect(shouldFailGate([], "invalid" as GateThreshold)).toBe(true);
+    expect(shouldFailGate([], "info" as GateThreshold)).toBe(true);
+  });
+
+  it("is case-sensitive on threshold values", () => {
+    expect(shouldFailGate([{ severity: "critical" }], "Critical" as GateThreshold)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional postGateStatus edge cases
+// ---------------------------------------------------------------------------
+
+describe("postGateStatus additional edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("passes with empty findings at medium threshold", async () => {
+    const octokit = makeOctokit();
+    const result = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [], riskScore: 1, threshold: "medium", findingCount: 0,
+    });
+    expect(result).toBe("success");
+  });
+
+  it("failure description contains threshold name", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "medium" }], riskScore: 3, threshold: "medium", findingCount: 3,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("medium");
+  });
+
+  it("success description contains passed message", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "low" }], riskScore: 2, threshold: "high", findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("Passed");
+  });
+
+  it("calls setOutput even on API error", async () => {
+    const octokit = makeOctokit();
+    octokit.rest.repos.createCommitStatus.mockRejectedValue(new Error("fail"));
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "critical" }], riskScore: 5, threshold: "critical", findingCount: 1,
+    });
+    expect(mockSetOutput).toHaveBeenCalledWith("gate_status", "failure");
+  });
+
+  it("passes with all nitpick findings at medium threshold", async () => {
+    const octokit = makeOctokit();
+    const result = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "nitpick" }, { severity: "nitpick" }], riskScore: 1, threshold: "medium", findingCount: 2,
+    });
+    expect(result).toBe("success");
+  });
 });
