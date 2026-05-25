@@ -269,10 +269,26 @@ describe("getLatestFindings", () => {
     expect(findings[0].message.length).toBeLessThanOrEqual(200);
   });
 
-  it("propagates error when pulls.listReviewComments API fails", async () => {
+  it("returns empty array when pulls.listReviewComments API fails", async () => {
     const octokit = makeMockOctokit();
     octokit.rest.pulls.listReviewComments.mockRejectedValue(new Error("server error"));
-    await expect(getLatestFindings(octokit, "owner", "repo", 7)).rejects.toThrow("server error");
+    octokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    const findings = await getLatestFindings(octokit, "owner", "repo", 7);
+    expect(findings).toEqual([]);
+  });
+
+  it("falls back to issue comments when no inline review comments", async () => {
+    const octokit = makeMockOctokit();
+    octokit.rest.pulls.listReviewComments.mockResolvedValue({ data: [] });
+    octokit.rest.issues.listComments.mockResolvedValue({
+      data: [{
+        body: `${MARKER}\n## Mizumi Review\n| Severity | Count |\n|----------|-------|\n| high | 2 |\n| low | 1 |\n`,
+      }],
+    });
+    const findings = await getLatestFindings(octokit, "owner", "repo", 7);
+    expect(findings).toHaveLength(3);
+    expect(findings.filter((f) => f.severity === "high")).toHaveLength(2);
+    expect(findings.filter((f) => f.severity === "low")).toHaveLength(1);
   });
 });
 

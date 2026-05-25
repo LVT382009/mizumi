@@ -2,7 +2,7 @@
  * /mizumi test — generate test skeletons for critical/high findings.
  * Uses LLM to produce test code from review findings + diff context.
  */
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { MizumiConfig } from "./config.js";
 import { createModel } from "./models.js";
@@ -32,7 +32,10 @@ export async function generateTests(
     .map((f) => `- [${f.severity}] ${f.file}:${f.line} (${f.category}): ${f.message}${f.suggestion ? ` — Suggestion: ${f.suggestion}` : ""}`)
     .join("\n");
 
-  const { object: output } = await generateObject({
+  let result: z.infer<typeof TestSchema>;
+
+  try {
+    const { object: output } = await generateObject({
     model,
     system: "You generate vitest test code that would catch the specific bugs/security issues described in review findings. Write focused, minimal tests — one test per finding. Use vitest describe/it/expect syntax.",
     prompt: `Generate vitest tests for these review findings:
@@ -47,7 +50,32 @@ Respond with structured JSON matching the schema.`,
     maxOutputTokens: 2048,
   });
 
-  const result = output as z.infer<typeof TestSchema>;
+  result = output as z.infer<typeof TestSchema>;
+  } catch (e) {
+    // Fallback for providers that don't support structured output
+    if (e instanceof Error && (e.name === "AI_NoObjectGeneratedError" || e.message.includes("No object generated"))) {
+      const textResult = await generateText({
+        model,
+        system: "You generate vitest test code. Respond with valid JSON only: {\"tests\":[{\"file\":\"path\",\"code\":\"code\"}]}",
+        prompt: `Generate vitest tests for these review findings:
+
+${findingsSummary}
+
+Changed code diff (for context):
+${diffText.slice(0, 30000)}`,
+      });
+      try {
+        let jsonStr = textResult.text.trim();
+        const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        if (fenceMatch) jsonStr = fenceMatch[1].trim();
+        result = TestSchema.parse(JSON.parse(jsonStr));
+      } catch {
+        return "Failed to parse test generation output.";
+      }
+    } else {
+      throw e;
+    }
+  }
   if (result.tests.length === 0) return "LLM did not generate any test files.";
 
   let body = "## Generated Tests\n\n";

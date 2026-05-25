@@ -75821,10 +75821,12 @@ async function generateTests(diffText, findings, config) {
     const findingsSummary = criticalFindings
         .map((f) => `- [${f.severity}] ${f.file}:${f.line} (${f.category}): ${f.message}${f.suggestion ? ` — Suggestion: ${f.suggestion}` : ""}`)
         .join("\n");
-    const { object: output } = await generateObject({
-        model,
-        system: "You generate vitest test code that would catch the specific bugs/security issues described in review findings. Write focused, minimal tests — one test per finding. Use vitest describe/it/expect syntax.",
-        prompt: `Generate vitest tests for these review findings:
+    let result;
+    try {
+        const { object: output } = await generateObject({
+            model,
+            system: "You generate vitest test code that would catch the specific bugs/security issues described in review findings. Write focused, minimal tests — one test per finding. Use vitest describe/it/expect syntax.",
+            prompt: `Generate vitest tests for these review findings:
 
 ${findingsSummary}
 
@@ -75832,10 +75834,39 @@ Changed code diff (for context):
 ${diffText.slice(0, 30000)}
 
 Respond with structured JSON matching the schema.`,
-        schema: TestSchema,
-        maxOutputTokens: 2048,
-    });
-    const result = output;
+            schema: TestSchema,
+            maxOutputTokens: 2048,
+        });
+        result = output;
+    }
+    catch (e) {
+        // Fallback for providers that don't support structured output
+        if (e instanceof Error && (e.name === "AI_NoObjectGeneratedError" || e.message.includes("No object generated"))) {
+            const textResult = await generateText({
+                model,
+                system: "You generate vitest test code. Respond with valid JSON only: {\"tests\":[{\"file\":\"path\",\"code\":\"code\"}]}",
+                prompt: `Generate vitest tests for these review findings:
+
+${findingsSummary}
+
+Changed code diff (for context):
+${diffText.slice(0, 30000)}`,
+            });
+            try {
+                let jsonStr = textResult.text.trim();
+                const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+                if (fenceMatch)
+                    jsonStr = fenceMatch[1].trim();
+                result = TestSchema.parse(JSON.parse(jsonStr));
+            }
+            catch {
+                return "Failed to parse test generation output.";
+            }
+        }
+        else {
+            throw e;
+        }
+    }
     if (result.tests.length === 0)
         return "LLM did not generate any test files.";
     let body = "## Generated Tests\n\n";
@@ -77002,26 +77033,66 @@ async function countMizumiReviews(octokit, owner, repo, prNumber) {
     count += reviews.filter((r) => r.body?.includes(MARKER)).length;
     return count;
 }
-/** Parse latest findings from Mizumi inline review comments. */
+/** Parse latest findings from Mizumi inline review comments and summary comments. */
 async function getLatestFindings(octokit, owner, repo, prNumber) {
     const findings = [];
-    const { data: comments } = await octokit.rest.pulls.listReviewComments({
-        owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
-    });
-    for (const c of comments.slice(0, 20)) {
-        if (!c.body?.includes(MARKER))
-            continue;
-        const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
-        const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
-        const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
-        findings.push({
-            file: c.path,
-            line: c.line ?? 0,
-            severity: seveMatch?.[1]?.toLowerCase() || "medium",
-            category: catMatch?.[1]?.toLowerCase() || "bug",
-            message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
-            suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+    // 1. Check inline review comments first
+    try {
+        const { data: comments } = await octokit.rest.pulls.listReviewComments({
+            owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
         });
+        for (const c of comments.slice(0, 20)) {
+            if (!c.body?.includes(MARKER))
+                continue;
+            const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
+            const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
+            const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
+            findings.push({
+                file: c.path,
+                line: c.line ?? 0,
+                severity: seveMatch?.[1]?.toLowerCase() || "medium",
+                category: catMatch?.[1]?.toLowerCase() || "bug",
+                message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
+                suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+            });
+        }
+    }
+    catch {
+        // Inline comments may not be accessible
+    }
+    if (findings.length > 0)
+        return findings;
+    // 2. Fallback: parse summary comment for severity info
+    try {
+        const { data: issues } = await octokit.rest.issues.listComments({
+            owner, repo, issue_number: prNumber, per_page: 30, sort: "created", direction: "desc",
+        });
+        for (const comment of issues) {
+            if (!comment.body?.includes(MARKER))
+                continue;
+            // Parse summary severity table: | severity | count |
+            const severityPattern = /\|\s*(critical|high|medium|low|nitpick)\s*\|\s*(\d+)\s*\|/gi;
+            let match;
+            while ((match = severityPattern.exec(comment.body)) !== null) {
+                const severity = match[1].toLowerCase();
+                const count = parseInt(match[2], 10);
+                // Add placeholder findings from the summary table
+                for (let i = 0; i < count; i++) {
+                    findings.push({
+                        file: "unknown",
+                        line: 0,
+                        severity,
+                        category: "bug",
+                        message: `Finding from summary (severity: ${severity})`,
+                    });
+                }
+            }
+            if (findings.length > 0)
+                break; // Use the most recent summary
+        }
+    }
+    catch {
+        // Non-critical
     }
     return findings;
 }

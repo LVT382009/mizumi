@@ -43,7 +43,7 @@ export async function countMizumiReviews(
   return count;
 }
 
-/** Parse latest findings from Mizumi inline review comments. */
+/** Parse latest findings from Mizumi inline review comments and summary comments. */
 export async function getLatestFindings(
   octokit: Octokit,
   owner: string,
@@ -51,24 +51,64 @@ export async function getLatestFindings(
   prNumber: number
 ): Promise<Array<{ file: string; line: number; severity: string; category: string; message: string; suggestion?: string }>> {
   const findings: Array<{ file: string; line: number; severity: string; category: string; message: string; suggestion?: string }> = [];
-  const { data: comments } = await octokit.rest.pulls.listReviewComments({
-    owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
-  });
 
-  for (const c of comments.slice(0, 20)) {
-    if (!c.body?.includes(MARKER)) continue;
-    const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
-    const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
-    const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
-    findings.push({
-      file: c.path,
-      line: c.line ?? 0,
-      severity: seveMatch?.[1]?.toLowerCase() || "medium",
-      category: catMatch?.[1]?.toLowerCase() || "bug",
-      message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
-      suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+  // 1. Check inline review comments first
+  try {
+    const { data: comments } = await octokit.rest.pulls.listReviewComments({
+      owner, repo, pull_number: prNumber, per_page: 100, sort: "created", direction: "desc",
     });
+
+    for (const c of comments.slice(0, 20)) {
+      if (!c.body?.includes(MARKER)) continue;
+      const seveMatch = c.body.match(/\*\*Severity:\*\*\s*(\w+)/);
+      const catMatch = c.body.match(/\*\*Category:\*\*\s*(\w+)/);
+      const sugMatch = c.body.match(/```suggestion\n([\s\S]*?)```/);
+      findings.push({
+        file: c.path,
+        line: c.line ?? 0,
+        severity: seveMatch?.[1]?.toLowerCase() || "medium",
+        category: catMatch?.[1]?.toLowerCase() || "bug",
+        message: c.body.replace(/<[^>]*>/g, "").slice(0, 200).trim(),
+        suggestion: sugMatch?.[1]?.replace(/\n$/, ""),
+      });
+    }
+  } catch {
+    // Inline comments may not be accessible
   }
+
+  if (findings.length > 0) return findings;
+
+  // 2. Fallback: parse summary comment for severity info
+  try {
+    const { data: issues } = await octokit.rest.issues.listComments({
+      owner, repo, issue_number: prNumber, per_page: 30, sort: "created", direction: "desc",
+    });
+
+    for (const comment of issues) {
+      if (!comment.body?.includes(MARKER)) continue;
+      // Parse summary severity table: | severity | count |
+      const severityPattern = /\|\s*(critical|high|medium|low|nitpick)\s*\|\s*(\d+)\s*\|/gi;
+      let match;
+      while ((match = severityPattern.exec(comment.body)) !== null) {
+        const severity = match[1].toLowerCase();
+        const count = parseInt(match[2], 10);
+        // Add placeholder findings from the summary table
+        for (let i = 0; i < count; i++) {
+          findings.push({
+            file: "unknown",
+            line: 0,
+            severity,
+            category: "bug",
+            message: `Finding from summary (severity: ${severity})`,
+          });
+        }
+      }
+      if (findings.length > 0) break; // Use the most recent summary
+    }
+  } catch {
+    // Non-critical
+  }
+
   return findings;
 }
 
