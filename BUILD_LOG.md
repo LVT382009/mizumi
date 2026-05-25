@@ -589,3 +589,34 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
     CI_PROJECT_ID, missing CI_MERGE_REQUEST_IID
   - nvidia-integration.test.ts: fixed require('../config.js') → ESM
     import { getApiKey, requireApiKey } from '../config.js'
+
+
+### Cycle 2026-05-25e — 1872 tests, Security Dependency Graph (taint analysis)
+
+- **Security Dependency Graph (Gap novel)**: `src/taint.ts` — lightweight diff-scoped
+  taint tracking: identifies untrusted input sources (req.params, req.body,
+  process.argv, event.data, URLSearchParams, fs.readFile), tracks variable
+  aliasing and property access within hunks, traces data flow to security
+  sinks (SQL, exec, XSS, crypto, file write, auth, network). Generates
+  evidence chains injected into LLM review context. No other AI code reviewer
+  performs diff-scoped taint tracking — current tools flag sinks in isolation
+  without verifying data flow, causing both false positives and misses.
+- **9 source patterns**: http-request (req/ctx/request params/body/query/headers/cookies),
+  cli-input (process.argv), env-variable (process.env), event-input (event.data/body/payload),
+  url-params (URLSearchParams), file-input (fs.readFile/readFileSync), destructured params
+- **14 sink patterns across 7 categories**: sql (query/raw/exec), exec (exec/execSync/spawn/execFile/child_process),
+  xss (innerHTML/outerHTML/document.write), crypto (createHash/createCipher/createSecretKey),
+  file (writeFile/writeFileSync/appendFile/createWriteStream), auth (verifyToken/jwt.*),
+  network (fetch/axios/http/https)
+- **Data flow tracking**: same-line source-to-sink, variable aliasing (const y = x),
+  property access aliased (const y = x.prop), cross-file traces (medium severity)
+- **Integration**: runTaintAnalysis called in main.ts step 4a3, gated by
+  config.taintAnalysis (default true). buildTaintContext injected into LLM
+  rulesContent (step 5c2). action.yml input: taint_analysis
+- **Fixed traceTaintFlow bugs**: alias regex now matches end-of-line ($),
+  alias-to-source mapping via varToSource map, proper deduplication via Set
+- **Config**: MizumiConfig + taintAnalysis: boolean, action.yml taint_analysis input
+- **Test expansion**: 1872 tests (from 1774), 0 TS errors
+  - taint.test.ts: 98 new — findSources (21), findSinks (20),
+    traceTaintFlow (11), runTaintAnalysis (5), buildTaintContext (15),
+    end-to-end pipeline (7)

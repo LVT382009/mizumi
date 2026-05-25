@@ -39,6 +39,7 @@ export interface MizumiConfig {
   behavioralSummary: boolean;
   ownershipRouting: boolean;
   deltaReview: boolean;
+  taintAnalysis: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -101,6 +102,7 @@ const astContractAnalysis = core.getInput("ast_contract_analysis") !== "false"; 
 const behavioralSummary = core.getInput("behavioral_summary") !== "false"; // default true
 const ownershipRouting = core.getInput("ownership_routing") !== "false"; // default true
 const deltaReview = core.getInput("delta_review") !== "false"; // default true
+const taintAnalysis = core.getInput("taint_analysis") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -182,6 +184,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   behavioralSummary,
   ownershipRouting,
   deltaReview,
+  taintAnalysis,
   };
 }
 

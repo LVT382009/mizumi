@@ -45,6 +45,7 @@ import { generateBehavioralSummary, shouldRunBehavioralAnalysis, formatBehaviora
 import { loadCodeowners, matchOwnership, applyOwnershipToFindings, buildOwnershipSummary } from "./ownership.js";
 import { computeDeltaReview, recordReviewedSha, formatDeltaSummary } from "./delta.js";
 import { discoverADRs, buildADRContext, checkADRViolations } from "./adr.js";
+import { runTaintAnalysis, buildTaintContext } from "./taint.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -320,6 +321,16 @@ if (config.astContractAnalysis) {
   }
 }
 
+ // 4a3. Taint analysis - data flow from untrusted sources to security sinks
+ let taintResult: import("./taint.js").TaintResult | null = null;
+ if (config.taintAnalysis) {
+ try {
+   taintResult = runTaintAnalysis(diff.files);
+ } catch (e) {
+   core.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+ }
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {
@@ -363,6 +374,16 @@ if (adrContextStr) {
 ${adrContextStr}`;
   core.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter(a => a.status === "accepted").length} active`);
 }
+// 5c2. Taint context injection - inject data flow traces into review context
+if (taintResult && taintResult.traces.length > 0) {
+  const taintContextStr = buildTaintContext(taintResult);
+  if (taintContextStr) {
+    context.rulesContent += `
+
+${taintContextStr}`;
+  }
+}
+
 if (skills.loaded) context.rulesContent += `
 
 ## Project Skills

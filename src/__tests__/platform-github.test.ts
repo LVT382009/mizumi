@@ -135,6 +135,7 @@ vi.mock("../config.js", () => ({
     behavioralSummary: true,
     ownershipRouting: true,
     deltaReview: true,
+      taintAnalysis: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));
@@ -188,6 +189,7 @@ function makeOpts(overrides: Partial<GitHubClientOptions> = {}): GitHubClientOpt
       behavioralSummary: true,
       ownershipRouting: true,
       deltaReview: true,
+      taintAnalysis: true,
     },
     headSha: "head-sha-1",
     ...overrides,
