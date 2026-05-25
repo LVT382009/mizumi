@@ -2,7 +2,7 @@
  * LLM review — structured output via Vercel AI SDK 6.
  * BYOK from day 1: any provider, same code path.
  */
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import * as core from "@actions/core";
 import { z } from "zod";
 import { MizumiConfig } from "./config.js";
@@ -121,6 +121,21 @@ NEVER make up line numbers — only use lines from the valid positions list.
 - Never say "always" or "never" — allow for context you might not see`;
 }
 
+/** Parse free-text LLM output into ReviewResponse (fallback for providers without structured output). */
+function parseTextOutput(text: string): ReviewResponseType {
+  try {
+    let jsonStr = text.trim();
+    // Strip markdown code fences if present
+    const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+    const parsed = JSON.parse(jsonStr);
+    return ReviewResponse.parse(parsed);
+  } catch {
+    core.warning("Failed to parse generateText fallback output - returning empty review");
+    return { summary: "Review failed - model did not produce valid JSON output.", riskScore: 3, comments: [], decision: "comment" };
+  }
+}
+
 export async function runReview(
   diffContent: string,
   validPositions: string,
@@ -160,13 +175,34 @@ export async function runReview(
       }
     : { role: "user" as const, content: userPrompt };
 
-  const { object: output, usage } = await generateObject({
-    model,
-    system: systemPrompt,
-    messages: [userMessage],
-    schema: ReviewResponse,
-    maxOutputTokens: 4096,
-  });
+  let output: ReviewResponseType;
+  let reviewUsage: { inputTokens: number; outputTokens: number; cachedInputTokens: number };
+
+  try {
+    const result = await generateObject({
+      model,
+      system: systemPrompt,
+      messages: [userMessage],
+      schema: ReviewResponse,
+      maxOutputTokens: 4096,
+    });
+    output = result.object;
+    reviewUsage = { inputTokens: result.usage.inputTokens ?? 0, outputTokens: result.usage.outputTokens ?? 0, cachedInputTokens: result.usage.inputTokenDetails?.cacheReadTokens ?? 0 };
+  } catch (e) {
+    // Fallback for providers that don't support structured output (e.g. NVIDIA NIM models)
+    if (e instanceof Error && (e.name === "AI_NoObjectGeneratedError" || e.message.includes("No object generated"))) {
+      core.warning("generateObject failed - falling back to generateText + JSON parse (provider may not support structured output)");
+      const textResult = await generateText({
+        model,
+        system: systemPrompt + "\n\nYou MUST respond with valid JSON only, no markdown fences.",
+        messages: [userMessage],
+      });
+      output = parseTextOutput(textResult.text);
+      reviewUsage = { inputTokens: textResult.usage.inputTokens ?? 0, outputTokens: textResult.usage.outputTokens ?? 0, cachedInputTokens: 0 };
+    } else {
+      throw e;
+    }
+  }
 
   const sanitized = sanitizeReviewOutput(output);
 
@@ -176,5 +212,5 @@ export async function runReview(
     core.warning(`Defense anomaly detected: ${validation.anomalies.join("; ")}`);
   }
 
-  return { output: sanitized, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
+  return { output: sanitized, usage: reviewUsage };
 }

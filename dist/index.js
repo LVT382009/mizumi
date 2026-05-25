@@ -74010,6 +74010,22 @@ NEVER make up line numbers — only use lines from the valid positions list.
 - If uncertain, set confidence below 80 and it will be filtered
 - Never say "always" or "never" — allow for context you might not see`;
 }
+/** Parse free-text LLM output into ReviewResponse (fallback for providers without structured output). */
+function parseTextOutput(text) {
+    try {
+        let jsonStr = text.trim();
+        // Strip markdown code fences if present
+        const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        if (fenceMatch)
+            jsonStr = fenceMatch[1].trim();
+        const parsed = JSON.parse(jsonStr);
+        return ReviewResponse.parse(parsed);
+    }
+    catch {
+        warning("Failed to parse generateText fallback output - returning empty review");
+        return { summary: "Review failed - model did not produce valid JSON output.", riskScore: 3, comments: [], decision: "comment" };
+    }
+}
 async function runReview(diffContent, validPositions, memoryContent, rulesContent, ghostContent, config, classification) {
     const model = classification ? selectModel(config, classification) : createModel(config);
     const systemPrompt = buildSystemPrompt(validPositions, config);
@@ -74034,20 +74050,42 @@ async function runReview(diffContent, validPositions, memoryContent, rulesConten
             providerOptions: anthropicCacheOptions,
         }
         : { role: "user", content: userPrompt };
-    const { object: output, usage } = await generateObject({
-        model,
-        system: systemPrompt,
-        messages: [userMessage],
-        schema: ReviewResponse,
-        maxOutputTokens: 4096,
-    });
+    let output;
+    let reviewUsage;
+    try {
+        const result = await generateObject({
+            model,
+            system: systemPrompt,
+            messages: [userMessage],
+            schema: ReviewResponse,
+            maxOutputTokens: 4096,
+        });
+        output = result.object;
+        reviewUsage = { inputTokens: result.usage.inputTokens ?? 0, outputTokens: result.usage.outputTokens ?? 0, cachedInputTokens: result.usage.inputTokenDetails?.cacheReadTokens ?? 0 };
+    }
+    catch (e) {
+        // Fallback for providers that don't support structured output (e.g. NVIDIA NIM models)
+        if (e instanceof Error && (e.name === "AI_NoObjectGeneratedError" || e.message.includes("No object generated"))) {
+            warning("generateObject failed - falling back to generateText + JSON parse (provider may not support structured output)");
+            const textResult = await generateText({
+                model,
+                system: systemPrompt + "\n\nYou MUST respond with valid JSON only, no markdown fences.",
+                messages: [userMessage],
+            });
+            output = parseTextOutput(textResult.text);
+            reviewUsage = { inputTokens: textResult.usage.inputTokens ?? 0, outputTokens: textResult.usage.outputTokens ?? 0, cachedInputTokens: 0 };
+        }
+        else {
+            throw e;
+        }
+    }
     const sanitized = sanitizeReviewOutput(output);
     // Prompt injection defense: validate output for behavioral anomalies
     const validation = validateReviewOutput(sanitized);
     if (!validation.valid) {
         warning(`Defense anomaly detected: ${validation.anomalies.join("; ")}`);
     }
-    return { output: sanitized, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0, cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0 } };
+    return { output: sanitized, usage: reviewUsage };
 }
 
 /**

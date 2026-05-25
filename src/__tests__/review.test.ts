@@ -8,6 +8,7 @@ import type { ReviewResponseType } from "../review.js";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
+  generateText: vi.fn(),
 }));
 
 vi.mock("../config.js", () => ({
@@ -34,9 +35,10 @@ vi.mock("@ai-sdk/google", () => ({
   createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "google-model")),
 }));
 
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 
 const mockGenerateObject = vi.mocked(generateObject);
+const mockGenerateText = vi.mocked(generateText);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -403,6 +405,37 @@ describe("runReview", () => {
     expect(mockGenerateObject).toHaveBeenCalledOnce();
     const callOpts = mockGenerateObject.mock.calls[0][0] as any;
     expect(callOpts.maxOutputTokens).toBe(4096);
+  });
+
+  it("falls back to generateText when generateObject fails with NoObjectGeneratedError", async () => {
+    const noObjError = new Error("No object generated: the model did not return a response.") as any;
+    noObjError.name = "AI_NoObjectGeneratedError";
+    mockGenerateObject.mockRejectedValue(noObjError);
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({ summary: "Fallback review", riskScore: 3, comments: [], decision: "comment" }),
+      usage: { inputTokens: 500, outputTokens: 200 },
+    } as any);
+
+    const result = await runReview("diff", "pos", "", "", "", makeConfig());
+
+    expect(mockGenerateText).toHaveBeenCalledOnce();
+    expect(result.output.summary).toBe("Fallback review");
+    expect(result.usage.inputTokens).toBe(500);
+  });
+
+  it("falls back to empty review when generateText output is not valid JSON", async () => {
+    const noObjError = new Error("No object generated") as any;
+    noObjError.name = "AI_NoObjectGeneratedError";
+    mockGenerateObject.mockRejectedValue(noObjError);
+    mockGenerateText.mockResolvedValue({
+      text: "This is not JSON at all",
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const result = await runReview("diff", "pos", "", "", "", makeConfig());
+
+    expect(result.output.comments).toHaveLength(0);
+    expect(result.output.riskScore).toBe(3);
   });
 
   it("adds Anthropic cacheControl when provider is anthropic", async () => {
