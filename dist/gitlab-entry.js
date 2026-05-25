@@ -27740,6 +27740,7 @@ function loadConfig() {
   const ciFixMaxRetries = parseInt(getInput("ci_fix_max_retries") || "3", 10) || 3;
   const ciFixRevertOnFailure = getInput("ci_fix_revert_on_failure") !== "false";
   const astContractAnalysis = getInput("ast_contract_analysis") !== "false";
+  const behavioralSummary = getInput("behavioral_summary") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path2.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -27815,7 +27816,8 @@ function loadConfig() {
     ciFixTimeout,
     ciFixMaxRetries,
     ciFixRevertOnFailure,
-    astContractAnalysis
+    astContractAnalysis,
+    behavioralSummary
   };
 }
 function parseSimpleYaml(text2) {

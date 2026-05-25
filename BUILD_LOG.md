@@ -135,6 +135,17 @@
 - **Test expansion**: fuzzy 13→31, testgen 16→28, critique 18→33, idempotency 19→33
 - **1446 tests passing, 0 TS errors, bundle rebuilt**
 
+### Behavioral Diff Summary (This Cycle — Competitive Gap #6)
+
+- **Behavioral summary**: `src/behavioral.ts` — LLM-generated description of WHAT the system DOES differently (not just which files changed). 5 change types: added/removed/replaced/modified/refactored, with functional area, impact level, risk areas, testing focus.
+- **No competitor does this**: CodeRabbit anchors on file groups, Copilot generates flat prose (retiring), CodeGuru has no summary at all.
+- **Config**: `behavioralSummary` input (default true) in action.yml, MizumiConfig field
+- **Integration**: main.ts step 9a — runs after review, posts as collapsible `<details>` comment
+- **Guard**: `shouldRunBehavioralAnalysis()` — only runs for 3+ files with 50+ lines
+- **Tests**: `behavioral.test.ts` — 17 tests (formatter, guard logic, all change types, impact badges, risk areas, edge cases)
+- **Action.yml fix**: Fixed critical indentation bug — inputs from `rule_engine` onward had wrong indentation (0-space keys / 2-space properties instead of 2-space / 4-space), causing `'description' is already defined` parse error in GitHub Actions. Also replaced em-dash with ASCII hyphen.
+- **1463 tests passing, 0 TS errors, bundle rebuilt**
+
 - Checks API (1.5, 1.21)
 - Incremental review (1.9)
 - Batch API (3.12)

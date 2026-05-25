@@ -41,6 +41,7 @@ import { countMizumiReviews, getLatestFindings, createOrUpdateSpendComment } fro
 import { executeRuleEngine } from "./rule-engine.js";
 import { runCIFixLoop } from "./cifix.js";
 import { runASTContractAnalysis } from "./ast-contracts.js";
+import { generateBehavioralSummary, shouldRunBehavioralAnalysis, formatBehavioralSummary } from "./behavioral.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -246,7 +247,6 @@ if (slopResult.isSlop) {
     const ruleFindings = runRules(diff.files);
     core.info(`Rules: ${ruleFindings.length} deterministic findings`);
 
-// 4a. Run persistent rule engine (custom + auto-discovered rules)ntry {n  engineFindings = engineResult.findings;n} catch (e) {n}n
   // 4a. Run persistent rule engine (custom + auto-discovered rules)
   let engineFindings: import("./rules.js").RuleFinding[] = [];
   try {
@@ -447,6 +447,18 @@ if (config.confidenceCalibration || config.complianceCheck) {
 
     const mergedReview = { ...filtered, comments: mergedComments };
 
+// 9a. Behavioral diff summary (describe WHAT the code DOES differently)
+let behavioralBody = "";
+if (config.behavioralSummary && shouldRunBehavioralAnalysis(diff.files)) {
+  try {
+    const behavioralResult = await generateBehavioralSummary(diff.rawDiff, diff.files, config);
+    behavioralBody = formatBehavioralSummary(behavioralResult);
+    core.info("Behavioral summary: " + behavioralResult.headline);
+  } catch (e) {
+    core.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
     // 9b. Cleanup outdated bot comments (reviewdog stale-comment pattern)
   const currentFindings = mergedReview.comments.map((c) => ({
     file: c.file, line: c.line, message: c.message,
@@ -472,6 +484,16 @@ if (config.confidenceCalibration || config.complianceCheck) {
      diff.files
    );
    core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+// Post behavioral summary as a separate comment
+if (behavioralBody) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: behavioralBody,
+    });
+  } catch (e) {
+    core.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 
    // 10a. Set action outputs
    core.setOutput("review_id", result.reviewId);

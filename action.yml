@@ -29,7 +29,7 @@ inputs:
     required: false
     default: "dummy"
   base_url:
-    description: "Custom base URL for OpenAI-compatible endpoint. Local: Ollama (http://localhost:11434/v1), llama.cpp (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). Custom: Together AI, Groq, etc."
+    description: "Custom base URL for OpenAI-compatible endpoint. Local: Ollama (http://localhost:11434/v1), llama.cpp (http://localhost:8081/v1), LM Studio (http://localhost:1234/v1). Custom: Together AI, Groq, DeepSeek, Fireworks, etc."
     required: false
   model:
     description: "Model to use for review (e.g. claude-sonnet-4-6, gpt-4.1, gemini-2.5-flash)"
@@ -143,11 +143,15 @@ inputs:
     required: false
     default: "3"
   ci_fix_revert_on_failure:
-    description: "Revert fix commit if CI fails (recommended — prevents broken branches)"
+    description: "Revert fix commit if CI fails (recommended - prevents broken branches)"
     required: false
     default: "true"
   ast_contract_analysis:
     description: "Enable AST cross-file contract analysis (detects missing exports, unhandled throws, signature changes across files)"
+    required: false
+    default: "true"
+  behavioral_summary:
+    description: "Generate behavioral diff summary describing what the system DOES differently (not just which files changed). Runs for 3+ files with 50+ lines changed."
     required: false
     default: "true"
 outputs:

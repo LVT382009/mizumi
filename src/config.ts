@@ -36,6 +36,7 @@ export interface MizumiConfig {
   ciFixMaxRetries: number;
   ciFixRevertOnFailure: boolean;
   astContractAnalysis: boolean;
+  behavioralSummary: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -95,6 +96,7 @@ const ciFixTimeout = parseInt(core.getInput("ci_fix_timeout") || "600", 10) || 6
 const ciFixMaxRetries = parseInt(core.getInput("ci_fix_max_retries") || "3", 10) || 3;
 const ciFixRevertOnFailure = core.getInput("ci_fix_revert_on_failure") !== "false"; // default true
 const astContractAnalysis = core.getInput("ast_contract_analysis") !== "false"; // default true
+const behavioralSummary = core.getInput("behavioral_summary") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -173,6 +175,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     ciFixMaxRetries,
     ciFixRevertOnFailure,
     astContractAnalysis,
+  behavioralSummary,
   };
 }
 
