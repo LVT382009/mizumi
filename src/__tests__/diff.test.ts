@@ -31,9 +31,7 @@ describe("parseDiff", () => {
 
   it("counts additions and deletions", async () => {
     const result = await parseDiff(SAMPLE_DIFF, []);
-    // 3 added lines (+import z, +import a, +const new)
     expect(result.totalAdditions).toBe(3);
-    // 1 deleted line (-const old)
     expect(result.totalDeletions).toBe(1);
   });
 
@@ -74,7 +72,7 @@ describe("parseDiff", () => {
       "+++ b/newfile.ts",
       "@@ -0,0 +1,3 @@",
       "+export function hello() {",
-      "+  return 'world';",
+      "+ return 'world';",
       "+}",
     ].join("\n");
 
@@ -93,14 +91,12 @@ describe("parseDiff", () => {
       "+++ /dev/null",
       "@@ -1,2 +0,0 @@",
       "-export function old() {",
-      "-  return 'gone';",
+      "- return 'gone';",
     ].join("\n");
 
     const result = await parseDiff(deletedFileDiff, []);
     expect(result.files).toHaveLength(1);
     expect(result.files[0].status).toBe("deleted");
-    // parse-diff reports file.to as "/dev/null" for deleted files,
-    // and parseDiff uses `file.to || file.from`, so path is "/dev/null"
     expect(result.files[0].path).toBe("/dev/null");
   });
 
@@ -128,6 +124,98 @@ describe("parseDiff", () => {
   it("preserves rawDiff from input", async () => {
     const result = await parseDiff(SAMPLE_DIFF, []);
     expect(result.rawDiff).toBe(SAMPLE_DIFF);
+  });
+
+  it("handles multi-file diff", async () => {
+    const multiDiff = [
+      "diff --git a/a.ts b/a.ts",
+      "index aaa..bbb 100644",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "diff --git a/b.ts b/b.ts",
+      "index ccc..ddd 100644",
+      "--- a/b.ts",
+      "+++ b/b.ts",
+      "@@ -1 +1 @@",
+      "-old2",
+      "+new2",
+      "diff --git a/c.ts b/c.ts",
+      "index eee..fff 100644",
+      "--- a/c.ts",
+      "+++ b/c.ts",
+      "@@ -1 +1 @@",
+      "-old3",
+      "+new3",
+    ].join("\n");
+
+    const result = await parseDiff(multiDiff, []);
+    expect(result.files).toHaveLength(3);
+    expect(result.totalAdditions).toBe(3);
+    expect(result.totalDeletions).toBe(3);
+  });
+
+  it("handles multi-hunk diff in single file", async () => {
+    const multiHunkDiff = [
+      "diff --git a/big.ts b/big.ts",
+      "index aaa..bbb 100644",
+      "--- a/big.ts",
+      "+++ b/big.ts",
+      "@@ -1,3 +1,4 @@",
+      " line1",
+      " line2",
+      "+added1",
+      " line3",
+      "@@ -10,3 +11,3 @@",
+      " line10",
+      "-old11",
+      "+new11",
+      " line12",
+    ].join("\n");
+
+    const result = await parseDiff(multiHunkDiff, []);
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].hunks.length).toBe(2);
+  });
+
+  it("sets change content correctly", async () => {
+    const result = await parseDiff(SAMPLE_DIFF, []);
+    const added = result.files[0].hunks[0].changes.filter((c) => c.type === "add");
+    expect(added[0].content).toContain("import { z }");
+  });
+
+  it("handles diff with only additions (no deletions)", async () => {
+    const addOnlyDiff = [
+      "diff --git a/app.ts b/app.ts",
+      "index aaa..bbb 100644",
+      "--- a/app.ts",
+      "+++ b/app.ts",
+      "@@ -0,0 +1,2 @@",
+      "+line1",
+      "+line2",
+    ].join("\n");
+
+    const result = await parseDiff(addOnlyDiff, []);
+    expect(result.totalDeletions).toBe(0);
+    expect(result.totalAdditions).toBe(2);
+  });
+
+  it("handles diff with only deletions (no additions)", async () => {
+    const delOnlyDiff = [
+      "diff --git a/app.ts b/app.ts",
+      "index aaa..bbb 100644",
+      "--- a/app.ts",
+      "+++ b/app.ts",
+      "@@ -1,2 +0,0 @@",
+      "-line1",
+      "-line2",
+    ].join("\n");
+
+    const result = await parseDiff(delOnlyDiff, []);
+    expect(result.totalAdditions).toBe(0);
+    expect(result.totalDeletions).toBe(2);
   });
 });
 
@@ -172,7 +260,6 @@ describe("parseDiff with excludePatterns", () => {
     const result = await parseDiff(multiFileDiff, ["*.json"]);
     const paths = result.files.map((f) => f.path);
     expect(paths).not.toContain("package-lock.json");
-    // .ts files are not matched by *.json
     expect(paths).toContain("src/app.ts");
   });
 
@@ -203,6 +290,26 @@ describe("parseDiff with excludePatterns", () => {
   it("includes all files when excludePatterns is empty", async () => {
     const result = await parseDiff(multiFileDiff, []);
     expect(result.files).toHaveLength(3);
+  });
+
+  it("excludes multiple patterns", async () => {
+    const result = await parseDiff(multiFileDiff, ["*.json", "src/util.ts"]);
+    const paths = result.files.map((f) => f.path);
+    expect(paths).not.toContain("package-lock.json");
+    expect(paths).not.toContain("src/util.ts");
+    expect(paths).toContain("src/app.ts");
+  });
+
+  it("excludes all files when pattern matches everything", async () => {
+    const result = await parseDiff(multiFileDiff, ["**"]);
+    expect(result.files).toHaveLength(0);
+  });
+
+  it("excludes do not affect total counts for included files", async () => {
+    const result = await parseDiff(multiFileDiff, ["package-lock.json"]);
+    // Only 2 files remain (app.ts + util.ts), each has 1 add + 1 del
+    expect(result.totalAdditions).toBe(2);
+    expect(result.totalDeletions).toBe(2);
   });
 });
 
@@ -287,6 +394,87 @@ describe("stripPatchPII", () => {
     const result = stripPatchPII(patchWithCommit);
     expect(result).not.toContain("commit abc123def456");
     expect(result).toContain("commit [REDACTED]");
+  });
+
+  it("handles empty string", () => {
+    const result = stripPatchPII("");
+    expect(result).toBe("");
+  });
+
+  it("handles multiple index lines in multi-file diff", () => {
+    const multiIndex = [
+      "diff --git a/a.ts b/a.ts",
+      "index aaa111..bbb222 100644",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "diff --git a/b.ts b/b.ts",
+      "index ccc333..ddd444 100644",
+      "--- a/b.ts",
+      "+++ b/b.ts",
+      "@@ -1 +1 @@",
+      "-old2",
+      "+new2",
+    ].join("\n");
+    const result = stripPatchPII(multiIndex);
+    expect(result).not.toContain("aaa111");
+    expect(result).not.toContain("ccc333");
+    const redactedCount = (result.match(/\[REDACTED\]/g) || []).length;
+    expect(redactedCount).toBe(2);
+  });
+
+  it("removes multiple author-like lines", () => {
+    const multiAuthor = [
+      "From: a@a.com",
+      "Author: b@b.com",
+      "Date: 2025-01-01",
+      "From: c@c.com",
+      "diff --git a/a.ts b/a.ts",
+      "index abc..def",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    const result = stripPatchPII(multiAuthor);
+    expect(result).not.toContain("a@a.com");
+    expect(result).not.toContain("b@b.com");
+    expect(result).not.toContain("c@c.com");
+  });
+
+  it("preserves short commit-like strings in code lines", () => {
+    // commit lines must have 7-40 hex chars to be redacted
+    const patch = [
+      "commit abc1234",
+      "diff --git a/a.ts b/a.ts",
+      "index abc..def 100644",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "+const hash = 'abc1234def5678';",
+    ].join("\n");
+    const result = stripPatchPII(patch);
+    expect(result).toContain("const hash = 'abc1234def5678'");
+  });
+
+  it("redacts 7-char commit hash", () => {
+    const result = stripPatchPII("commit abc1234\nsome content");
+    expect(result).toContain("commit [REDACTED]");
+  });
+
+  it("redacts 40-char commit hash", () => {
+    const hash = "a".repeat(40);
+    const result = stripPatchPII(`commit ${hash}\ncontent`);
+    expect(result).toContain("commit [REDACTED]");
+    expect(result).not.toContain(hash);
+  });
+
+  it("does not redact 6-char commit-like strings", () => {
+    const result = stripPatchPII("commit abc123\ncontent");
+    // 6 chars is below the 7-char minimum
+    expect(result).toContain("commit abc123");
   });
 });
 
@@ -385,5 +573,84 @@ describe("fetchDiff", () => {
     expect(result.files).toHaveLength(1);
     expect(result.files[0].path).toBe("src/app.ts");
     expect(mockOctokit.rest.repos.compareCommits).toHaveBeenCalled();
+  });
+
+  it("compare fallback passes correct base and head SHAs", async () => {
+    const diffText = "diff --git a/a.ts b/a.ts\nindex abc..def 100644\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new";
+    const mockOctokit = {
+      pulls: { get: vi.fn().mockRejectedValueOnce(new Error("404")) },
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: { base: { sha: "base-sha" }, head: { sha: "head-sha" } },
+          }),
+        },
+        repos: {
+          compareCommits: vi.fn().mockResolvedValue({ data: diffText }),
+        },
+      },
+    } as any;
+
+    await fetchDiff(mockOctokit, "owner", "repo", 42, []);
+    expect(mockOctokit.rest.repos.compareCommits).toHaveBeenCalledWith(
+      expect.objectContaining({ base: "base-sha", head: "head-sha" }),
+    );
+  });
+
+  it("throws when compare fallback has no base/head SHA", async () => {
+    const mockOctokit = {
+      pulls: { get: vi.fn().mockRejectedValueOnce(new Error("404")) },
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: { base: {}, head: {} },
+          }),
+        },
+        repos: { compareCommits: vi.fn() },
+      },
+    } as any;
+
+    await expect(fetchDiff(mockOctokit, "owner", "repo", 42, [])).rejects.toThrow(
+      "Could not determine base/head SHA for diff fallback",
+    );
+  });
+
+  it("handles non-string diff response from API", async () => {
+    const mockOctokit = {
+      pulls: {
+        get: vi.fn().mockResolvedValue({ data: { files: [] } }),
+      },
+    } as any;
+
+    const result = await fetchDiff(mockOctokit, "owner", "repo", 42, []);
+    // Should JSON.stringify the non-string data
+    expect(result.rawDiff).toBe('{"files":[]}');
+  });
+
+  it("passes excludePatterns to parseDiff in strategy 1", async () => {
+    const diffText = [
+      "diff --git a/src/app.ts b/src/app.ts",
+      "index abc..def 100644",
+      "--- a/src/app.ts",
+      "+++ b/src/app.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "diff --git a/dist/bundle.js b/dist/bundle.js",
+      "index eee..fff 100644",
+      "--- a/dist/bundle.js",
+      "+++ b/dist/bundle.js",
+      "@@ -1 +1 @@",
+      "-old2",
+      "+new2",
+    ].join("\n");
+    const mockOctokit = {
+      pulls: { get: vi.fn().mockResolvedValue({ data: diffText }) },
+    } as any;
+
+    const result = await fetchDiff(mockOctokit, "owner", "repo", 42, ["dist/**"]);
+    const paths = result.files.map((f) => f.path);
+    expect(paths).not.toContain("dist/bundle.js");
+    expect(paths).toContain("src/app.ts");
   });
 });
