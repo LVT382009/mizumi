@@ -40,6 +40,7 @@ import { postGateStatus, postPendingGate } from "./gate.js";
 import { countMizumiReviews, getLatestFindings, createOrUpdateSpendComment } from "./helpers.js";
 import { executeRuleEngine } from "./rule-engine.js";
 import { runCIFixLoop } from "./cifix.js";
+import { runASTContractAnalysis } from "./ast-contracts.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -255,6 +256,22 @@ if (slopResult.isSlop) {
   } catch (e) {
     core.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+// 4a2. AST cross-file contract analysis
+let astViolations: import("./ast-contracts.js").ContractViolation[] = [];
+if (config.astContractAnalysis) {
+  try {
+    const astResult = runASTContractAnalysis(diff.files, workspace);
+    astViolations = astResult.violations;
+    if (astViolations.length > 0) {
+      core.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
+    } else {
+      core.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
+    }
+  } catch (e) {
+    core.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4b. Run linter pre-scan (deterministic, zero LLM cost)
  let linterFindings: import("./linter.js").LinterFinding[] = [];
  try {

@@ -29,6 +29,7 @@ Mizumi is a GitHub Action that reviews pull requests using AI, learns from past 
 - **Change Stack** — Reorganizes large PR output into dependency order (data models → contracts → logic → consumers → tests)
 - **Auto-fix on 👍** — React with thumbs-up on any Mizumi suggestion to auto-apply the fix
 - **CI-validated fix loop** — Apply suggestions, poll CI checks, revert on failure, and retry (only Macroscope has similar)
+- **AST cross-file contracts** — Detects missing exports, unhandled throws, and signature changes across file boundaries
 - **Fuzzy dedup** — Suppresses near-duplicate findings and cleans stale comments using rapid-fuzzy matching
 - **SQLite learning** — Tracks suggestion acceptance rates, promotes/demotes categories based on past feedback
 - **Mermaid diagrams** — Auto-generates architecture and severity distribution diagrams in review output (GitHub renders natively)
@@ -106,6 +107,7 @@ jobs:
 | `ci_fix_timeout` | `600` | Max seconds to wait for CI checks on fix commit |
 | `ci_fix_max_retries` | `3` | Max fix attempts before giving up |
 | `ci_fix_revert_on_failure` | `true` | Revert fix commit if CI fails |
+| `ast_contract_analysis` | `true` | AST cross-file contract analysis (missing exports, unhandled throws, signature changes) |
 
 ### Per-Repository Config (`.github/mizumi.yml`)
 
@@ -270,6 +272,7 @@ When Mizumi detects recurring review patterns, it writes reusable skill files to
 | **Auto-fix** | 👍 reaction → commit | No | Yes | No | CI-validated fix loop |
 | **Platforms** | GitHub (v0.1) | GitHub-only | GitHub + GitLab + Azure + Bitbucket | GitHub-only | GitHub-only |
 | **CI-validated fixes** | Yes (poll+revert+retry) | No | No | No | Yes |
+| **AST cross-file analysis** | Yes (regex AST patterns) | No | No | No | Yes (AST graph) |
 
 > **Note:** Published detection benchmarks (including Macroscope's 48% rate, 98% precision) are vendor self-reported and should be treated as directional rather than definitive. Every vendor wins their own benchmark.
 

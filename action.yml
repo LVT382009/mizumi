@@ -147,6 +147,10 @@ ci_fix_revert_on_failure:
   description: "Revert fix commit if CI fails (recommended — prevents broken branches)"
   required: false
   default: "true"
+ast_contract_analysis:
+  description: "Enable AST cross-file contract analysis (detects missing exports, unhandled throws, signature changes across files)"
+  required: false
+  default: "true"
 
 outputs:
   review_id:
