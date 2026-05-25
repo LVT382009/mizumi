@@ -146,6 +146,18 @@
 - **Action.yml fix**: Fixed critical indentation bug — inputs from `rule_engine` onward had wrong indentation (0-space keys / 2-space properties instead of 2-space / 4-space), causing `'description' is already defined` parse error in GitHub Actions. Also replaced em-dash with ASCII hyphen.
 - **1463 tests passing, 0 TS errors, bundle rebuilt**
 
+### CODEOWNERS-Aware Routing (This Cycle - Competitive Gap #7)
+
+- **Ownership routing**: `src/ownership.ts` - Parse CODEOWNERS files, map file paths to owning teams, tag findings with @team context, boost confidence for owned files, build ownership coverage table
+- **No AI reviewer does this**: No competitor uses CODEOWNERS data to adjust review behavior. Human review at Google/Bill pings owners for files they own; AI review should do the same.
+- **globToRegex fix**: Fixed critical glob-to-regex conversion bug where `**/` and `**` placeholders were clobbered by later `*` and `?` replacements. Now uses placeholder tokens. Directory patterns (`src/`) correctly match files inside (`src/app.ts`).
+- **Config**: `ownershipRouting` input (default true) in action.yml, MizumiConfig field
+- **Integration**: main.ts step 9-own - loads CODEOWNERS from workspace, applies ownership to findings, posts coverage summary as comment
+- **Tests**: `ownership.test.ts` (33 tests) + `ownership-load.test.ts` (4 tests) - parser, glob, findOwners, matchOwnership, applyOwnershipToFindings, buildOwnershipSummary, loadCodeowners
+- **ESM bundle fix**: Fixed critical CI crash `Dynamic require of "net" is not supported` - Rollup now maps all Node.js builtins (net, tls, http, https, fs, path, etc.) to `node:` prefix via output.paths config
+- **Test expansion**: autofix 12->20, persist 13->19, helpers 18->29, labels 19->29
+- **1535 tests passing, bundle rebuilt, v0.1 tag updated**
+
 - Checks API (1.5, 1.21)
 - Incremental review (1.9)
 - Batch API (3.12)
