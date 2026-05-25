@@ -235,4 +235,51 @@ describe("spend threshold logic", () => {
     const openaiIdx = digest.indexOf("openai/gpt-4.1");
     expect(anthropicIdx).toBeLessThan(openaiIdx);
   });
+
+  it("handles single entry in digest", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "anthropic", "claude-sonnet-4-6", { inputTokens: 2000, outputTokens: 500 }, "standard", 2, 2),
+    ];
+    const digest = formatSpendDigest(entries);
+    expect(digest).toContain("1 reviews");
+    expect(digest).toContain("2,500");
+  });
+
+  it("entry has ISO timestamp", () => {
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 100 }, "light", 0, 1);
+    expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("handles zero tokens gracefully", () => {
+    const entry = createSpendEntry("o/r", 1, "local", "llama3", {}, "light", 0, 1);
+    expect(entry.totalTokens).toBe(0);
+    expect(entry.inputTokens).toBe(0);
+    expect(entry.outputTokens).toBe(0);
+  });
+
+  it("preserves provider and model in entry", () => {
+    const entry = createSpendEntry("o/r", 1, "google", "gemini-2.5-flash", { inputTokens: 100 }, "standard", 1, 2);
+    expect(entry.provider).toBe("google");
+    expect(entry.model).toBe("gemini-2.5-flash");
+  });
+
+  it("preserves pr number in entry", () => {
+    const entry = createSpendEntry("o/r", 99, "anthropic", "claude", { inputTokens: 100 }, "light", 0, 1);
+    expect(entry.pr).toBe(99);
+  });
+
+  it("preserves finding count and risk score", () => {
+    const entry = createSpendEntry("o/r", 1, "anthropic", "claude", { inputTokens: 100 }, "thorough", 8, 4);
+    expect(entry.findingCount).toBe(8);
+    expect(entry.riskScore).toBe(4);
+  });
+
+  it("formats digest with light tier entries", () => {
+    const entries = [
+      createSpendEntry("o/r", 1, "openai", "gpt-4.1-mini", { inputTokens: 500 }, "light", 0, 1),
+    ];
+    const digest = formatSpendDigest(entries);
+    expect(digest).toContain("openai/gpt-4.1-mini");
+  });
+
 });

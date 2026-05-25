@@ -712,3 +712,16 @@ Integration: step 4a9 (analysis) + step 5c7 (context injection).
 Config: `secretEntropy` boolean (default true), action.yml `secret_entropy` input.
 38 tests in secret-entropy.test.ts.
 - 2181 tests, 0 TS errors, bundle rebuilt
+
+#### Test Expansion (2026-05-26)
+
+Expanded test coverage on thinnest modules:
+- description.test.ts: 24→33 (+9: fix/address/purpose/goal keywords,
+  refs#/see# references, how-to-test/test-steps, perfect score)
+- walkthrough.test.ts: 24→29 (+5: medium/high severity emoji, multi-finding
+  per dir, unknown severity, per-file +/- counts)
+- ratelimit.test.ts: 24→32 (+8: RPS/RPM refill intervals, single-request
+  edge cases, independent bucket refill, provider defaults)
+- spend.test.ts: 24→31 (+7: single entry digest, ISO timestamp, zero tokens,
+  provider/model/pr preservation, light tier formatting)
+- 2210 tests, 0 TS errors

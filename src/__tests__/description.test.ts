@@ -96,6 +96,56 @@ describe("scorePRDescription", () => {
     const result = scorePRDescription("", "short");
     expect(result.score).toBeGreaterThanOrEqual(0);
   });
+
+  it("detects 'fix' as why explanation", () => {
+    const result = scorePRDescription("Fix bug", "Fix the null pointer dereference in auth module.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'address' as why explanation", () => {
+    const result = scorePRDescription("Security", "Address the XSS vulnerability in user input handling.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'purpose' as why explanation", () => {
+    const result = scorePRDescription("Refactor", "The purpose of this change is to improve performance.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'goal' as why explanation", () => {
+    const result = scorePRDescription("Feature", "Goal: enable users to export data as CSV.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("detects 'refs #N' as linked issue", () => {
+    const result = scorePRDescription("Update", "Refs #200");
+    expect(result.missing).not.toContain("linked issue or ticket reference");
+  });
+
+  it("detects 'see #N' as linked issue", () => {
+    const result = scorePRDescription("Hotfix", "See #77 for details");
+    expect(result.missing).not.toContain("linked issue or ticket reference");
+  });
+
+  it("detects 'how to test' as test plan", () => {
+    const result = scorePRDescription("Fix", "How to test: run npm test and verify output");
+    expect(result.missing).not.toContain("test plan or verification steps");
+  });
+
+  it("detects 'test steps' as test plan", () => {
+    const result = scorePRDescription("Feature", "Test steps: 1. Open app 2. Click export");
+    expect(result.missing).not.toContain("test plan or verification steps");
+  });
+
+  it("gives perfect score 4 with all four elements", () => {
+    const result = scorePRDescription(
+      "Fix auth",
+      "Because the token was expired, this refreshes it. Fixes #10. Test plan: run auth suite. Breaking change: token format changed."
+    );
+    expect(result.score).toBe(4);
+    expect(result.missing).toHaveLength(0);
+  });
+
 });
 
 describe("formatDescriptionFeedback", () => {

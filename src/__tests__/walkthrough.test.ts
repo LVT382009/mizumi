@@ -144,6 +144,65 @@ describe("buildWalkthrough", () => {
     expect(result).toContain("—");
     expect(result).not.toContain("other/");
   });
+
+  it("shows medium severity emoji", () => {
+    const diffFiles = [
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 5, deletions: 2 },
+    ];
+    const findings = [{ file: "src/a.ts", severity: "medium", category: "style" }];
+    const result = buildWalkthrough(diffFiles, findings, 2);
+    expect(result).toContain(":orange_circle:");
+  });
+
+  it("shows high severity emoji", () => {
+    const diffFiles = [
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 5, deletions: 2 },
+    ];
+    const findings = [{ file: "src/a.ts", severity: "high", category: "bug" }];
+    const result = buildWalkthrough(diffFiles, findings, 2);
+    expect(result).toContain(":red_circle:");
+  });
+
+  it("handles multiple findings per directory", () => {
+    const diffFiles = [
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 5, deletions: 2 },
+    ];
+    const findings = [
+      { file: "src/a.ts", severity: "high", category: "bug" },
+      { file: "src/a.ts", severity: "medium", category: "style" },
+      { file: "src/b.ts", severity: "critical", category: "security" },
+    ];
+    const result = buildWalkthrough(diffFiles, findings, 4);
+    expect(result).toContain(":red_circle:");
+    expect(result).toContain(":orange_circle:");
+    expect(result).toContain(":rotating_light:");
+  });
+
+  it("uses default emoji for unknown severity", () => {
+    const diffFiles = [
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 5, deletions: 2 },
+    ];
+    const findings = [{ file: "src/a.ts", severity: "unknown", category: "bug" }];
+    const result = buildWalkthrough(diffFiles, findings, 2);
+    expect(result).toContain(":white_circle:");
+  });
+
+  it("shows addition/deletion counts per group", () => {
+    const diffFiles = [
+      { path: "src/a.ts", additions: 100, deletions: 30 },
+      { path: "src/b.ts", additions: 20, deletions: 5 },
+    ];
+    const result = buildWalkthrough(diffFiles, [], 1);
+    expect(result).toContain("+100");
+    expect(result).toContain("-30");
+    expect(result).toContain("+20");
+    expect(result).toContain("-5");
+  });
+
 });
 
 describe("estimateEffort", () => {

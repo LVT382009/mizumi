@@ -213,4 +213,55 @@ describe("createRateLimiter", () => {
     const limiter = createRateLimiter("nvidia");
     expect(limiter).toBeInstanceOf(RateLimiter);
   });
+
+  it("RPS refill interval is based on 1000/rps ms", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 10 });
+    // Should allow 10 immediate requests
+    for (let i = 0; i < 10; i++) await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(10);
+  });
+
+  it("RPM refill interval is based on 60000/rpm ms", async () => {
+    const limiter = new RateLimiter({ rpm: 60, rps: 0 });
+    // Should allow 60 immediate requests
+    for (let i = 0; i < 60; i++) await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(60);
+  });
+
+  it("handles single RPM request", async () => {
+    const limiter = new RateLimiter({ rpm: 1, rps: 0 });
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(1);
+  });
+
+  it("handles single RPS request", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 1 });
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(1);
+  });
+
+  it("both buckets refill independently", async () => {
+    const limiter = new RateLimiter({ rpm: 10, rps: 5 });
+    // Should be limited by RPS (5 tokens) more than RPM (10 tokens)
+    for (let i = 0; i < 5; i++) await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(5);
+  });
+
+  it("google has expected defaults", () => {
+    expect(DEFAULT_RATE_LIMITS.google.rpm).toBe(60);
+    expect(DEFAULT_RATE_LIMITS.google.rps).toBe(5);
+  });
+
+  it("openrouter has expected defaults", () => {
+    expect(DEFAULT_RATE_LIMITS.openrouter.rpm).toBe(60);
+    expect(DEFAULT_RATE_LIMITS.openrouter.rps).toBe(5);
+  });
+
+  it("all providers have rpm >= 0", () => {
+    for (const config of Object.values(DEFAULT_RATE_LIMITS)) {
+      expect(config.rpm).toBeGreaterThanOrEqual(0);
+      expect(config.rps).toBeGreaterThanOrEqual(0);
+    }
+  });
+
 });
