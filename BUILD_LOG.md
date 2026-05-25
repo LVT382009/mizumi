@@ -620,3 +620,17 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
   - taint.test.ts: 98 new — findSources (21), findSinks (20),
     traceTaintFlow (11), runTaintAnalysis (5), buildTaintContext (15),
     end-to-end pipeline (7)
+
+### Cycle 2026-05-25f — 1913 tests, gitlab-entry + platform test expansion
+
+- **Test coverage expansion**: gitlab-entry.ts (0→24 tests), platform.test.ts (16→33)
+- **gitlab-entry.test.ts**: 24 new — module structure, pipeline integration
+  (dry-run mode verification), spend tracking, error handling (graceful
+  degradation for rule engine/AST failures), gate threshold,
+  platform client mock method verification
+- **platform.test.ts**: 16→33 — detectPlatform edge cases (GITHUB_ACTION=1,
+  empty string, unrelated env vars), isCI edge cases, getWorkspace edge
+  cases (empty string fallback, spaced paths, Windows paths),
+  PlatformClient interface compliance for both GitHub and GitLab clients,
+  getProjectId format verification, InlineComment type compliance
+- 1913 tests, 0 TS errors
