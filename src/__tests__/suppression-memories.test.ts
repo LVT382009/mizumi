@@ -353,3 +353,112 @@ describe("getSuppressionMemories", () => {
     expect(getSuppressionMemories(tmpDir, "org/empty")).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// toGlobPattern (tested via recordSuppressionMemory)
+// ---------------------------------------------------------------------------
+
+describe("toGlobPattern (via recordSuppressionMemory)", () => {
+  it("converts simple file path to glob", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/utils/helpers.ts", "bug", "err", "reason");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories[0].filePattern).toContain("helpers*");
+  });
+
+  it("handles deeply nested file paths", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/v2/users/controller.ts", "security", "xss", "safe");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories[0].filePattern).toContain("controller*");
+    expect(memories[0].filePattern).toContain("src/api/v2/users");
+  });
+
+  it("handles file in root directory", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "index.ts", "bug", "err", "reason");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories[0].filePattern).toContain("index*");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// globMatch edge cases (via shouldSuppress)
+// ---------------------------------------------------------------------------
+
+describe("globMatch edge cases", () => {
+  it("matches exact file path without wildcard", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/exact-match.ts", "bug", "err", "reason");
+    // Manually set a non-glob pattern by inserting directly
+    const db = require("node:sqlite").DatabaseSync;
+    const database = new db(path.join(tmpDir, ".github", "mizumi-data.db"));
+    database.prepare(`UPDATE suppression_memories SET file_pattern = ? WHERE repo = ?`).run("src/exact-match.ts", "org/repo");
+    database.close();
+
+    const memory = shouldSuppress(tmpDir, "org/repo", "src/exact-match.ts", "bug", "exact-match err");
+    expect(memory).not.toBeNull();
+  });
+
+  it("does not match across directory boundaries", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/health.ts", "security", "SQL", "reason");
+    // Pattern becomes src/health*.ts — should NOT match other-dir/health.ts
+    const memory = shouldSuppress(tmpDir, "org/repo", "other-dir/health.ts", "security", "SQL injection");
+    expect(memory).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MAX_MEMORIES enforcement
+// ---------------------------------------------------------------------------
+
+describe("MAX_MEMORIES enforcement", () => {
+  it("evicts oldest least-hit memory when exceeding limit", () => {
+    // Record 100 memories (the max) + 1 more
+    for (let i = 0; i < 101; i++) {
+      recordSuppressionMemory(tmpDir, "org/repo", `src/file${i}.ts`, "bug", `err${i}`, `reason${i}`);
+    }
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    // Should still be at max 100
+    expect(memories.length).toBeLessThanOrEqual(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Concurrent access safety
+// ---------------------------------------------------------------------------
+
+describe("concurrent access", () => {
+  it("handles multiple sequential writes safely", () => {
+    for (let i = 0; i < 10; i++) {
+      recordSuppressionMemory(tmpDir, "org/repo", `src/mod${i}.ts`, "bug", `bug${i}`, `fix${i}`);
+    }
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories).toHaveLength(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pruneUnusedMemories edge cases
+// ---------------------------------------------------------------------------
+
+describe("pruneUnusedMemories edge cases", () => {
+  it("keeps recent memories even with zero hits", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/recent.ts", "bug", "err", "just created");
+    // This memory was just created, so even with 0 hits it shouldn't be pruned at 30 days
+    const pruned = pruneUnusedMemories(tmpDir, "org/repo", 30);
+    expect(pruned).toBe(0);
+    expect(getSuppressionMemories(tmpDir, "org/repo")).toHaveLength(1);
+  });
+
+  it("prunes only for the specified repo", () => {
+    recordSuppressionMemory(tmpDir, "org/repo1", "src/old.ts", "bug", "err", "stale");
+    recordSuppressionMemory(tmpDir, "org/repo2", "src/fresh.ts", "bug", "err", "fresh");
+
+    const db = require("node:sqlite").DatabaseSync;
+    const database = new db(path.join(tmpDir, ".github", "mizumi-data.db"));
+    database.prepare(`UPDATE suppression_memories SET created_at = datetime('now', '-100 days') WHERE repo = ?`).run("org/repo1");
+    database.close();
+
+    const pruned = pruneUnusedMemories(tmpDir, "org/repo1", 30);
+    expect(pruned).toBe(1);
+    // repo2 should be untouched
+    expect(getSuppressionMemories(tmpDir, "org/repo2")).toHaveLength(1);
+  });
+});

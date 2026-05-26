@@ -6,6 +6,7 @@ import {
   keywordInDiff,
   isNonCodeCriterion,
   buildSpecComplianceContext,
+  checkSpecCompliance,
 } from "../spec-compliance.js";
 import type { DiffFile } from "../diff.js";
 
@@ -423,7 +424,192 @@ describe("buildSpecComplianceContext", () => {
 // ---------------------------------------------------------------------------
 
 describe("checkSpecCompliance", () => {
-  // These require the full import with mocked octokit
-  // Testing the pure functions above covers most logic
-  it.todo("end-to-end test with mocked octokit and LLM");
+  const mockOctokit = {
+    rest: {
+      issues: {
+        get: vi.fn(),
+      },
+    },
+  } as unknown as import("@octokit/rest").Octokit;
+
+  const mockConfig = {
+    provider: "anthropic" as const,
+    model: "claude-haiku-4-5-20251001",
+    baseUrl: "",
+    profile: "chill" as const,
+    maxComments: 15,
+    language: "en-US",
+    selfCritique: true,
+    confidenceThreshold: 80,
+    autoReview: true,
+    autoPauseAfter: 5,
+    excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: [],
+    complianceCheck: true,
+    autoFix: false,
+    confidenceCalibration: true,
+    changeStack: true,
+    improveEnabled: false,
+    dryRun: false,
+    linterScan: true,
+    autoLabels: true,
+    spendThreshold: 0,
+    gateThreshold: "none" as const,
+    ruleEngine: true,
+    ciValidatedFix: false,
+    ciFixTimeout: 600,
+    ciFixMaxRetries: 3,
+    ciFixRevertOnFailure: true,
+    astContractAnalysis: true,
+    behavioralSummary: true,
+    ownershipRouting: true,
+    deltaReview: true,
+    taintAnalysis: true,
+    reviewLearning: true,
+    blastRadius: true,
+    specCompliance: true,
+    authBoundary: true,
+    fatigueDashboard: true,
+    secretEntropy: true,
+    safetyScore: true,
+    adaptiveStrategy: true,
+    businessContext: true,
+    orgMemory: true,
+    testGapDetection: true,
+    suppressionMemories: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns empty when no issue refs in PR body", async () => {
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "No issues referenced", "Bug fix", [], mockConfig
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("fetches referenced issue and parses AC with keyword match", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "- [ ] Add loginUser endpoint\n- [ ] Write integration tests",
+        title: "Auth feature",
+        pull_request: undefined,
+      },
+    });
+
+    const diffFiles = [makeDiffFile("src/auth.ts", ["export function loginUser() {}"])];
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Fixes #42", "Auth PR", diffFiles, mockConfig
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].issueNumber).toBe(42);
+    expect(result[0].issueTitle).toBe("Auth feature");
+    expect(result[0].criteria).toHaveLength(2);
+    // First criterion should match via keyword
+    expect(result[0].criteria[0].status).toBe("met");
+  });
+
+  it("skips referenced PRs (only checks issues)", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "Some text",
+        title: "A PR",
+        pull_request: {},
+      },
+    });
+
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Fixes #10", "PR", [], mockConfig
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("handles API error gracefully", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("API rate limit")
+    );
+
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Closes #99", "Fix PR", [], mockConfig
+    );
+    // Should not throw, returns empty (warning logged)
+    // The function catches the error internally
+    expect(result.length).toBeLessThanOrEqual(0);
+  });
+
+  it("returns empty when issue body has no AC", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "This is just a description with no lists.",
+        title: "Bug",
+        pull_request: undefined,
+      },
+    });
+
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Fixes #5", "Fix", [], mockConfig
+    );
+    // No AC parsed from free text
+    expect(result).toEqual([]);
+  });
+
+  it("computes coverage correctly for mixed criteria", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "- [ ] Add loginUser function\n- [ ] Deploy to staging\n- [ ] Add rateLimiter",
+        title: "Feature",
+        pull_request: undefined,
+      },
+    });
+
+    const diffFiles = [makeDiffFile("src/auth.ts", ["function loginUser() {}", "const rateLimiter = {}"])];
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Fixes #20", "Feature PR", diffFiles, mockConfig
+    );
+
+    expect(result).toHaveLength(1);
+    // loginUser: met, deploy: non-code, rateLimiter: met
+    const codeCriteria = result[0].criteria.filter((c) => c.status !== "non-code");
+    const metCriteria = codeCriteria.filter((c) => c.status === "met");
+    expect(metCriteria.length).toBe(codeCriteria.length); // Both code criteria met
+  });
+
+  it("extracts issue refs from closes/fixes/resolves patterns", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "- [ ] Add endpoint",
+        title: "Issue",
+        pull_request: undefined,
+      },
+    });
+
+    const result = await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Resolves #7", "PR", [], mockConfig
+    );
+    expect(mockOctokit.rest.issues.get).toHaveBeenCalledWith({
+      owner: "owner", repo: "repo", issue_number: 7,
+    });
+  });
+
+  it("limits to 3 issues maximum", async () => {
+    (mockOctokit.rest.issues.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        body: "- [ ] Add feature",
+        title: "Issue",
+        pull_request: undefined,
+      },
+    });
+
+    await checkSpecCompliance(
+      mockOctokit, "owner", "repo", "Fixes #1, closes #2, resolves #3, fixes #4, closes #5",
+      "PR", [], mockConfig
+    );
+    // Should only call get for 3 issues
+    expect(mockOctokit.rest.issues.get).toHaveBeenCalledTimes(3);
+  });
 });
