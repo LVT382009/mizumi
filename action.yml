@@ -237,6 +237,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+  thread_continuity:
+    description: "Enable review thread continuity — read author replies to prior review comments, detect dismissals, and avoid re-raising dismissed issues. No other AI reviewer reads prior thread conversations."
+    required: false
+    default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

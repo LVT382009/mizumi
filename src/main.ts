@@ -64,6 +64,7 @@ import { suggestPRSplits } from "./pr-split.js";
 import { trackFindings, loadPreviousFindings, formatLifecycleSummary } from "./finding-lifecycle.js";
 import { classifyIntents } from "./intent-classifier.js";
 import { analyzeDepImpact } from "./dep-impact.js";
+import { analyzeThreadContinuity } from "./thread-continuity.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -505,6 +506,23 @@ if (config.depImpactAnalysis) {
   }
 }
 // 4a7. Auth boundary analysis - detect routes without authentication
+
+// 4a18. Review thread continuity — read author replies to prior review comments
+let threadContinuityResult: import("./thread-continuity.js").ThreadContinuityResult | null = null;
+if (config.threadContinuity && !config.dryRun) {
+  try {
+    const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    const prAuthor = prData.user?.login || "";
+    if (prAuthor) {
+      threadContinuityResult = await analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor);
+      if (threadContinuityResult.dismissalCount > 0) {
+        core.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
+      }
+    }
+  } catch (e) {
+    core.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
 try {
@@ -726,6 +744,10 @@ if (depImpactResult && depImpactResult.contextText) {
   context.ghostContent += "\n\n" + depImpactResult.contextText;
 }
 
+// 5c17. Thread continuity context injection — tell LLM about author dismissals
+if (threadContinuityResult && threadContinuityResult.contextText) {
+  context.ghostContent += "\n\n" + threadContinuityResult.contextText;
+}
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
   const guarded = guardContextWindow(context.diffText, config.provider);
   if (guarded.truncated) {
@@ -1054,6 +1076,17 @@ if (depImpactResult && depImpactResult.bodySummary) {
   }
 }
 // Post ownership summary as a separate comment
+
+// Post thread continuity summary as a separate comment
+if (threadContinuityResult && threadContinuityResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: threadContinuityResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 if (ownershipBody) {
   try {
       const ownershipComment = `<!-- mizumi-ownership-marker -->

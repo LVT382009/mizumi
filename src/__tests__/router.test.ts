@@ -55,6 +55,7 @@ const baseConfig: MizumiConfig = {
   findingLifecycle: true,
   intentClassification: true,
     depImpactAnalysis: true,
+    threadContinuity: true,
 };
 
 describe("classifyDiff", () => {

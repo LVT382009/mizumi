@@ -72,6 +72,7 @@ describe("NVIDIA NIM provider configuration", () => {
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
+    threadContinuity: true,
     ...overrides,
   });
 

@@ -109,6 +109,7 @@ const testConfig = {
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
+    threadContinuity: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

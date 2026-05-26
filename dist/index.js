@@ -56331,6 +56331,7 @@ function loadConfig() {
   const intentClassification = getInput("intent_classification") !== "false";
   const findingLifecycle = getInput("finding_lifecycle") !== "false";
   const depImpactAnalysis = getInput("dep_impact_analysis") !== "false";
+  const threadContinuity = getInput("thread_continuity") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56428,7 +56429,8 @@ function loadConfig() {
     prSplitSuggestions,
     findingLifecycle,
     intentClassification,
-    depImpactAnalysis
+    depImpactAnalysis,
+    threadContinuity
   };
 }
 function parseSimpleYaml(text2) {
@@ -114014,6 +114016,135 @@ No new or changed packages detected in package.json.
   return result;
 }
 
+// src/thread-continuity.ts
+var DISMISSAL_PATTERNS = [
+  { re: /\b(intentional|by design|on purpose|expected behavior|working as intended)\b/i, kind: "intentional" },
+  { re: /\b(will fix|follow.?up|later|next pr|tracked in|JIRA|ticket|issue #)\b/i, kind: "will-fix-later" },
+  { re: /\b(disagree|not applicable|doesn't apply|not relevant|not needed|unnecessary)\b/i, kind: "disagree" },
+  { re: /\b(known issue|legacy|existing|already known|historical)\b/i, kind: "already-known" },
+  { re: /\b(false positive|won't fix|not a bug|not an issue|n\/a)\b/i, kind: "false-positive" }
+];
+function classifyDismissal(replyBody) {
+  for (const pattern of DISMISSAL_PATTERNS) {
+    if (pattern.re.test(replyBody)) {
+      return { isDismissal: true, kind: pattern.kind };
+    }
+  }
+  return { isDismissal: false, kind: null };
+}
+var MIZUMI_MARKER = "<!-- mizumi-review-marker -->";
+var MAX_ORIGINAL_LENGTH = 100;
+var MAX_THREADS = 15;
+async function fetchReviewThreadReplies(octokit, owner, repo, prNumber, prAuthor) {
+  const replies = [];
+  try {
+    const { data: comments } = await octokit.rest.pulls.listReviewComments({
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100
+    });
+    const threadsByLocation = /* @__PURE__ */ new Map();
+    for (const comment of comments) {
+      const key = `${comment.path || ""}:${comment.line || 0}`;
+      if (!threadsByLocation.has(key)) {
+        threadsByLocation.set(key, []);
+      }
+      threadsByLocation.get(key).push({
+        id: comment.id,
+        body: comment.body || "",
+        author: comment.user?.login || "",
+        inReplyToId: comment.in_reply_to_id ?? void 0,
+        path: comment.path,
+        line: comment.line
+      });
+    }
+    for (const [, threadComments] of threadsByLocation) {
+      const rootComment = threadComments.find(
+        (c) => !c.inReplyToId && c.body.includes(MIZUMI_MARKER)
+      );
+      if (!rootComment) continue;
+      const authorReplies = threadComments.filter(
+        (c) => c.inReplyToId === rootComment.id && c.author === prAuthor
+      );
+      for (const reply of authorReplies) {
+        const dismissal = classifyDismissal(reply.body);
+        replies.push({
+          file: rootComment.path || "unknown",
+          line: rootComment.line || 0,
+          originalComment: rootComment.body.replace(/<!--[\s\S]*?-->/g, "").trim().substring(0, MAX_ORIGINAL_LENGTH),
+          replyBody: reply.body.trim(),
+          replyAuthor: reply.author,
+          isDismissal: dismissal.isDismissal,
+          dismissalKind: dismissal.kind
+        });
+        if (replies.length >= MAX_THREADS) break;
+      }
+      if (replies.length >= MAX_THREADS) break;
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes("rate limit") && !msg.includes("404")) {
+    }
+  }
+  return replies;
+}
+function buildThreadContext(replies) {
+  const dismissals = replies.filter((r) => r.isDismissal);
+  if (dismissals.length === 0) return "";
+  let ctx = `## Author Dismissals from Previous Review Thread
+`;
+  ctx += "The PR author dismissed the following review comments in the previous iteration. ";
+  ctx += "Do NOT re-raise these same issues unless you have new information:\n\n";
+  for (const r of dismissals.slice(0, 10)) {
+    const kind = r.dismissalKind ?? "other";
+    ctx += `- \`${r.file}:${r.line}\` \u2014 author says: **${kind}** ("${r.replyBody.substring(0, 80)}")
+`;
+  }
+  if (dismissals.length > 10) {
+    ctx += `
+... and ${dismissals.length - 10} more dismissed findings.
+`;
+  }
+  return ctx.trim() + "\n";
+}
+function buildThreadBodySummary(replies) {
+  const dismissals = replies.filter((r) => r.isDismissal);
+  if (dismissals.length === 0 && replies.length === 0) return "";
+  let body = `<details><summary><strong>Thread Continuity</strong> \u2014 ${replies.length} author ${replies.length === 1 ? "reply" : "replies"}</summary>
+
+`;
+  if (dismissals.length > 0) {
+    body += `| Location | Dismissal | Author Reply |
+|----------|-----------|-------------|
+`;
+    for (const r of dismissals.slice(0, 10)) {
+      const kind = r.dismissalKind ?? "other";
+      body += `| \`${r.file}:${r.line}\` | ${kind} | ${r.replyBody.substring(0, 60)} |
+`;
+    }
+    body += "\n";
+  }
+  if (replies.length > dismissals.length) {
+    body += `**${replies.length - dismissals.length} non-dismissal author ${replies.length - dismissals.length === 1 ? "reply" : "replies"}** (acknowledged or discussed).
+
+`;
+  }
+  body += `</details>
+`;
+  return body;
+}
+async function analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor) {
+  const threadReplies = await fetchReviewThreadReplies(octokit, owner, repo, prNumber, prAuthor);
+  const dismissalCount = threadReplies.filter((r) => r.isDismissal).length;
+  return {
+    threadReplies,
+    dismissalCount,
+    contextText: buildThreadContext(threadReplies),
+    bodySummary: buildThreadBodySummary(threadReplies)
+  };
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -114414,6 +114545,21 @@ async function run() {
         warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let threadContinuityResult = null;
+    if (config2.threadContinuity && !config2.dryRun) {
+      try {
+        const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+        const prAuthor = prData.user?.login || "";
+        if (prAuthor) {
+          threadContinuityResult = await analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor);
+          if (threadContinuityResult.dismissalCount > 0) {
+            info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
+          }
+        }
+      } catch (e) {
+        warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let authBoundaryResult = null;
     if (config2.authBoundary) {
       try {
@@ -114592,6 +114738,9 @@ ${testGapResult.contextText}`;
     const positionHint = buildPositionHint(diff.files);
     if (depImpactResult && depImpactResult.contextText) {
       context4.ghostContent += "\n\n" + depImpactResult.contextText;
+    }
+    if (threadContinuityResult && threadContinuityResult.contextText) {
+      context4.ghostContent += "\n\n" + threadContinuityResult.contextText;
     }
     const guarded = guardContextWindow(context4.diffText, config2.provider);
     if (guarded.truncated) {
@@ -114903,6 +115052,18 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           });
         } catch (e) {
           warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+        }
+      }
+      if (threadContinuityResult && threadContinuityResult.bodySummary) {
+        try {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: threadContinuityResult.bodySummary
+          });
+        } catch (e) {
+          warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (ownershipBody) {

@@ -75,6 +75,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
+    threadContinuity: true,
     ...overrides,
   };
 }
