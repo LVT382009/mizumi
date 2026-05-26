@@ -110,6 +110,7 @@ const testConfig = {
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
     threadContinuity: true,
+    crossPRPersistence: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

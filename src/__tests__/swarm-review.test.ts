@@ -276,6 +276,7 @@ describe("runSwarmReview", () => {
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
     threadContinuity: true,
+    crossPRPersistence: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

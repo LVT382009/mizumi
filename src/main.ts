@@ -65,6 +65,7 @@ import { trackFindings, loadPreviousFindings, formatLifecycleSummary } from "./f
 import { classifyIntents } from "./intent-classifier.js";
 import { analyzeDepImpact } from "./dep-impact.js";
 import { analyzeThreadContinuity } from "./thread-continuity.js";
+import { trackCrossPRFindings } from "./crosspr-persist.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -962,6 +963,7 @@ if (suppressionResult && suppressionResult.contextText) {
 
 // 9-own. CODEOWNERS-aware routing (tag owning teams, boost confidence)
 let ownershipBody = "";
+let crossPRResult: import("./crosspr-persist.js").CrossPRResult | null = null;
 if (config.ownershipRouting) {
   try {
     const ownershipRules = loadCodeowners(workspace);
@@ -1088,6 +1090,7 @@ if (threadContinuityResult && threadContinuityResult.bodySummary) {
   }
 }
 if (ownershipBody) {
+
   try {
       const ownershipComment = `<!-- mizumi-ownership-marker -->
 ## Ownership Coverage
@@ -1223,6 +1226,29 @@ if (config.findingLifecycle) {
     }
   } catch (e) {
     core.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 10d1. Cross-PR finding persistence — track patterns across PRs
+if (config.crossPRPersistence) {
+  try {
+    crossPRResult = trackCrossPRFindings(workspace, `${owner}/${repo}#${prNumber}`, mergedReview.comments);
+    if (crossPRResult.recurringFindings.length > 0) {
+      core.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
+    }
+  } catch (e) {
+    core.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// Post cross-PR patterns summary as a separate comment
+if (crossPRResult && crossPRResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: crossPRResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 

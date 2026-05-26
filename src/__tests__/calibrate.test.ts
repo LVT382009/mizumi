@@ -122,6 +122,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
     threadContinuity: true,
+    crossPRPersistence: true,
     ...overrides,
   };
 }

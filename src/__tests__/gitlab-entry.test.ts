@@ -79,6 +79,7 @@ vi.mock("../config.js", () => ({
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
     depImpactAnalysis: true,
     threadContinuity: true,
+    crossPRPersistence: true,
   })),
 }));
 

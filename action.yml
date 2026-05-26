@@ -242,6 +242,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+  cross_pr_persistence:
+    description: "Enable cross-PR finding persistence — track recurring issue patterns across PRs (e.g., 'same issue found in 3 other PRs this month'). No other AI reviewer tracks findings across PRs."
+    required: false
+    default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
