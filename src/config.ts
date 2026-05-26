@@ -48,6 +48,7 @@ export interface MizumiConfig {
   secretEntropy: boolean;
   safetyScore: boolean;
   adaptiveStrategy: boolean;
+  businessContext: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -119,6 +120,7 @@ const fatigueDashboard = core.getInput("fatigue_dashboard") !== "false"; // defa
 const secretEntropy = core.getInput("secret_entropy") !== "false"; // default true
 const safetyScore = core.getInput("safety_score") !== "false"; // default true
 const adaptiveStrategy = core.getInput("adaptive_strategy") !== "false"; // default true
+const businessContext = core.getInput("business_context") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -209,6 +211,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     secretEntropy,
     safetyScore,
     adaptiveStrategy,
+    businessContext,
   };
 }
 

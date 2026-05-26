@@ -54,6 +54,7 @@ import { buildFatigueDashboard, formatFatigueDashboard } from "./fatigue-dashboa
 import { runEntropyAnalysis, buildEntropyContext } from "./secret-entropy.js";
 import { runAttributionAnalysis, applyAttributionConfidence, buildAttributionContext } from "./attribution.js";
 import { computeSafetyScore, postSafetyScore } from "./safety-score.js";
+import { fetchBusinessContext, parseMCPEndpoints } from "./business-context.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -373,6 +374,25 @@ core.warning("Spec compliance check failed: " + (e instanceof Error ? e.message 
 }
 }
 
+// 4a10. Business context integration - fetch Jira/Linear ticket context
+let businessContextResult: import("./business-context.js").BusinessContextResult | null = null;
+if (config.businessContext) {
+  try {
+    const mcpEndpoints = parseMCPEndpoints();
+    if (mcpEndpoints.length > 0) {
+      const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      businessContextResult = await fetchBusinessContext(
+        prData.body || "", prData.title || "", mcpEndpoints
+      );
+      if (businessContextResult.totalTickets > 0) {
+        core.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
+      }
+    }
+  } catch (e) {
+    core.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -536,15 +556,22 @@ ${entropyCtxStr}`;
 
 // 5c8. Attribution context injection
 if (preAttributionResult && preAttributionResult.reliableCategories > 0) {
-  const attrCtxStr = buildAttributionContext(preAttributionResult);
-  if (attrCtxStr) {
-    context.rulesContent += `
+    const attrCtxStr = buildAttributionContext(preAttributionResult);
+    if (attrCtxStr) {
+      context.rulesContent += `
 
 ${attrCtxStr}`;
+    }
   }
-}
 
-if (skills.loaded) context.rulesContent += `
+  // 5c9. Business context injection
+  if (businessContextResult && businessContextResult.contextText) {
+    context.rulesContent += `
+
+${businessContextResult.contextText}`;
+  }
+
+  if (skills.loaded) context.rulesContent += `
 
 ## Project Skills
 ${skills.loaded}`;

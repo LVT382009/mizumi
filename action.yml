@@ -198,6 +198,22 @@ inputs:
     description: "Enable PR type-adaptive review strategy - adjusts review focus based on PR category (security PRs get hardened scrutiny, docs PRs skip deep analysis). Only Qodo and Macroscope have similar features."
     required: false
     default: "true"
+  business_context:
+    description: "Enable business context integration - fetches Jira/Linear ticket details from PR body references and injects context into the review prompt. CodeRabbit, Bito, and Macroscope have similar features."
+    required: false
+    default: "true"
+  jira_base_url:
+    description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
+    required: false
+  jira_api_token:
+    description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
+    required: false
+  jira_project_prefix:
+    description: "Jira project key prefix for matching (e.g. PAY for PAY-1234). Also set via MIZUMI_JIRA_PROJECT_PREFIX env var."
+    required: false
+  linear_api_token:
+    description: "Linear API token for authentication. Also set via MIZUMI_LINEAR_API_TOKEN env var."
+    required: false
 outputs:
   review_id:
     description: "ID of the posted PR review"
