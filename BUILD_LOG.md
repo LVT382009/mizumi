@@ -432,12 +432,12 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Bug fix: retriesUsed tracking**: `cifix.ts` did not set `retriesUsed` before the early return on CI success path, so multi-attempt successes reported wrong retry counts.
 - **Test expansions**: config.test.ts 31→58 (28 new API key tests), cifix.test.ts 26→31 (5 retry loop tests), post.test.ts 100→105 (5 suggestion-promotion tests), test-gap.test.ts (41 new)
 - **Path normalization**: `toPosix()` helper in test-gap.ts ensures forward-slash paths on Windows, fixing test failures from `path.join` producing backslash separators.
-- 2508 tests passing, 0 TS errors, bundle rebuilt
+- 2662 tests passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 2508 Tests)
+### Build Stats (Current — 2662 Tests)
 
-- **2508 tests** passing (65 test files)
-- **6,000+ production lines** (40+ source modules)
+- **2662 tests** passing (68 test files)
+- **6,200+ production lines** (42+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -445,6 +445,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Inline one-click fixes**: suggestion blocks for medium/low/nitpick findings
 - **AI Memorized Triage / Suppression Memories**: stores human dismissal reasoning in SQLite, auto-suppresses matching findings via file glob + category + message pattern (zero LLM cost)
 - **Parallel swarm review**: 3 specialist agents (security, correctness, performance) review PR simultaneously, deduplicated findings merged into main review (74% more addressed comments per Greptile benchmark)
+- **PR complexity predictor**: multi-signal weighted model (size, spread, new exports, architecture, blast radius, taint traces) → score 1-10 + estimated review minutes. Zero LLM cost. No other AI reviewer estimates review time.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
