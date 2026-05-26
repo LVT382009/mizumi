@@ -75,6 +75,7 @@ describe("NVIDIA NIM provider configuration", () => {
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
     ...overrides,
   });
 

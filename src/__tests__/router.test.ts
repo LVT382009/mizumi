@@ -58,6 +58,7 @@ const baseConfig: MizumiConfig = {
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
 };
 
 describe("classifyDiff", () => {

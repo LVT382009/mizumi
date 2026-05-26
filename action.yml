@@ -252,6 +252,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+  review_priority:
+    description: "Enable per-finding priority scoring — each finding gets a 1-10 priority score combining severity, confidence, ownership, intent alignment, and cross-PR recurrence. Zero LLM cost. No other AI reviewer computes per-finding priority."
+    required: false
+    default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

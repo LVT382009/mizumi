@@ -97,6 +97,53 @@ describe("classifyDismissal", () => {
     expect(result.isDismissal).toBe(true);
     expect(result.kind).toBe("will-fix-later");
   });
+
+  it("detects 'not relevant' as disagree", () => {
+    const result = classifyDismissal("This is not relevant to this PR");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("disagree");
+  });
+
+  it("detects 'already known' as already-known", () => {
+    const result = classifyDismissal("This is already known — legacy code");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("already-known");
+  });
+
+  it("detects 'known issue' as already-known", () => {
+    const result = classifyDismissal("This is a known issue in the framework");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("already-known");
+  });
+
+  it("detects case-insensitive 'THIS IS INTENTIONAL' as intentional", () => {
+    const result = classifyDismissal("THIS IS INTENTIONAL BEHAVIOR");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("intentional");
+  });
+
+  it("detects 'coming back later' as will-fix-later", () => {
+    const result = classifyDismissal("Coming back to this later in another PR");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("will-fix-later");
+  });
+
+  it("does not detect 'I will fix it now' as dismissal", () => {
+    const result = classifyDismissal("I'll fix this right away");
+    expect(result.isDismissal).toBe(false);
+  });
+
+  it("detects 'unnecessary' as disagree", () => {
+    const result = classifyDismissal("This change is unnecessary");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("disagree");
+  });
+
+  it("detects 'historical' as already-known", () => {
+    const result = classifyDismissal("This is historical behavior");
+    expect(result.isDismissal).toBe(true);
+    expect(result.kind).toBe("already-known");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -396,5 +443,226 @@ describe("analyzeThreadContinuity", () => {
     expect(result.bodySummary).toContain("<details>");
     expect(result.bodySummary).toContain("src/a.ts:5");
     expect(result.bodySummary).toContain("</details>");
+  });
+
+  it("handles multiple dismissal kinds in one thread", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/a.ts",
+                line: 5,
+                body: "<!-- mizumi-review-marker -->\nSecurity issue.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 2,
+                path: "src/a.ts",
+                line: 5,
+                body: "This is intentional.",
+                user: { login: "pr-author" },
+                in_reply_to_id: 1,
+              },
+              {
+                id: 3,
+                path: "src/b.ts",
+                line: 10,
+                body: "<!-- mizumi-review-marker -->\nBug here.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 4,
+                path: "src/b.ts",
+                line: 10,
+                body: "Will fix in a follow-up PR.",
+                user: { login: "pr-author" },
+                in_reply_to_id: 3,
+              },
+              {
+                id: 5,
+                path: "src/c.ts",
+                line: 20,
+                body: "<!-- mizumi-review-marker -->\nFalse positive?",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 6,
+                path: "src/c.ts",
+                line: 20,
+                body: "False positive — not a bug.",
+                user: { login: "pr-author" },
+                in_reply_to_id: 5,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await analyzeThreadContinuity(mockOctokit, "owner", "repo", 42, "pr-author");
+    expect(result.dismissalCount).toBe(3);
+    expect(result.contextText).toContain("intentional");
+    expect(result.contextText).toContain("will-fix-later");
+    expect(result.contextText).toContain("false-positive");
+  });
+
+  it("ignores Mizumi's own replies", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/a.ts",
+                line: 5,
+                body: "<!-- mizumi-review-marker -->\nIssue.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 2,
+                path: "src/a.ts",
+                line: 5,
+                body: "Updated finding after re-review.",
+                user: { login: "mizumi-bot" }, // Same bot, not author
+                in_reply_to_id: 1,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const replies = await fetchReviewThreadReplies(mockOctokit, "owner", "repo", 42, "pr-author");
+    expect(replies).toHaveLength(0);
+  });
+
+  it("handles comment with null in_reply_to_id as root", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/x.ts",
+                line: 30,
+                body: "<!-- mizumi-review-marker -->\nAnother finding.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const replies = await fetchReviewThreadReplies(mockOctokit, "owner", "repo", 42, "pr-author");
+    expect(replies).toHaveLength(0); // No author replies
+  });
+
+  it("stores reply text in ThreadReply", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/a.ts",
+                line: 5,
+                body: "<!-- mizumi-review-marker -->\nIssue.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 2,
+                path: "src/a.ts",
+                line: 5,
+                body: "This is intentional for performance.",
+                user: { login: "pr-author" },
+                in_reply_to_id: 1,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const replies = await fetchReviewThreadReplies(mockOctokit, "owner", "repo", 42, "pr-author");
+    expect(replies[0].replyBody).toBe("This is intentional for performance.");
+  });
+
+  it("handles deleted users gracefully", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/a.ts",
+                line: 5,
+                body: "<!-- mizumi-review-marker -->\nIssue.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 2,
+                path: "src/a.ts",
+                line: 5,
+                body: "This is intentional.",
+                user: null, // Deleted user
+                in_reply_to_id: 1,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const replies = await fetchReviewThreadReplies(mockOctokit, "owner", "repo", 42, "pr-author");
+    // Should not crash, user is null so not the author
+    expect(replies).toHaveLength(0);
+  });
+
+  it("context text includes file and line for dismissals", async () => {
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listReviewComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 1,
+                path: "src/auth/middleware.ts",
+                line: 42,
+                body: "<!-- mizumi-review-marker -->\nMissing check.",
+                user: { login: "mizumi-bot" },
+                in_reply_to_id: null,
+              },
+              {
+                id: 2,
+                path: "src/auth/middleware.ts",
+                line: 42,
+                body: "Won't fix — legacy code.",
+                user: { login: "pr-author" },
+                in_reply_to_id: 1,
+              },
+            ],
+          }),
+        },
+      },
+    } as any;
+
+    const result = await analyzeThreadContinuity(mockOctokit, "owner", "repo", 42, "pr-author");
+    expect(result.contextText).toContain("src/auth/middleware.ts");
+    expect(result.contextText).toContain("42");
   });
 });

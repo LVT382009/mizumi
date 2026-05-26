@@ -112,6 +112,7 @@ const testConfig = {
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

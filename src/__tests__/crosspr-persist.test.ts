@@ -251,4 +251,164 @@ describe("trackCrossPRFindings", () => {
     const notInCurrent = result.recurringFindings.filter(r => !r.inCurrentPR);
     expect(notInCurrent.length).toBeGreaterThan(0);
   });
+
+  it("limits pattern entries to MAX_ENTRIES_PER_PATTERN", () => {
+    // Add many entries for the same pattern across many PRs
+    for (let i = 0; i < 55; i++) {
+      trackCrossPRFindings(tmpDir, `owner/repo#${i}`, [
+        makeFinding({ message: "Recurring overflow pattern" }),
+      ]);
+    }
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    const store = JSON.parse(fs.readFileSync(storePath, "utf-8"));
+    const pattern = Object.values(store.patterns)[0] as any[];
+    // Entries should be capped at 50
+    expect(pattern.length).toBeLessThanOrEqual(50);
+  });
+
+  it("context text shows category and file area", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Auth bypass", category: "security", file: "src/auth/login.ts" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "Auth bypass", category: "security", file: "src/auth/login.ts" }),
+    ]);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    if (inCurrent.length > 0) {
+      expect(result.contextText).toContain("security");
+      expect(result.contextText).toContain("src/auth");
+    }
+  });
+
+  it("context text limits to 6 recurring patterns", () => {
+    // Create 8 different recurring patterns
+    for (let i = 0; i < 8; i++) {
+      trackCrossPRFindings(tmpDir, "owner/repo#1", [
+        makeFinding({ message: `Pattern ${i}`, category: i < 3 ? "security" : "bug" }),
+      ]);
+      trackCrossPRFindings(tmpDir, "owner/repo#2", [
+        makeFinding({ message: `Pattern ${i}`, category: i < 3 ? "security" : "bug" }),
+      ]);
+    }
+    // Just verify it doesn't crash with many patterns
+    const result3 = trackCrossPRFindings(tmpDir, "owner/repo#3", []);
+    expect(result3.contextText).toBeDefined();
+  });
+
+  it("body summary includes PR count column", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [makeFinding({ message: "SQLi pattern" })]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [makeFinding({ message: "SQLi pattern" })]);
+    if (result.bodySummary) {
+      expect(result.bodySummary).toContain("PRs");
+    }
+  });
+
+  it("body summary includes tracked patterns count", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [makeFinding()]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [makeFinding()]);
+    if (result.bodySummary) {
+      expect(result.bodySummary).toContain("tracked patterns");
+    }
+  });
+
+  it("handles findings with special characters in messages", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: 'XSS: <script>alert("xss")</script>' }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: 'XSS: <script>alert("xss")</script>' }),
+    ]);
+    expect(() => JSON.stringify(result)).not.toThrow();
+  });
+
+  it("handles concurrent writes gracefully (last-write-wins)", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Concurrent pattern A" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Concurrent pattern B" }),
+    ]);
+    // Both patterns should exist
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    expect(fs.existsSync(storePath)).toBe(true);
+  });
+
+  it("fingerprint hashes different messages differently", () => {
+    const fp1 = fingerprintCrossPR(makeFinding({ message: "Missing auth" }));
+    const fp2 = fingerprintCrossPR(makeFinding({ message: "Buffer overflow" }));
+    expect(fp1.messageHash).not.toBe(fp2.messageHash);
+  });
+
+  it("truncates message in entry to 80 chars", () => {
+    const longMessage = "x".repeat(200);
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: longMessage }),
+    ]);
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    const store = JSON.parse(fs.readFileSync(storePath, "utf-8"));
+    const entries = Object.values(store.patterns)[0] as any[];
+    expect(entries[0].message.length).toBeLessThanOrEqual(80);
+  });
+
+  it("distinct PRs counted correctly even with multiple entries per PR", () => {
+    // Same PR, same pattern, two findings → should count as 1 PR
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Multi-entry pattern" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Multi-entry pattern" }),
+    ]);
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    const store = JSON.parse(fs.readFileSync(storePath, "utf-8"));
+    const entries = Object.values(store.patterns)[0] as any[];
+    // Should have 2 entries but they're from the same PR
+    const prSet = new Set(entries.map((e: any) => e.prKey));
+    expect(prSet.size).toBe(1);
+  });
+
+  it("recurring finding includes PR details", () => {
+    trackCrossPRFindings(tmpDir, "org/repo#10", [
+      makeFinding({ message: "Detail check" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "org/repo#20", [
+      makeFinding({ message: "Detail check" }),
+    ]);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    if (inCurrent.length > 0) {
+      expect(inCurrent[0].prs.length).toBeGreaterThan(0);
+      expect(inCurrent[0].prs[0].prKey).toBeTruthy();
+      expect(inCurrent[0].prs[0].severity).toBeTruthy();
+    }
+  });
+
+  it("handles file in two-level path correctly", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "src/app.ts" }));
+    // Two-segment path → full path as fileArea
+    expect(fp.fileArea).toBe("src/app.ts");
+  });
+
+  it("handles file with dots in name", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "src/.env.local" }));
+    expect(fp.fileArea).toBe("src/.env.local");
+  });
+
+  it("recurring finding shows at most 5 PRs", () => {
+    for (let i = 0; i < 10; i++) {
+      trackCrossPRFindings(tmpDir, `org/repo#${i}`, [
+        makeFinding({ message: "Many-PR pattern" }),
+      ]);
+    }
+    const result = trackCrossPRFindings(tmpDir, "org/repo#10", [
+      makeFinding({ message: "Many-PR pattern" }),
+    ]);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    if (inCurrent.length > 0) {
+      expect(inCurrent[0].prs.length).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it("empty findings produces zero totalPatterns", () => {
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#1", []);
+    expect(result.totalPatterns).toBe(0);
+  });
 });

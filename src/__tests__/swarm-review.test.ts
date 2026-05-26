@@ -278,6 +278,7 @@ describe("runSwarmReview", () => {
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

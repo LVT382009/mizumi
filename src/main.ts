@@ -67,6 +67,7 @@ import { analyzeDepImpact } from "./dep-impact.js";
 import { analyzeThreadContinuity } from "./thread-continuity.js";
 import { trackCrossPRFindings } from "./crosspr-persist.js";
 import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
+import { prioritizeFindings } from "./review-priority.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -1270,6 +1271,31 @@ if (config.sarifExport && mergedReview.comments.length > 0) {
     }
   } catch (e) {
     core.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 10d3. Review priority scoring - per-finding triage signal
+if (config.reviewPriority && mergedReview.comments.length > 0) {
+  try {
+    const priorityInputs = mergedReview.comments.map(c => ({
+      finding: c,
+      isOwned: false, // ownership not easily accessible post-review
+      fileIntent: intentResult ? intentResult.fileIntents.find(fi => fi.file === c.file)?.intent : undefined,
+      recurrenceCount: crossPRResult ? crossPRResult.recurringFindings.find(r => r.inCurrentPR && r.category === c.category)?.prCount ?? 0 : 0,
+    }));
+    const priorityResult = prioritizeFindings(priorityInputs);
+    core.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter(f => f.priorityLevel === "critical").length + " critical");
+    if (priorityResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner, repo, issue_number: prNumber, body: priorityResult.bodySummary,
+        });
+      } catch (e) {
+        core.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+  } catch (e) {
+    core.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 // 10d. Record findings for emoji feedback tracking

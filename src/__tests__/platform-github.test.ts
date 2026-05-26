@@ -152,6 +152,7 @@ vi.mock("../config.js", () => ({
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

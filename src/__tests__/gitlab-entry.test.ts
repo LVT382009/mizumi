@@ -81,6 +81,7 @@ vi.mock("../config.js", () => ({
     threadContinuity: true,
     crossPRPersistence: true,
     sarifExport: true,
+    reviewPriority: true,
   })),
 }));
 

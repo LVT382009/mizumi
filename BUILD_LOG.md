@@ -463,9 +463,17 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Test expansions**: walkthrough 29→47 (+18), models 28→49 (+21)
 - **3130 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3130 Tests)
+### Cycle: Review Priority + Test Expansions (2026-05-26)
 
-- **3130 tests** passing (75 test files)
+- **Review priority scoring** (`review-priority.ts`): Per-finding 1-10 priority score combining severity weight (critical=10, high=8, medium=5, low=2, nitpick=1) x confidence factor x category multiplier (security=1.5, bug=1.3, compliance=1.2, performance=1.1, architecture=1.0, style=0.8), normalized to 7-point base, plus additive boosts: ownership +2, intent alignment +2, recurrence +1/PR (cap 3). Priority levels: >=8 critical, >=6 high, >=3 medium, <3 low. Zero LLM cost. No other AI reviewer computes per-finding priority. Config: `review_priority` (default true). 35 tests.
+- **Test expansions**: crosspr-persist 22->37 (+15), thread-continuity 25->39 (+14)
+- **Fixed thread-continuity tests**: removed misplaced classifyDismissal tests from analyzeThreadContinuity block, added 9 new classifyDismissal unit tests with correct patterns
+- **Config propagation**: sarifExport + reviewPriority added to all 8 test config stubs
+- **3194 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3194 Tests)
+
+- **3194 tests** passing (75 test files)
 - **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -482,6 +490,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Review thread continuity**: reads author replies to prior review comments, detects dismissal patterns, avoids re-raising dismissed issues. No other AI reviewer reads prior review threads.
 - **Cross-PR finding persistence**: tracks recurring issue patterns across PRs, surfaces systemic problems. No other AI reviewer tracks findings across PRs.
 - **SARIF 2.1.0 export**: uploads findings to GitHub Code Scanning alerts tab (alongside CodeQL). Stable fingerprints for alert tracking, severity→level mapping, rule metadata. No other AI reviewer integrates with Code Scanning.
+- **Review priority scoring**: per-finding 1-10 priority combining severity, confidence, category, ownership, intent, recurrence. Zero LLM cost. No other AI reviewer computes per-finding priority.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
