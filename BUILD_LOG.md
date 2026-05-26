@@ -505,8 +505,8 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 3456 Tests)
 
-- **3456 tests** passing (77 test files)
-- **8,600+ production lines** (51+ source modules)
+- **3494 tests** passing (78 test files)
+- **8,800+ production lines** (53+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
