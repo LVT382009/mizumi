@@ -71,7 +71,8 @@ import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
 import { prioritizeFindings } from "./review-priority.js";
 import { defendInput, defendOutput, validateReviewOutput } from "./defense.js";
 import { createCheckRun } from "./checks.js";
-import { buildProjectIndex } from "./project-index.js";
+import { buildProjectIndex, type ProjectIndex } from "./project-index.js";
+import { computeRepoHealth } from "./repo-health.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -623,8 +624,9 @@ if (manualInstructions) {
   }
   
 // 5b2. Project structure index - zero-LLM ad-hoc workspace scan (competitive gap #3.1)
+let projectIndex: ProjectIndex | undefined;
 try {
-  const projectIndex = buildProjectIndex(workspace);
+  projectIndex = buildProjectIndex(workspace);
   if (projectIndex.contextText) {
     context.rulesContent += `
 
@@ -633,6 +635,17 @@ try {
   }
 } catch (e) {
   core.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+}
+
+// 5b3. Repository health score - zero-LLM health assessment
+try {
+  const repoHealth = computeRepoHealth(workspace, projectIndex ? projectIndex.keyFiles : []);
+  if (repoHealth.contextText) {
+    context.rulesContent += "\n\n" + repoHealth.contextText;
+    core.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
+  }
+} catch (e) {
+  core.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
 }
 
 // 5c. ADR context injection - inject ADR context into review

@@ -1073,14 +1073,14 @@ var require_util = __commonJS({
         }
         const port = url2.port != null ? url2.port : url2.protocol === "https:" ? 443 : 80;
         let origin = url2.origin != null ? url2.origin : `${url2.protocol || ""}//${url2.hostname || ""}:${port}`;
-        let path22 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
+        let path23 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
         if (origin[origin.length - 1] === "/") {
           origin = origin.slice(0, origin.length - 1);
         }
-        if (path22 && path22[0] !== "/") {
-          path22 = `/${path22}`;
+        if (path23 && path23[0] !== "/") {
+          path23 = `/${path23}`;
         }
-        return new URL(`${origin}${path22}`);
+        return new URL(`${origin}${path23}`);
       }
       if (!isHttpOrHttpsPrefixed(url2.origin || url2.protocol)) {
         throw new InvalidArgumentError3("Invalid URL protocol: the URL must start with `http:` or `https:`.");
@@ -1531,39 +1531,39 @@ var require_diagnostics = __commonJS({
       });
       diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
         const {
-          request: { method, path: path22, origin }
+          request: { method, path: path23, origin }
         } = evt;
-        debuglog("sending request to %s %s/%s", method, origin, path22);
+        debuglog("sending request to %s %s/%s", method, origin, path23);
       });
       diagnosticsChannel.channel("undici:request:headers").subscribe((evt) => {
         const {
-          request: { method, path: path22, origin },
+          request: { method, path: path23, origin },
           response: { statusCode }
         } = evt;
         debuglog(
           "received response to %s %s/%s - HTTP %d",
           method,
           origin,
-          path22,
+          path23,
           statusCode
         );
       });
       diagnosticsChannel.channel("undici:request:trailers").subscribe((evt) => {
         const {
-          request: { method, path: path22, origin }
+          request: { method, path: path23, origin }
         } = evt;
-        debuglog("trailers received from %s %s/%s", method, origin, path22);
+        debuglog("trailers received from %s %s/%s", method, origin, path23);
       });
       diagnosticsChannel.channel("undici:request:error").subscribe((evt) => {
         const {
-          request: { method, path: path22, origin },
+          request: { method, path: path23, origin },
           error: error52
         } = evt;
         debuglog(
           "request to %s %s/%s errored - %s",
           method,
           origin,
-          path22,
+          path23,
           error52.message
         );
       });
@@ -1612,9 +1612,9 @@ var require_diagnostics = __commonJS({
         });
         diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
           const {
-            request: { method, path: path22, origin }
+            request: { method, path: path23, origin }
           } = evt;
-          debuglog("sending request to %s %s/%s", method, origin, path22);
+          debuglog("sending request to %s %s/%s", method, origin, path23);
         });
       }
       diagnosticsChannel.channel("undici:websocket:open").subscribe((evt) => {
@@ -1677,7 +1677,7 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var Request = class {
       constructor(origin, {
-        path: path22,
+        path: path23,
         method,
         body,
         headers,
@@ -1692,11 +1692,11 @@ var require_request = __commonJS({
         expectContinue,
         servername
       }, handler2) {
-        if (typeof path22 !== "string") {
+        if (typeof path23 !== "string") {
           throw new InvalidArgumentError3("path must be a string");
-        } else if (path22[0] !== "/" && !(path22.startsWith("http://") || path22.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path23[0] !== "/" && !(path23.startsWith("http://") || path23.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError3("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.test(path22)) {
+        } else if (invalidPathRegex.test(path23)) {
           throw new InvalidArgumentError3("invalid request path");
         }
         if (typeof method !== "string") {
@@ -1762,7 +1762,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? buildURL(path22, query) : path22;
+        this.path = query ? buildURL(path23, query) : path23;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6288,7 +6288,7 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     function writeH1(client, request2) {
-      const { method, path: path22, host, upgrade, blocking, reset } = request2;
+      const { method, path: path23, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util2.isFormDataLike(body)) {
@@ -6354,7 +6354,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path22} HTTP/1.1\r
+      let header = `${method} ${path23} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -6880,7 +6880,7 @@ var require_client_h2 = __commonJS({
     }
     function writeH2(client, request2) {
       const session = client[kHTTP2Session];
-      const { method, path: path22, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { method, path: path23, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
         util2.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -6947,7 +6947,7 @@ var require_client_h2 = __commonJS({
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path22;
+      headers[HTTP2_HEADER_PATH] = path23;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -7300,9 +7300,9 @@ var require_redirect_handler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path22 = search ? `${pathname}${search}` : pathname;
+        const path23 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path22;
+        this.opts.path = path23;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -8537,10 +8537,10 @@ var require_proxy_agent = __commonJS({
         };
         const {
           origin,
-          path: path22 = "/",
+          path: path23 = "/",
           headers = {}
         } = opts;
-        opts.path = origin + path22;
+        opts.path = origin + path23;
         if (!("host" in headers) && !("Host" in headers)) {
           const { host } = new URL2(origin);
           headers.host = host;
@@ -10461,20 +10461,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path22) {
-      if (typeof path22 !== "string") {
-        return path22;
+    function safeUrl(path23) {
+      if (typeof path23 !== "string") {
+        return path23;
       }
-      const pathSegments = path22.split("?");
+      const pathSegments = path23.split("?");
       if (pathSegments.length !== 2) {
-        return path22;
+        return path23;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path22, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path22);
+    function matchKey(mockDispatch2, { path: path23, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path23);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10496,7 +10496,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path22 }) => matchValue(safeUrl(path22), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path23 }) => matchValue(safeUrl(path23), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10534,9 +10534,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path22, method, body, headers, query } = opts;
+      const { path: path23, method, body, headers, query } = opts;
       return {
-        path: path22,
+        path: path23,
         method,
         body,
         headers,
@@ -10999,10 +10999,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path22, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path23, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path22,
+            Path: path23,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
@@ -15883,9 +15883,9 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path22) {
-      for (let i = 0; i < path22.length; ++i) {
-        const code = path22.charCodeAt(i);
+    function validateCookiePath(path23) {
+      for (let i = 0; i < path23.length; ++i) {
+        const code = path23.charCodeAt(i);
         if (code < 32 || // exclude CTLs (0-31)
         code === 127 || // DEL
         code === 59) {
@@ -18562,11 +18562,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError3("invalid opts.path");
           }
-          let path22 = opts.path;
+          let path23 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path22 = `/${path22}`;
+            path23 = `/${path23}`;
           }
-          url2 = new URL(util2.parseOrigin(url2).origin + path22);
+          url2 = new URL(util2.parseOrigin(url2).origin + path23);
         } else {
           if (!opts) {
             opts = typeof url2 === "object" ? url2 : {};
@@ -21143,8 +21143,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module.exports = __toCommonJS(auth_config_exports);
-    var fs21 = __toESM2(__require("fs"));
-    var path22 = __toESM2(__require("path"));
+    var fs22 = __toESM2(__require("fs"));
+    var path23 = __toESM2(__require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -21153,15 +21153,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path22.join(dataDir, "auth.json");
+      return path23.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs21.existsSync(authPath)) {
+        if (!fs22.existsSync(authPath)) {
           return null;
         }
-        const content = fs21.readFileSync(authPath, "utf8");
+        const content = fs22.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -21172,11 +21172,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path22.dirname(authPath);
-      if (!fs21.existsSync(authDir)) {
-        fs21.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path23.dirname(authPath);
+      if (!fs22.existsSync(authDir)) {
+        fs22.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs21.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs22.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -21367,8 +21367,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module.exports = __toCommonJS(token_util_exports);
-    var path22 = __toESM2(__require("path"));
-    var fs21 = __toESM2(__require("fs"));
+    var path23 = __toESM2(__require("path"));
+    var fs22 = __toESM2(__require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -21380,7 +21380,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path22.join(dataDir, vercelFolder);
+      return path23.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -21456,13 +21456,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path22.join(dir, ".vercel", "project.json");
-      if (!fs21.existsSync(prjPath)) {
+      const prjPath = path23.join(dir, ".vercel", "project.json");
+      if (!fs22.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs21.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs22.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -21477,11 +21477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path23.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs21.mkdirSync(path22.dirname(tokenPath), { mode: 504, recursive: true });
-      fs21.writeFileSync(tokenPath, tokenJson);
-      fs21.chmodSync(tokenPath, 432);
+      fs22.mkdirSync(path23.dirname(tokenPath), { mode: 504, recursive: true });
+      fs22.writeFileSync(tokenPath, tokenJson);
+      fs22.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -21491,11 +21491,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path22.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs21.existsSync(tokenPath)) {
+      const tokenPath = path23.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs22.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs21.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs22.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -22351,10 +22351,10 @@ var require_util9 = __commonJS({
     function cloneDef2(schema) {
       return mergeDefs2(schema._zod.def);
     }
-    function getElementAtPath2(obj, path22) {
-      if (!path22)
+    function getElementAtPath2(obj, path23) {
+      if (!path23)
         return obj;
-      return path22.reduce((acc, key) => acc?.[key], obj);
+      return path23.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject2(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -22764,11 +22764,11 @@ var require_util9 = __commonJS({
       }
       return false;
     }
-    function prefixIssues2(path22, issues) {
+    function prefixIssues2(path23, issues) {
       return issues.map((iss) => {
         var _a21;
         (_a21 = iss).path ?? (_a21.path = []);
-        iss.path.unshift(path22);
+        iss.path.unshift(path23);
         return iss;
       });
     }
@@ -22957,16 +22957,16 @@ var require_errors2 = __commonJS({
     }
     function formatError2(error52, mapper = (issue3) => issue3.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error53, path22 = []) => {
+      const processError = (error53, path23 = []) => {
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path22, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path23, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
           } else {
-            const fullpath = [...path22, ...issue3.path];
+            const fullpath = [...path23, ...issue3.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue3));
             } else {
@@ -22993,17 +22993,17 @@ var require_errors2 = __commonJS({
     }
     function treeifyError2(error52, mapper = (issue3) => issue3.message) {
       const result = { errors: [] };
-      const processError = (error53, path22 = []) => {
+      const processError = (error53, path23 = []) => {
         var _a21, _b17;
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path22, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path23, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
           } else {
-            const fullpath = [...path22, ...issue3.path];
+            const fullpath = [...path23, ...issue3.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue3));
               continue;
@@ -23035,8 +23035,8 @@ var require_errors2 = __commonJS({
     }
     function toDotPath2(_path) {
       const segs = [];
-      const path22 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path22) {
+      const path23 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path23) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -38368,13 +38368,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path22 = ref.slice(1).split("/").filter(Boolean);
-      if (path22.length === 0) {
+      const path23 = ref.slice(1).split("/").filter(Boolean);
+      if (path23.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path22[0] === defsKey) {
-        const key = path22[1];
+      if (path23[0] === defsKey) {
+        const key = path23[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -39425,8 +39425,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors4();
     var en_js_1 = __importDefault(require_en2());
     var makeIssue2 = (params) => {
-      const { data, path: path22, errorMaps, issueData } = params;
-      const fullPath = [...path22, ...issueData.path || []];
+      const { data, path: path23, errorMaps, issueData } = params;
+      const fullPath = [...path23, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -39580,11 +39580,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util10();
     var ParseInputLazyPath2 = class {
-      constructor(parent, value, path22, key) {
+      constructor(parent, value, path23, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path22;
+        this._path = path23;
         this._key = key;
       }
       get path() {
@@ -52447,8 +52447,8 @@ var Context = class {
       if (existsSync2(process.env.GITHUB_EVENT_PATH)) {
         this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
       } else {
-        const path22 = process.env.GITHUB_EVENT_PATH;
-        process.stdout.write(`GITHUB_EVENT_PATH ${path22} does not exist${EOL5}`);
+        const path23 = process.env.GITHUB_EVENT_PATH;
+        process.stdout.write(`GITHUB_EVENT_PATH ${path23} does not exist${EOL5}`);
       }
     }
     this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -56150,17 +56150,17 @@ function requestLog(octokit) {
     octokit.log.debug("request", options);
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
-    const path22 = requestOptions.url.replace(options.baseUrl, "");
+    const path23 = requestOptions.url.replace(options.baseUrl, "");
     return request2(options).then((response) => {
       const requestId = response.headers["x-github-request-id"];
       octokit.log.info(
-        `${requestOptions.method} ${path22} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path23} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       return response;
     }).catch((error52) => {
       const requestId = error52.response?.headers["x-github-request-id"] || "UNKNOWN";
       octokit.log.error(
-        `${requestOptions.method} ${path22} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path23} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       throw error52;
     });
@@ -59947,10 +59947,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path22) {
-  if (!path22)
+function getElementAtPath(obj, path23) {
+  if (!path23)
     return obj;
-  return path22.reduce((acc, key) => acc?.[key], obj);
+  return path23.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -60359,11 +60359,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path22, issues) {
+function prefixIssues(path23, issues) {
   return issues.map((iss) => {
     var _a21;
     (_a21 = iss).path ?? (_a21.path = []);
-    iss.path.unshift(path22);
+    iss.path.unshift(path23);
     return iss;
   });
 }
@@ -60510,16 +60510,16 @@ function flattenError(error52, mapper = (issue3) => issue3.message) {
 }
 function formatError(error52, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error53, path22 = []) => {
+  const processError = (error53, path23 = []) => {
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path22, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path23, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
       } else {
-        const fullpath = [...path22, ...issue3.path];
+        const fullpath = [...path23, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -60546,17 +60546,17 @@ function formatError(error52, mapper = (issue3) => issue3.message) {
 }
 function treeifyError(error52, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error53, path22 = []) => {
+  const processError = (error53, path23 = []) => {
     var _a21, _b17;
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path22, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path23, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path22, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path23, ...issue3.path]);
       } else {
-        const fullpath = [...path22, ...issue3.path];
+        const fullpath = [...path23, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -60588,8 +60588,8 @@ function treeifyError(error52, mapper = (issue3) => issue3.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path22 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path22) {
+  const path23 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path23) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -73281,13 +73281,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path22 = ref.slice(1).split("/").filter(Boolean);
-  if (path22.length === 0) {
+  const path23 = ref.slice(1).split("/").filter(Boolean);
+  if (path23.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path22[0] === defsKey) {
-    const key = path22[1];
+  if (path23[0] === defsKey) {
+    const key = path23[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -74054,8 +74054,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path22, errorMaps, issueData } = params;
-  const fullPath = [...path22, ...issueData.path || []];
+  const { data, path: path23, errorMaps, issueData } = params;
+  const fullPath = [...path23, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -74170,11 +74170,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path22, key) {
+  constructor(parent, value, path23, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path22;
+    this._path = path23;
     this._key = key;
   }
   get path() {
@@ -100193,37 +100193,37 @@ function createOpenAI(options = {}) {
   );
   const createChatModel = (modelId) => new OpenAIChatLanguageModel(modelId, {
     provider: `${providerName}.chat`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createCompletionModel = (modelId) => new OpenAICompletionLanguageModel(modelId, {
     provider: `${providerName}.completion`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createEmbeddingModel = (modelId) => new OpenAIEmbeddingModel(modelId, {
     provider: `${providerName}.embedding`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createImageModel = (modelId) => new OpenAIImageModel(modelId, {
     provider: `${providerName}.image`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createTranscriptionModel = (modelId) => new OpenAITranscriptionModel(modelId, {
     provider: `${providerName}.transcription`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createSpeechModel = (modelId) => new OpenAISpeechModel(modelId, {
     provider: `${providerName}.speech`,
-    url: ({ path: path22 }) => `${baseURL}${path22}`,
+    url: ({ path: path23 }) => `${baseURL}${path23}`,
     headers: getHeaders,
     fetch: options.fetch
   });
@@ -100238,7 +100238,7 @@ function createOpenAI(options = {}) {
   const createResponsesModel = (modelId) => {
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${providerName}.responses`,
-      url: ({ path: path22 }) => `${baseURL}${path22}`,
+      url: ({ path: path23 }) => `${baseURL}${path23}`,
       headers: getHeaders,
       fetch: options.fetch,
       fileIdPrefixes: ["file-"]
@@ -108344,16 +108344,16 @@ function createAgentTools(octokit, owner, repo, headSha) {
     inputSchema: external_exports.object({
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
-    execute: async ({ path: path22 }) => {
-      if (isBlockedPath(path22)) {
-        warning(`Agent read_file blocked: ${path22} matches secret file pattern`);
-        return `Access denied: ${path22} is a protected file (secrets/credentials)`;
+    execute: async ({ path: path23 }) => {
+      if (isBlockedPath(path23)) {
+        warning(`Agent read_file blocked: ${path23} matches secret file pattern`);
+        return `Access denied: ${path23} is a protected file (secrets/credentials)`;
       }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
-          path: path22,
+          path: path23,
           ref: headSha,
           headers: { accept: "application/vnd.github.raw+json" }
         });
@@ -108364,9 +108364,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
           const decoded = Buffer.from(data.content, "base64").toString("utf-8");
           return truncate(decoded, 5e3);
         }
-        return `File: ${path22} - could not read content`;
+        return `File: ${path23} - could not read content`;
       } catch {
-        return `File not found or inaccessible: ${path22}`;
+        return `File not found or inaccessible: ${path23}`;
       }
     }
   });
@@ -110188,11 +110188,11 @@ function runASTContractAnalysis(diffFiles, workspace) {
   for (const file2 of diffFiles) {
     if (!/\.[tj]sx?$/.test(file2.path)) continue;
     try {
-      const fs21 = __require("node:fs");
-      const path22 = __require("node:path");
-      const fullPath = path22.join(workspace, file2.path);
-      if (fs21.existsSync(fullPath)) {
-        allFileContents.set(file2.path, fs21.readFileSync(fullPath, "utf-8"));
+      const fs22 = __require("node:fs");
+      const path23 = __require("node:path");
+      const fullPath = path23.join(workspace, file2.path);
+      if (fs22.existsSync(fullPath)) {
+        allFileContents.set(file2.path, fs22.readFileSync(fullPath, "utf-8"));
         filesAnalyzed++;
       }
     } catch {
@@ -111607,9 +111607,9 @@ var PUBLIC_ROUTE_PATTERNS = [
   /^\/graphql/i
   // Often public, but may have auth at middleware level
 ];
-function isPublicRoute(path22) {
-  if (!path22) return false;
-  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path22));
+function isPublicRoute(path23) {
+  if (!path23) return false;
+  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path23));
 }
 function hasAuthSignal(content) {
   return AUTH_SIGNALS.some((re2) => re2.test(content));
@@ -113826,12 +113826,12 @@ function detectLockfileChanges(files) {
   }
   return lockfileChanges;
 }
-function isDepFile(path22) {
-  if (PACKAGE_JSON_PATTERN.test(path22)) return true;
+function isDepFile(path23) {
+  if (PACKAGE_JSON_PATTERN.test(path23)) return true;
   for (const pattern of LOCKFILE_PATTERNS) {
-    if (pattern.test(path22)) return true;
+    if (pattern.test(path23)) return true;
   }
-  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path22)) {
+  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path23)) {
     return true;
   }
   return false;
@@ -114883,6 +114883,274 @@ function buildProjectIndex(workspace) {
   };
 }
 
+// src/repo-health.ts
+import * as fs21 from "node:fs";
+import * as path22 from "node:path";
+function detectCIConfig(workspace, keyFiles) {
+  const hasCI = keyFiles.some((f) => f.role === "CI/CD") || fs21.existsSync(path22.join(workspace, ".github", "workflows")) || fs21.existsSync(path22.join(workspace, ".gitlab-ci.yml")) || fs21.existsSync(path22.join(workspace, "Jenkinsfile")) || fs21.existsSync(path22.join(workspace, ".circleci"));
+  const score = hasCI ? 10 : 0;
+  return {
+    id: "ci_config",
+    name: "CI/CD Configuration",
+    weight: 1,
+    score,
+    maxScore: 10,
+    detail: hasCI ? "CI pipeline detected" : "No CI configuration found"
+  };
+}
+function detectTestFramework(workspace, keyFiles) {
+  const hasTestConfig = keyFiles.some(
+    (f) => f.role === "test config" || f.path.includes("__tests__") || f.path.includes(".test.") || f.path.includes(".spec.")
+  );
+  const hasTestDir = fs21.existsSync(path22.join(workspace, "test")) || fs21.existsSync(path22.join(workspace, "tests")) || fs21.existsSync(path22.join(workspace, "__tests__")) || fs21.existsSync(path22.join(workspace, "spec"));
+  const score = (hasTestConfig ? 6 : 0) + (hasTestDir ? 4 : 0);
+  return {
+    id: "test_framework",
+    name: "Test Framework",
+    weight: 1.2,
+    score,
+    maxScore: 10,
+    detail: hasTestConfig && hasTestDir ? "Test framework + test directory detected" : hasTestConfig ? "Test config found but no test directory" : hasTestDir ? "Test directory found but no test config" : "No test framework detected"
+  };
+}
+function detectLintConfig(_workspace, keyFiles) {
+  const hasLinter = keyFiles.some((f) => f.role === "linter");
+  const score = hasLinter ? 10 : 0;
+  return {
+    id: "lint_config",
+    name: "Linter Configuration",
+    weight: 0.8,
+    score,
+    maxScore: 10,
+    detail: hasLinter ? "Linter configuration found" : "No linter configuration found"
+  };
+}
+function detectFormatterConfig(keyFiles) {
+  const hasFormatter = keyFiles.some((f) => f.role === "formatter");
+  const score = hasFormatter ? 10 : 0;
+  return {
+    id: "formatter_config",
+    name: "Code Formatter",
+    weight: 0.5,
+    score,
+    maxScore: 10,
+    detail: hasFormatter ? "Formatter configuration found" : "No formatter configuration found"
+  };
+}
+function detectContainerConfig(keyFiles) {
+  const hasContainer = keyFiles.some((f) => f.role === "container");
+  const score = hasContainer ? 10 : 0;
+  return {
+    id: "container_config",
+    name: "Container Configuration",
+    weight: 0.6,
+    score,
+    maxScore: 10,
+    detail: hasContainer ? "Docker/container config found" : "No container configuration found"
+  };
+}
+function detectDependencyManagement(keyFiles) {
+  const hasDeps = keyFiles.some((f) => f.role === "dependencies");
+  const hasLockfile = keyFiles.some((f) => f.role === "lockfile");
+  const score = (hasDeps ? 6 : 0) + (hasLockfile ? 4 : 0);
+  return {
+    id: "dependency_mgmt",
+    name: "Dependency Management",
+    weight: 1,
+    score,
+    maxScore: 10,
+    detail: hasDeps && hasLockfile ? "Dependency file + lockfile present" : hasDeps ? "Dependency file without lockfile" : "No dependency management detected"
+  };
+}
+function detectEnvConfig(workspace, keyFiles) {
+  const hasEnv = keyFiles.some((f) => f.role === "environment");
+  const hasEnvExample = fs21.existsSync(path22.join(workspace, ".env.example")) || fs21.existsSync(path22.join(workspace, ".env.sample"));
+  const score = hasEnv ? hasEnvExample ? 10 : 5 : 5;
+  return {
+    id: "env_config",
+    name: "Environment Configuration",
+    weight: 0.7,
+    score,
+    maxScore: 10,
+    detail: hasEnv && !hasEnvExample ? ".env file present but no .env.example \u2014 add a template for new developers" : hasEnvExample ? "Environment template found" : "No .env files detected"
+  };
+}
+function detectOwnership(keyFiles) {
+  const hasOwnership = keyFiles.some((f) => f.role === "ownership");
+  const score = hasOwnership ? 10 : 0;
+  return {
+    id: "code_ownership",
+    name: "Code Ownership",
+    weight: 0.8,
+    score,
+    maxScore: 10,
+    detail: hasOwnership ? "CODEOWNERS file found" : "No CODEOWNERS file found"
+  };
+}
+function detectDocumentation(workspace) {
+  const hasReadme = fs21.existsSync(path22.join(workspace, "README.md"));
+  const hasContributing = fs21.existsSync(path22.join(workspace, "CONTRIBUTING.md")) || fs21.existsSync(path22.join(workspace, ".github", "CONTRIBUTING.md"));
+  const hasChangelog = fs21.existsSync(path22.join(workspace, "CHANGELOG.md")) || fs21.existsSync(path22.join(workspace, "CHANGES.md"));
+  const score = (hasReadme ? 5 : 0) + (hasContributing ? 3 : 0) + (hasChangelog ? 2 : 0);
+  return {
+    id: "documentation",
+    name: "Documentation",
+    weight: 0.6,
+    score,
+    maxScore: 10,
+    detail: [hasReadme && "README", hasContributing && "CONTRIBUTING", hasChangelog && "CHANGELOG"].filter(Boolean).join(", ") || "No documentation files found"
+  };
+}
+function detectSecurityConfig(workspace, keyFiles) {
+  const hasSecurityPolicy = fs21.existsSync(path22.join(workspace, "SECURITY.md")) || fs21.existsSync(path22.join(workspace, ".github", "SECURITY.md"));
+  const hasDependabot = fs21.existsSync(path22.join(workspace, ".github", "dependabot.yml")) || fs21.existsSync(path22.join(workspace, ".github", "dependabot.yaml"));
+  const hasCodeowners = keyFiles.some((f) => f.role === "ownership");
+  const hasSecurityPaths = fs21.existsSync(path22.join(workspace, ".github", "CODEOWNERS"));
+  const score = (hasSecurityPolicy ? 4 : 0) + (hasDependabot ? 3 : 0) + (hasCodeowners || hasSecurityPaths ? 3 : 0);
+  return {
+    id: "security_config",
+    name: "Security Configuration",
+    weight: 1,
+    score,
+    maxScore: 10,
+    detail: [hasSecurityPolicy && "Security policy", hasDependabot && "Dependabot", (hasCodeowners || hasSecurityPaths) && "Code ownership"].filter(Boolean).join(", ") || "No security configuration found"
+  };
+}
+function scoreToGrade2(score) {
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  if (score >= 50) return "E";
+  return "F";
+}
+function generateRecommendations(signals) {
+  const recs = [];
+  for (const sig of signals) {
+    const ratio = sig.score / sig.maxScore;
+    if (ratio < 0.5) {
+      if (sig.id === "ci_config") recs.push("Set up CI/CD to catch issues before merge");
+      else if (sig.id === "test_framework") recs.push("Add a test framework and write initial test suite");
+      else if (sig.id === "lint_config") recs.push("Add ESLint or similar linter for consistent code style");
+      else if (sig.id === "formatter_config") recs.push("Add Prettier or similar formatter for consistent formatting");
+      else if (sig.id === "dependency_mgmt") recs.push("Add a lockfile to pin dependency versions");
+      else if (sig.id === "env_config") recs.push("Add .env.example to document required environment variables");
+      else if (sig.id === "code_ownership") recs.push("Add CODEOWNERS to define code ownership and review routing");
+      else if (sig.id === "documentation") recs.push("Add README.md with project setup and usage instructions");
+      else if (sig.id === "security_config") recs.push("Add SECURITY.md and enable Dependabot for vulnerability alerts");
+      else if (sig.id === "container_config") recs.push("Add Dockerfile for reproducible builds");
+    }
+  }
+  return recs;
+}
+function computeRepoHealth(workspace, keyFiles = []) {
+  if (keyFiles.length === 0) {
+    keyFiles = scanKeyFiles(workspace);
+  }
+  const signals = [
+    detectCIConfig(workspace, keyFiles),
+    detectTestFramework(workspace, keyFiles),
+    detectLintConfig(workspace, keyFiles),
+    detectFormatterConfig(keyFiles),
+    detectContainerConfig(keyFiles),
+    detectDependencyManagement(keyFiles),
+    detectEnvConfig(workspace, keyFiles),
+    detectOwnership(keyFiles),
+    detectDocumentation(workspace),
+    detectSecurityConfig(workspace, keyFiles)
+  ];
+  let totalWeighted = 0;
+  let maxWeighted = 0;
+  for (const sig of signals) {
+    totalWeighted += sig.score * sig.weight;
+    maxWeighted += sig.maxScore * sig.weight;
+  }
+  const score = maxWeighted > 0 ? Math.round(totalWeighted / maxWeighted * 100) : 0;
+  const grade = scoreToGrade2(score);
+  const recommendations = generateRecommendations(signals);
+  let contextText = "## Repository Health\n\n";
+  contextText += `- **Health Score**: ${score}/100 (Grade: ${grade})
+
+`;
+  contextText += "| Signal | Score | Status |\n";
+  contextText += "|--------|-------|--------|\n";
+  for (const sig of signals) {
+    const pct = Math.round(sig.score / sig.maxScore * 100);
+    const status = pct >= 80 ? "good" : pct >= 50 ? "partial" : "missing";
+    contextText += `| ${sig.name} | ${sig.score}/${sig.maxScore} | ${status} |
+`;
+  }
+  if (recommendations.length > 0) {
+    contextText += "\n### Recommendations\n\n";
+    for (const rec of recommendations) {
+      contextText += `- ${rec}
+`;
+    }
+  }
+  return { score, grade, signals, contextText, recommendations };
+}
+var KEY_PATTERNS = [
+  { test: (n) => n === "package.json", role: "dependencies" },
+  { test: (n) => n === "package-lock.json" || n === "pnpm-lock.yaml" || n === "yarn.lock", role: "lockfile" },
+  { test: (n) => n === "tsconfig.json" || n.startsWith("tsconfig."), role: "typescript config" },
+  { test: (n) => n.startsWith(".eslintrc") || n.startsWith("eslint.config."), role: "linter" },
+  { test: (n) => n.startsWith(".prettierrc") || n.startsWith("prettier.config."), role: "formatter" },
+  { test: (n) => n.startsWith("jest.config.") || n.startsWith("vitest.config."), role: "test config" },
+  { test: (n) => n.startsWith("vite.config.") || n.startsWith("webpack.config.") || n.startsWith("rollup.config."), role: "bundler" },
+  { test: (n) => n.startsWith("Dockerfile") || n.startsWith("docker-compose"), role: "container" },
+  { test: (n) => n.startsWith(".env"), role: "environment" },
+  { test: (n) => n === "CODEOWNERS", role: "ownership" },
+  { test: (n) => n === "CLAUDE.md" || n === ".cursorrules", role: "AI instructions" },
+  { test: (n) => n === "REVIEW.md", role: "review rules" }
+];
+var SKIP_DIRS_SET = /* @__PURE__ */ new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  ".nuxt",
+  "coverage",
+  ".cache",
+  ".vscode",
+  ".idea",
+  "__pycache__",
+  ".terraform",
+  "vendor",
+  ".venv",
+  "venv",
+  ".tox"
+]);
+function scanKeyFiles(dir, relPath = "") {
+  const results = [];
+  let entries;
+  try {
+    entries = fs21.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    const entryPath = path22.join(dir, entry.name);
+    const entryRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS_SET.has(entry.name) || entry.name.startsWith(".") && entry.name !== ".github") continue;
+      results.push(...scanKeyFiles(entryPath, entryRel));
+    } else if (entry.isFile()) {
+      const basename7 = entry.name;
+      for (const { test, role } of KEY_PATTERNS) {
+        if (test(basename7)) {
+          results.push({ path: entryRel, role });
+          break;
+        }
+      }
+      if (entryRel.startsWith(".github/")) {
+        results.push({ path: entryRel, role: "CI/CD" });
+      }
+    }
+  }
+  return results;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -115379,8 +115647,9 @@ async function run() {
 ## Manual Review Instructions
 ${manualInstructions}`;
     }
+    let projectIndex;
     try {
-      const projectIndex = buildProjectIndex(workspace);
+      projectIndex = buildProjectIndex(workspace);
       if (projectIndex.contextText) {
         context4.rulesContent += `
 
@@ -115389,6 +115658,15 @@ ${manualInstructions}`;
       }
     } catch (e) {
       debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    try {
+      const repoHealth = computeRepoHealth(workspace, projectIndex ? projectIndex.keyFiles : []);
+      if (repoHealth.contextText) {
+        context4.rulesContent += "\n\n" + repoHealth.contextText;
+        info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
+      }
+    } catch (e) {
+      debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const adrContextStr = buildADRContext(adrs);
     if (adrContextStr) {
