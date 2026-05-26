@@ -457,10 +457,16 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Cross-PR finding persistence** (`crosspr-persist.ts`): Track recurring issue patterns across PRs. When the same category + file area + message pattern appears in different PRs, surface "this same issue was found in 3 other PRs this month" so teams see systemic patterns. Lightweight JSON store with 30-day staleness eviction, 1000-pattern cap. Zero LLM cost. No other AI code reviewer tracks findings across PRs. CodeRabbit, CodeGuru, and Sourcery are all PR-scoped. Config: `cross_pr_persistence` (default true). 22 tests.
 - **3038 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3038 Tests)
+### Cycle: SARIF Export + Test Expansions (2026-05-26)
 
-- **3038 tests** passing (74 test files)
-- **8,400+ production lines** (50+ source modules)
+- **SARIF 2.1.0 export** (`sarif.ts`): Converts Mizumi findings to SARIF format for GitHub Code Scanning. Generate → write → upload. Stable fingerprinting (category:file:line:message hash) for alert dedup tracking. Severity→level mapping (critical/high→error, medium→warning, low→note, nitpick→none). Rule metadata with category-specific rule IDs (MIZ-SEC, MIZ-PERF, etc.). Base64-encoded upload via codeScanning.uploadSarif API. Zero LLM cost. No AI reviewer integrates with Code Scanning. Config: `sarif_export` (default true). 53 tests.
+- **Test expansions**: walkthrough 29→47 (+18), models 28→49 (+21)
+- **3130 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3130 Tests)
+
+- **3130 tests** passing (75 test files)
+- **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -475,6 +481,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Dependency change impact analysis**: detects package.json/lockfile changes, classifies version bump risk, traces import impact. Zero LLM cost. No other AI reviewer analyzes dep impact.
 - **Review thread continuity**: reads author replies to prior review comments, detects dismissal patterns, avoids re-raising dismissed issues. No other AI reviewer reads prior review threads.
 - **Cross-PR finding persistence**: tracks recurring issue patterns across PRs, surfaces systemic problems. No other AI reviewer tracks findings across PRs.
+- **SARIF 2.1.0 export**: uploads findings to GitHub Code Scanning alerts tab (alongside CodeQL). Stable fingerprints for alert tracking, severity→level mapping, rule metadata. No other AI reviewer integrates with Code Scanning.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
