@@ -768,4 +768,22 @@ Ticket refs extracted via regex (PROJECT-NUMBER, #NUMBER patterns).
 Config: `businessContext` boolean, action inputs for jira_base_url,
 jira_api_token, jira_project_prefix, linear_api_token. Env var
 fallbacks (MIZUMI_JIRA_*, MIZUMI_LINEAR_*). 25 tests.
-- 2324 tests, 0 TS errors, bundle rebuilt
+- ### Session 2026-05-26
+
+- **Organizational Memory: PR History Semantic Index (Gap #2)** (d865e50)
+  `org-memory.ts` -- Indexes past PRs in SQLite `pr_history` table (repo,
+  pr_number, title, files, finding_categories, finding_count, risk_score,
+  summary). Retrieves similar past PRs via Jaccard similarity on file path
+  overlap (exact file match + directory-level partial matching at 0.3 weight).
+  Prunes entries older than 180 days. Integration: step 4a11 (retrieval before
+  review), step 5c10 (context injection into rulesContent), step 10d2
+  (record after review). Config: `orgMemory` boolean (default true), action.yml
+  `org_memory` input. 44 tests in org-memory.test.ts.
+
+- **Test Coverage Expansion** (3c50da9)
+  AST contracts: +25 tests (edge cases for all extractors and checkers).
+  Review strategy: +14 tests (risk bias range, prompt content, fallback).
+  Rule engine: +9 tests (parseRulesYaml, invalid regex, glob rules).
+  Business context: +7 tests (multiple Jira keys, partial API response).
+
+- 2430 tests, 0 TS errors, bundle rebuilt
