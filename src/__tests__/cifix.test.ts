@@ -384,7 +384,7 @@ describe("cifix", () => {
       expect(result.success).toBe(true);
       expect(result.ciStatus).toBe("passed");
       expect(result.fixCommitSha).toBe("fix-sha-1");
-      expect(result.retriesUsed).toBe(0);
+      expect(result.retriesUsed).toBe(1);
       expect(result.reverted).toBe(false);
     });
 
@@ -560,7 +560,186 @@ describe("cifix", () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
+   it("retries with maxRetries=1 and succeeds on second attempt", async () => {
+ const improve = await import("../improve.js");
+ vi.spyOn(improve, "generateFix")
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+ const combinedStatusFn = vi.fn()
+ .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+ .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+ const octokit = {
+ rest: {
+ repos: { getCombinedStatusForRef: combinedStatusFn },
+ checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+ git: {
+ getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+ updateRef: vi.fn().mockResolvedValue({}),
+ },
+ pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+ issues: { createComment: vi.fn().mockResolvedValue({}) },
+ },
+ } as unknown as Octokit;
+
+ const ciConfig: CIFixConfig = {
+ enabled: true,
+ timeoutSeconds: 10,
+ maxRetries: 1,
+ revertOnFailure: true,
+ pollIntervalSeconds: 1,
+ };
+
+ const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+ expect(result.success).toBe(true);
+ expect(result.ciStatus).toBe("passed");
+ expect(result.fixCommitSha).toBe("fix-sha-2");
+ expect(result.retriesUsed).toBe(2);
+ expect(result.attempts).toHaveLength(2);
+ expect(result.attempts[0].status).toBe("failed");
+ expect(result.attempts[1].status).toBe("passed");
+ }, 30000);
+
+ it("retries and reverts both when both attempts fail", async () => {
+ const improve = await import("../improve.js");
+ vi.spyOn(improve, "generateFix")
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+ const combinedStatusFn = vi.fn()
+ .mockResolvedValue({ data: { total_count: 1, statuses: [{ state: "failure" }] } });
+
+ const updateRefFn = vi.fn().mockResolvedValue({});
+ const octokit = {
+ rest: {
+ repos: { getCombinedStatusForRef: combinedStatusFn },
+ checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+ git: {
+ getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+ updateRef: updateRefFn,
+ },
+ pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+ issues: { createComment: vi.fn().mockResolvedValue({}) },
+ },
+ } as unknown as Octokit;
+
+ const ciConfig: CIFixConfig = {
+ enabled: true,
+ timeoutSeconds: 10,
+ maxRetries: 1,
+ revertOnFailure: true,
+ pollIntervalSeconds: 1,
+ };
+
+ const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+ expect(result.success).toBe(false);
+ expect(result.ciStatus).toBe("failed");
+ expect(result.retriesUsed).toBe(2);
+ expect(result.reverted).toBe(true);
+ expect(updateRefFn).toHaveBeenCalledTimes(2);
+ expect(octokit.rest.issues.createComment).toHaveBeenCalled();
+ }, 30000);
+
+ it("maxRetries=2 allows 3 total attempts", async () => {
+ const improve = await import("../improve.js");
+ vi.spyOn(improve, "generateFix")
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" })
+ .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-3" });
+
+ const combinedStatusFn = vi.fn()
+ .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+ .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+ .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+ const octokit = {
+ rest: {
+ repos: { getCombinedStatusForRef: combinedStatusFn },
+ checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+ git: {
+ getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+ updateRef: vi.fn().mockResolvedValue({}),
+ },
+ pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+ issues: { createComment: vi.fn().mockResolvedValue({}) },
+ },
+ } as unknown as Octokit;
+
+ const ciConfig: CIFixConfig = {
+ enabled: true,
+ timeoutSeconds: 10,
+ maxRetries: 2,
+ revertOnFailure: true,
+ pollIntervalSeconds: 1,
+ };
+
+ const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+ expect(result.success).toBe(true);
+ expect(result.ciStatus).toBe("passed");
+ expect(result.retriesUsed).toBe(3);
+ expect(result.attempts).toHaveLength(3);
+ }, 30000);
+
+ it("handles combined statuses and check runs returning conflicting results", async () => {
+ const octokit = {
+ rest: {
+ repos: {
+ getCombinedStatusForRef: vi.fn().mockResolvedValue({ data: { total_count: 1, statuses: [{ state: "success" }] } }),
+ },
+ checks: {
+ listForRef: vi.fn().mockResolvedValue({ data: { total_count: 1, check_runs: [{ status: "completed", conclusion: "failure" }] } }),
+ },
+ git: {
+ getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+ updateRef: vi.fn().mockResolvedValue({}),
+ },
+ pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+ issues: { createComment: vi.fn().mockResolvedValue({}) },
+ },
+ } as unknown as Octokit;
+
+ const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+ expect(status).toBe("failed");
+ });
+
+ it("exhausts retries and posts final exhausted comment", async () => {
+ const improve = await import("../improve.js");
+ vi.spyOn(improve, "generateFix")
+ .mockResolvedValue({ fixedCount: 1, commitSha: "fix-sha-1" });
+
+ const combinedStatusFn = vi.fn()
+ .mockResolvedValue({ data: { total_count: 1, statuses: [{ state: "failure" }] } });
+
+ const createCommentFn = vi.fn().mockResolvedValue({});
+ const octokit = {
+ rest: {
+ repos: { getCombinedStatusForRef: combinedStatusFn },
+ checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+ git: {
+ getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+ updateRef: vi.fn().mockResolvedValue({}),
+ },
+ pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+ issues: { createComment: createCommentFn },
+ },
+ } as unknown as Octokit;
+
+ const ciConfig: CIFixConfig = {
+ enabled: true,
+ timeoutSeconds: 10,
+ maxRetries: 1,
+ revertOnFailure: true,
+ pollIntervalSeconds: 1,
+ };
+
+ const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+ expect(result.success).toBe(false);
+ const lastCall = createCommentFn.mock.calls[createCommentFn.mock.calls.length - 1][0];
+ expect(lastCall.body).toContain("exhausted");
+ }, 30000);
+
+// ---------------------------------------------------------------------------
   // CIFixConfig defaults
   // ---------------------------------------------------------------------------
 

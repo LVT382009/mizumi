@@ -77943,6 +77943,7 @@ async function runCIFixLoop(octokit, owner, repo, prNumber, ciConfig, mizumiConf
         result.attempts.push({ sha: fixResult.commitSha, status: ciStatus });
         if (ciStatus === "passed" || ciStatus === "no_checks") {
             // Success — fix validated (or no CI to validate against)
+            result.retriesUsed = attempt;
             result.success = true;
             info(`CI fix loop: fix validated (status=${ciStatus})`);
             return result;

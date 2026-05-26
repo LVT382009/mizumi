@@ -262,7 +262,8 @@ export async function runCIFixLoop(
 
     if (ciStatus === "passed" || ciStatus === "no_checks") {
       // Success — fix validated (or no CI to validate against)
-      result.success = true;
+      result.retriesUsed = attempt;
+ result.success = true;
       core.info(`CI fix loop: fix validated (status=${ciStatus})`);
       return result;
     }
