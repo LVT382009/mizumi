@@ -760,3 +760,102 @@ describe("executeRuleEngine", () => {
     expect(result.findings).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional parseRulesYaml edge cases
+// ---------------------------------------------------------------------------
+
+describe("parseRulesYaml additional edge cases", () => {
+  it("handles quoted string values", () => {
+    const yaml = [
+      "rules:",
+      " - name: test",
+      "   pattern: \"console\\.log\"",
+      "   message: \"Avoid console.log\"",
+    ].join("\n");
+    const result = parseRulesYaml(yaml);
+    expect(result.rules).toHaveLength(1);
+    expect(result.rules![0].pattern).toContain("console");
+  });
+
+  it("handles rules with glob type", () => {
+    const yaml = [
+      "rules:",
+      " - name: config-check",
+      "   type: glob",
+      "   file_glob: '**/*.yaml'",
+      "   severity: medium",
+    ].join("\n");
+    const result = parseRulesYaml(yaml);
+    expect(result.rules).toHaveLength(1);
+  });
+
+  it("parses multiple properties per rule", () => {
+    const yaml = [
+      "rules:",
+      " - name: full-rule",
+      "   pattern: todo",
+      "   severity: low",
+      "   category: style",
+      "   message: TODO found",
+      "   confidence: 80",
+    ].join("\n");
+    const result = parseRulesYaml(yaml);
+    expect(result.rules).toHaveLength(1);
+    expect(result.rules![0].severity).toBe("low");
+    expect(result.rules![0].category).toBe("style");
+    expect(result.rules![0].confidence).toBe(80);
+  });
+
+  it("stops parsing rules at dedent", () => {
+    const yaml = [
+      "rules:",
+      " - name: rule1",
+      "   pattern: x",
+      "other_key: value",
+    ].join("\n");
+    const result = parseRulesYaml(yaml);
+    expect(result.rules).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional runRuleEngine edge cases
+// ---------------------------------------------------------------------------
+
+describe("runRuleEngine additional edge cases", () => {
+  it("handles invalid regex gracefully", () => {
+    const badRule = makeCustomRule({ pattern: "[invalid", type: "regex" });
+    const files = [addFile("test.ts", ["some code"])];
+    const findings = runRuleEngine(files, [badRule], []);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("handles glob rule matching multiple files", () => {
+    const globRule = makeCustomRule({
+      type: "glob",
+      fileGlob: "src/**/*.ts",
+      pattern: "",
+    });
+    const files = [
+      addFile("src/a.ts", ["code"]),
+      addFile("src/b.ts", ["code"]),
+      addFile("docs/readme.md", ["text"]),
+    ];
+    const findings = runRuleEngine(files, [globRule], []);
+    expect(findings).toHaveLength(2);
+  });
+
+  it("handles empty diff files", () => {
+    const findings = runRuleEngine([], [makeCustomRule()], []);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("deduplicates findings from same rule on same line", () => {
+    const rule = makeCustomRule({ pattern: "console" });
+    const files = [addFile("app.ts", ["console.log('a')", "console.log('b')"])];
+    const findings = runRuleEngine(files, [rule], []);
+    expect(findings.length).toBeLessThanOrEqual(2);
+  });
+});
+

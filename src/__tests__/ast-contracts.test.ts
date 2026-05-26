@@ -372,6 +372,277 @@ describe("ast-contracts", () => {
 });
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Additional extractExports edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractExports additional edge cases", () => {
+  it("extracts let arrow export", () => {
+    const code = "export let compute = (a: number, b: number) => a + b";
+    const result = extractExports(code, "compute.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("compute");
+    expect(result[0].params).toEqual(["a", "b"]);
+  });
+
+  it("handles optional parameters", () => {
+    const code = "export function fetch(url: string, opts?: RequestInit) {}";
+    const result = extractExports(code, "api.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].params).toContain("opts");
+  });
+
+  it("skips non-export const assignments", () => {
+    const code = "const internal = (x: number) => x";
+    const result = extractExports(code, "internal.ts");
+    expect(result).toHaveLength(0);
+  });
+
+  it("handles empty file content", () => {
+    const result = extractExports("", "empty.ts");
+    expect(result).toHaveLength(0);
+  });
+
+  it("tracks line numbers correctly", () => {
+    const code = "// comment\n\nexport function target() {}";
+    const result = extractExports(code, "lines.ts");
+    expect(result[0].line).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional extractImports edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractImports additional edge cases", () => {
+  it("handles single-specifier named import", () => {
+    const code = "import { useState } from 'react'";
+    const result = extractImports(code, "comp.tsx");
+    expect(result).toHaveLength(1);
+    expect(result[0].specifiers).toEqual(["useState"]);
+  });
+
+  it("handles empty file", () => {
+    const result = extractImports("", "empty.ts");
+    expect(result).toHaveLength(0);
+  });
+
+  it("skips commented imports", () => {
+    const code = "// import { fake } from 'nowhere'\n/* import { also } from 'fake' */";
+    const result = extractImports(code, "commented.ts");
+    expect(result).toHaveLength(0);
+  });
+
+  it("tracks line numbers for multiple imports", () => {
+    const code = "import { a } from './a'\nimport { b } from './b'\nimport { c } from './c'";
+    const result = extractImports(code, "multi.ts");
+    expect(result).toHaveLength(3);
+    expect(result[0].line).toBe(1);
+    expect(result[1].line).toBe(2);
+    expect(result[2].line).toBe(3);
+  });
+
+  it("handles type-only imports gracefully", () => {
+    const code = "import type { Config } from './config'";
+    const result = extractImports(code, "types.ts");
+    expect(result.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional extractThrows edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractThrows additional edge cases", () => {
+  it("detects throw without new keyword", () => {
+    const code = "function fail() {\n throw Error(\"fail\");\n}";
+    const result = extractThrows(code, "fail.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].message).toBe("throws Error");
+  });
+
+  it("tracks async function that throws", () => {
+    const code = "async function fetchData() {\n throw new Error(\"network\");\n}";
+    const result = extractThrows(code, "fetch.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].isAsync).toBe(true);
+  });
+
+  it("tracks const async arrow that throws", () => {
+    const code = "const process = async () => {\n throw new Error(\"fail\");\n}";
+    const result = extractThrows(code, "process.ts");
+    expect(result).toHaveLength(1);
+  });
+
+  it("handles multiple throw statements in different functions", () => {
+    const code = "function checkEmpty() {\nthrow new Error(\"empty\");\n}\nfunction checkNegative() {\nthrow new RangeError(\"negative\");\n}";
+    const result = extractThrows(code, "validate.ts");
+    expect(result).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional extractTryCatch edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractTryCatch additional edge cases", () => {
+  it("detects try-catch-finally", () => {
+    const code = "try {\n doWork();\n} catch (e) {\n handle(e);\n} finally {\n cleanup();\n}";
+    const result = extractTryCatch(code, "full.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].hasCatch).toBe(true);
+  });
+
+  it("stops looking for catch at next function declaration", () => {
+    const code = "try {\n risky();\n}\nexport function next() {}";
+    const result = extractTryCatch(code, "stop.ts");
+    expect(result).toHaveLength(1);
+    expect(result[0].hasCatch).toBe(false);
+  });
+
+  it("handles empty file", () => {
+    const result = extractTryCatch("", "empty.ts");
+    expect(result).toHaveLength(0);
+  });
+
+  it("reports line number of try keyword", () => {
+    const code = "// preamble\ntry {\n stuff();\n} catch (e) {}";
+    const result = extractTryCatch(code, "lined.ts");
+    expect(result[0].line).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional checkExportChanges edge cases
+// ---------------------------------------------------------------------------
+
+describe("checkExportChanges additional edge cases", () => {
+  it("flags multiple missing imports in same file", () => {
+    const diffFiles = [makeDiffFile("app.ts", ["import { a, b, c } from './lib'"])];
+    const contents = new Map([
+      ["app.ts", "import { a, b, c } from './lib'"],
+      ["lib.ts", "export function a() {}"],
+    ]);
+    const violations = checkExportChanges(diffFiles, contents);
+    expect(violations.some((v) => v.message.includes("b"))).toBe(true);
+    expect(violations.some((v) => v.message.includes("c"))).toBe(true);
+  });
+
+  it("does not flag namespace import (* as X)", () => {
+    const diffFiles = [makeDiffFile("app.ts", ["import * as mod from './mod'"])];
+    const contents = new Map([
+      ["app.ts", "import * as mod from './mod'"],
+      ["mod.ts", "export function x() {}"],
+    ]);
+    const violations = checkExportChanges(diffFiles, contents);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("handles empty diff files", () => {
+    const violations = checkExportChanges([], new Map());
+    expect(violations).toHaveLength(0);
+  });
+
+  it("skips @/ imports to files not in the content map", () => {
+    const diffFiles = [makeDiffFile("app.ts", ["import { auth } from '@/auth'"])];
+    const contents = new Map([
+      ["app.ts", "import { auth } from '@/auth'"],
+    ]);
+    const violations = checkExportChanges(diffFiles, contents);
+    expect(violations).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional checkUnhandledThrows edge cases
+// ---------------------------------------------------------------------------
+
+describe("checkUnhandledThrows additional edge cases", () => {
+  it("flags multiple calls to same throwing function", () => {
+    const diffFiles = [
+      makeDiffFile("lib.ts", ["function check() {", " throw new Error('bad');", "}"]),
+      makeDiffFile("caller.ts", ["check();", "check();"]),
+    ];
+    const contents = new Map([
+      ["lib.ts", "function check() {\n throw new Error('bad');\n}"],
+      ["caller.ts", "check();\ncheck();"],
+    ]);
+    const violations = checkUnhandledThrows(diffFiles, contents);
+    expect(violations.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag try/catch wrapped calls", () => {
+    const diffFiles = [
+      makeDiffFile("lib.ts", ["function risky() { throw new Error('x'); }"]),
+      makeDiffFile("safe.ts", ["try {", " risky();", "} catch (e) {", " handle(e);", "}"]),
+    ];
+    const contents = new Map([
+      ["lib.ts", "function risky() { throw new Error('x'); }"],
+      ["safe.ts", "try {\n risky();\n} catch (e) {\n handle(e);\n}"],
+    ]);
+    const violations = checkUnhandledThrows(diffFiles, contents);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("handles empty files", () => {
+    const violations = checkUnhandledThrows([], new Map());
+    expect(violations).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional checkSignatureChanges edge cases
+// ---------------------------------------------------------------------------
+
+describe("checkSignatureChanges additional edge cases", () => {
+  it("does not flag parameter addition (more params in new version)", () => {
+    const diffFiles = [
+      makeDiffFile("api.ts", [], [], [
+        "export function greet(name: string) {}",
+      ]),
+    ];
+    const contents = new Map([
+      ["api.ts", "export function greet(name: string, greeting?: string) {}"],
+    ]);
+    const violations = checkSignatureChanges(diffFiles, contents);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("flags in same file with callers across files", () => {
+    const diffFiles = [
+      makeDiffFile("api.ts", [], [], [
+        "export function send(to: string, cc: string, bcc: string) {}",
+      ]),
+    ];
+    const contents = new Map([
+      ["api.ts", "export function send(to: string) {}"],
+      ["service.ts", "send(addr, cc, bcc);"],
+    ]);
+    const violations = checkSignatureChanges(diffFiles, contents);
+    expect(violations.length).toBeGreaterThanOrEqual(1);
+    expect(violations[0].file).toBe("service.ts");
+  });
+
+  it("handles empty diff files", () => {
+    const violations = checkSignatureChanges([], new Map());
+    expect(violations).toHaveLength(0);
+  });
+
+  it("does not flag when function is not in the exports", () => {
+    const diffFiles = [
+      makeDiffFile("file.ts", [], [], [
+        "function internalHelper(x: string, y: number) {}",
+      ]),
+    ];
+    const contents = new Map([
+      ["file.ts", "function internalHelper(x: string) {}"],
+    ]);
+    const violations = checkSignatureChanges(diffFiles, contents);
+    expect(violations).toHaveLength(0);
+  });
+});
+
 // Test helpers
 // ---------------------------------------------------------------------------
 

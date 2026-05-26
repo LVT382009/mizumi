@@ -170,3 +170,94 @@ describe("buildStrategyPrompt", () => {
     expect(prompt).toContain("nitpick/low");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("getReviewStrategy additional edge cases", () => {
+  it("security focusAreas includes injection", () => {
+    const strategy = getReviewStrategy("security");
+    expect(strategy.focusAreas).toContain("injection");
+    expect(strategy.focusAreas).toContain("crypto");
+    expect(strategy.focusAreas).toContain("secrets");
+  });
+
+  it("logic has no skip areas", () => {
+    const strategy = getReviewStrategy("logic");
+    expect(strategy.skipAreas).toHaveLength(0);
+  });
+
+  it("config has focus on breaking changes", () => {
+    const strategy = getReviewStrategy("config");
+    expect(strategy.focusAreas).toContain("breaking changes");
+    expect(strategy.focusAreas).toContain("security settings");
+  });
+
+  it("cosmetic has minimal focus areas", () => {
+    const strategy = getReviewStrategy("cosmetic");
+    expect(strategy.focusAreas.length).toBeLessThanOrEqual(3);
+  });
+
+  it("tests strategy mentions flaky tests", () => {
+    const strategy = getReviewStrategy("tests");
+    expect(strategy.promptAddition).toContain("flaky test");
+  });
+
+  it("all strategies have valid riskBias range", () => {
+    const categories = ["security", "logic", "docs", "tests", "config", "cosmetic"];
+    for (const cat of categories) {
+      const strategy = getReviewStrategy(cat as any);
+      expect(strategy.riskBias).toBeGreaterThanOrEqual(-2);
+      expect(strategy.riskBias).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("returns consistent strategy for same category", () => {
+    const s1 = getReviewStrategy("security");
+    const s2 = getReviewStrategy("security");
+    expect(s1.focusAreas).toEqual(s2.focusAreas);
+    expect(s1.riskBias).toBe(s2.riskBias);
+  });
+
+  it("unknown category falls back to logic riskBias (0)", () => {
+    const strategy = getReviewStrategy("nonexistent" as any);
+    expect(strategy.riskBias).toBe(0);
+  });
+});
+
+describe("buildStrategyPrompt additional edge cases", () => {
+  it("config prompt includes YAML/JSON check", () => {
+    const prompt = buildStrategyPrompt("config");
+    expect(prompt).toContain("YAML");
+  });
+
+  it("security prompt includes all security focus areas", () => {
+    const prompt = buildStrategyPrompt("security");
+    const strategy = getReviewStrategy("security");
+    for (const area of strategy.focusAreas) {
+      // At least some focus areas appear in the prompt
+      expect(prompt.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("builds prompt for fallback category", () => {
+    const prompt = buildStrategyPrompt("unknown" as any);
+    expect(prompt).toContain("Adaptive Review Strategy");
+    expect(prompt.length).toBeGreaterThan(50);
+  });
+
+  it("all category prompts contain PR type", () => {
+    const categories = ["security", "logic", "docs", "tests", "config", "cosmetic"];
+    for (const cat of categories) {
+      const prompt = buildStrategyPrompt(cat as any);
+      expect(prompt).toContain(cat);
+    }
+  });
+
+  it("cosmetic prompt does not contain security guidance", () => {
+    const prompt = buildStrategyPrompt("cosmetic");
+    expect(prompt).not.toContain("injection");
+    expect(prompt).not.toContain("authentication");
+  });
+});

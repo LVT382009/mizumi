@@ -335,3 +335,82 @@ describe("fetchBusinessContext", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional extractTicketRefs edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractTicketRefs additional edge cases", () => {
+  it("extracts from various positions in text", () => {
+    const refs = extractTicketRefs("Before PAY-111 middle PAY-222 end", "", []);
+    expect(refs.jiraKeys).toContain("PAY-111");
+    expect(refs.jiraKeys).toContain("PAY-222");
+  });
+
+  it("handles project prefix with numbers", () => {
+    const refs = extractTicketRefs("Ref PROJ2-42", "", []);
+    expect(refs.jiraKeys).toContain("PROJ2-42");
+  });
+
+  it("handles single-char ticket numbers", () => {
+    const refs = extractTicketRefs("Fixes PAY-1", "", []);
+    expect(refs.jiraKeys).toContain("PAY-1");
+  });
+
+  it("handles large ticket numbers", () => {
+    const refs = extractTicketRefs("See PAY-999999", "", []);
+    expect(refs.jiraKeys).toContain("PAY-999999");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional fetchBusinessContext edge cases
+// ---------------------------------------------------------------------------
+
+describe("fetchBusinessContext additional edge cases", () => {
+  it("handles multiple Jira keys", async () => {
+    const originalFetch = global.fetch;
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          fields: { summary: `Ticket ${callCount}`, description: "", status: { name: "Open" }, issuetype: { name: "Bug" }, priority: { name: "Medium" } },
+        }),
+      });
+    }) as any;
+
+    try {
+      const endpoints = [{ type: "jira", baseUrl: "https://test.atlassian.net", token: "t" }];
+      const result = await fetchBusinessContext("Fixes PAY-100 and PAY-200", "", endpoints);
+      expect(result.tickets).toHaveLength(2);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("returns empty result for text without any refs", async () => {
+    const result = await fetchBusinessContext("Just a regular PR description with no ticket refs.", "", []);
+    expect(result.tickets).toHaveLength(0);
+    expect(result.contextText).toBe("");
+  });
+
+  it("handles partial Jira API response", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}), // No fields key
+    }) as any;
+
+    try {
+      const endpoints = [{ type: "jira", baseUrl: "https://test.atlassian.net", token: "t" }];
+      const result = await fetchBusinessContext("Fixes PAY-300", "", endpoints);
+      expect(result.tickets).toHaveLength(1);
+      expect(result.tickets[0].title).toBe("PAY-300"); // Falls back to key
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
