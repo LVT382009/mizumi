@@ -73,6 +73,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     suppressionMemories: true,
     swarmReview: true,
     complexityPrediction: true,
+    prSplitSuggestions: true,
     ...overrides,
   };
 }

@@ -56326,6 +56326,7 @@ function loadConfig() {
   const suppressionMemories = getInput("suppression_memories") !== "false";
   const swarmReview = getInput("swarm_review") !== "false";
   const complexityPrediction = getInput("complexity_prediction") !== "false";
+  const prSplitSuggestions = getInput("pr_split_suggestions") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56419,7 +56420,8 @@ function loadConfig() {
     testGapDetection,
     suppressionMemories,
     swarmReview,
-    complexityPrediction
+    complexityPrediction,
+    prSplitSuggestions
   };
 }
 function parseSimpleYaml(text2) {
@@ -113077,6 +113079,157 @@ function buildComplexityContext(score, estimatedMinutes, category, factors) {
   return ctx.trim();
 }
 
+// src/pr-split.ts
+var AREA_PATTERNS = [
+  { pattern: /\/api\//i, area: "API" },
+  { pattern: /\/auth\//i, area: "Auth" },
+  { pattern: /\/middleware\//i, area: "Middleware" },
+  { pattern: /\/db\//i, area: "Database" },
+  { pattern: /\/sql\//i, area: "Database" },
+  { pattern: /\/models?\//i, area: "Models" },
+  { pattern: /\/types?\//i, area: "Types" },
+  { pattern: /\/interfaces?\//i, area: "Contracts" },
+  { pattern: /\/schemas?\//i, area: "Schema" },
+  { pattern: /\/services?\//i, area: "Services" },
+  { pattern: /\/handlers?\//i, area: "Handlers" },
+  { pattern: /\/routes?\//i, area: "Routes" },
+  { pattern: /\/controllers?\//i, area: "Controllers" },
+  { pattern: /\/utils?\//i, area: "Utils" },
+  { pattern: /\/helpers?\//i, area: "Helpers" },
+  { pattern: /\/config/i, area: "Config" },
+  { pattern: /\/tests?\//i, area: "Tests" },
+  { pattern: /\/__tests__\//i, area: "Tests" },
+  { pattern: /\/spec\//i, area: "Tests" },
+  { pattern: /\/migrations?\//i, area: "Migrations" },
+  { pattern: /\/scripts?\//i, area: "Scripts" },
+  { pattern: /\/docs?\//i, area: "Docs" },
+  { pattern: /\/ui\//i, area: "UI" },
+  { pattern: /\/components?\//i, area: "UI" },
+  { pattern: /\/pages?\//i, area: "UI" }
+];
+var MIN_FILES_FOR_SPLIT = 5;
+var MAX_SUGGESTIONS = 4;
+function detectArea(filePath) {
+  for (const { pattern, area } of AREA_PATTERNS) {
+    if (pattern.test(filePath)) return area;
+  }
+  const parts = filePath.split("/");
+  if (parts.length > 1) {
+    const topLevel = parts[0];
+    return topLevel.charAt(0).toUpperCase() + topLevel.slice(1);
+  }
+  return "Root";
+}
+function countLines(files, diffFiles) {
+  const fileSet = new Set(files);
+  let additions = 0;
+  let deletions = 0;
+  for (const df of diffFiles) {
+    if (fileSet.has(df.path)) {
+      additions += df.additions;
+      deletions += df.deletions;
+    }
+  }
+  return { additions, deletions };
+}
+function scopeForLines(totalLines) {
+  if (totalLines <= 50) return "small";
+  if (totalLines <= 200) return "medium";
+  return "large";
+}
+function suggestPRSplits(diffFiles, complexityScore, complexityCategory) {
+  const shouldSplit = (complexityScore >= 7 || complexityCategory === "complex" || complexityCategory === "critical") && diffFiles.length >= MIN_FILES_FOR_SPLIT;
+  if (!shouldSplit) {
+    return { shouldSplit: false, suggestions: [], contextText: "" };
+  }
+  const areaGroups = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    const area = detectArea(file2.path);
+    if (!areaGroups.has(area)) areaGroups.set(area, []);
+    areaGroups.get(area).push(file2.path);
+  }
+  const sortedAreas = [...areaGroups.entries()].sort((a, b) => b[1].length - a[1].length);
+  const archFiles = [];
+  const nonArchFiles = /* @__PURE__ */ new Map();
+  for (const [area, files] of sortedAreas) {
+    const areaArch = files.filter(
+      (f) => /\/(types?|interfaces?|schemas?|contracts?)\//i.test(f) || /\.d\.ts$/.test(f) || /index\.[tj]s$/.test(f) || /mod\.[tj]s$/.test(f)
+    );
+    const areaNonArch = files.filter((f) => !areaArch.includes(f));
+    if (areaArch.length > 0) archFiles.push(...areaArch);
+    if (areaNonArch.length > 0) nonArchFiles.set(area, areaNonArch);
+  }
+  const suggestions = [];
+  let order = 0;
+  if (archFiles.length >= 2) {
+    const { additions, deletions } = countLines(archFiles, diffFiles);
+    suggestions.push({
+      title: "Foundation: types, interfaces, and schema changes",
+      files: archFiles,
+      scope: scopeForLines(additions + deletions),
+      reason: "Architecture-level files should land first so dependent code compiles",
+      order: order++
+    });
+  }
+  for (const [area, files] of nonArchFiles) {
+    if (suggestions.length >= MAX_SUGGESTIONS) break;
+    const { additions, deletions } = countLines(files, diffFiles);
+    suggestions.push({
+      title: `${area}: ${files.length} file(s)`,
+      files,
+      scope: scopeForLines(additions + deletions),
+      reason: `Grouped by functional area (${area})`,
+      order: order++
+    });
+  }
+  if (sortedAreas.length > suggestions.length + (archFiles.length >= 2 ? 1 : 0)) {
+    const covered = new Set(suggestions.flatMap((s) => s.files));
+    const remaining = diffFiles.filter((f) => !covered.has(f.path)).map((f) => f.path);
+    if (remaining.length > 0) {
+      countLines(remaining, diffFiles);
+      if (suggestions.length > 0 && suggestions.length <= MAX_SUGGESTIONS) {
+        const last = suggestions[suggestions.length - 1];
+        last.files.push(...remaining);
+        const totalLines = last.files.reduce((sum, f) => {
+          const df = diffFiles.find((d) => d.path === f);
+          return sum + (df ? df.additions + df.deletions : 0);
+        }, 0);
+        last.scope = scopeForLines(totalLines);
+        last.title = last.title.includes("Other") ? last.title : last.title + " + Other";
+      }
+    }
+  }
+  const contextText = buildSplitContext(complexityScore, complexityCategory, suggestions);
+  info(`PR split: ${suggestions.length} suggestion(s) for ${diffFiles.length} files`);
+  return { shouldSplit, suggestions, contextText };
+}
+function buildSplitContext(score, category, suggestions) {
+  let ctx = `## PR Split Suggestions
+`;
+  ctx += `**Complexity:** ${score}/10 (${category}) \u2014 Consider splitting into ${suggestions.length} smaller PRs:
+
+`;
+  for (const s of suggestions) {
+    ctx += `**${s.order + 1}. ${s.title}** (${s.scope}, ${s.files.length} file(s))
+`;
+    ctx += `   ${s.reason}
+`;
+    for (const f of s.files.slice(0, 8)) {
+      ctx += `   - \`${f}\`
+`;
+    }
+    if (s.files.length > 8) {
+      ctx += `   - ... and ${s.files.length - 8} more
+`;
+    }
+    ctx += `
+`;
+  }
+  ctx += `> Smaller PRs review faster, get better feedback, and are less likely to introduce bugs.
+`;
+  return ctx.trim();
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -113431,6 +113584,17 @@ async function run() {
         warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let splitResult = null;
+    if (config2.prSplitSuggestions && complexityResult) {
+      try {
+        splitResult = suggestPRSplits(diff.files, complexityResult.score, complexityResult.category);
+        if (splitResult.shouldSplit) {
+          info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
+        }
+      } catch (e) {
+        warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let authBoundaryResult = null;
     if (config2.authBoundary) {
       try {
@@ -113596,6 +113760,9 @@ ${testGapResult.contextText}`;
     }
     if (complexityResult && complexityResult.contextText) {
       context4.ghostContent += "\n\n" + complexityResult.contextText;
+    }
+    if (splitResult && splitResult.shouldSplit && splitResult.contextText) {
+      context4.ghostContent += "\n\n" + splitResult.contextText;
     }
     const positionHint = buildPositionHint(diff.files);
     const guarded = guardContextWindow(context4.diffText, config2.provider);

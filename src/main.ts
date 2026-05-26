@@ -60,6 +60,7 @@ import { runTestGapDetection } from "./test-gap.js";
 import { runSuppressionMemories } from "./suppression-memories.js";
 import { runSwarmReview, buildSwarmContext } from "./swarm-review.js";
 import { computeComplexity } from "./complexity-predictor.js";
+import { suggestPRSplits } from "./pr-split.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -446,6 +447,19 @@ if (config.complexityPrediction) {
   }
 }
 
+// 4a14. PR split suggestions — when complex, suggest file groupings
+let splitResult: import("./pr-split.js").SplitResult | null = null;
+if (config.prSplitSuggestions && complexityResult) {
+  try {
+    splitResult = suggestPRSplits(diff.files, complexityResult.score, complexityResult.category);
+    if (splitResult.shouldSplit) {
+      core.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
+    }
+  } catch (e) {
+    core.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -647,6 +661,11 @@ ${testGapResult.contextText}`;
 // 5c12. Complexity prediction context injection
 if (complexityResult && complexityResult.contextText) {
   context.ghostContent += "\n\n" + complexityResult.contextText;
+}
+
+// 5c13. PR split suggestions context injection
+if (splitResult && splitResult.shouldSplit && splitResult.contextText) {
+  context.ghostContent += "\n\n" + splitResult.contextText;
 }
 
 // 6. Build position hint for LLM

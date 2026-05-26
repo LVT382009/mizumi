@@ -54,6 +54,7 @@ export interface MizumiConfig {
   suppressionMemories: boolean;
   swarmReview: boolean;
   complexityPrediction: boolean;
+  prSplitSuggestions: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -131,6 +132,7 @@ const orgMemory = core.getInput("org_memory") !== "false"; // default true
 const suppressionMemories = core.getInput("suppression_memories") !== "false"; // default true
 const swarmReview = core.getInput("swarm_review") !== "false"; // default true
 const complexityPrediction = core.getInput("complexity_prediction") !== "false"; // default true
+const prSplitSuggestions = core.getInput("pr_split_suggestions") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -227,6 +229,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     suppressionMemories,
     swarmReview,
   complexityPrediction,
+  prSplitSuggestions,
   };
 }
 

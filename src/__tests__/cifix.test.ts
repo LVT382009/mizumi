@@ -107,6 +107,7 @@ const testConfig = {
     suppressionMemories: true,
     swarmReview: true,
     complexityPrediction: true,
+    prSplitSuggestions: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
