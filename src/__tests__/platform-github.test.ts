@@ -155,6 +155,7 @@ vi.mock("../config.js", () => ({
     reviewPriority: true,
     defenseFramework: true,
     checksApi: true,
+    repoHealth: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

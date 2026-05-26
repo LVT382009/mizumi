@@ -281,6 +281,7 @@ describe("runSwarmReview", () => {
     reviewPriority: true,
     defenseFramework: true,
     checksApi: true,
+    repoHealth: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

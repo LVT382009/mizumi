@@ -127,6 +127,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     reviewPriority: true,
     defenseFramework: true,
     checksApi: true,
+    repoHealth: true,
     ...overrides,
   };
 }

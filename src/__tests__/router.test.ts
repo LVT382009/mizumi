@@ -61,6 +61,7 @@ const baseConfig: MizumiConfig = {
     reviewPriority: true,
     defenseFramework: true,
     checksApi: true,
+    repoHealth: true,
 };
 
 describe("classifyDiff", () => {

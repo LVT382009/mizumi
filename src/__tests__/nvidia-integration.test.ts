@@ -78,6 +78,7 @@ describe("NVIDIA NIM provider configuration", () => {
     reviewPriority: true,
     defenseFramework: true,
     checksApi: true,
+    repoHealth: true,
     ...overrides,
   });
 
