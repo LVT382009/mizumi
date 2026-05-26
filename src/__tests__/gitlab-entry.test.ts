@@ -73,6 +73,7 @@ vi.mock("../config.js", () => ({
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
       orgMemory: true,
         testGapDetection: true,
+    suppressionMemories: true,
   })),
 }));
 

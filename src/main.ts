@@ -57,6 +57,7 @@ import { computeSafetyScore, postSafetyScore } from "./safety-score.js";
 import { fetchBusinessContext, parseMCPEndpoints } from "./business-context.js";
 import { runOrgMemoryRetrieval, recordPRHistory, pruneOldHistory } from "./org-memory.js";
 import { runTestGapDetection } from "./test-gap.js";
+import { runSuppressionMemories } from "./suppression-memories.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -782,7 +783,30 @@ if (config.confidenceCalibration || config.complianceCheck) {
       ...filtered.comments,
     ];
 
-    const mergedReview = { ...filtered, comments: mergedComments };
+    
+// 9-sup. Apply suppression memories — auto-filter findings that humans have previously dismissed
+let suppressionResult: import("./suppression-memories.js").SuppressionResult | null = null;
+if (config.suppressionMemories) {
+  try {
+    const { filtered: supFiltered, result: supResult } = runSuppressionMemories(
+      workspace, `${owner}/${repo}`, mergedComments
+    );
+    suppressionResult = supResult;
+    mergedComments.length = 0;
+    mergedComments.push(...supFiltered);
+    if (supResult.suppressedCount > 0) {
+      core.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
+    }
+  } catch (e) {
+    core.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+const mergedReview = { ...filtered, comments: mergedComments };
+
+// 9-sup-ctx. Log suppression context for observability
+if (suppressionResult && suppressionResult.contextText) {
+  core.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
+}
 
 // 9-own. CODEOWNERS-aware routing (tag owning teams, boost confidence)
 let ownershipBody = "";

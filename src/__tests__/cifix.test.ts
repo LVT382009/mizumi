@@ -104,6 +104,7 @@ const testConfig = {
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
       orgMemory: true,
         testGapDetection: true,
+    suppressionMemories: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

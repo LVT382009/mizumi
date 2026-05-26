@@ -116,6 +116,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
       orgMemory: true,
         testGapDetection: true,
+    suppressionMemories: true,
     ...overrides,
   };
 }

@@ -51,6 +51,7 @@ export interface MizumiConfig {
   businessContext: boolean;
   orgMemory: boolean;
   testGapDetection: boolean;
+  suppressionMemories: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -125,6 +126,7 @@ const adaptiveStrategy = core.getInput("adaptive_strategy") !== "false"; // defa
 const businessContext = core.getInput("business_context") !== "false"; // default true
 const orgMemory = core.getInput("org_memory") !== "false"; // default true
   const testGapDetection = core.getInput("test_gap_detection") !== "false"; // default true
+const suppressionMemories = core.getInput("suppression_memories") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -218,6 +220,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     businessContext,
     orgMemory,
   testGapDetection,
+    suppressionMemories,
   };
 }
 

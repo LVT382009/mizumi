@@ -70,6 +70,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
       orgMemory: true,
         testGapDetection: true,
+    suppressionMemories: true,
     ...overrides,
   };
 }
