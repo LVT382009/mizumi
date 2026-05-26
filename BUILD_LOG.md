@@ -758,4 +758,14 @@ misconfigurations; cosmetic PRs are lightweight. Strategy injected into
 LLM system prompt via buildStrategyPrompt(). Config: `adaptiveStrategy`
 boolean (default true), action.yml `adaptive_strategy` input.
 24 tests in review-strategy.test.ts.
-- 2299 tests, 0 TS errors, bundle rebuilt
+- **Business Context Integration (Gap #3)** (4c11f98)
+`business-context.ts` -- Fetches Jira/Linear ticket details when PR body
+references ticket keys (PAY-1234, ENG-567). Direct HTTP API calls
+(Jira REST API v2, Linear GraphQL API). Injects ticket context
+(title, description, status, type, priority) into review prompt.
+HTML stripped from Jira descriptions, truncated to 2000 chars.
+Ticket refs extracted via regex (PROJECT-NUMBER, #NUMBER patterns).
+Config: `businessContext` boolean, action inputs for jira_base_url,
+jira_api_token, jira_project_prefix, linear_api_token. Env var
+fallbacks (MIZUMI_JIRA_*, MIZUMI_LINEAR_*). 25 tests.
+- 2324 tests, 0 TS errors, bundle rebuilt
