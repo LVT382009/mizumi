@@ -94,16 +94,25 @@ export async function postReview(
   const unmappableFindings: ReviewCommentType[] = [];
 
   for (const finding of review.comments.slice(0, config.maxComments)) {
-    if (finding.severity === "critical" || finding.severity === "high") {
-      inlineFindings.push(finding);
-    } else if (finding.severity === "medium") {
-      tableFindings.push(finding);
-    } else {
-      detailsFindings.push(finding);
-    }
-  }
-
-  // 2. Build inline comments (critical + high only) with fingerprints
+ if (finding.severity === "critical" || finding.severity === "high") {
+ inlineFindings.push(finding);
+ } else if (finding.severity === "medium") {
+ // Medium-severity with suggestion promoted to inline for one-click fix
+ if (finding.suggestion) {
+ inlineFindings.push(finding);
+ } else {
+ tableFindings.push(finding);
+ }
+ } else {
+ // Low/nitpick with suggestion also gets inline treatment
+ if (finding.suggestion) {
+ inlineFindings.push(finding);
+ } else {
+ detailsFindings.push(finding);
+ }
+ }
+}
+  // 2. Build inline comments (critical + high + suggestion-bearing medium/low/nitpick) with fingerprints
   const inlineComments: Array<{
     path: string;
     line: number;

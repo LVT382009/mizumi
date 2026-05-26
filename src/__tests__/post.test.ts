@@ -758,7 +758,90 @@ describe("postReview", () => {
     expect(body).toContain("SQL injection risk");
   });
 
-  // -----------------------------------------------------------------------
+  
+ it("promotes medium findings with suggestion to inline comments", async () => {
+ const review = makeReview({
+ comments: [
+ makeComment({ severity: "medium", category: "bug", message: "Missing error handling", suggestion: "try { await fn(); } catch (e) { logger.error(e); }" }),
+ ],
+ });
+ const lineMap = makeLineMap();
+
+ await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+ const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+ expect(call.comments).toHaveLength(1);
+ const body: string = call.comments[0].body;
+ expect(body).toContain("[MEDIUM]");
+ expect(body).toContain("suggestion");
+ });
+
+ it("keeps medium findings without suggestion in detail table", async () => {
+ const review = makeReview({
+ comments: [
+ makeComment({ severity: "medium", category: "style", message: "Consider refactoring" }),
+ ],
+ });
+ const lineMap = makeLineMap();
+
+ await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+ const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+ expect(call.comments).toHaveLength(0);
+ });
+
+ it("promotes low findings with suggestion to inline comments", async () => {
+ const review = makeReview({
+ comments: [
+ makeComment({ severity: "low", category: "style", message: "Missing semicolon", suggestion: "const x = 1;" }),
+ ],
+ });
+ const lineMap = makeLineMap();
+
+ await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+ const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+ expect(call.comments).toHaveLength(1);
+ const body: string = call.comments[0].body;
+ expect(body).toContain("[LOW]");
+ expect(body).toContain("suggestion");
+ });
+
+ it("promotes nitpick findings with suggestion to inline comments", async () => {
+ const review = makeReview({
+ comments: [
+ makeComment({ severity: "nitpick", category: "style", message: "Prefer single quotes", suggestion: "const name = 'world';" }),
+ ],
+ });
+ const lineMap = makeLineMap();
+
+ await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+ const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+ expect(call.comments).toHaveLength(1);
+ expect(call.comments[0].body).toContain("[NITPICK]");
+ });
+
+ it("keeps low/nitpick findings without suggestion in collapsible details", async () => {
+ const review = makeReview({
+ comments: [
+ makeComment({ severity: "low", category: "style", message: "Missing semicolon" }),
+ makeComment({ severity: "nitpick", category: "style", message: "Prefer single quotes" }),
+ ],
+ });
+ const lineMap = makeLineMap();
+
+ await postReview(octokit, OWNER, REPO, PR_NUMBER, HEAD_SHA, review, lineMap, config);
+
+ const call = octokit.rest.pulls.createReview.mock.calls[0][0];
+ expect(call.comments).toHaveLength(0);
+ const creates = octokit.rest.issues.createComment.mock.calls.map((c: any) => c[0]);
+ const detailCall = creates.find((c: any) => c.body?.includes("<!-- mizumi-detail-marker -->"));
+ expect(detailCall).toBeDefined();
+ expect(detailCall.body).toContain("Missing semicolon");
+ expect(detailCall.body).toContain("Prefer single quotes");
+ });
+// -----------------------------------------------------------------------
   // 13. Review fatigue detection
   // -----------------------------------------------------------------------
 

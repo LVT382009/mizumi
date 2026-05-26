@@ -74644,13 +74644,25 @@ async function postReview(octokit, owner, repo, prNumber, headSha, review, lineM
             inlineFindings.push(finding);
         }
         else if (finding.severity === "medium") {
-            tableFindings.push(finding);
+            // Medium-severity with suggestion promoted to inline for one-click fix
+            if (finding.suggestion) {
+                inlineFindings.push(finding);
+            }
+            else {
+                tableFindings.push(finding);
+            }
         }
         else {
-            detailsFindings.push(finding);
+            // Low/nitpick with suggestion also gets inline treatment
+            if (finding.suggestion) {
+                inlineFindings.push(finding);
+            }
+            else {
+                detailsFindings.push(finding);
+            }
         }
     }
-    // 2. Build inline comments (critical + high only) with fingerprints
+    // 2. Build inline comments (critical + high + suggestion-bearing medium/low/nitpick) with fingerprints
     const inlineComments = [];
     for (const finding of inlineFindings) {
         const resolvedLine = resolveLine(lineMap, finding.file, finding.line);
