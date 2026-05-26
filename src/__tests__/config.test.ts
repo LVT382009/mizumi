@@ -309,7 +309,8 @@ vi.mock("node:path", () => ({
   join: vi.fn(() => "/fake/.github/mizumi.yml"),
 }));
 
-import { loadConfig } from "../config.js";
+import { loadConfig, getApiKey, requireApiKey } from "../config.js";
+import type { Provider } from "../config.js";
 import * as core from "@actions/core";
 
 const mockGetInput = vi.mocked(core.getInput);
@@ -413,6 +414,219 @@ describe("loadConfig parseInt NaN defaults", () => {
     });
     const config = loadConfig();
     expect(config.gateThreshold).toBe("none");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getApiKey
+// ---------------------------------------------------------------------------
+
+describe("getApiKey", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetInput.mockReturnValue("");
+    // Clear any provider-related env vars
+    const envKeys = [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "GOOGLE_API_KEY",
+      "OPENROUTER_API_KEY",
+      "NVIDIA_NIM_API_KEY",
+      "LOCAL_API_KEY",
+      "CUSTOM_API_KEY",
+    ];
+    for (const k of envKeys) {
+      delete process.env[k];
+    }
+  });
+
+  it("should return empty string when no input or env var is set for anthropic", () => {
+    const result = getApiKey("anthropic");
+    expect(result).toBe("");
+  });
+
+  it("should return empty string when no input or env var is set for openai", () => {
+    const result = getApiKey("openai");
+    expect(result).toBe("");
+  });
+
+  it("should return empty string when no input or env var is set for google", () => {
+    const result = getApiKey("google");
+    expect(result).toBe("");
+  });
+
+  it("should return empty string when no input or env var is set for openrouter", () => {
+    const result = getApiKey("openrouter");
+    expect(result).toBe("");
+  });
+
+  it("should return empty string when no input or env var is set for nvidia", () => {
+    const result = getApiKey("nvidia");
+    expect(result).toBe("");
+  });
+
+  it("should return empty string when no input or env var is set for custom", () => {
+    const result = getApiKey("custom");
+    expect(result).toBe("");
+  });
+
+  it("should return the key from core.getInput when available for anthropic", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "anthropic_api_key") return "sk-ant-from-input";
+      return "";
+    });
+    const result = getApiKey("anthropic");
+    expect(result).toBe("sk-ant-from-input");
+  });
+
+  it("should return the key from core.getInput when available for openai", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "openai_api_key") return "sk-oai-from-input";
+      return "";
+    });
+    const result = getApiKey("openai");
+    expect(result).toBe("sk-oai-from-input");
+  });
+
+  it("should return 'dummy' for local provider when no key is set", () => {
+    const result = getApiKey("local");
+    expect(result).toBe("dummy");
+  });
+
+  it("should fall back to ANTHROPIC_API_KEY env var when input is empty", () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-from-env";
+    const result = getApiKey("anthropic");
+    expect(result).toBe("sk-ant-from-env");
+  });
+
+  it("should fall back to OPENAI_API_KEY env var when input is empty", () => {
+    process.env.OPENAI_API_KEY = "sk-oai-from-env";
+    const result = getApiKey("openai");
+    expect(result).toBe("sk-oai-from-env");
+  });
+
+  it("should fall back to GOOGLE_API_KEY env var when input is empty", () => {
+    process.env.GOOGLE_API_KEY = "aiza-from-env";
+    const result = getApiKey("google");
+    expect(result).toBe("aiza-from-env");
+  });
+
+  it("should fall back to OPENROUTER_API_KEY env var when input is empty", () => {
+    process.env.OPENROUTER_API_KEY = "sk-or-from-env";
+    const result = getApiKey("openrouter");
+    expect(result).toBe("sk-or-from-env");
+  });
+
+  it("should fall back to NVIDIA_NIM_API_KEY env var when input is empty", () => {
+    process.env.NVIDIA_NIM_API_KEY = "nvapi-from-env";
+    const result = getApiKey("nvidia");
+    expect(result).toBe("nvapi-from-env");
+  });
+
+  it("should fall back to CUSTOM_API_KEY env var when input is empty", () => {
+    process.env.CUSTOM_API_KEY = "custom-from-env";
+    const result = getApiKey("custom");
+    expect(result).toBe("custom-from-env");
+  });
+
+  it("should prefer action input over env var for anthropic", () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-from-env";
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "anthropic_api_key") return "sk-ant-from-input";
+      return "";
+    });
+    const result = getApiKey("anthropic");
+    expect(result).toBe("sk-ant-from-input");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// requireApiKey
+// ---------------------------------------------------------------------------
+
+describe("requireApiKey", () => {
+  const nonLocalProviders: Provider[] = [
+    "anthropic",
+    "openai",
+    "google",
+    "openrouter",
+    "nvidia",
+    "custom",
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetInput.mockReturnValue("");
+    const envKeys = [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "GOOGLE_API_KEY",
+      "OPENROUTER_API_KEY",
+      "NVIDIA_NIM_API_KEY",
+      "LOCAL_API_KEY",
+      "CUSTOM_API_KEY",
+    ];
+    for (const k of envKeys) {
+      delete process.env[k];
+    }
+  });
+
+  it("should throw with actionable error for non-local providers when key is missing", () => {
+    for (const provider of nonLocalProviders) {
+      expect(() => requireApiKey(provider)).toThrow(
+        `API key for ${provider} is required`
+      );
+    }
+  });
+
+  it("should include the env var name in the error message for anthropic", () => {
+    expect(() => requireApiKey("anthropic")).toThrow("ANTHROPIC_API_KEY");
+  });
+
+  it("should include the env var name in the error message for openai", () => {
+    expect(() => requireApiKey("openai")).toThrow("OPENAI_API_KEY");
+  });
+
+  it("should include the env var name in the error message for google", () => {
+    expect(() => requireApiKey("google")).toThrow("GOOGLE_API_KEY");
+  });
+
+  it("should include the env var name in the error message for openrouter", () => {
+    expect(() => requireApiKey("openrouter")).toThrow("OPENROUTER_API_KEY");
+  });
+
+  it("should include the env var name in the error message for nvidia", () => {
+                expect(() => requireApiKey("nvidia")).toThrow("NVIDIA_NIM_API_KEY");
+  });
+
+  it("should include the action input name in the error message for anthropic", () => {
+    expect(() => requireApiKey("anthropic")).toThrow("anthropic_api_key");
+  });
+
+  it("should return key when present for non-local provider", () => {
+    mockGetInput.mockImplementation((name: string) => {
+      if (name === "openai_api_key") return "sk-oai-present";
+      return "";
+    });
+    const result = requireApiKey("openai");
+    expect(result).toBe("sk-oai-present");
+  });
+
+  it("should return key from env var when present for non-local provider", () => {
+    process.env.GOOGLE_API_KEY = "aiza-from-env";
+    const result = requireApiKey("google");
+    expect(result).toBe("aiza-from-env");
+  });
+
+  it("should return 'dummy' for local provider when no key is set", () => {
+    const result = requireApiKey("local");
+    expect(result).toBe("dummy");
+  });
+
+  it("should return the actual key for local provider when one is set", () => {
+    process.env.LOCAL_API_KEY = "local-key-value";
+    const result = requireApiKey("local");
+    expect(result).toBe("local-key-value");
   });
 });
 

@@ -313,7 +313,7 @@ export function getApiKey(provider: Provider): string {
 export function requireApiKey(provider: Provider): string {
   const key = getApiKey(provider);
   if (!key && provider !== "local") {
-    const envVar = `${provider.toUpperCase()}_API_KEY`;
+    const envVar = provider === "nvidia" ? "NVIDIA_NIM_API_KEY" : `${provider.toUpperCase()}_API_KEY`;
     throw new Error(`API key for ${provider} is required. Set ${envVar} or the ${provider}_api_key action input.`);
   }
   return key || "dummy";
