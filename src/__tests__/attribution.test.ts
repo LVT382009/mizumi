@@ -304,4 +304,81 @@ describe("buildAttributionContext", () => {
     });
     expect(result).toBe("");
   });
+
+  it("includes confidence penalty value", () => {
+    const result = buildAttributionContext({
+      categories: [{
+        category: "style", total: 20, helpful: 3, dismissed: 17,
+        dismissalRate: 0.85, confidencePenalty: 63, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 20,
+    });
+    expect(result).toContain("63");
+  });
+
+  it("skips unreliable categories even with high dismissal", () => {
+    const result = buildAttributionContext({
+      categories: [{
+        category: "style", total: 5, helpful: 0, dismissed: 5,
+        dismissalRate: 1.0, confidencePenalty: 75, isReliable: false,
+      }],
+      reliableCategories: 0,
+      entriesAnalyzed: 5,
+    });
+    expect(result).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional applyAttributionConfidence edge cases
+// ---------------------------------------------------------------------------
+
+describe("applyAttributionConfidence additional edge cases", () => {
+  it("reduces confidence proportionally for moderate dismissal rate", () => {
+    const findings = [{ category: "style", confidence: 80 }];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [{
+        category: "style", total: 15, helpful: 5, dismissed: 10,
+        dismissalRate: 0.67, confidencePenalty: 50, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 15,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBeLessThan(80);
+    expect(result[0].confidence).toBeGreaterThan(10);
+  });
+
+  it("handles multiple categories with different penalties", () => {
+    const findings = [
+      { category: "style", confidence: 90 },
+      { category: "security", confidence: 85 },
+    ];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [
+        { category: "style", total: 15, helpful: 2, dismissed: 13, dismissalRate: 0.87, confidencePenalty: 65, isReliable: true },
+        { category: "security", total: 20, helpful: 18, dismissed: 2, dismissalRate: 0.1, confidencePenalty: 0, isReliable: true },
+      ],
+      reliableCategories: 2,
+      entriesAnalyzed: 35,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBeLessThan(90); // style reduced
+    expect(result[1].confidence).toBe(85); // security not reduced
+  });
+
+  it("clamps confidence at minimum 10 even with very high penalty", () => {
+    const findings = [{ category: "style", confidence: 15 }];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [{
+        category: "style", total: 50, helpful: 0, dismissed: 50,
+        dismissalRate: 1.0, confidencePenalty: 75, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 50,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBeGreaterThanOrEqual(10);
+  });
 });
