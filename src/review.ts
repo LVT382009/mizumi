@@ -10,6 +10,8 @@ import { createModel, createLightModel } from "./models.js";
 import { DiffClassification } from "./router.js";
 import { wrapDiff } from "./sanitize.js";
 import { validateReviewOutput } from "./defense.js";
+import { buildStrategyPrompt } from "./review-strategy.js";
+import type { PRCategory } from "./classifier.js";;
 
 export const ReviewComment = z.object({
   file: z.string().describe("File path relative to repo root"),
@@ -80,12 +82,14 @@ Cross-reference with any prior bot comments on this PR.`;
   }
 }
 
-function buildSystemPrompt(validPositions: string, config: MizumiConfig): string {
+function buildSystemPrompt(validPositions: string, config: MizumiConfig, prCategory?: PRCategory): string {
+  const strategySection = prCategory ? buildStrategyPrompt(prCategory) : "";
+
   return `You are Mizumi, a self-learning PR review agent. Your job is to find real issues in code changes.
 
 ## Review Rules
 ${getProfileInstructions(config.profile)}
-
+${strategySection}
 ## Output Format
 You MUST respond with structured JSON matching the schema:
 - summary: overall assessment
@@ -145,9 +149,10 @@ export async function runReview(
   config: MizumiConfig,
   classification?: DiffClassification,
   learningContent?: string,
+  prCategory?: PRCategory,
 ): Promise<{ output: ReviewResponseType; usage: { inputTokens: number; outputTokens: number; cachedInputTokens: number } }> {
   const model = classification ? selectModel(config, classification) : createModel(config);
-  const systemPrompt = buildSystemPrompt(validPositions, config);
+  const systemPrompt = buildSystemPrompt(validPositions, config, prCategory);
 
   let userPrompt = wrapDiff(diffContent);
 

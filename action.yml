@@ -194,6 +194,10 @@ inputs:
     description: "Enable PR safety score - post a 0-100 composite score as a separate commit status (finding severity, blast radius, attribution, risk). Gives maintainers a quantitative signal even when the gate is disabled."
     required: false
     default: "true"
+  adaptive_strategy:
+    description: "Enable PR type-adaptive review strategy - adjusts review focus based on PR category (security PRs get hardened scrutiny, docs PRs skip deep analysis). Only Qodo and Macroscope have similar features."
+    required: false
+    default: "true"
 outputs:
   review_id:
     description: "ID of the posted PR review"

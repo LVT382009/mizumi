@@ -67,7 +67,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     specCompliance: true,
     authBoundary: true,
     fatigueDashboard: true,
-    secretEntropy: true, safetyScore: true,
+    secretEntropy: true, safetyScore: true, adaptiveStrategy: true,
     ...overrides,
   };
 }
