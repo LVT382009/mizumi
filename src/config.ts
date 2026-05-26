@@ -63,6 +63,7 @@ export interface MizumiConfig {
   sarifExport: boolean;
   reviewPriority: boolean;
   defenseFramework: boolean;
+  checksApi: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -149,6 +150,7 @@ const crossPRPersistence = core.getInput("cross_pr_persistence") !== "false"; //
 const sarifExport = core.getInput("sarif_export") !== "false"; // default true
 const reviewPriority = core.getInput("review_priority") !== "false"; // default true
 const defenseFramework = core.getInput("defense_framework") !== "false"; // default true
+const checksApi = core.getInput("checks_api") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -254,6 +256,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     sarifExport,
     reviewPriority,
   defenseFramework,
+  checksApi,
   };
 }
 

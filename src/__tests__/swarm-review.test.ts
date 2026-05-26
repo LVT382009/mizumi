@@ -280,6 +280,7 @@ describe("runSwarmReview", () => {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

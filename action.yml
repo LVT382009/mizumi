@@ -262,6 +262,11 @@ defense_framework:
   required: false
   default: "true"
 
+ checks_api:
+   description: "Enable GitHub Checks API integration — create Check Runs with annotations visible in the Checks tab, enabling branch protection integration beyond commit statuses. Like Codecov/SonarQube annotations. Zero LLM cost."
+   required: false
+   default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

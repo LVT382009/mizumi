@@ -114,6 +114,7 @@ const testConfig = {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

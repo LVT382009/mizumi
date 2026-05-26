@@ -126,6 +126,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
     ...overrides,
   };
 }

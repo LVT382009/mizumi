@@ -80,6 +80,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
     ...overrides,
   };
 }

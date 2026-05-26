@@ -154,6 +154,7 @@ vi.mock("../config.js", () => ({
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

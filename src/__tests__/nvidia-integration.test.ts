@@ -77,6 +77,7 @@ describe("NVIDIA NIM provider configuration", () => {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
     ...overrides,
   });
 

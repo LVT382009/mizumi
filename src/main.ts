@@ -70,6 +70,7 @@ import { trackCrossPRFindings } from "./crosspr-persist.js";
 import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
 import { prioritizeFindings } from "./review-priority.js";
 import { defendInput, defendOutput, validateReviewOutput } from "./defense.js";
+import { createCheckRun } from "./checks.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -1065,6 +1066,17 @@ if (config.defenseFramework) {
      diff.files
    );
    core.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+// 10a0. Checks API — create Check Run with annotations (visible in Checks tab)
+if (config.checksApi && !config.dryRun) {
+  try {
+    const checkResult = await createCheckRun(
+      octokit, owner, repo, headSha, mergedReview.comments, mergedReview.riskScore,
+    );
+    core.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
+  } catch (e) {
+    core.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post behavioral summary as a separate comment
 if (behavioralBody) {
   try {

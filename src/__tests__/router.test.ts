@@ -60,6 +60,7 @@ const baseConfig: MizumiConfig = {
     sarifExport: true,
     reviewPriority: true,
     defenseFramework: true,
+    checksApi: true,
 };
 
 describe("classifyDiff", () => {
