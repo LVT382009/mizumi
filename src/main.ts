@@ -59,6 +59,7 @@ import { runOrgMemoryRetrieval, recordPRHistory, pruneOldHistory } from "./org-m
 import { runTestGapDetection } from "./test-gap.js";
 import { runSuppressionMemories } from "./suppression-memories.js";
 import { runSwarmReview, buildSwarmContext } from "./swarm-review.js";
+import { computeComplexity } from "./complexity-predictor.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -430,6 +431,21 @@ if (config.testGapDetection) {
   }
 }
 
+// 4a13. Complexity prediction — estimate review time and complexity score
+let complexityResult: import("./complexity-predictor.js").ComplexityResult | null = null;
+if (config.complexityPrediction) {
+  try {
+    complexityResult = computeComplexity(
+      diff.files, diff.totalAdditions, diff.totalDeletions,
+      blastResult?.totalImpact ?? 0,
+      taintResult?.traces.length ?? 0,
+    );
+    core.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
+  } catch (e) {
+    core.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -626,6 +642,11 @@ if (testGapResult && testGapResult.contextText) {
   context.rulesContent += `
 
 ${testGapResult.contextText}`;
+}
+
+// 5c12. Complexity prediction context injection
+if (complexityResult && complexityResult.contextText) {
+  context.ghostContent += "\n\n" + complexityResult.contextText;
 }
 
 // 6. Build position hint for LLM

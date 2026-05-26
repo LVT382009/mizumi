@@ -72,6 +72,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
         testGapDetection: true,
     suppressionMemories: true,
     swarmReview: true,
+    complexityPrediction: true,
     ...overrides,
   };
 }

@@ -118,6 +118,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
         testGapDetection: true,
     suppressionMemories: true,
     swarmReview: true,
+    complexityPrediction: true,
     ...overrides,
   };
 }

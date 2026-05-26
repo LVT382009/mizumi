@@ -272,6 +272,7 @@ describe("runSwarmReview", () => {
       testGapDetection: true,
       suppressionMemories: true,
       swarmReview: true,
+    complexityPrediction: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

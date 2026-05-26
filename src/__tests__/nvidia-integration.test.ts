@@ -69,6 +69,7 @@ describe("NVIDIA NIM provider configuration", () => {
         testGapDetection: true,
     suppressionMemories: true,
     swarmReview: true,
+    complexityPrediction: true,
     ...overrides,
   });
 

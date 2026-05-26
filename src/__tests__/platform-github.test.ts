@@ -146,6 +146,7 @@ vi.mock("../config.js", () => ({
         testGapDetection: true,
     suppressionMemories: true,
     swarmReview: true,
+    complexityPrediction: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

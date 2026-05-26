@@ -1,4 +1,3 @@
-import{createRequire}from"module";const require=createRequire(import.meta.url);
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -56326,6 +56325,7 @@ function loadConfig() {
   const testGapDetection = getInput("test_gap_detection") !== "false";
   const suppressionMemories = getInput("suppression_memories") !== "false";
   const swarmReview = getInput("swarm_review") !== "false";
+  const complexityPrediction = getInput("complexity_prediction") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56418,7 +56418,8 @@ function loadConfig() {
     orgMemory,
     testGapDetection,
     suppressionMemories,
-    swarmReview
+    swarmReview,
+    complexityPrediction
   };
 }
 function parseSimpleYaml(text2) {
@@ -112958,6 +112959,124 @@ ${result.duplicatesRemoved > 0 ? `(${result.duplicatesRemoved} duplicate(s) remo
   return ctx.trim();
 }
 
+// src/complexity-predictor.ts
+var BASE_REVIEW_MINUTES = 2;
+var MINUTES_PER_LINE = 0.15;
+var MINUTES_PER_FILE = 1.5;
+var ARCH_CHANGE_MULTIPLIER = 1.8;
+var SECURITY_MULTIPLIER = 1.5;
+var ARCH_FILE_PATTERNS = [
+  /\/api\//i,
+  /\/interfaces?\//i,
+  /\/types?\//i,
+  /\/contracts?\//i,
+  /\/schemas?\//i,
+  /\/protocol/i,
+  /\.d\.ts$/,
+  /index\.[tj]s$/,
+  /mod\.[tj]s$/
+];
+function isArchitectureFile(filePath) {
+  return ARCH_FILE_PATTERNS.some((p) => p.test(filePath));
+}
+function countNewExports(diffFiles) {
+  let count = 0;
+  for (const file2 of diffFiles) {
+    for (const hunk of file2.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type !== "add") continue;
+        if (/export\s+(async\s+)?function\s+\w+/.test(change.content)) count++;
+        if (/export\s+(default\s+)?class\s+\w+/.test(change.content)) count++;
+        if (/export\s+(const|let)\s+\w+\s*=\s*(async\s*)?\(/.test(change.content)) count++;
+      }
+    }
+  }
+  return count;
+}
+function computeComplexity(diffFiles, totalAdditions, totalDeletions, crossFileDeps = 0, taintTraces = 0) {
+  const factors = [];
+  const totalLines = totalAdditions + totalDeletions;
+  const fileCount = diffFiles.length;
+  const sizeContrib = Math.min(3, totalLines / 100);
+  factors.push({
+    name: "size",
+    contribution: sizeContrib,
+    description: `${totalLines} lines changed across ${fileCount} file(s)`
+  });
+  const spreadContrib = Math.min(2, fileCount / 10);
+  factors.push({
+    name: "spread",
+    contribution: spreadContrib,
+    description: `${fileCount} file(s) modified`
+  });
+  const newExports = countNewExports(diffFiles);
+  const exportContrib = Math.min(2, newExports / 3);
+  factors.push({
+    name: "new_exports",
+    contribution: exportContrib,
+    description: `${newExports} new exported symbol(s)`
+  });
+  const archFiles = diffFiles.filter((f) => isArchitectureFile(f.path));
+  const archContrib = archFiles.length > 0 ? Math.min(1.5, archFiles.length * 0.5) : 0;
+  if (archContrib > 0) {
+    factors.push({
+      name: "architecture",
+      contribution: archContrib,
+      description: `${archFiles.length} architecture-level file(s) changed: ${archFiles.map((f) => f.path).join(", ")}`
+    });
+  }
+  const depContrib = Math.min(1.5, crossFileDeps / 5);
+  if (depContrib > 0) {
+    factors.push({
+      name: "blast_radius",
+      contribution: depContrib,
+      description: `${crossFileDeps} cross-file dependenc(ies) impacted`
+    });
+  }
+  const secContrib = Math.min(1.5, taintTraces / 3);
+  if (secContrib > 0) {
+    factors.push({
+      name: "security_sensitive",
+      contribution: secContrib,
+      description: `${taintTraces} taint trace(s) from untrusted sources`
+    });
+  }
+  const rawScore = factors.reduce((sum, f) => sum + f.contribution, 0);
+  const score = Math.min(10, Math.max(1, Math.round(rawScore * 10) / 10));
+  const baseTime = BASE_REVIEW_MINUTES + totalLines * MINUTES_PER_LINE + fileCount * MINUTES_PER_FILE;
+  const archMultiplier = archFiles.length > 0 ? ARCH_CHANGE_MULTIPLIER : 1;
+  const secMultiplier = taintTraces > 0 ? SECURITY_MULTIPLIER : 1;
+  const estimatedMinutes = Math.max(2, Math.round(baseTime * archMultiplier * secMultiplier));
+  let category;
+  if (score <= 2) category = "trivial";
+  else if (score <= 4) category = "simple";
+  else if (score <= 6) category = "moderate";
+  else if (score <= 8) category = "complex";
+  else category = "critical";
+  const contextText = buildComplexityContext(score, estimatedMinutes, category, factors);
+  info(`Complexity: score=${score}/10, estimated=${estimatedMinutes}min, category=${category}`);
+  return { score, estimatedMinutes, factors, category, contextText };
+}
+function buildComplexityContext(score, estimatedMinutes, category, factors) {
+  let ctx = `## PR Complexity Assessment
+`;
+  ctx += `**Score:** ${score}/10 (${category}) \u2014 **Estimated review time:** ~${estimatedMinutes} min
+
+`;
+  ctx += `Contributing factors:
+`;
+  for (const factor of factors) {
+    ctx += `- **${factor.name}**: ${factor.description} (contribution: ${factor.contribution.toFixed(1)})
+`;
+  }
+  if (score >= 7) {
+    ctx += `
+> This PR is complex \u2014 consider scheduling dedicated review time and breaking into smaller PRs if possible.
+`;
+  }
+  return ctx.trim();
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -113297,6 +113416,21 @@ async function run() {
         warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let complexityResult = null;
+    if (config2.complexityPrediction) {
+      try {
+        complexityResult = computeComplexity(
+          diff.files,
+          diff.totalAdditions,
+          diff.totalDeletions,
+          blastResult?.totalImpact ?? 0,
+          taintResult?.traces.length ?? 0
+        );
+        info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
+      } catch (e) {
+        warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let authBoundaryResult = null;
     if (config2.authBoundary) {
       try {
@@ -113459,6 +113593,9 @@ ${skills.loaded}`;
       context4.rulesContent += `
 
 ${testGapResult.contextText}`;
+    }
+    if (complexityResult && complexityResult.contextText) {
+      context4.ghostContent += "\n\n" + complexityResult.contextText;
     }
     const positionHint = buildPositionHint(diff.files);
     const guarded = guardContextWindow(context4.diffText, config2.provider);

@@ -106,6 +106,7 @@ const testConfig = {
         testGapDetection: true,
     suppressionMemories: true,
     swarmReview: true,
+    complexityPrediction: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

@@ -53,6 +53,7 @@ export interface MizumiConfig {
   testGapDetection: boolean;
   suppressionMemories: boolean;
   swarmReview: boolean;
+  complexityPrediction: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -129,6 +130,7 @@ const orgMemory = core.getInput("org_memory") !== "false"; // default true
   const testGapDetection = core.getInput("test_gap_detection") !== "false"; // default true
 const suppressionMemories = core.getInput("suppression_memories") !== "false"; // default true
 const swarmReview = core.getInput("swarm_review") !== "false"; // default true
+const complexityPrediction = core.getInput("complexity_prediction") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -224,6 +226,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   testGapDetection,
     suppressionMemories,
     swarmReview,
+  complexityPrediction,
   };
 }
 
