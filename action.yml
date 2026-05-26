@@ -222,6 +222,11 @@ pr_split_suggestions:
   description: "Enable PR split suggestions — when a PR is too complex, Mizumi suggests concrete file groupings for splitting into smaller PRs. Zero LLM cost. No other AI reviewer suggests HOW to split a PR."
   required: false
   default: "true"
+  finding_lifecycle:
+    description: "Enable finding lifecycle tracking — detect persisted, resolved, and new findings across pushes on the same PR. Surfaces unresolved findings from previous push. No other AI reviewer tracks finding lifecycle."
+    required: false
+    default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

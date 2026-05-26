@@ -381,4 +381,174 @@ describe("applyAttributionConfidence additional edge cases", () => {
     const result = applyAttributionConfidence(findings, attribution);
     expect(result[0].confidence).toBeGreaterThanOrEqual(10);
   });
+
+  it("exact confidence penalty calculation", () => {
+    const findings = [{ category: "style", confidence: 80 }];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [{
+        category: "style", total: 20, helpful: 4, dismissed: 16,
+        dismissalRate: 0.8, confidencePenalty: 60, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 20,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBe(20); // 80 - 60 = 20
+  });
+
+  it("findings not matching any penalized category are unchanged", () => {
+    const findings = [
+      { category: "performance", confidence: 90 },
+      { category: "security", confidence: 85 },
+    ];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [{
+        category: "style", total: 20, helpful: 2, dismissed: 18,
+        dismissalRate: 0.9, confidencePenalty: 67, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 20,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBe(90);
+    expect(result[1].confidence).toBe(85);
+  });
+
+  it("multiple findings in same penalized category all adjusted", () => {
+    const findings = [
+      { category: "style", confidence: 80 },
+      { category: "style", confidence: 60 },
+      { category: "style", confidence: 40 },
+    ];
+    const attribution: import("../attribution.js").AttributionResult = {
+      categories: [{
+        category: "style", total: 20, helpful: 2, dismissed: 18,
+        dismissalRate: 0.9, confidencePenalty: 50, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 20,
+    };
+    const result = applyAttributionConfidence(findings, attribution);
+    expect(result[0].confidence).toBe(30); // 80 - 50
+    expect(result[1].confidence).toBe(10); // 60 - 50, clamped at 10
+    expect(result[2].confidence).toBe(10); // max(10, 40-50)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeAttribution additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("computeAttribution additional", () => {
+  it("handles single helpful entry", () => {
+    const store = makeStore([{ category: "bug", outcome: "helpful" }]);
+    const result = computeAttribution(store);
+    const bug = result.categories.find((c) => c.category === "bug");
+    expect(bug!.total).toBe(1);
+    expect(bug!.helpful).toBe(1);
+    expect(bug!.dismissed).toBe(0);
+    expect(bug!.dismissalRate).toBe(0);
+    expect(bug!.isReliable).toBe(false);
+  });
+
+  it("handles single unhelpful entry", () => {
+    const store = makeStore([{ category: "bug", outcome: "unhelpful" }]);
+    const result = computeAttribution(store);
+    const bug = result.categories.find((c) => c.category === "bug");
+    expect(bug!.dismissalRate).toBeGreaterThan(0.5);
+    expect(bug!.confidencePenalty).toBeGreaterThan(0); // penalty computed but isReliable=false
+    expect(bug!.isReliable).toBe(false);
+  });
+
+  it("exactly at MIN_RELIABLE_SAMPLES threshold", () => {
+    const entries: Partial<FeedbackEntry>[] = [];
+    for (let i = 0; i < 10; i++) entries.push({ category: "style", outcome: "unhelpful" });
+    const result = computeAttribution(makeStore(entries));
+    const style = result.categories.find((c) => c.category === "style");
+    expect(style!.isReliable).toBe(true);
+  });
+
+  it("below MIN_RELIABLE_SAMPLES threshold", () => {
+    const entries: Partial<FeedbackEntry>[] = [];
+    for (let i = 0; i < 9; i++) entries.push({ category: "style", outcome: "unhelpful" });
+    const result = computeAttribution(makeStore(entries));
+    const style = result.categories.find((c) => c.category === "style");
+    expect(style!.isReliable).toBe(false);
+  });
+
+  it("dismissal rate exactly at 0.4 threshold", () => {
+    const entries: Partial<FeedbackEntry>[] = [];
+    for (let i = 0; i < 6; i++) entries.push({ category: "bug", outcome: "unhelpful" });
+    for (let i = 0; i < 9; i++) entries.push({ category: "bug", outcome: "helpful" });
+    const result = computeAttribution(makeStore(entries));
+    const bug = result.categories.find((c) => c.category === "bug");
+    // 6/15 = 0.4 exactly — penalty should NOT apply (> 0.4 condition)
+    expect(bug!.dismissalRate).toBeLessThanOrEqual(0.41);
+  });
+
+  it("recency weighting gives recent entries more influence", () => {
+    const now = new Date();
+    const veryRecent = new Date(now.getTime() - 1000).toISOString();
+    const veryOld = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const store = makeStore([
+      { category: "style", outcome: "unhelpful", createdAt: veryOld },
+      { category: "style", outcome: "unhelpful", createdAt: veryOld },
+      { category: "style", outcome: "helpful", createdAt: veryRecent },
+    ]);
+    const result = computeAttribution(store);
+    const style = result.categories.find((c) => c.category === "style");
+    // Recent helpful should outweigh old unhelpful
+    expect(style!.dismissalRate).toBeLessThan(0.5);
+  });
+
+  it("entries from exactly 30 days ago (half-life)", () => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const store = makeStore([
+      { category: "style", outcome: "unhelpful", createdAt: thirtyDaysAgo },
+      { category: "style", outcome: "helpful", createdAt: new Date().toISOString() },
+    ]);
+    const result = computeAttribution(store);
+    const style = result.categories.find((c) => c.category === "style");
+    // At half-life, unhelpful is weighted 0.5, helpful is weighted 1.0
+    // dismissalRate = 0.5 / (0.5 + 1.0) = 0.333
+    expect(style!.dismissalRate).toBeLessThan(0.5);
+  });
+
+  it("confidence penalty exactly at MAX_PENALTY", () => {
+    const entries: Partial<FeedbackEntry>[] = [];
+    for (let i = 0; i < 50; i++) entries.push({ category: "style", outcome: "unhelpful" });
+    const result = computeAttribution(makeStore(entries));
+    const style = result.categories.find((c) => c.category === "style");
+    expect(style!.confidencePenalty).toBe(75);
+  });
+
+  it("handles mixed pending and resolved entries correctly", () => {
+    const entries: Partial<FeedbackEntry>[] = [
+      { category: "bug", outcome: "pending" },
+      { category: "bug", outcome: "helpful" },
+      { category: "bug", outcome: "pending" },
+      { category: "bug", outcome: "unhelpful" },
+    ];
+    const result = computeAttribution(makeStore(entries));
+    const bug = result.categories.find((c) => c.category === "bug");
+    expect(bug!.total).toBe(2); // only non-pending
+    expect(bug!.helpful).toBe(1);
+    expect(bug!.dismissed).toBe(1);
+  });
+
+  it("entriesAnalyzed counts all entries including pending", () => {
+    const entries: Partial<FeedbackEntry>[] = [
+      { category: "bug", outcome: "pending" },
+      { category: "bug", outcome: "helpful" },
+      { category: "bug", outcome: "unhelpful" },
+    ];
+    const result = computeAttribution(makeStore(entries));
+    expect(result.entriesAnalyzed).toBe(3);
+  });
+
+  it("empty store has zero reliableCategories", () => {
+    const result = computeAttribution({ entries: [] });
+    expect(result.reliableCategories).toBe(0);
+  });
 });

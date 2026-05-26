@@ -434,10 +434,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Path normalization**: `toPosix()` helper in test-gap.ts ensures forward-slash paths on Windows, fixing test failures from `path.join` producing backslash separators.
 - 2662 tests passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 2662 Tests)
+### Build Stats (Current — 2824 Tests)
 
-- **2739 tests** passing (69 test files)
-- **6,400+ production lines** (43+ source modules)
+- **2824 tests** passing (70 test files)
+- **6,600+ production lines** (44+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -447,6 +447,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Parallel swarm review**: 3 specialist agents (security, correctness, performance) review PR simultaneously, deduplicated findings merged into main review (74% more addressed comments per Greptile benchmark)
 - **PR complexity predictor**: multi-signal weighted model (size, spread, new exports, architecture, blast radius, taint traces) → score 1-10 + estimated review minutes. Zero LLM cost. No other AI reviewer estimates review time.
 - **PR split suggestions**: when complex (score >= 7), groups files by functional area and suggests concrete file groupings for splitting into smaller PRs. Zero LLM cost. No other AI reviewer suggests HOW to split.
+- **Finding lifecycle tracking**: tracks findings per PR across pushes, detects persisted/resolved/new findings between iterations. Surfaces "3 findings from your last push are still unresolved" to avoid re-raising known issues. Zero LLM cost. No other AI reviewer tracks finding lifecycle.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review

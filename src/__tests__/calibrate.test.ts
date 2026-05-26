@@ -119,7 +119,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     suppressionMemories: true,
     swarmReview: true,
     complexityPrediction: true,
-    prSplitSuggestions: true,
+    prSplitSuggestions: true, findingLifecycle: true,
     ...overrides,
   };
 }

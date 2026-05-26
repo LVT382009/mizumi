@@ -76,7 +76,7 @@ vi.mock("../config.js", () => ({
     suppressionMemories: true,
     swarmReview: true,
     complexityPrediction: true,
-    prSplitSuggestions: true,
+    prSplitSuggestions: true, findingLifecycle: true,
   })),
 }));
 

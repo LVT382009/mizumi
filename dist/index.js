@@ -1073,14 +1073,14 @@ var require_util = __commonJS({
         }
         const port = url2.port != null ? url2.port : url2.protocol === "https:" ? 443 : 80;
         let origin = url2.origin != null ? url2.origin : `${url2.protocol || ""}//${url2.hostname || ""}:${port}`;
-        let path18 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
+        let path19 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
         if (origin[origin.length - 1] === "/") {
           origin = origin.slice(0, origin.length - 1);
         }
-        if (path18 && path18[0] !== "/") {
-          path18 = `/${path18}`;
+        if (path19 && path19[0] !== "/") {
+          path19 = `/${path19}`;
         }
-        return new URL(`${origin}${path18}`);
+        return new URL(`${origin}${path19}`);
       }
       if (!isHttpOrHttpsPrefixed(url2.origin || url2.protocol)) {
         throw new InvalidArgumentError3("Invalid URL protocol: the URL must start with `http:` or `https:`.");
@@ -1531,39 +1531,39 @@ var require_diagnostics = __commonJS({
       });
       diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
         const {
-          request: { method, path: path18, origin }
+          request: { method, path: path19, origin }
         } = evt;
-        debuglog("sending request to %s %s/%s", method, origin, path18);
+        debuglog("sending request to %s %s/%s", method, origin, path19);
       });
       diagnosticsChannel.channel("undici:request:headers").subscribe((evt) => {
         const {
-          request: { method, path: path18, origin },
+          request: { method, path: path19, origin },
           response: { statusCode }
         } = evt;
         debuglog(
           "received response to %s %s/%s - HTTP %d",
           method,
           origin,
-          path18,
+          path19,
           statusCode
         );
       });
       diagnosticsChannel.channel("undici:request:trailers").subscribe((evt) => {
         const {
-          request: { method, path: path18, origin }
+          request: { method, path: path19, origin }
         } = evt;
-        debuglog("trailers received from %s %s/%s", method, origin, path18);
+        debuglog("trailers received from %s %s/%s", method, origin, path19);
       });
       diagnosticsChannel.channel("undici:request:error").subscribe((evt) => {
         const {
-          request: { method, path: path18, origin },
+          request: { method, path: path19, origin },
           error: error52
         } = evt;
         debuglog(
           "request to %s %s/%s errored - %s",
           method,
           origin,
-          path18,
+          path19,
           error52.message
         );
       });
@@ -1612,9 +1612,9 @@ var require_diagnostics = __commonJS({
         });
         diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
           const {
-            request: { method, path: path18, origin }
+            request: { method, path: path19, origin }
           } = evt;
-          debuglog("sending request to %s %s/%s", method, origin, path18);
+          debuglog("sending request to %s %s/%s", method, origin, path19);
         });
       }
       diagnosticsChannel.channel("undici:websocket:open").subscribe((evt) => {
@@ -1677,7 +1677,7 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var Request = class {
       constructor(origin, {
-        path: path18,
+        path: path19,
         method,
         body,
         headers,
@@ -1692,11 +1692,11 @@ var require_request = __commonJS({
         expectContinue,
         servername
       }, handler2) {
-        if (typeof path18 !== "string") {
+        if (typeof path19 !== "string") {
           throw new InvalidArgumentError3("path must be a string");
-        } else if (path18[0] !== "/" && !(path18.startsWith("http://") || path18.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path19[0] !== "/" && !(path19.startsWith("http://") || path19.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError3("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.test(path18)) {
+        } else if (invalidPathRegex.test(path19)) {
           throw new InvalidArgumentError3("invalid request path");
         }
         if (typeof method !== "string") {
@@ -1762,7 +1762,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? buildURL(path18, query) : path18;
+        this.path = query ? buildURL(path19, query) : path19;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6288,7 +6288,7 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     function writeH1(client, request2) {
-      const { method, path: path18, host, upgrade, blocking, reset } = request2;
+      const { method, path: path19, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util2.isFormDataLike(body)) {
@@ -6354,7 +6354,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path18} HTTP/1.1\r
+      let header = `${method} ${path19} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -6880,7 +6880,7 @@ var require_client_h2 = __commonJS({
     }
     function writeH2(client, request2) {
       const session = client[kHTTP2Session];
-      const { method, path: path18, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { method, path: path19, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
         util2.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -6947,7 +6947,7 @@ var require_client_h2 = __commonJS({
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path18;
+      headers[HTTP2_HEADER_PATH] = path19;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -7300,9 +7300,9 @@ var require_redirect_handler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path18 = search ? `${pathname}${search}` : pathname;
+        const path19 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path18;
+        this.opts.path = path19;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -8537,10 +8537,10 @@ var require_proxy_agent = __commonJS({
         };
         const {
           origin,
-          path: path18 = "/",
+          path: path19 = "/",
           headers = {}
         } = opts;
-        opts.path = origin + path18;
+        opts.path = origin + path19;
         if (!("host" in headers) && !("Host" in headers)) {
           const { host } = new URL2(origin);
           headers.host = host;
@@ -10461,20 +10461,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path18) {
-      if (typeof path18 !== "string") {
-        return path18;
+    function safeUrl(path19) {
+      if (typeof path19 !== "string") {
+        return path19;
       }
-      const pathSegments = path18.split("?");
+      const pathSegments = path19.split("?");
       if (pathSegments.length !== 2) {
-        return path18;
+        return path19;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path18, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path18);
+    function matchKey(mockDispatch2, { path: path19, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path19);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10496,7 +10496,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path18 }) => matchValue(safeUrl(path18), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path19 }) => matchValue(safeUrl(path19), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10534,9 +10534,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path18, method, body, headers, query } = opts;
+      const { path: path19, method, body, headers, query } = opts;
       return {
-        path: path18,
+        path: path19,
         method,
         body,
         headers,
@@ -10999,10 +10999,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path18, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path19, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path18,
+            Path: path19,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
@@ -15883,9 +15883,9 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path18) {
-      for (let i = 0; i < path18.length; ++i) {
-        const code = path18.charCodeAt(i);
+    function validateCookiePath(path19) {
+      for (let i = 0; i < path19.length; ++i) {
+        const code = path19.charCodeAt(i);
         if (code < 32 || // exclude CTLs (0-31)
         code === 127 || // DEL
         code === 59) {
@@ -18562,11 +18562,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError3("invalid opts.path");
           }
-          let path18 = opts.path;
+          let path19 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path18 = `/${path18}`;
+            path19 = `/${path19}`;
           }
-          url2 = new URL(util2.parseOrigin(url2).origin + path18);
+          url2 = new URL(util2.parseOrigin(url2).origin + path19);
         } else {
           if (!opts) {
             opts = typeof url2 === "object" ? url2 : {};
@@ -21143,8 +21143,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module.exports = __toCommonJS(auth_config_exports);
-    var fs17 = __toESM2(__require("fs"));
-    var path18 = __toESM2(__require("path"));
+    var fs18 = __toESM2(__require("fs"));
+    var path19 = __toESM2(__require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -21153,15 +21153,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path18.join(dataDir, "auth.json");
+      return path19.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs17.existsSync(authPath)) {
+        if (!fs18.existsSync(authPath)) {
           return null;
         }
-        const content = fs17.readFileSync(authPath, "utf8");
+        const content = fs18.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -21172,11 +21172,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path18.dirname(authPath);
-      if (!fs17.existsSync(authDir)) {
-        fs17.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path19.dirname(authPath);
+      if (!fs18.existsSync(authDir)) {
+        fs18.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs17.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs18.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -21367,8 +21367,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module.exports = __toCommonJS(token_util_exports);
-    var path18 = __toESM2(__require("path"));
-    var fs17 = __toESM2(__require("fs"));
+    var path19 = __toESM2(__require("path"));
+    var fs18 = __toESM2(__require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -21380,7 +21380,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path18.join(dataDir, vercelFolder);
+      return path19.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -21456,13 +21456,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path18.join(dir, ".vercel", "project.json");
-      if (!fs17.existsSync(prjPath)) {
+      const prjPath = path19.join(dir, ".vercel", "project.json");
+      if (!fs18.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs17.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs18.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -21477,11 +21477,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path18.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path19.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs17.mkdirSync(path18.dirname(tokenPath), { mode: 504, recursive: true });
-      fs17.writeFileSync(tokenPath, tokenJson);
-      fs17.chmodSync(tokenPath, 432);
+      fs18.mkdirSync(path19.dirname(tokenPath), { mode: 504, recursive: true });
+      fs18.writeFileSync(tokenPath, tokenJson);
+      fs18.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -21491,11 +21491,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path18.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs17.existsSync(tokenPath)) {
+      const tokenPath = path19.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs18.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs17.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs18.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -22351,10 +22351,10 @@ var require_util9 = __commonJS({
     function cloneDef2(schema) {
       return mergeDefs2(schema._zod.def);
     }
-    function getElementAtPath2(obj, path18) {
-      if (!path18)
+    function getElementAtPath2(obj, path19) {
+      if (!path19)
         return obj;
-      return path18.reduce((acc, key) => acc?.[key], obj);
+      return path19.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject2(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -22764,11 +22764,11 @@ var require_util9 = __commonJS({
       }
       return false;
     }
-    function prefixIssues2(path18, issues) {
+    function prefixIssues2(path19, issues) {
       return issues.map((iss) => {
         var _a21;
         (_a21 = iss).path ?? (_a21.path = []);
-        iss.path.unshift(path18);
+        iss.path.unshift(path19);
         return iss;
       });
     }
@@ -22957,16 +22957,16 @@ var require_errors2 = __commonJS({
     }
     function formatError2(error52, mapper = (issue3) => issue3.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error53, path18 = []) => {
+      const processError = (error53, path19 = []) => {
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path18, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path19, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
           } else {
-            const fullpath = [...path18, ...issue3.path];
+            const fullpath = [...path19, ...issue3.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue3));
             } else {
@@ -22993,17 +22993,17 @@ var require_errors2 = __commonJS({
     }
     function treeifyError2(error52, mapper = (issue3) => issue3.message) {
       const result = { errors: [] };
-      const processError = (error53, path18 = []) => {
+      const processError = (error53, path19 = []) => {
         var _a21, _b17;
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path18, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path19, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
           } else {
-            const fullpath = [...path18, ...issue3.path];
+            const fullpath = [...path19, ...issue3.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue3));
               continue;
@@ -23035,8 +23035,8 @@ var require_errors2 = __commonJS({
     }
     function toDotPath2(_path) {
       const segs = [];
-      const path18 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path18) {
+      const path19 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path19) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -38368,13 +38368,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path18 = ref.slice(1).split("/").filter(Boolean);
-      if (path18.length === 0) {
+      const path19 = ref.slice(1).split("/").filter(Boolean);
+      if (path19.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path18[0] === defsKey) {
-        const key = path18[1];
+      if (path19[0] === defsKey) {
+        const key = path19[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -39425,8 +39425,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors4();
     var en_js_1 = __importDefault(require_en2());
     var makeIssue2 = (params) => {
-      const { data, path: path18, errorMaps, issueData } = params;
-      const fullPath = [...path18, ...issueData.path || []];
+      const { data, path: path19, errorMaps, issueData } = params;
+      const fullPath = [...path19, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -39580,11 +39580,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util10();
     var ParseInputLazyPath2 = class {
-      constructor(parent, value, path18, key) {
+      constructor(parent, value, path19, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path18;
+        this._path = path19;
         this._key = key;
       }
       get path() {
@@ -52447,8 +52447,8 @@ var Context = class {
       if (existsSync2(process.env.GITHUB_EVENT_PATH)) {
         this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
       } else {
-        const path18 = process.env.GITHUB_EVENT_PATH;
-        process.stdout.write(`GITHUB_EVENT_PATH ${path18} does not exist${EOL5}`);
+        const path19 = process.env.GITHUB_EVENT_PATH;
+        process.stdout.write(`GITHUB_EVENT_PATH ${path19} does not exist${EOL5}`);
       }
     }
     this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -56150,17 +56150,17 @@ function requestLog(octokit) {
     octokit.log.debug("request", options);
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
-    const path18 = requestOptions.url.replace(options.baseUrl, "");
+    const path19 = requestOptions.url.replace(options.baseUrl, "");
     return request2(options).then((response) => {
       const requestId = response.headers["x-github-request-id"];
       octokit.log.info(
-        `${requestOptions.method} ${path18} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path19} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       return response;
     }).catch((error52) => {
       const requestId = error52.response?.headers["x-github-request-id"] || "UNKNOWN";
       octokit.log.error(
-        `${requestOptions.method} ${path18} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path19} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       throw error52;
     });
@@ -56327,6 +56327,7 @@ function loadConfig() {
   const swarmReview = getInput("swarm_review") !== "false";
   const complexityPrediction = getInput("complexity_prediction") !== "false";
   const prSplitSuggestions = getInput("pr_split_suggestions") !== "false";
+  const findingLifecycle = getInput("finding_lifecycle") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56421,7 +56422,8 @@ function loadConfig() {
     suppressionMemories,
     swarmReview,
     complexityPrediction,
-    prSplitSuggestions
+    prSplitSuggestions,
+    findingLifecycle
   };
 }
 function parseSimpleYaml(text2) {
@@ -59929,10 +59931,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path18) {
-  if (!path18)
+function getElementAtPath(obj, path19) {
+  if (!path19)
     return obj;
-  return path18.reduce((acc, key) => acc?.[key], obj);
+  return path19.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -60341,11 +60343,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path18, issues) {
+function prefixIssues(path19, issues) {
   return issues.map((iss) => {
     var _a21;
     (_a21 = iss).path ?? (_a21.path = []);
-    iss.path.unshift(path18);
+    iss.path.unshift(path19);
     return iss;
   });
 }
@@ -60492,16 +60494,16 @@ function flattenError(error52, mapper = (issue3) => issue3.message) {
 }
 function formatError(error52, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error53, path18 = []) => {
+  const processError = (error53, path19 = []) => {
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path18, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path19, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
       } else {
-        const fullpath = [...path18, ...issue3.path];
+        const fullpath = [...path19, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -60528,17 +60530,17 @@ function formatError(error52, mapper = (issue3) => issue3.message) {
 }
 function treeifyError(error52, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error53, path18 = []) => {
+  const processError = (error53, path19 = []) => {
     var _a21, _b17;
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path18, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path19, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path18, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path19, ...issue3.path]);
       } else {
-        const fullpath = [...path18, ...issue3.path];
+        const fullpath = [...path19, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -60570,8 +60572,8 @@ function treeifyError(error52, mapper = (issue3) => issue3.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path18 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path18) {
+  const path19 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path19) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -73263,13 +73265,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path18 = ref.slice(1).split("/").filter(Boolean);
-  if (path18.length === 0) {
+  const path19 = ref.slice(1).split("/").filter(Boolean);
+  if (path19.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path18[0] === defsKey) {
-    const key = path18[1];
+  if (path19[0] === defsKey) {
+    const key = path19[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -74036,8 +74038,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path18, errorMaps, issueData } = params;
-  const fullPath = [...path18, ...issueData.path || []];
+  const { data, path: path19, errorMaps, issueData } = params;
+  const fullPath = [...path19, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -74152,11 +74154,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path18, key) {
+  constructor(parent, value, path19, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path18;
+    this._path = path19;
     this._key = key;
   }
   get path() {
@@ -100175,37 +100177,37 @@ function createOpenAI(options = {}) {
   );
   const createChatModel = (modelId) => new OpenAIChatLanguageModel(modelId, {
     provider: `${providerName}.chat`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createCompletionModel = (modelId) => new OpenAICompletionLanguageModel(modelId, {
     provider: `${providerName}.completion`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createEmbeddingModel = (modelId) => new OpenAIEmbeddingModel(modelId, {
     provider: `${providerName}.embedding`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createImageModel = (modelId) => new OpenAIImageModel(modelId, {
     provider: `${providerName}.image`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createTranscriptionModel = (modelId) => new OpenAITranscriptionModel(modelId, {
     provider: `${providerName}.transcription`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createSpeechModel = (modelId) => new OpenAISpeechModel(modelId, {
     provider: `${providerName}.speech`,
-    url: ({ path: path18 }) => `${baseURL}${path18}`,
+    url: ({ path: path19 }) => `${baseURL}${path19}`,
     headers: getHeaders,
     fetch: options.fetch
   });
@@ -100220,7 +100222,7 @@ function createOpenAI(options = {}) {
   const createResponsesModel = (modelId) => {
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${providerName}.responses`,
-      url: ({ path: path18 }) => `${baseURL}${path18}`,
+      url: ({ path: path19 }) => `${baseURL}${path19}`,
       headers: getHeaders,
       fetch: options.fetch,
       fileIdPrefixes: ["file-"]
@@ -108313,16 +108315,16 @@ function createAgentTools(octokit, owner, repo, headSha) {
     inputSchema: external_exports.object({
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
-    execute: async ({ path: path18 }) => {
-      if (isBlockedPath(path18)) {
-        warning(`Agent read_file blocked: ${path18} matches secret file pattern`);
-        return `Access denied: ${path18} is a protected file (secrets/credentials)`;
+    execute: async ({ path: path19 }) => {
+      if (isBlockedPath(path19)) {
+        warning(`Agent read_file blocked: ${path19} matches secret file pattern`);
+        return `Access denied: ${path19} is a protected file (secrets/credentials)`;
       }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
-          path: path18,
+          path: path19,
           ref: headSha,
           headers: { accept: "application/vnd.github.raw+json" }
         });
@@ -108333,9 +108335,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
           const decoded = Buffer.from(data.content, "base64").toString("utf-8");
           return truncate(decoded, 5e3);
         }
-        return `File: ${path18} - could not read content`;
+        return `File: ${path19} - could not read content`;
       } catch {
-        return `File not found or inaccessible: ${path18}`;
+        return `File not found or inaccessible: ${path19}`;
       }
     }
   });
@@ -110157,11 +110159,11 @@ function runASTContractAnalysis(diffFiles, workspace) {
   for (const file2 of diffFiles) {
     if (!/\.[tj]sx?$/.test(file2.path)) continue;
     try {
-      const fs17 = __require("node:fs");
-      const path18 = __require("node:path");
-      const fullPath = path18.join(workspace, file2.path);
-      if (fs17.existsSync(fullPath)) {
-        allFileContents.set(file2.path, fs17.readFileSync(fullPath, "utf-8"));
+      const fs18 = __require("node:fs");
+      const path19 = __require("node:path");
+      const fullPath = path19.join(workspace, file2.path);
+      if (fs18.existsSync(fullPath)) {
+        allFileContents.set(file2.path, fs18.readFileSync(fullPath, "utf-8"));
         filesAnalyzed++;
       }
     } catch {
@@ -111576,9 +111578,9 @@ var PUBLIC_ROUTE_PATTERNS = [
   /^\/graphql/i
   // Often public, but may have auth at middleware level
 ];
-function isPublicRoute(path18) {
-  if (!path18) return false;
-  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path18));
+function isPublicRoute(path19) {
+  if (!path19) return false;
+  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path19));
 }
 function hasAuthSignal(content) {
   return AUTH_SIGNALS.some((re2) => re2.test(content));
@@ -113230,6 +113232,206 @@ function buildSplitContext(score, category, suggestions) {
   return ctx.trim();
 }
 
+// src/finding-lifecycle.ts
+import * as fs17 from "node:fs";
+import * as path18 from "node:path";
+var LIFECYCLE_FILENAME = "mizumi-lifecycle.json";
+var MAX_SNAPSHOTS = 500;
+function fingerprintFinding(finding) {
+  const messageHash = hashMessage3(finding.message);
+  return {
+    key: `${finding.file}:${finding.line}:${finding.category}:${messageHash}`,
+    file: finding.file,
+    line: finding.line,
+    category: finding.category,
+    severity: finding.severity,
+    messageHash
+  };
+}
+function hashMessage3(message) {
+  let hash2 = 0;
+  for (let i = 0; i < message.length; i++) {
+    const chr = message.charCodeAt(i);
+    hash2 = (hash2 << 5) - hash2 + chr | 0;
+  }
+  return Math.abs(hash2).toString(36);
+}
+function storePath3(workspace) {
+  return path18.join(workspace, ".github", LIFECYCLE_FILENAME);
+}
+function readStore3(workspace) {
+  const p = storePath3(workspace);
+  if (!fs17.existsSync(p)) return { snapshots: {} };
+  try {
+    const raw = fs17.readFileSync(p, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return { snapshots: {} };
+  }
+}
+function writeStore3(workspace, store) {
+  const p = storePath3(workspace);
+  const dir = path18.dirname(p);
+  if (!fs17.existsSync(dir)) fs17.mkdirSync(dir, { recursive: true });
+  const entries = Object.entries(store.snapshots).sort(([, a], [, b]) => a.timestamp - b.timestamp);
+  while (entries.length > MAX_SNAPSHOTS) {
+    const [key] = entries.shift();
+    delete store.snapshots[key];
+  }
+  fs17.writeFileSync(p, JSON.stringify(store), "utf-8");
+}
+function prKey2(owner, repo, prNumber) {
+  return `${owner}/${repo}#${prNumber}`;
+}
+function loadPreviousFindings(workspace, owner, repo, prNumber) {
+  const store = readStore3(workspace);
+  const key = prKey2(owner, repo, prNumber);
+  const previous = store.snapshots[key] ?? null;
+  if (!previous) {
+    return { previousSnapshot: null, promptContext: "" };
+  }
+  let ctx = `## Previous Review Findings (iteration ${previous.iteration})
+`;
+  ctx += "The following findings were raised in the previous push. ";
+  ctx += "If any of these issues appear to still be present, note them briefly rather than re-raising in full:\n\n";
+  for (const f of previous.findings.slice(0, 8)) {
+    ctx += `- \`${f.file}:${f.line}\` (${f.severity}/${f.category})
+`;
+  }
+  if (previous.findings.length > 8) {
+    ctx += `
+... and ${previous.findings.length - 8} more from the previous iteration.
+`;
+  }
+  return { previousSnapshot: previous, promptContext: ctx.trim() + "\n" };
+}
+function trackFindings(workspace, owner, repo, prNumber, headSha, currentFindings) {
+  const store = readStore3(workspace);
+  const key = prKey2(owner, repo, prNumber);
+  const previous = store.snapshots[key];
+  const currentFingerprints = currentFindings.map(fingerprintFinding);
+  const currentKeys = new Set(currentFingerprints.map((f) => f.key));
+  if (!previous) {
+    const snapshot2 = {
+      prKey: key,
+      sha: headSha,
+      iteration: 1,
+      timestamp: Date.now(),
+      findings: currentFingerprints
+    };
+    store.snapshots[key] = snapshot2;
+    writeStore3(workspace, store);
+    return {
+      persisted: [],
+      resolved: [],
+      newFindings: currentFingerprints,
+      previousIteration: 0,
+      currentIteration: 1,
+      contextText: buildContextText([], [], currentFingerprints, 0, 1)
+    };
+  }
+  const previousKeys = new Set(previous.findings.map((f) => f.key));
+  const persisted = previous.findings.filter((f) => currentKeys.has(f.key));
+  const resolved = previous.findings.filter((f) => !currentKeys.has(f.key));
+  const newFindings = currentFingerprints.filter((f) => !previousKeys.has(f.key));
+  const currentIteration = previous.iteration + 1;
+  const snapshot = {
+    prKey: key,
+    sha: headSha,
+    iteration: currentIteration,
+    timestamp: Date.now(),
+    findings: currentFingerprints
+  };
+  store.snapshots[key] = snapshot;
+  writeStore3(workspace, store);
+  info(`Finding lifecycle: iteration ${currentIteration}, ${persisted.length} persisted, ${resolved.length} resolved, ${newFindings.length} new`);
+  return {
+    persisted,
+    resolved,
+    newFindings,
+    previousIteration: previous.iteration,
+    currentIteration,
+    contextText: buildContextText(persisted, resolved, newFindings, previous.iteration, currentIteration)
+  };
+}
+function buildContextText(persisted, resolved, newFindings, previousIteration, currentIteration) {
+  if (currentIteration <= 1 && persisted.length === 0 && resolved.length === 0) {
+    if (newFindings.length === 0) return "";
+    return `## Finding Lifecycle (iteration 1)
+${newFindings.length} finding(s) identified.
+`;
+  }
+  let ctx = `## Finding Lifecycle (iteration ${currentIteration})
+`;
+  if (persisted.length > 0) {
+    ctx += `
+**${persisted.length} finding(s) persisted** from iteration ${previousIteration}:
+`;
+    for (const f of persisted.slice(0, 8)) {
+      ctx += `- \`${f.file}:${f.line}\` [${f.severity}/${f.category}
+`;
+    }
+    if (persisted.length > 8) {
+      ctx += `- ... and ${persisted.length - 8} more
+`;
+    }
+  }
+  if (resolved.length > 0) {
+    ctx += `
+**${resolved.length} finding(s) resolved** since iteration ${previousIteration}.
+`;
+  }
+  if (newFindings.length > 0) {
+    ctx += `
+**${newFindings.length} new finding(s)** in this iteration.
+`;
+  }
+  if (persisted.length > 0) {
+    ctx += `
+> ${persisted.length} finding(s) from the previous push are still unresolved. Focus on these first.
+`;
+  }
+  return ctx.trim() + "\n";
+}
+function formatLifecycleSummary(result) {
+  if (result.currentIteration <= 1) return "";
+  if (result.persisted.length === 0 && result.resolved.length === 0) return "";
+  let body = `<details><summary><strong>Finding Lifecycle</strong> \u2014 iteration ${result.currentIteration}</summary>
+
+`;
+  body += `| Status | Count |
+|--------|-------|
+`;
+  body += `| Persisted | ${result.persisted.length} |
+`;
+  body += `| Resolved | ${result.resolved.length} |
+`;
+  body += `| New | ${result.newFindings.length} |
+
+`;
+  if (result.persisted.length > 0) {
+    body += `**${result.persisted.length} finding(s) from the previous push are still unresolved.**
+
+`;
+    for (const f of result.persisted.slice(0, 5)) {
+      body += `- \`${f.file}:${f.line}\` (${f.severity}/${f.category})
+`;
+    }
+    if (result.persisted.length > 5) {
+      body += `- ... and ${result.persisted.length - 5} more
+`;
+    }
+    body += "\n";
+  }
+  if (result.resolved.length > 0) {
+    body += `**${result.resolved.length} finding(s) resolved.** `;
+    body += "Great work addressing these!\n\n";
+  }
+  body += `</details>
+`;
+  return body;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -113595,6 +113797,19 @@ async function run() {
         warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let lifecycleResult = null;
+    let lifecyclePromptCtx = "";
+    if (config2.findingLifecycle) {
+      try {
+        const prev = loadPreviousFindings(workspace, owner, repo, prNumber);
+        lifecyclePromptCtx = prev.promptContext;
+        if (prev.previousSnapshot) {
+          info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
+        }
+      } catch (e) {
+        warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let authBoundaryResult = null;
     if (config2.authBoundary) {
       try {
@@ -113763,6 +113978,9 @@ ${testGapResult.contextText}`;
     }
     if (splitResult && splitResult.shouldSplit && splitResult.contextText) {
       context4.ghostContent += "\n\n" + splitResult.contextText;
+    }
+    if (lifecyclePromptCtx) {
+      context4.ghostContent += "\n\n" + lifecyclePromptCtx;
     }
     const positionHint = buildPositionHint(diff.files);
     const guarded = guardContextWindow(context4.diffText, config2.provider);
@@ -114035,6 +114253,24 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
+      if (lifecycleResult) {
+        const lr = lifecycleResult;
+        if (lr.currentIteration > 1) {
+          const lifecycleBody = formatLifecycleSummary(lr);
+          if (lifecycleBody) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: lifecycleBody
+              });
+            } catch (e) {
+              warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+        }
+      }
       if (ownershipBody) {
         try {
           const ownershipComment = `<!-- mizumi-ownership-marker -->
@@ -114166,6 +114402,16 @@ ${digest}
         info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
       } catch (e) {
         warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (config2.findingLifecycle) {
+      try {
+        lifecycleResult = trackFindings(workspace, owner, repo, prNumber, headSha, mergedReview.comments);
+        if (lifecycleResult.currentIteration > 1) {
+          info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
+        }
+      } catch (e) {
+        warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     recordFindings(

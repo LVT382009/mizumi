@@ -61,6 +61,7 @@ import { runSuppressionMemories } from "./suppression-memories.js";
 import { runSwarmReview, buildSwarmContext } from "./swarm-review.js";
 import { computeComplexity } from "./complexity-predictor.js";
 import { suggestPRSplits } from "./pr-split.js";
+import { trackFindings, loadPreviousFindings, formatLifecycleSummary } from "./finding-lifecycle.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -460,6 +461,21 @@ if (config.prSplitSuggestions && complexityResult) {
   }
 }
 
+// 4a15. Finding lifecycle tracking — load previous iteration for prompt context
+let lifecycleResult: import("./finding-lifecycle.js").LifecycleResult | null = null;
+let lifecyclePromptCtx = "";
+if (config.findingLifecycle) {
+  try {
+    const prev = loadPreviousFindings(workspace, owner, repo, prNumber);
+    lifecyclePromptCtx = prev.promptContext;
+    if (prev.previousSnapshot) {
+      core.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
+    }
+  } catch (e) {
+    core.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -666,6 +682,11 @@ if (complexityResult && complexityResult.contextText) {
 // 5c13. PR split suggestions context injection
 if (splitResult && splitResult.shouldSplit && splitResult.contextText) {
   context.ghostContent += "\n\n" + splitResult.contextText;
+}
+
+// 5c14. Finding lifecycle prompt context — inject previous iteration findings
+if (lifecyclePromptCtx) {
+  context.ghostContent += "\n\n" + lifecyclePromptCtx;
 }
 
 // 6. Build position hint for LLM
@@ -959,6 +980,23 @@ if (behavioralBody) {
   }
 
 
+// Post finding lifecycle summary as a separate comment
+if (lifecycleResult) {
+  const lr = lifecycleResult;
+  if (lr.currentIteration > 1) {
+    const lifecycleBody = formatLifecycleSummary(lr);
+    if (lifecycleBody) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner, repo, issue_number: prNumber, body: lifecycleBody,
+        });
+      } catch (e) {
+        core.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+  }
+}
+
 // Post ownership summary as a separate comment
 if (ownershipBody) {
   try {
@@ -1083,6 +1121,19 @@ if (config.spendThreshold > 0 && spendEntry.totalTokens > config.spendThreshold 
     core.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config.spendThreshold}`);
   } catch (e) {
     core.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+
+// 10d0. Finding lifecycle tracking — record current iteration findings
+if (config.findingLifecycle) {
+  try {
+    lifecycleResult = trackFindings(workspace, owner, repo, prNumber, headSha, mergedReview.comments);
+    if (lifecycleResult.currentIteration > 1) {
+      core.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
+    }
+  } catch (e) {
+    core.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 

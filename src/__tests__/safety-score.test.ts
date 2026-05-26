@@ -334,4 +334,157 @@ describe("computeSafetyScore", () => {
     const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
     expect(result.factors.attributionAdjustment).toBe(0);
   });
+
+  it("multiple findings with all severity levels", () => {
+    const result = computeSafetyScore({
+      findings: [
+        { severity: "critical", category: "security" },
+        { severity: "high", category: "bug" },
+        { severity: "medium", category: "style" },
+        { severity: "low", category: "style" },
+        { severity: "nitpick", category: "style" },
+      ],
+      riskScore: 1,
+      blastRadiusFiles: 0,
+      attribution: null,
+    });
+    expect(result.score).toBe(57); // 100 - 25 - 10 - 5 - 2 - 1
+    expect(result.factors.findingPenalty).toBe(43);
+  });
+
+  it("score exactly 70 is success state boundary", () => {
+    const result = computeSafetyScore({
+      findings: Array.from({ length: 3 }, () => ({ severity: "high", category: "bug" })),
+      riskScore: 1,
+      blastRadiusFiles: 0,
+      attribution: null,
+    });
+    expect(result.score).toBe(70);
+  });
+
+  it("score drops below 40 with enough penalties", () => {
+    const result = computeSafetyScore({
+      findings: [
+        { severity: "critical", category: "security" },
+        { severity: "critical", category: "security" },
+      ],
+      riskScore: 3,
+      blastRadiusFiles: 0,
+      attribution: null,
+    });
+    expect(result.score).toBe(45); // 100 - 25*2 - 5(risk) = 45
+  });
+
+  it("blast radius exactly 5 gets no penalty", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 5, attribution: null });
+    expect(result.factors.blastRadiusPenalty).toBe(0);
+    expect(result.score).toBe(100);
+  });
+
+  it("blast radius exactly 11 gets >10 penalty", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 11, attribution: null });
+    expect(result.factors.blastRadiusPenalty).toBe(10);
+  });
+
+  it("attribution with 3 reliable high-dismissal categories gives +6", () => {
+    const attribution: AttributionResult = {
+      categories: [
+        { category: "style", total: 15, helpful: 2, dismissed: 13, dismissalRate: 0.87, confidencePenalty: 65, isReliable: true },
+        { category: "nitpick", total: 12, helpful: 1, dismissed: 11, dismissalRate: 0.92, confidencePenalty: 69, isReliable: true },
+        { category: "docs", total: 20, helpful: 3, dismissed: 17, dismissalRate: 0.85, confidencePenalty: 63, isReliable: true },
+      ],
+      reliableCategories: 3,
+      entriesAnalyzed: 47,
+    };
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
+    expect(result.factors.attributionAdjustment).toBe(6);
+  });
+
+  it("attribution with reliable but low-dismissal category gives no bonus", () => {
+    const attribution: AttributionResult = {
+      categories: [{
+        category: "bug", total: 20, helpful: 15, dismissed: 5,
+        dismissalRate: 0.25, confidencePenalty: 0, isReliable: true,
+      }],
+      reliableCategories: 1,
+      entriesAnalyzed: 20,
+    };
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
+    expect(result.factors.attributionAdjustment).toBe(0);
+  });
+
+  it("all combined penalties with attribution bonus", () => {
+    const attribution: AttributionResult = {
+      categories: Array.from({ length: 5 }, (_, i) => ({
+        category: `cat${i}`, total: 15, helpful: 2, dismissed: 13,
+        dismissalRate: 0.87, confidencePenalty: 65, isReliable: true,
+      })),
+      reliableCategories: 5,
+      entriesAnalyzed: 75,
+    };
+    const result = computeSafetyScore({
+      findings: [{ severity: "high", category: "bug" }],
+      riskScore: 4,
+      blastRadiusFiles: 7,
+      attribution,
+    });
+    // 100 - 10(finding) - 5(blast) + 10(attribution capped) - 10(risk) = 85
+    expect(result.score).toBe(85);
+    expect(result.factors.attributionAdjustment).toBe(10);
+  });
+
+  it("zero findings with risk 2 gives no risk adjustment", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 2, blastRadiusFiles: 0, attribution: null });
+    expect(result.factors.riskAdjustment).toBe(0);
+    expect(result.score).toBe(100);
+  });
+
+  it("large number of critical findings clamped at 0", () => {
+    const findings = Array.from({ length: 10 }, () => ({ severity: "critical", category: "security" }));
+    const result = computeSafetyScore({ findings, riskScore: 5, blastRadiusFiles: 20, attribution: null });
+    expect(result.score).toBe(0);
+    expect(result.factors.findingPenalty).toBe(250);
+  });
+
+  it("attribution with mix of reliable and unreliable categories", () => {
+    const attribution: AttributionResult = {
+      categories: [
+        { category: "style", total: 15, helpful: 2, dismissed: 13, dismissalRate: 0.87, confidencePenalty: 65, isReliable: true },
+        { category: "perf", total: 3, helpful: 0, dismissed: 3, dismissalRate: 1.0, confidencePenalty: 75, isReliable: false },
+      ],
+      reliableCategories: 1,
+      entriesAnalyzed: 18,
+    };
+    const result = computeSafetyScore({ findings: [], riskScore: 1, blastRadiusFiles: 0, attribution });
+    expect(result.factors.attributionAdjustment).toBe(2);
+  });
+
+  it("returns correct factors object structure", () => {
+    const result = computeSafetyScore({
+      findings: [{ severity: "medium", category: "bug" }],
+      riskScore: 3,
+      blastRadiusFiles: 6,
+      attribution: null,
+    });
+    expect(result).toHaveProperty("score");
+    expect(result).toHaveProperty("factors");
+    expect(result.factors).toHaveProperty("findingPenalty");
+    expect(result.factors).toHaveProperty("blastRadiusPenalty");
+    expect(result.factors).toHaveProperty("attributionAdjustment");
+    expect(result.factors).toHaveProperty("riskAdjustment");
+    expect(typeof result.factors.findingPenalty).toBe("number");
+    expect(typeof result.factors.blastRadiusPenalty).toBe("number");
+    expect(typeof result.factors.attributionAdjustment).toBe("number");
+    expect(typeof result.factors.riskAdjustment).toBe("number");
+  });
+
+  it("risk score exactly 3 gives medium penalty", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 3, blastRadiusFiles: 0, attribution: null });
+    expect(result.factors.riskAdjustment).toBe(-5);
+  });
+
+  it("risk score exactly 4 gives high penalty", () => {
+    const result = computeSafetyScore({ findings: [], riskScore: 4, blastRadiusFiles: 0, attribution: null });
+    expect(result.factors.riskAdjustment).toBe(-10);
+  });
 });
