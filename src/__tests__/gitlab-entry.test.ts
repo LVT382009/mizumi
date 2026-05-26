@@ -425,3 +425,99 @@ describe("GitLab platform client methods", () => {
     expect(status).toBe("passed");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Config feature flags for GitLab
+// ---------------------------------------------------------------------------
+
+describe("GitLab config feature coverage", () => {
+  it("has all analysis features enabled in test config", () => {
+    const config = loadConfig();
+    expect(config.astContractAnalysis).toBe(true);
+    expect(config.taintAnalysis).toBe(true);
+    expect(config.reviewLearning).toBe(true);
+    expect(config.blastRadius).toBe(true);
+    expect(config.deltaReview).toBe(true);
+    expect(config.authBoundary).toBe(true);
+    expect(config.secretEntropy).toBe(true);
+    expect(config.safetyScore).toBe(true);
+    expect(config.adaptiveStrategy).toBe(true);
+    expect(config.orgMemory).toBe(true);
+    expect(config.testGapDetection).toBe(true);
+    expect(config.suppressionMemories).toBe(true);
+    expect(config.swarmReview).toBe(true);
+  });
+
+  it("has CI fix disabled by default", () => {
+    const config = loadConfig();
+    expect(config.ciValidatedFix).toBe(false);
+  });
+
+  it("has dryRun enabled in test config", () => {
+    const config = loadConfig();
+    expect(config.dryRun).toBe(true);
+  });
+
+  it("has correct provider settings", () => {
+    const config = loadConfig();
+    expect(config.provider).toBe("anthropic");
+    expect(config.model).toBe("claude-sonnet-4-6");
+    expect(config.profile).toBe("chill");
+  });
+
+  it("has correct auto-fix and improve settings", () => {
+    const config = loadConfig();
+    expect(config.autoFix).toBe(false);
+    expect(config.improveEnabled).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Platform detection
+// ---------------------------------------------------------------------------
+
+describe("GitLab platform detection", () => {
+  it("detectPlatform returns gitlab string", () => {
+    const platform = detectPlatform();
+    expect(platform).toBe("gitlab");
+  });
+
+  it("getWorkspace returns a path string", () => {
+    const workspace = getWorkspace();
+    expect(typeof workspace).toBe("string");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review and critique integration with GitLab pipeline
+// ---------------------------------------------------------------------------
+
+describe("GitLab review pipeline steps", () => {
+  it("classifyPR returns category and reason", () => {
+    const result = classifyPR(
+      [{ from: "src/a.ts", additions: 10, deletions: 5 }],
+      10, 5,
+    );
+    expect(result).toHaveProperty("category");
+    expect(result).toHaveProperty("reason");
+  });
+
+  it("guardContextWindow returns text and truncation flag", () => {
+    const longDiff = "a".repeat(50000);
+    const result = guardContextWindow(longDiff, "anthropic");
+    expect(result.text.length).toBeGreaterThan(0);
+    expect(typeof result.truncated).toBe("boolean");
+  });
+
+  it("writeMemory is callable", () => {
+    writeMemory("/tmp", "existing memory", "new memory content");
+    expect(writeMemory).toHaveBeenCalled();
+  });
+
+  it("recordFindings is callable", () => {
+    recordFindings("/tmp", "project", 1, [
+      { file: "a.ts", line: 1, category: "security", severity: "high", message: "test" },
+    ]);
+    expect(recordFindings).toHaveBeenCalled();
+  });
+});

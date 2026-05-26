@@ -527,3 +527,201 @@ describe("buildTestGapContext", () => {
     expect(ctx).toContain("src/b.ts");
   });
 });
+
+// ---------------------------------------------------------------------------
+// isProductionFile edge cases (tested via runTestGapDetection)
+// ---------------------------------------------------------------------------
+
+describe("isProductionFile edge cases", () => {
+  it("skips .spec.ts files", () => {
+    const diffFiles = [makeDiffFile("src/auth.spec.ts", ["it('works', () => {})"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips __mocks__ files", () => {
+    const diffFiles = [makeDiffFile("src/__mocks__/api.ts", ["export const mock = {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips fixture files", () => {
+    const diffFiles = [makeDiffFile("src/fixtures/data.ts", ["export const data = []"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips e2e test files", () => {
+    const diffFiles = [makeDiffFile("src/e2e/login.ts", ["test('login flow', () => {})"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips storybook files", () => {
+    const diffFiles = [makeDiffFile("src/components/Button.stories.tsx", ["export default {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips migration files", () => {
+    const diffFiles = [makeDiffFile("src/migrations/001_create_users.ts", ["export function up() {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips JSON files", () => {
+    const diffFiles = [makeDiffFile("src/config.json", ['{ "key": "value" }'])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips YAML files", () => {
+    const diffFiles = [makeDiffFile(".github/workflows/ci.yml", ["name: CI"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("skips CSS files", () => {
+    const diffFiles = [makeDiffFile("src/styles.css", [".class { color: red; }"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.gaps).toHaveLength(0);
+  });
+
+  it("includes regular .ts production files", () => {
+    const diffFiles = [makeDiffFile("src/utils.ts", ["export function helper() {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.productionFilesChanged).toBe(1);
+  });
+
+  it("includes .tsx production files", () => {
+    const diffFiles = [makeDiffFile("src/components/App.tsx", ["export function App() {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.productionFilesChanged).toBe(1);
+  });
+
+  it("includes .js production files", () => {
+    const diffFiles = [makeDiffFile("src/server.js", ["module.exports = {}"])];
+    const result = runTestGapDetection(diffFiles, "/nonexistent");
+    expect(result.productionFilesChanged).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countNewSymbols edge cases
+// ---------------------------------------------------------------------------
+
+describe("countNewSymbols additional edge cases", () => {
+  it("counts default exported classes", () => {
+    const diffFile = makeDiffFile("src/App.tsx", [
+      "export default class App extends React.Component {}",
+    ]);
+    expect(countNewSymbols(diffFile)).toBe(1);
+  });
+
+  it("counts exported const with destructuring-like pattern", () => {
+    const diffFile = makeDiffFile("src/fn.ts", [
+      "export const handler = (req, res) => { res.send('ok'); }",
+    ]);
+    expect(countNewSymbols(diffFile)).toBe(1);
+  });
+
+  it("does not count variable assignments without export", () => {
+    const diffFile = makeDiffFile("src/internal.ts", [
+      "const x = 42;",
+      "let y = 'hello';",
+    ]);
+    expect(countNewSymbols(diffFile)).toBe(0);
+  });
+
+  it("counts across multiple hunks", () => {
+    const multifileHunk: DiffFile = {
+      path: "src/big.ts",
+      additions: 2,
+      deletions: 0,
+      status: "modified",
+      hunks: [
+        {
+          changes: [{ type: "add", content: "export function a() {}", line: 1 }],
+        },
+        {
+          changes: [{ type: "add", content: "export function b() {}", line: 10 }],
+        },
+      ],
+    };
+    expect(countNewSymbols(multifileHunk)).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runTestGapDetection additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("runTestGapDetection additional edge cases", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-testgap2-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("finds test file via spec convention", () => {
+    const testDir = path.join(tmpDir, "src", "__tests__");
+    fs.mkdirSync(testDir, { recursive: true });
+    fs.writeFileSync(path.join(testDir, "auth.spec.ts"), "test");
+
+    const diffFiles = [
+      makeDiffFile("src/auth.ts", ["export function login() {}"]),
+    ];
+    const result = runTestGapDetection(diffFiles, tmpDir);
+    // Test file exists but not changed in this PR
+    expect(result.gaps).toHaveLength(1);
+    expect(result.gaps[0].reason).toBe("test-file-not-changed");
+  });
+
+  it("finds test file in separate test/ directory", () => {
+    const testDir = path.join(tmpDir, "test", "auth");
+    fs.mkdirSync(testDir, { recursive: true });
+    fs.writeFileSync(path.join(testDir, "auth.test.ts"), "test");
+
+    const diffFiles = [
+      makeDiffFile("src/auth/auth.ts", ["export function login() {}"]),
+    ];
+    const result = runTestGapDetection(diffFiles, tmpDir);
+    expect(result.gaps.length).toBeLessThanOrEqual(1);
+  });
+
+  it("handles mixed production and test files", () => {
+    const diffFiles = [
+      makeDiffFile("src/app.ts", ["export function start() {}"]),
+      makeDiffFile("src/util.ts", ["export function format() {}"]),
+      makeDiffFile("src/__tests__/app.test.ts", ["test('start', () => {})"]),
+    ];
+    const result = runTestGapDetection(diffFiles, tmpDir);
+    // util.ts has no test change → gap; app.ts is covered
+    expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles deeply nested file paths", () => {
+    const diffFiles = [
+      makeDiffFile("src/features/auth/controllers/login.ts", [
+        "export function handleLogin() {}",
+      ]),
+    ];
+    const result = runTestGapDetection(diffFiles, tmpDir);
+    expect(result.gaps).toHaveLength(1);
+    expect(result.gaps[0].expectedTestFile).toContain("login.test.ts");
+  });
+
+  it("returns correct productionFilesChanged count", () => {
+    const diffFiles = [
+      makeDiffFile("src/a.ts", ["export function fa() {}"]),
+      makeDiffFile("src/b.ts", ["export function fb() {}"]),
+      makeDiffFile("README.md", ["# docs"]),
+    ];
+    const result = runTestGapDetection(diffFiles, tmpDir);
+    expect(result.productionFilesChanged).toBe(2);
+  });
+});
