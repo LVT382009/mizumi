@@ -71,6 +71,7 @@ describe("NVIDIA NIM provider configuration", () => {
     swarmReview: true,
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
+    depImpactAnalysis: true,
     ...overrides,
   });
 

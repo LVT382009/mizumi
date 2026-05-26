@@ -63,6 +63,7 @@ import { computeComplexity } from "./complexity-predictor.js";
 import { suggestPRSplits } from "./pr-split.js";
 import { trackFindings, loadPreviousFindings, formatLifecycleSummary } from "./finding-lifecycle.js";
 import { classifyIntents } from "./intent-classifier.js";
+import { analyzeDepImpact } from "./dep-impact.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -490,6 +491,19 @@ if (config.intentClassification) {
   }
 }
 
+
+// 4a17. Dependency change impact analysis — detect package.json/lockfile changes
+let depImpactResult: import("./dep-impact.js").DepImpactResult | null = null;
+if (config.depImpactAnalysis) {
+  try {
+    depImpactResult = analyzeDepImpact(diff.files);
+    if (depImpactResult.changes.length > 0) {
+      core.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
+    }
+  } catch (e) {
+    core.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -707,6 +721,10 @@ if (intentResult && intentResult.contextText) {
   context.ghostContent += "\n\n" + intentResult.contextText;
 }
     const positionHint = buildPositionHint(diff.files);
+// 5c16. Dependency impact context injection — tell LLM about dep risk
+if (depImpactResult && depImpactResult.contextText) {
+  context.ghostContent += "\n\n" + depImpactResult.contextText;
+}
 
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
   const guarded = guardContextWindow(context.diffText, config.provider);
@@ -1024,6 +1042,17 @@ if (intentResult && intentResult.bodySummary) {
   }
 }
 
+
+// Post dependency impact summary as a separate comment
+if (depImpactResult && depImpactResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: depImpactResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post ownership summary as a separate comment
 if (ownershipBody) {
   try {

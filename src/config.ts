@@ -57,6 +57,7 @@ export interface MizumiConfig {
   prSplitSuggestions: boolean;
   findingLifecycle: boolean;
   intentClassification: boolean;
+  depImpactAnalysis: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -137,6 +138,7 @@ const complexityPrediction = core.getInput("complexity_prediction") !== "false";
 const prSplitSuggestions = core.getInput("pr_split_suggestions") !== "false"; // default true
 const intentClassification = core.getInput("intent_classification") !== "false"; // default true
 const findingLifecycle = core.getInput("finding_lifecycle") !== "false"; // default true
+const depImpactAnalysis = core.getInput("dep_impact_analysis") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -236,6 +238,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   prSplitSuggestions,
     findingLifecycle,
     intentClassification,
+    depImpactAnalysis,
   };
 }
 

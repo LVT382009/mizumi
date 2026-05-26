@@ -295,4 +295,166 @@ describe("applyLabels", () => {
       applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3)
     ).rejects.toThrow("label list failed");
   });
+
+  // computeLabels additional edge cases
+
+  it("applies review-heavy at exactly 9 findings (below threshold)", () => {
+    const findings = Array.from({ length: 9 }, () => ({
+      severity: "low" as const, category: "style" as const,
+    }));
+    const labels = computeLabels(findings, 1);
+    expect(labels).not.toContain("review-heavy");
+  });
+
+  it("applies needs-attention at very high risk score", () => {
+    const labels = computeLabels([], 10);
+    expect(labels).toContain("needs-attention");
+    expect(labels).toHaveLength(1); // only needs-attention since no findings
+  });
+
+  it("applies all category labels when all four categories present", () => {
+    const labels = computeLabels([
+      { severity: "high", category: "security" },
+      { severity: "high", category: "bug" },
+      { severity: "low", category: "style" },
+      { severity: "medium", category: "compliance" },
+    ], 2);
+    expect(labels).toContain("security");
+    expect(labels).toContain("bug");
+    expect(labels).toContain("style");
+    expect(labels).toContain("compliance");
+    expect(labels).not.toContain("needs-attention"); // risk < 4
+    expect(labels).not.toContain("review-heavy"); // < 10 findings
+  });
+
+  it("applies all six labels when conditions are met", () => {
+    const findings = Array.from({ length: 10 }, (_, i) => ({
+      severity: "high",
+      category: ["security", "bug", "style", "compliance"][i % 4],
+    }));
+    const labels = computeLabels(findings as any, 5);
+    expect(labels).toContain("security");
+    expect(labels).toContain("bug");
+    expect(labels).toContain("style");
+    expect(labels).toContain("compliance");
+    expect(labels).toContain("needs-attention");
+    expect(labels).toContain("review-heavy");
+    expect(labels).toHaveLength(6);
+  });
+
+  it("ignores findings with unknown category", () => {
+    const labels = computeLabels([{ severity: "medium", category: "performance" }], 2);
+    expect(labels).toHaveLength(0);
+  });
+
+  it("handles findings with empty string category", () => {
+    const labels = computeLabels([{ severity: "low", category: "" }], 2);
+    expect(labels).toHaveLength(0);
+  });
+
+  it("handles single finding with risk at exact threshold 4", () => {
+    const labels = computeLabels([{ severity: "medium", category: "style" }], 4);
+    expect(labels).toContain("style");
+    expect(labels).toContain("needs-attention");
+  });
+
+  it("handles findings with mixed known and unknown categories", () => {
+    const labels = computeLabels([
+      { severity: "critical", category: "security" },
+      { severity: "high", category: "performance" },
+    ], 2);
+    expect(labels).toContain("security");
+    expect(labels).toHaveLength(1); // unknown category produces no label
+  });
+
+  // applyLabels additional edge cases
+
+  it("ensures label is created when getLabel succeeds (label already exists)", async () => {
+    const octokit = makeOctokit([]);
+    octokit.rest.issues.getLabel.mockResolvedValueOnce({ data: { name: "security" } });
+    await applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3);
+    // createLabel should NOT be called since getLabel succeeded
+    expect(octokit.rest.issues.createLabel).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: "security" })
+    );
+  });
+
+  it("handles createLabel failure gracefully (label already exists race)", async () => {
+    const octokit = makeOctokit([]);
+    octokit.rest.issues.getLabel.mockRejectedValueOnce(new Error("not found"));
+    octokit.rest.issues.createLabel.mockRejectedValueOnce(new Error("already exists"));
+    // Should not throw — the catch in ensureLabel swallows it
+    const result = await applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3);
+    expect(result.added).toContain("security");
+  });
+
+  it("does not call addLabels when all desired labels already present on PR", async () => {
+    const octokit = makeOctokit(["security", "needs-attention"]);
+    await applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 5);
+    expect(octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("does not call removeLabel when current Mizumi labels match desired exactly", async () => {
+    const octokit = makeOctokit(["security"]);
+    await applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3);
+    expect(octokit.rest.issues.removeLabel).not.toHaveBeenCalled();
+  });
+
+  it("removes multiple stale Mizumi labels and adds new ones", async () => {
+    const octokit = makeOctokit(["security", "bug", "style"]);
+    const result = await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "medium", category: "compliance" }],
+      2
+    );
+    expect(result.added).toContain("compliance");
+    expect(result.removed).toContain("security");
+    expect(result.removed).toContain("bug");
+    expect(result.removed).toContain("style");
+    // Should have called removeLabel for each removed label
+    expect(octokit.rest.issues.removeLabel).toHaveBeenCalledTimes(3);
+  });
+
+  it("passes correct owner, repo, and prNumber to addLabels", async () => {
+    const octokit = makeOctokit([]);
+    await applyLabels(octokit as any, "acmecorp", "myrepo", 99, [{ severity: "high", category: "security" }], 3);
+    expect(octokit.rest.issues.addLabels).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "acmecorp", repo: "myrepo", issue_number: 99 })
+    );
+  });
+
+  it("passes correct owner, repo, and prNumber to removeLabel", async () => {
+    const octokit = makeOctokit(["security", "bug"]);
+    await applyLabels(octokit as any, "acmecorp", "myrepo", 99, [{ severity: "high", category: "security" }], 3);
+    expect(octokit.rest.issues.removeLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "acmecorp", repo: "myrepo", issue_number: 99, name: "bug" })
+    );
+  });
+
+  it("ensures multiple labels are created when missing from repo", async () => {
+    const octokit = makeOctokit([]);
+    await applyLabels(
+      octokit as any, "owner", "repo", 1,
+      [{ severity: "high", category: "security" }, { severity: "low", category: "style" }],
+      2
+    );
+    expect(octokit.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "security" })
+    );
+    expect(octokit.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "style" })
+    );
+  });
+
+  it("creates label with correct color and description", async () => {
+    const octokit = makeOctokit([]);
+    await applyLabels(octokit as any, "owner", "repo", 1, [{ severity: "high", category: "security" }], 3);
+    expect(octokit.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "security",
+        color: "ee0701",
+        description: "Contains security findings",
+      })
+    );
+  });
 });

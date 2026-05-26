@@ -148,6 +148,7 @@ vi.mock("../config.js", () => ({
     swarmReview: true,
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
+    depImpactAnalysis: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

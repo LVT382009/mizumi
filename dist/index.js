@@ -1,3 +1,4 @@
+import{createRequire}from"module";const require=createRequire(import.meta.url);
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -56327,7 +56328,9 @@ function loadConfig() {
   const swarmReview = getInput("swarm_review") !== "false";
   const complexityPrediction = getInput("complexity_prediction") !== "false";
   const prSplitSuggestions = getInput("pr_split_suggestions") !== "false";
+  const intentClassification = getInput("intent_classification") !== "false";
   const findingLifecycle = getInput("finding_lifecycle") !== "false";
+  const depImpactAnalysis = getInput("dep_impact_analysis") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56423,7 +56426,9 @@ function loadConfig() {
     swarmReview,
     complexityPrediction,
     prSplitSuggestions,
-    findingLifecycle
+    findingLifecycle,
+    intentClassification,
+    depImpactAnalysis
   };
 }
 function parseSimpleYaml(text2) {
@@ -113432,6 +113437,583 @@ function formatLifecycleSummary(result) {
   return body;
 }
 
+// src/intent-classifier.ts
+var INTENT_PRIORITY = [
+  "security",
+  "bugfix",
+  "perf",
+  "feature",
+  "refactor",
+  "dead_code",
+  "test",
+  "docs",
+  "config",
+  "chore"
+];
+var PATH_SIGNALS = [
+  // Test files
+  { pattern: /\/__tests__\/|\.test\.|\.spec\.|^tests?\//i, intent: "test", signal: "test file path", weight: 0.9 },
+  { pattern: /\.stories\.|\.stories\/|\.visualspec\./i, intent: "test", signal: "story file", weight: 0.85 },
+  // Documentation
+  { pattern: /\.md$|\.rst$|\.adoc$|\/docs?\//i, intent: "docs", signal: "doc file path", weight: 0.9 },
+  { pattern: /CHANGELOG|HISTORY|RELEASE_NOTES/i, intent: "docs", signal: "changelog file", weight: 0.85 },
+  // Config files
+  { pattern: /\.yml$|\.yaml$|\.json$|\.toml$|\.ini$|\.env/i, intent: "config", signal: "config file extension", weight: 0.7 },
+  { pattern: /tsconfig|webpack|babel|eslint|prettier|jest|vite|rollup/i, intent: "config", signal: "tool config file", weight: 0.8 },
+  { pattern: /Dockerfile|docker-compose|\.dockerignore/i, intent: "config", signal: "container config", weight: 0.75 },
+  { pattern: /\.github\/workflows\//i, intent: "config", signal: "CI workflow", weight: 0.8 },
+  // Security-sensitive paths
+  { pattern: /\/auth\/|\/crypto\/|\/security\/|\/ssl\/|\/cert/i, intent: "security", signal: "security path", weight: 0.65 },
+  { pattern: /password|secret|token|credential|key/i, intent: "security", signal: "security keyword in path", weight: 0.6 },
+  // Performance-related
+  { pattern: /\/perf\/|\/benchmark|\/cache\/|\.bench\./i, intent: "perf", signal: "performance path", weight: 0.7 },
+  // Dead code signals
+  { pattern: /deprecated|legacy|unused|obsolete/i, intent: "dead_code", signal: "deletion keyword in path", weight: 0.5 }
+];
+function classifyFile(file2) {
+  const scores = /* @__PURE__ */ new Map();
+  for (const intent of INTENT_PRIORITY) {
+    scores.set(intent, { score: 0, signals: [] });
+  }
+  for (const ps of PATH_SIGNALS) {
+    if (ps.pattern.test(file2.path)) {
+      const entry = scores.get(ps.intent);
+      entry.score += ps.weight;
+      entry.signals.push(ps.signal);
+    }
+  }
+  if (file2.status === "deleted") {
+    const dc = scores.get("dead_code");
+    dc.score += 0.7;
+    dc.signals.push("file deleted");
+  }
+  if (file2.status === "renamed") {
+    const rf = scores.get("refactor");
+    rf.score += 0.5;
+    rf.signals.push("file renamed");
+  }
+  if (file2.status === "added") {
+    const ft = scores.get("feature");
+    ft.score += 0.3;
+    ft.signals.push("new file added");
+  }
+  const totalLines = file2.additions + file2.deletions;
+  if (totalLines > 0) {
+    const addRatio = file2.additions / totalLines;
+    const delRatio = file2.deletions / totalLines;
+    if (addRatio > 0.85 && file2.additions > 10) {
+      const ft = scores.get("feature");
+      ft.score += 0.4;
+      ft.signals.push("addition-heavy (" + Math.round(addRatio * 100) + "% additions)");
+    }
+    if (delRatio > 0.85 && file2.deletions > 5) {
+      const dc = scores.get("dead_code");
+      dc.score += 0.5;
+      dc.signals.push("deletion-heavy (" + Math.round(delRatio * 100) + "% deletions)");
+    }
+    if (addRatio > 0.35 && addRatio < 0.65 && totalLines > 5) {
+      const rf = scores.get("refactor");
+      rf.score += 0.3;
+      rf.signals.push("balanced add/delete ratio");
+    }
+  }
+  const contentSignals = [
+    { keywords: /fix|bug|patch|workaround|hotfix|regression/i, intent: "bugfix", signal: "bugfix keywords", weight: 0.4 },
+    { keywords: /sanitize|escape|validate|XSS|CSRF|injection|encrypt|decrypt|hash|salt/i, intent: "security", signal: "security keywords in diff", weight: 0.5 },
+    { keywords: /cache|memoize|optimize|benchmark|latency|throughput|pool/i, intent: "perf", signal: "perf keywords in diff", weight: 0.45 },
+    { keywords: /remove|delete|clean\s*up|strip|unused|deprecated/i, intent: "dead_code", signal: "removal keywords in diff", weight: 0.35 },
+    { keywords: /refactor|rename|extract|move|reorganize|consolidate/i, intent: "refactor", signal: "refactor keywords in diff", weight: 0.4 }
+  ];
+  const addedLines = file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add").map((c) => c.content).join(" ");
+  for (const cs of contentSignals) {
+    if (cs.keywords.test(addedLines)) {
+      const entry = scores.get(cs.intent);
+      entry.score += cs.weight;
+      entry.signals.push(cs.signal);
+    }
+  }
+  if (file2.additions <= 5 && file2.deletions <= 5) {
+    const cfg = scores.get("config");
+    if (cfg.score > 0) {
+      cfg.score += 0.2;
+      cfg.signals.push("small config change");
+    } else {
+      const chore = scores.get("chore");
+      chore.score += 0.15;
+      chore.signals.push("small change");
+    }
+  }
+  let bestIntent = "chore";
+  let bestScore = 0;
+  for (const intent of INTENT_PRIORITY) {
+    const entry = scores.get(intent);
+    if (entry.score > bestScore) {
+      bestScore = entry.score;
+      bestIntent = intent;
+      bestScore = entry.score;
+    }
+  }
+  if (bestScore === 0) {
+    bestIntent = "chore";
+    bestScore = 0.1;
+  }
+  return {
+    file: file2.path,
+    intent: bestIntent,
+    confidence: Math.min(bestScore, 1),
+    signals: scores.get(bestIntent).signals
+  };
+}
+function classifyIntents(diffFiles) {
+  const fileIntents = diffFiles.map((f) => classifyFile(f));
+  const intentCounts = {
+    feature: 0,
+    bugfix: 0,
+    refactor: 0,
+    security: 0,
+    perf: 0,
+    dead_code: 0,
+    test: 0,
+    docs: 0,
+    config: 0,
+    chore: 0
+  };
+  for (const fi of fileIntents) {
+    intentCounts[fi.intent]++;
+  }
+  let dominantIntent = "chore";
+  let dominantCount = 0;
+  for (const intent of INTENT_PRIORITY) {
+    if (intentCounts[intent] > dominantCount) {
+      dominantCount = intentCounts[intent];
+      dominantIntent = intent;
+    }
+  }
+  return {
+    fileIntents,
+    intentCounts,
+    dominantIntent,
+    contextText: buildIntentContext(fileIntents, dominantIntent),
+    bodySummary: buildIntentBodySummary(fileIntents, intentCounts, dominantIntent)
+  };
+}
+function buildIntentContext(fileIntents, dominantIntent) {
+  const nonChore = fileIntents.filter((f) => f.intent !== "chore");
+  if (nonChore.length === 0) return "";
+  let ctx = `## Change Intent Classification (dominant: ${dominantIntent})
+`;
+  ctx += "The following files are classified by change intent. ";
+  ctx += "Prioritize review attention by intent risk:\n";
+  ctx += "- **security/bugfix**: high-risk, requires deep line-by-line review\n";
+  ctx += "- **feature/perf**: medium-risk, review logic correctness\n";
+  ctx += "- **refactor**: low-risk, focus on behavioral preservation\n";
+  ctx += "- **dead_code/test/docs/config/chore**: skim review acceptable\n\n";
+  for (const fi of nonChore.slice(0, 12)) {
+    ctx += `- \`${fi.file}\` \u2192 **${fi.intent}** (confidence: ${Math.round(fi.confidence * 100)}%)
+`;
+  }
+  if (nonChore.length > 12) {
+    ctx += `
+... and ${nonChore.length - 12} more files.
+`;
+  }
+  return ctx.trim() + "\n";
+}
+function buildIntentBodySummary(fileIntents, intentCounts, dominantIntent) {
+  const nonZero = Object.entries(intentCounts).filter(([, count]) => count > 0).sort(([, a], [, b]) => b - a);
+  if (nonZero.length === 0) return "";
+  let body = `<details><summary><strong>Change Intent</strong> \u2014 ${dominantIntent}</summary>
+
+`;
+  body += "| Intent | Files |\n|--------|-------|\n";
+  for (const [intent, count] of nonZero) {
+    body += `| ${intent} | ${count} |
+`;
+  }
+  body += "\n";
+  const highRisk = fileIntents.filter((f) => f.intent === "security" || f.intent === "bugfix");
+  if (highRisk.length > 0) {
+    body += "**High-risk changes requiring deep review:**\n";
+    for (const f of highRisk) {
+      body += `- \`${f.file}\` (${f.intent}) \u2014 ${f.signals.join(", ")}
+`;
+    }
+    body += "\n";
+  }
+  body += `</details>
+`;
+  return body;
+}
+
+// src/dep-impact.ts
+var PACKAGE_JSON_PATTERN = /(^|\/)package\.json$/;
+var LOCKFILE_PATTERNS = [
+  /(^|\/)package-lock\.json$/,
+  /(^|\/)yarn\.lock$/,
+  /(^|\/)pnpm-lock\.yaml$/,
+  /(^|\/)bun\.lockb$/
+];
+var DEP_SECTION_PATTERN = /^\s+"(dependencies|devDependencies|peerDependencies|optionalDependencies)"\s*:\s*\{/;
+var DEP_LINE_PATTERN = /^\s+"([^"]+)"\s*:\s*"([^"]+)"/;
+var CLOSE_BRACE_PATTERN = /^\s*\}/;
+var HIGH_RISK_PACKAGES = /* @__PURE__ */ new Set([
+  "express",
+  "next",
+  "react",
+  "react-dom",
+  "vue",
+  "angular",
+  "webpack",
+  "vite",
+  "rollup",
+  "esbuild",
+  "typescript",
+  "babel-core",
+  "@babel/core",
+  "eslint",
+  "prettier",
+  "lodash",
+  "underscore",
+  "axios",
+  "node-fetch",
+  "got",
+  "jsonwebtoken",
+  "bcrypt",
+  "crypto-js",
+  "mongoose",
+  "prisma",
+  "typeorm",
+  "knex",
+  "electron"
+]);
+function parsePackageJsonDiff(file2) {
+  const changes = [];
+  const addedLines = file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add").map((c) => c.content);
+  const deletedLines = file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "delete").map((c) => c.content);
+  const oldDeps = /* @__PURE__ */ new Map();
+  let deletedSection = null;
+  for (const line of deletedLines) {
+    const sectionMatch = DEP_SECTION_PATTERN.exec(line);
+    if (sectionMatch) {
+      deletedSection = sectionMatch[1];
+      continue;
+    }
+    if (CLOSE_BRACE_PATTERN.test(line) && deletedSection) {
+      deletedSection = null;
+      continue;
+    }
+    if (deletedSection) {
+      const match2 = DEP_LINE_PATTERN.exec(line);
+      if (match2) {
+        oldDeps.set(match2[1], { version: match2[2], group: deletedSection });
+      }
+    }
+  }
+  const newDeps = /* @__PURE__ */ new Map();
+  let addedSection = null;
+  for (const line of addedLines) {
+    const sectionMatch = DEP_SECTION_PATTERN.exec(line);
+    if (sectionMatch) {
+      addedSection = sectionMatch[1];
+      continue;
+    }
+    if (CLOSE_BRACE_PATTERN.test(line) && addedSection) {
+      addedSection = null;
+      continue;
+    }
+    if (addedSection) {
+      const match2 = DEP_LINE_PATTERN.exec(line);
+      if (match2) {
+        newDeps.set(match2[1], { version: match2[2], group: addedSection });
+      }
+    }
+  }
+  const allPackages = /* @__PURE__ */ new Set([...oldDeps.keys(), ...newDeps.keys()]);
+  for (const name21 of allPackages) {
+    const oldDep = oldDeps.get(name21);
+    const newDep = newDeps.get(name21);
+    if (!oldDep && newDep) {
+      changes.push({
+        name: name21,
+        kind: "added",
+        oldVersion: "",
+        newVersion: newDep.version,
+        group: newDep.group,
+        sourceFile: file2.path
+      });
+    } else if (oldDep && !newDep) {
+      changes.push({
+        name: name21,
+        kind: "removed",
+        oldVersion: oldDep.version,
+        newVersion: "",
+        group: oldDep.group,
+        sourceFile: file2.path
+      });
+    } else if (oldDep && newDep) {
+      const kind = classifyVersionChange(oldDep.version, newDep.version);
+      changes.push({
+        name: name21,
+        kind,
+        oldVersion: oldDep.version,
+        newVersion: newDep.version,
+        group: newDep.group,
+        sourceFile: file2.path
+      });
+    }
+  }
+  return changes;
+}
+function classifyVersionChange(oldVer, newVer) {
+  const oldParts = parseSemver(oldVer);
+  const newParts = parseSemver(newVer);
+  if (!oldParts || !newParts) {
+    return "bumped-minor";
+  }
+  if (newParts.major < oldParts.major) return "downgraded";
+  if (newParts.major > oldParts.major) return "bumped-major";
+  if (newParts.minor < oldParts.minor) return "downgraded";
+  if (newParts.minor > oldParts.minor) return "bumped-minor";
+  if (newParts.patch !== oldParts.patch) return "bumped-patch";
+  return "bumped-patch";
+}
+function parseSemver(version2) {
+  const cleaned = version2.replace(/^[~^>=<]*\s*/, "");
+  if (cleaned.startsWith("file:") || cleaned.startsWith("workspace:") || cleaned.startsWith("github:") || cleaned.startsWith("git+") || cleaned.startsWith("npm:") || cleaned.startsWith("link:")) {
+    return null;
+  }
+  const match2 = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(cleaned);
+  if (!match2) return null;
+  return {
+    major: parseInt(match2[1], 10),
+    minor: match2[2] ? parseInt(match2[2], 10) : 0,
+    patch: match2[3] ? parseInt(match2[3], 10) : 0
+  };
+}
+function detectLockfileChanges(files) {
+  const lockfileChanges = [];
+  for (const f of files) {
+    for (const pattern of LOCKFILE_PATTERNS) {
+      if (pattern.test(f.path)) {
+        lockfileChanges.push({ file: f.path, additions: f.additions, deletions: f.deletions });
+        break;
+      }
+    }
+  }
+  return lockfileChanges;
+}
+function isDepFile(path19) {
+  if (PACKAGE_JSON_PATTERN.test(path19)) return true;
+  for (const pattern of LOCKFILE_PATTERNS) {
+    if (pattern.test(path19)) return true;
+  }
+  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path19)) {
+    return true;
+  }
+  return false;
+}
+var IMPORT_PATTERNS2 = [
+  // ESM: import ... from 'pkg' / import 'pkg'
+  { re: /import\s+(?:(?:\w+\s*,?\s*)*(?:\{[^}]*\})?\s+from\s+)?['"](@?[^'"]+)['"]/g, kind: "import" },
+  // CJS: require('pkg')
+  { re: /require\s*\(\s*['"](@?[^'"]+)['"]\s*\)/g, kind: "require" },
+  // Dynamic: import('pkg')
+  { re: /import\s*\(\s*['"](@?[^'"]+)['"]\s*\)/g, kind: "dynamic-import" }
+];
+function traceImportImpact(files, changedPackages) {
+  if (changedPackages.length === 0) return [];
+  const pkgSet = new Set(changedPackages);
+  const impacts = [];
+  for (const file2 of files) {
+    if (isDepFile(file2.path)) continue;
+    const content = file2.hunks.flatMap((h) => h.changes).map((c) => c.content).join("\n");
+    for (const pattern of IMPORT_PATTERNS2) {
+      pattern.re.lastIndex = 0;
+      let match2;
+      while ((match2 = pattern.re.exec(content)) !== null) {
+        const importPath = match2[1];
+        const pkgName = extractPackageName(importPath);
+        if (pkgSet.has(pkgName)) {
+          impacts.push({
+            file: file2.path,
+            package: pkgName,
+            kind: pattern.kind
+          });
+        }
+      }
+    }
+  }
+  const seen = /* @__PURE__ */ new Set();
+  return impacts.filter((i) => {
+    const key = `${i.file}:${i.package}:${i.kind}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function extractPackageName(importPath) {
+  if (importPath.startsWith("@")) {
+    const parts = importPath.split("/");
+    if (parts.length >= 2) {
+      return parts[0] + "/" + parts[1];
+    }
+    return importPath;
+  }
+  const firstSlash = importPath.indexOf("/");
+  if (firstSlash > 0) {
+    return importPath.substring(0, firstSlash);
+  }
+  return importPath;
+}
+function computeRiskLevel(changes) {
+  if (changes.length === 0) return "low";
+  const majorBumps = changes.filter((c) => c.kind === "bumped-major").length;
+  const newProdDeps = changes.filter((c) => c.kind === "added" && c.group === "dependencies").length;
+  const removedDeps = changes.filter((c) => c.kind === "removed").length;
+  const highRiskPkgs = changes.filter((c) => HIGH_RISK_PACKAGES.has(c.name)).length;
+  const downgrades = changes.filter((c) => c.kind === "downgraded").length;
+  if (majorBumps > 0 || downgrades > 0 || newProdDeps >= 3 || highRiskPkgs >= 2) return "high";
+  if (newProdDeps > 0 || removedDeps > 0 || highRiskPkgs > 0) return "medium";
+  return "low";
+}
+function buildDepContext(result) {
+  if (result.changes.length === 0) return "";
+  let ctx = `## Dependency Change Impact (risk: ${result.riskLevel})
+`;
+  ctx += "This PR modifies dependencies. Review attention by risk:\n";
+  ctx += "- **Major version bumps / downgrades / new production deps**: high-risk, verify breaking changes\n";
+  ctx += "- **Minor bumps / removed deps**: medium-risk, check for API changes\n";
+  ctx += "- **Patch bumps / dev deps**: low-risk, usually safe\n\n";
+  const highRisk = result.changes.filter(
+    (c) => c.kind === "bumped-major" || c.kind === "downgraded" || c.kind === "added" && c.group === "dependencies" || HIGH_RISK_PACKAGES.has(c.name)
+  );
+  if (highRisk.length > 0) {
+    ctx += "**High-risk dependency changes:**\n";
+    for (const c of highRisk.slice(0, 8)) {
+      ctx += `- \`${c.name}\`: ${c.kind} (${c.oldVersion || "none"} \u2192 ${c.newVersion || "none"}, ${c.group})
+`;
+    }
+    if (highRisk.length > 8) {
+      ctx += `- ... and ${highRisk.length - 8} more
+`;
+    }
+    ctx += "\n";
+  }
+  if (result.impactedFiles.length > 0) {
+    ctx += "**Source files importing affected packages:**\n";
+    for (const imp of result.impactedFiles.slice(0, 8)) {
+      ctx += `- \`${imp.file}\` imports \`${imp.package}\` (${imp.kind})
+`;
+    }
+    if (result.impactedFiles.length > 8) {
+      ctx += `- ... and ${result.impactedFiles.length - 8} more
+`;
+    }
+  }
+  return ctx.trim() + "\n";
+}
+function buildDepBodySummary(result) {
+  if (result.changes.length === 0) return "";
+  const byKind = /* @__PURE__ */ new Map();
+  for (const c of result.changes) {
+    byKind.set(c.kind, (byKind.get(c.kind) ?? 0) + 1);
+  }
+  let body = `<details><summary><strong>Dependency Impact</strong> \u2014 ${result.riskLevel} risk</summary>
+
+`;
+  body += "| Metric | Count |\n|--------|-------|\n";
+  body += `| Production changes | ${result.prodChanges} |
+`;
+  body += `| Dev changes | ${result.devChanges} |
+`;
+  body += `| Major bumps | ${result.majorBumps} |
+`;
+  body += `| New deps | ${result.addedDeps} |
+`;
+  body += `| Removed deps | ${result.removedDeps} |
+
+`;
+  if (result.changes.length > 0) {
+    body += "| Package | Change | Old | New | Group |\n|---------|--------|-----|-----|-------|\n";
+    for (const c of result.changes.slice(0, 15)) {
+      body += `| ${c.name} | ${c.kind} | ${c.oldVersion || "-"} | ${c.newVersion || "-"} | ${c.group} |
+`;
+    }
+    if (result.changes.length > 15) {
+      body += `| ... | ${result.changes.length - 15} more | | | |
+`;
+    }
+    body += "\n";
+  }
+  if (result.impactedFiles.length > 0) {
+    body += "**Files importing affected packages:**\n";
+    for (const imp of result.impactedFiles.slice(0, 8)) {
+      body += `- \`${imp.file}\` \u2190 \`${imp.package}\`
+`;
+    }
+    if (result.impactedFiles.length > 8) {
+      body += `- ... and ${result.impactedFiles.length - 8} more
+`;
+    }
+    body += "\n";
+  }
+  body += `</details>
+`;
+  return body;
+}
+function analyzeDepImpact(diffFiles) {
+  const changes = [];
+  const lockfileChanges = detectLockfileChanges(diffFiles);
+  for (const file2 of diffFiles) {
+    if (PACKAGE_JSON_PATTERN.test(file2.path)) {
+      const fileChanges = parsePackageJsonDiff(file2);
+      changes.push(...fileChanges);
+    }
+  }
+  const changedPkgNames = changes.map((c) => c.name);
+  const impactedFiles = traceImportImpact(diffFiles, changedPkgNames);
+  const prodChanges = changes.filter((c) => c.group === "dependencies").length;
+  const devChanges = changes.filter((c) => c.group === "devDependencies").length;
+  const majorBumps = changes.filter((c) => c.kind === "bumped-major").length;
+  const addedDeps = changes.filter((c) => c.kind === "added").length;
+  const removedDeps = changes.filter((c) => c.kind === "removed").length;
+  const riskLevel = computeRiskLevel(changes);
+  const result = {
+    changes,
+    prodChanges,
+    devChanges,
+    majorBumps,
+    addedDeps,
+    removedDeps,
+    impactedFiles,
+    riskLevel,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildDepContext(result);
+  result.bodySummary = buildDepBodySummary(result);
+  if (lockfileChanges.length > 0 && changes.length === 0) {
+    result.riskLevel = "low";
+    result.contextText = `## Dependency Lockfile Update
+This PR updates ${lockfileChanges.length} lockfile(s) without package.json changes. This typically indicates version pinning or resolution updates.
+`;
+    result.bodySummary = `<details><summary><strong>Dependency Impact</strong> \u2014 lockfile update</summary>
+
+| File | Additions | Deletions |
+|------|-----------|----------|
+`;
+    for (const lc of lockfileChanges) {
+      result.bodySummary += `| ${lc.file} | +${lc.additions} | -${lc.deletions} |
+`;
+    }
+    result.bodySummary += `
+No new or changed packages detected in package.json.
+</details>
+`;
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -113810,6 +114392,28 @@ async function run() {
         warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let intentResult = null;
+    if (config2.intentClassification) {
+      try {
+        intentResult = classifyIntents(diff.files);
+        if (intentResult.fileIntents.length > 0) {
+          info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
+        }
+      } catch (e) {
+        warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let depImpactResult = null;
+    if (config2.depImpactAnalysis) {
+      try {
+        depImpactResult = analyzeDepImpact(diff.files);
+        if (depImpactResult.changes.length > 0) {
+          info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
+        }
+      } catch (e) {
+        warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let authBoundaryResult = null;
     if (config2.authBoundary) {
       try {
@@ -113982,7 +114586,13 @@ ${testGapResult.contextText}`;
     if (lifecyclePromptCtx) {
       context4.ghostContent += "\n\n" + lifecyclePromptCtx;
     }
+    if (intentResult && intentResult.contextText) {
+      context4.ghostContent += "\n\n" + intentResult.contextText;
+    }
     const positionHint = buildPositionHint(diff.files);
+    if (depImpactResult && depImpactResult.contextText) {
+      context4.ghostContent += "\n\n" + depImpactResult.contextText;
+    }
     const guarded = guardContextWindow(context4.diffText, config2.provider);
     if (guarded.truncated) {
       warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
@@ -114271,6 +114881,30 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           }
         }
       }
+      if (intentResult && intentResult.bodySummary) {
+        try {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: intentResult.bodySummary
+          });
+        } catch (e) {
+          warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
+        }
+      }
+      if (depImpactResult && depImpactResult.bodySummary) {
+        try {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: depImpactResult.bodySummary
+          });
+        } catch (e) {
+          warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+        }
+      }
       if (ownershipBody) {
         try {
           const ownershipComment = `<!-- mizumi-ownership-marker -->
@@ -114288,30 +114922,30 @@ ${ownershipBody}
         } catch (e) {
           warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
-        if (deltaBody) {
-          try {
-            const deltaComment = `<!-- mizumi-delta-marker -->
+      }
+      if (deltaBody) {
+        try {
+          const deltaComment = `<!-- mizumi-delta-marker -->
 ## Incremental Review
 
 ${deltaBody}
 ---
 *Posted by Mizumi*`;
-            await octokit.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: prNumber,
-              body: deltaComment
-            });
-          } catch (e) {
-            warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
-          }
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: deltaComment
+          });
+        } catch (e) {
+          warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
-        if (config2.deltaReview) {
-          try {
-            recordReviewedSha(workspace, owner, repo, prNumber, headSha);
-          } catch (e) {
-            warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
-          }
+      }
+      if (config2.deltaReview) {
+        try {
+          recordReviewedSha(workspace, owner, repo, prNumber, headSha);
+        } catch (e) {
+          warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       setOutput("review_id", result.reviewId);

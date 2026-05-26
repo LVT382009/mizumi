@@ -232,7 +232,12 @@ pr_split_suggestions:
     required: false
     default: "true"
 
-jira_base_url:
+  dep_impact_analysis:
+    description: "Enable dependency change impact analysis — detect package.json/lockfile changes, classify risk (major bumps, new deps), and trace import impact. Zero LLM cost. No other AI reviewer analyzes dep impact."
+    required: false
+    default: "true"
+
+  jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
   jira_api_token:

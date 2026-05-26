@@ -108,6 +108,7 @@ const testConfig = {
     swarmReview: true,
     complexityPrediction: true,
     prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
+    depImpactAnalysis: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
