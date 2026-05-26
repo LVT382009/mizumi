@@ -444,6 +444,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Test gap detection**: flags production files without test changes during review
 - **Inline one-click fixes**: suggestion blocks for medium/low/nitpick findings
 - **AI Memorized Triage / Suppression Memories**: stores human dismissal reasoning in SQLite, auto-suppresses matching findings via file glob + category + message pattern (zero LLM cost)
+- **Parallel swarm review**: 3 specialist agents (security, correctness, performance) review PR simultaneously, deduplicated findings merged into main review (74% more addressed comments per Greptile benchmark)
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
