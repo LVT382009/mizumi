@@ -227,6 +227,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+  intent_classification:
+    description: "Enable semantic change intent classification — automatically label each diff file by intent (refactor, bugfix, feature, security, perf, dead code, test, docs, config). Zero LLM cost. No other AI reviewer classifies change intent."
+    required: false
+    default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

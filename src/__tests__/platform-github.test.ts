@@ -147,7 +147,7 @@ vi.mock("../config.js", () => ({
     suppressionMemories: true,
     swarmReview: true,
     complexityPrediction: true,
-    prSplitSuggestions: true, findingLifecycle: true,
+    prSplitSuggestions: true, findingLifecycle: true, intentClassification: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

@@ -56,6 +56,7 @@ export interface MizumiConfig {
   complexityPrediction: boolean;
   prSplitSuggestions: boolean;
   findingLifecycle: boolean;
+  intentClassification: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -134,6 +135,7 @@ const suppressionMemories = core.getInput("suppression_memories") !== "false"; /
 const swarmReview = core.getInput("swarm_review") !== "false"; // default true
 const complexityPrediction = core.getInput("complexity_prediction") !== "false"; // default true
 const prSplitSuggestions = core.getInput("pr_split_suggestions") !== "false"; // default true
+const intentClassification = core.getInput("intent_classification") !== "false"; // default true
 const findingLifecycle = core.getInput("finding_lifecycle") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
@@ -233,6 +235,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   complexityPrediction,
   prSplitSuggestions,
     findingLifecycle,
+    intentClassification,
   };
 }
 

@@ -62,6 +62,7 @@ import { runSwarmReview, buildSwarmContext } from "./swarm-review.js";
 import { computeComplexity } from "./complexity-predictor.js";
 import { suggestPRSplits } from "./pr-split.js";
 import { trackFindings, loadPreviousFindings, formatLifecycleSummary } from "./finding-lifecycle.js";
+import { classifyIntents } from "./intent-classifier.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -476,6 +477,19 @@ if (config.findingLifecycle) {
   }
 }
 
+// 4a16. Semantic change intent classification — label files by intent (zero LLM cost)
+let intentResult: import("./intent-classifier.js").IntentResult | null = null;
+if (config.intentClassification) {
+  try {
+    intentResult = classifyIntents(diff.files);
+    if (intentResult.fileIntents.length > 0) {
+      core.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([,v])=>v>0).map(([k,v])=>k+":"+v).join(", "));
+    }
+  } catch (e) {
+    core.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -688,8 +702,10 @@ if (splitResult && splitResult.shouldSplit && splitResult.contextText) {
 if (lifecyclePromptCtx) {
   context.ghostContent += "\n\n" + lifecyclePromptCtx;
 }
-
-// 6. Build position hint for LLM
+// 5c15. Intent classification context injection - tell LLM about change intent
+if (intentResult && intentResult.contextText) {
+  context.ghostContent += "\n\n" + intentResult.contextText;
+}
     const positionHint = buildPositionHint(diff.files);
 
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
@@ -997,6 +1013,17 @@ if (lifecycleResult) {
   }
 }
 
+// Post intent classification summary as a separate comment
+if (intentResult && intentResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: intentResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // Post ownership summary as a separate comment
 if (ownershipBody) {
   try {
@@ -1012,6 +1039,7 @@ ${ownershipBody}
   } catch (e) {
     core.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
+}
 // Post delta review summary as a separate comment
 if (deltaBody) {
   try {
@@ -1035,7 +1063,6 @@ if (config.deltaReview) {
   } catch (e) {
     core.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
   }
-}
 }
    // 10a. Set action outputs
    core.setOutput("review_id", result.reviewId);
