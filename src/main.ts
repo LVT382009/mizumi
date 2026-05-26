@@ -56,6 +56,7 @@ import { runAttributionAnalysis, applyAttributionConfidence, buildAttributionCon
 import { computeSafetyScore, postSafetyScore } from "./safety-score.js";
 import { fetchBusinessContext, parseMCPEndpoints } from "./business-context.js";
 import { runOrgMemoryRetrieval, recordPRHistory, pruneOldHistory } from "./org-memory.js";
+import { runTestGapDetection } from "./test-gap.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -413,6 +414,20 @@ if (config.orgMemory) {
   }
 }
 
+// 4a12. Test gap detection - flag production files without test changes
+let testGapResult: import('./test-gap.js').TestGapResult | null = null;
+if (config.testGapDetection) {
+  try {
+    const _tgr = runTestGapDetection(diff.files, workspace);
+    testGapResult = _tgr;
+    if (_tgr.gaps.length > 0) {
+      core.info('Test gap detection: ' + _tgr.gaps.length + ' untested change(s) (' + Math.round(_tgr.coverageRatio * 100) + '% coverage ratio)');
+    }
+  } catch (e) {
+    core.warning('Test gap detection failed: ' + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -604,7 +619,14 @@ if (skills.loaded) context.rulesContent += `
 ## Project Skills
 ${skills.loaded}`;
 
-    // 6. Build position hint for LLM
+    // 5c11. Test gap detection context injection
+if (testGapResult && testGapResult.contextText) {
+  context.rulesContent += `
+
+${testGapResult.contextText}`;
+}
+
+// 6. Build position hint for LLM
     const positionHint = buildPositionHint(diff.files);
 
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
