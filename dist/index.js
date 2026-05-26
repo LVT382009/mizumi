@@ -73989,6 +73989,98 @@ function validateReviewOutput(review) {
     return { valid: anomalies.length === 0, anomalies };
 }
 
+// ---------------------------------------------------------------------------
+// Strategy selection
+// ---------------------------------------------------------------------------
+const STRATEGIES = {
+    security: {
+        focusAreas: ["authentication", "authorization", "input validation", "injection", "crypto", "secrets", "data exposure"],
+        skipAreas: ["style", "naming", "documentation quality", "code organization"],
+        riskBias: 1,
+        promptAddition: `This PR touches security-sensitive code. Apply heightened scrutiny:
+- Verify all user inputs are validated and sanitized
+- Check for authentication/authorization bypass
+- Look for injection vectors (SQL, XSS, command, path traversal)
+- Ensure secrets are not hardcoded or leaked
+- Verify crypto operations use safe defaults
+- Flag any data exposure or privilege escalation risks
+- Elevate severity of security findings by one level`,
+    },
+    logic: {
+        focusAreas: ["bugs", "logic errors", "race conditions", "null pointers", "off-by-one", "error handling"],
+        skipAreas: [],
+        riskBias: 0,
+        promptAddition: `This PR contains general logic changes. Apply standard review:
+- Check for logic errors, incorrect conditions, and edge cases
+- Verify error handling is comprehensive
+- Look for race conditions and concurrency issues
+- Ensure return values and error paths are handled correctly`,
+    },
+    docs: {
+        focusAreas: ["accuracy", "broken links", "code examples"],
+        skipAreas: ["runtime bugs", "security vulnerabilities", "performance"],
+        riskBias: -2,
+        promptAddition: `This PR is documentation-only. Apply lightweight review:
+- Check for accuracy and completeness of documentation
+- Verify code examples are correct and runnable
+- Flag broken links or outdated references
+- Do NOT flag style, runtime bugs, or performance issues
+- Reduce severity of most findings to nitpick/low unless factually wrong`,
+    },
+    tests: {
+        focusAreas: ["test correctness", "coverage gaps", "fixture validity"],
+        skipAreas: ["style", "naming in test files"],
+        riskBias: -1,
+        promptAddition: `This PR adds or modifies tests. Apply test-focused review:
+- Verify tests actually test what they claim to test
+- Check for missing edge cases and coverage gaps
+- Ensure test fixtures and mocks are reasonable
+- Look for flaky test patterns (timing dependencies, shared state)
+- Reduce severity for style issues in test files`,
+    },
+    config: {
+        focusAreas: ["misconfigurations", "security settings", "breaking changes"],
+        skipAreas: ["style", "documentation"],
+        riskBias: 0,
+        promptAddition: `This PR changes configuration files. Apply config-focused review:
+- Check for misconfigurations that could break deployments
+- Verify security settings are not accidentally weakened
+- Look for typos in YAML/JSON that change semantics
+- Flag any removal of security controls or logging
+- Check that new settings have reasonable defaults`,
+    },
+    cosmetic: {
+        focusAreas: ["visual consistency", "accessibility"],
+        skipAreas: ["runtime bugs", "security", "performance"],
+        riskBias: -2,
+        promptAddition: `This PR is cosmetic (UI/styling changes). Apply lightweight review:
+- Check for visual consistency and accessibility
+- Do NOT flag runtime bugs, security, or performance issues
+- Reduce severity of most findings to nitpick/low`,
+    },
+};
+/** Get the adaptive review strategy for a PR category */
+function getReviewStrategy(category) {
+    return STRATEGIES[category] || STRATEGIES.logic;
+}
+/** Build the adaptive strategy prompt section for injection into the review system prompt */
+function buildStrategyPrompt(category) {
+    const strategy = getReviewStrategy(category);
+    let prompt = `\n## Adaptive Review Strategy (PR type: ${category})\n`;
+    if (strategy.focusAreas.length > 0) {
+        prompt += `Focus areas: ${strategy.focusAreas.join(", ")}\n`;
+    }
+    if (strategy.skipAreas.length > 0) {
+        prompt += `Skip areas: ${strategy.skipAreas.join(", ")}\n`;
+    }
+    if (strategy.riskBias !== 0) {
+        const direction = strategy.riskBias > 0 ? "elevate" : "reduce";
+        prompt += `Risk bias: ${direction} severity by ${Math.abs(strategy.riskBias)} level(s)\n`;
+    }
+    prompt += `\n${strategy.promptAddition}\n`;
+    return prompt;
+}
+
 /**
  * LLM review — structured output via Vercel AI SDK 6.
  * BYOK from day 1: any provider, same code path.
@@ -84659,6 +84751,12 @@ ${testGapResult.contextText}`;
         // 5c17. Thread continuity context injection — tell LLM about author dismissals
         if (threadContinuityResult && threadContinuityResult.contextText) {
             context.ghostContent += "\n\n" + threadContinuityResult.contextText;
+            // 5c18. Adaptive strategy injection - adjust review focus based on PR type
+            if (config.adaptiveStrategy) {
+                const strategyPrompt = buildStrategyPrompt(prClassification.category);
+                context.rulesContent += strategyPrompt;
+                info(`Adaptive strategy: ${prClassification.category}`);
+            }
         }
         // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
         const guarded = guardContextWindow(context.diffText, config.provider);

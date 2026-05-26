@@ -20,6 +20,7 @@ import { postReview, cleanupOutdatedComments } from "./post.js";
 import { writeMemory, readMemory, autoGenerateSkills, loadSkills } from "./memory.js";
 import { runRules } from "./rules.js";
 import { classifyPR } from "./classifier.js";
+import { buildStrategyPrompt } from "./review-strategy.js";
 import { createSpendEntry, appendSpendEntry, readSpendLog, formatSpendDigest } from "./spend.js";
 import { computeLearningWeights, applyLearningWeights, recordSuggestion } from "./db.js";
 import { recordFindings, computeSuppressedPatterns, applyNoiseReduction, readFeedbackStore, categoryAcceptanceRates } from "./feedback.js";
@@ -750,6 +751,12 @@ if (depImpactResult && depImpactResult.contextText) {
 // 5c17. Thread continuity context injection — tell LLM about author dismissals
 if (threadContinuityResult && threadContinuityResult.contextText) {
   context.ghostContent += "\n\n" + threadContinuityResult.contextText;
+// 5c18. Adaptive strategy injection - adjust review focus based on PR type
+if (config.adaptiveStrategy) {
+  const strategyPrompt = buildStrategyPrompt(prClassification.category);
+  context.rulesContent += strategyPrompt;
+  core.info(`Adaptive strategy: ${prClassification.category}`);
+}
 }
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
   const guarded = guardContextWindow(context.diffText, config.provider);
