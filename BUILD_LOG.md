@@ -447,10 +447,20 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Test expansions**: autofix.test.ts 27→40 (+13), router.test.ts 27→49 (+22), labels.test.ts 29→46 (+17)
 - **2991 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 2991 Tests)
+### Cycle: Review Thread Continuity (Competitive Gap #2) (2026-05-26)
 
-- **2991 tests** passing (72 test files)
-- **7,400+ production lines** (46+ source modules)
+- **Review thread continuity** (`thread-continuity.ts`): Reads author replies to prior Mizumi review comments, detects 5 dismissal patterns (intentional, will-fix-later, disagree, already-known, false-positive), injects dismissal context into LLM prompt to avoid re-raising dismissed issues. No other AI code reviewer reads prior review thread conversations. CodeRabbit and Sourcery treat each push as a fresh review. Config: `thread_continuity` (default true). 25 tests.
+- **3016 tests** passing, 0 TS errors, bundle rebuilt
+
+### Cycle: Cross-PR Finding Persistence (Competitive Gap #5) (2026-05-26)
+
+- **Cross-PR finding persistence** (`crosspr-persist.ts`): Track recurring issue patterns across PRs. When the same category + file area + message pattern appears in different PRs, surface "this same issue was found in 3 other PRs this month" so teams see systemic patterns. Lightweight JSON store with 30-day staleness eviction, 1000-pattern cap. Zero LLM cost. No other AI code reviewer tracks findings across PRs. CodeRabbit, CodeGuru, and Sourcery are all PR-scoped. Config: `cross_pr_persistence` (default true). 22 tests.
+- **3038 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3038 Tests)
+
+- **3038 tests** passing (74 test files)
+- **8,400+ production lines** (50+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -463,6 +473,8 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Finding lifecycle tracking**: tracks findings per PR across pushes, detects persisted/resolved/new findings between iterations. Surfaces "3 findings from your last push are still unresolved" to avoid re-raising known issues. Zero LLM cost. No other AI reviewer tracks finding lifecycle.
 - **Semantic change intent classification**: labels each diff file by intent (feature/bugfix/refactor/security/perf/dead_code/test/docs/config/chore) with risk-prioritized review guidance for LLM. Zero LLM cost. No other AI reviewer classifies change intent.
 - **Dependency change impact analysis**: detects package.json/lockfile changes, classifies version bump risk, traces import impact. Zero LLM cost. No other AI reviewer analyzes dep impact.
+- **Review thread continuity**: reads author replies to prior review comments, detects dismissal patterns, avoids re-raising dismissed issues. No other AI reviewer reads prior review threads.
+- **Cross-PR finding persistence**: tracks recurring issue patterns across PRs, surfaces systemic problems. No other AI reviewer tracks findings across PRs.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
