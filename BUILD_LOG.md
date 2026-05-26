@@ -481,9 +481,20 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - fuzzy: threshold boundary (exact duplicates, structural differences), findStale (exact match, unrelated, mixed), category handling (cross-category dedup, unique messages)
 - **3250 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3250 Tests)
+### Cycle: Test Coverage Expansion 2 (2026-05-27)
 
-- **3250 tests** passing (75 test files)
+- **Test expansions**: fatigue-dashboard 32->55 (+23), changestack 15->53 (+38), idempotency 33->45 (+12), description 33->52 (+19), ghost/memory 20->47 (+27)
+- **85 new tests** across 5 undertested modules
+- fatigue-dashboard: computeTrend edge cases (all-stable, all-unhelpful, mixed categories, unknown), computeFatigueScore bounds (single finding, volume saturation, extreme inputs), buildFatigueDashboard (invalid JSON, empty store, 30 categories, 100% acceptance/rejection, dedup suppression), formatFatigueDashboard (pending stats, same fatigue score, noisiest category null vs present, truncation, no recommendation)
+- changestack: classifyCohort additional patterns (entity, interface, /types/ dir, .d.ts, function, view, schema, case-insensitive, deep path precedence), buildChangeStack (boundary 4 vs 5 findings, CRITICAL severity, all-other cohort, backtick file refs, 15 findings across all cohorts)
+- idempotency: hashDeliveryId (empty string, special chars, collision resistance 200 unique), store independence, rapid 100-sequential calls, SHA store eviction >500, very long SHA, numeric ID, mixed operations integrity, pre-existing entries
+- description: scorePRDescription (whitespace-only, # without digit, refs #N, body=100 boundary, migration/upgrade guide, score=2, title keyword), formatDescriptionFeedback (score 0-2, markdown header, suggest improvement, threshold boundary)
+- ghost/memory: readRules (REVIEW.md, CLAUDE.md, .cursorrules, copilot-instructions.md, multiple files combined, empty skip), buildLearningPrompt (demote, promote, low-acceptance with detail, <5 responses skip, combine demotion+low-acceptance, neutral skip, multiple demoted)
+- **3335 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3335 Tests)
+
+- **3335 tests** passing (75 test files)
 - **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)

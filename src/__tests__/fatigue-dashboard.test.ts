@@ -110,6 +110,47 @@ describe("computeTrend", () => {
 // computeFatigueScore
 // ---------------------------------------------------------------------------
 
+
+  // --- Additional edge cases ---
+
+  it("returns stable for entries with mixed categories", () => {
+    const entries: FeedbackEntry[] = [
+      { repo: "r", pr: 1, commentId: 0, file: "a.ts", line: 1, category: "bug", severity: "medium", messageHash: "h", outcome: "helpful", createdAt: "2026-01-01" },
+      { repo: "r", pr: 1, commentId: 1, file: "b.ts", line: 2, category: "style", severity: "low", messageHash: "h", outcome: "helpful", createdAt: "2026-01-02" },
+    ];
+    expect(computeTrend(entries, "bug")).toBe("stable");
+  });
+
+  it("returns stable when all entries are helpful", () => {
+    const entries: FeedbackEntry[] = Array.from({ length: 8 }, (_, i) => ({
+      repo: "r", pr: 1, commentId: i, file: "a.ts", line: i,
+      category: "bug", severity: "medium", messageHash: "h" + i,
+      outcome: "helpful" as const,
+      createdAt: "2026-01-" + String(i + 1).padStart(2, "0"),
+    }));
+    expect(computeTrend(entries, "bug")).toBe("stable");
+  });
+
+  it("returns stable when all entries are unhelpful", () => {
+    const entries: FeedbackEntry[] = Array.from({ length: 8 }, (_, i) => ({
+      repo: "r", pr: 1, commentId: i, file: "a.ts", line: i,
+      category: "bug", severity: "medium", messageHash: "h" + i,
+      outcome: "unhelpful" as const,
+      createdAt: "2026-01-" + String(i + 1).padStart(2, "0"),
+    }));
+    expect(computeTrend(entries, "bug")).toBe("stable");
+  });
+
+  it("returns stable for category with no entries", () => {
+    const entries: FeedbackEntry[] = [
+      { repo: "r", pr: 1, commentId: 0, file: "a.ts", line: 1, category: "bug", severity: "medium", messageHash: "h", outcome: "helpful", createdAt: "2026-01-01" },
+    ];
+    expect(computeTrend(entries, "nonexistent")).toBe("stable");
+  });
+
+  it("handles entries with undefined category", () => {
+    expect(computeTrend([], "bug")).toBe("stable");
+  });
 describe("computeFatigueScore", () => {
   it("returns 0 for zero findings", () => {
     expect(computeFatigueScore(0, 0)).toBe(0);
@@ -159,6 +200,37 @@ describe("computeFatigueScore", () => {
 // buildFatigueDashboard
 // ---------------------------------------------------------------------------
 
+
+  // --- Additional edge cases ---
+
+  it("returns 0 when total is 1 and unhelpfulRate is 0", () => {
+    expect(computeFatigueScore(1, 0)).toBe(0);
+  });
+
+  it("computes score for single finding with 100% dismissal", () => {
+    const score = computeFatigueScore(1, 1);
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it("volume factor saturates for very large totals", () => {
+    const s1000 = computeFatigueScore(1000, 0.5);
+    const s10000 = computeFatigueScore(10000, 0.5);
+    expect(s10000).toBeGreaterThan(s1000);
+  });
+
+  it("score is proportional to dismissal rate", () => {
+    const s10 = computeFatigueScore(100, 0.1);
+    const s50 = computeFatigueScore(100, 0.5);
+    const s90 = computeFatigueScore(100, 0.9);
+    expect(s50).toBeGreaterThan(s10);
+    expect(s90).toBeGreaterThan(s50);
+  });
+
+  it("score stays within 0-100 range for extreme inputs", () => {
+    const score = computeFatigueScore(100000, 1);
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(100);
+  });
 describe("buildFatigueDashboard", () => {
   let tmpDir: string;
 
@@ -286,6 +358,76 @@ describe("buildFatigueDashboard", () => {
     expect(result.categories[0].category).toBe("style");
     expect(result.noisiestCategory).toBe("style");
   });
+
+  // --- Additional edge cases ---
+
+  it("handles feedback file with invalid JSON gracefully", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-feedback.json"), "not valid json");
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.categories).toHaveLength(0);
+  });
+
+  it("handles empty feedback store", () => {
+    writeFeedbackStore([]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.categories).toHaveLength(0);
+    expect(result.totalFindings).toBe(0);
+  });
+
+  it("handles many categories efficiently", () => {
+    const entries: FeedbackEntry[] = [];
+    for (let c = 0; c < 30; c++) {
+      for (let i = 0; i < 3; i++) {
+        entries.push({
+          repo: "r", pr: 1, commentId: c * 3 + i, file: "a.ts", line: c * 3 + i,
+          category: "cat" + c, severity: "medium", messageHash: "h" + c + "_" + i,
+          outcome: i === 0 ? "helpful" as const : "unhelpful" as const,
+          createdAt: "2026-01-" + String(c * 3 + i + 1).padStart(2, "0"),
+        });
+      }
+    }
+    writeFeedbackStore(entries);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.categories).toHaveLength(30);
+  });
+
+  it("acceptance rate defaults to 50 when no feedback for a category", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "medium", messageHash: "h", outcome: "pending", createdAt: "2026-01-01" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    const bug = result.categories.find(c => c.category === "bug");
+    expect(bug?.acceptanceRate).toBe(50);
+  });
+
+  it("suppresss categories deduplicated correctly", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "style", severity: "low", messageHash: "h", outcome: "unhelpful", createdAt: "2026-01-01" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set(["style:low", "style:high", "style:medium"]));
+    expect(result.suppressedCategories).toHaveLength(1);
+    expect(result.suppressedCategories).toContain("style");
+  });
+
+  it("overall acceptance is 100 when all feedback is helpful", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "high", messageHash: "h1", outcome: "helpful", createdAt: "2026-01-01" },
+      { repo: "r", pr: 1, commentId: 2, file: "b.ts", line: 2, category: "bug", severity: "high", messageHash: "h2", outcome: "helpful", createdAt: "2026-01-02" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.overallAcceptance).toBe(100);
+  });
+
+  it("overall acceptance is 0 when all feedback is unhelpful", () => {
+    writeFeedbackStore([
+      { repo: "r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "high", messageHash: "h1", outcome: "unhelpful", createdAt: "2026-01-01" },
+      { repo: "r", pr: 1, commentId: 2, file: "b.ts", line: 2, category: "bug", severity: "high", messageHash: "h2", outcome: "unhelpful", createdAt: "2026-01-02" },
+    ]);
+    const result = buildFatigueDashboard(tmpDir, new Set());
+    expect(result.overallAcceptance).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -386,5 +528,77 @@ describe("formatFatigueDashboard", () => {
     const body = formatFatigueDashboard(result);
     expect(body).toContain("improving");
     expect(body).toContain("img.shields.io");
+  });
+
+  // --- Additional edge cases ---
+
+  it("includes pending count in per-category stats", () => {
+    const result = {
+      categories: [{ category: "bug", total: 10, helpful: 5, unhelpful: 3, pending: 2, acceptanceRate: 62.5, fatigueScore: 4.2, trend: "stable" as const }],
+      totalFindings: 10, totalFeedback: 8, overallAcceptance: 62,
+      noisiestCategory: null, suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).toContain("bug");
+    expect(body).toContain("62.5%");
+  });
+
+  it("handles categories with same fatigue score", () => {
+    const result = {
+      categories: [
+        { category: "alpha", total: 5, helpful: 0, unhelpful: 5, acceptanceRate: 0, fatigueScore: 4.7, trend: "stable" as const },
+        { category: "beta", total: 5, helpful: 0, unhelpful: 5, acceptanceRate: 0, fatigueScore: 4.7, trend: "stable" as const },
+      ],
+      totalFindings: 10, totalFeedback: 10, overallAcceptance: 0,
+      noisiestCategory: "alpha", suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).toContain("alpha");
+    expect(body).toContain("beta");
+  });
+
+  it("includes noisiest category in overall metrics when present", () => {
+    const result = {
+      categories: [{ category: "style", total: 20, helpful: 2, unhelpful: 18, acceptanceRate: 10, fatigueScore: 16, trend: "declining" as const }],
+      totalFindings: 20, totalFeedback: 20, overallAcceptance: 10,
+      noisiestCategory: "style", suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).toContain("Noisiest category");
+    expect(body).toContain("style");
+    expect(body).toContain("16");
+  });
+
+  it("omits noisiest category line when null", () => {
+    const result = {
+      categories: [{ category: "bug", total: 5, helpful: 5, unhelpful: 0, acceptanceRate: 100, fatigueScore: 0, trend: "stable" as const }],
+      totalFindings: 5, totalFeedback: 5, overallAcceptance: 100,
+      noisiestCategory: null, suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).not.toContain("Noisiest category");
+  });
+
+  it("formats large number of categories with truncation", () => {
+    const categories = Array.from({ length: 25 }, (_, i) => ({
+      category: "cat" + i, total: i + 1, helpful: 0, unhelpful: i + 1,
+      acceptanceRate: 0, fatigueScore: i, trend: "stable" as const,
+    }));
+    const result = {
+      categories, totalFindings: 100, totalFeedback: 100, overallAcceptance: 0,
+      noisiestCategory: "cat24", suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).toContain("25 total");
+  });
+
+  it("does not output recommendation for high-acceptance categories", () => {
+    const result = {
+      categories: [{ category: "bug", total: 10, helpful: 10, unhelpful: 0, acceptanceRate: 100, fatigueScore: 0, trend: "stable" as const }],
+      totalFindings: 10, totalFeedback: 10, overallAcceptance: 100,
+      noisiestCategory: null, suppressedCategories: [],
+    };
+    const body = formatFatigueDashboard(result);
+    expect(body).not.toContain("Recommendations");
   });
 });

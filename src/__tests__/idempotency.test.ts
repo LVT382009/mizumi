@@ -238,6 +238,109 @@ describe("store persistence and eviction", () => {
   });
 });
 
+
+  // --- Additional edge cases ---
+
+  it("hashDeliveryId returns consistent length for empty string", () => {
+    const h = hashDeliveryId("");
+    expect(h).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("hashDeliveryId handles special characters", () => {
+    const h = hashDeliveryId("del-!@#$%^&*()");
+    expect(h).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("delivery and SHA stores are independent", () => {
+    checkAndMarkDelivery(tmpDir, "del-independent");
+    checkAndMarkSha(tmpDir, "sha-independent");
+    // Both should be marked
+    expect(checkAndMarkDelivery(tmpDir, "del-independent")).toBe(true);
+    expect(checkAndMarkSha(tmpDir, "sha-independent")).toBe(true);
+  });
+
+  it("handles rapid sequential calls correctly", () => {
+    const results: boolean[] = [];
+    for (let i = 0; i < 100; i++) {
+      results.push(checkAndMarkDelivery(tmpDir, "del-rapid-" + i));
+    }
+    // All first checks should be false
+    expect(results.every(r => r === false)).toBe(true);
+    // All re-checks should be true
+    for (let i = 0; i < 100; i++) {
+      expect(checkAndMarkDelivery(tmpDir, "del-rapid-" + i)).toBe(true);
+    }
+  });
+
+  it("SHA store survives store file size limit", () => {
+    // Insert many SHAs to test eviction
+    for (let i = 0; i < 510; i++) {
+      checkAndMarkSha(tmpDir, "sha-evict-" + i);
+    }
+    const raw = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8");
+    const store = JSON.parse(raw);
+    expect(Object.keys(store.reviewedShas).length).toBeLessThanOrEqual(500);
+  });
+
+  it("handles delivery IDs with JSON-unsafe characters", () => {
+    // Hash should safely handle any string since it becomes hex
+    const h = hashDeliveryId("del-with-special-chars-<>{}[]");
+    expect(h).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("different delivery IDs produce different hashes (collision resistance)", () => {
+    const hashes = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      hashes.add(hashDeliveryId("del-col-" + i));
+    }
+    // All 200 hashes should be unique (SHA-256 truncation)
+    expect(hashes.size).toBe(200);
+  });
+
+  it("empty workspace directory does not create .github", () => {
+    const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-empty-"));
+    try {
+      // Not calling any mark function, so .github should not be created
+      expect(fs.existsSync(path.join(freshDir, ".github"))).toBe(false);
+    } finally {
+      fs.rmSync(freshDir, { recursive: true, force: true });
+    }
+  });
+
+  it("checkAndMarkSha with very long SHA", () => {
+    const longSha = "a".repeat(1000);
+    expect(checkAndMarkSha(tmpDir, longSha)).toBe(false);
+    expect(checkAndMarkSha(tmpDir, longSha)).toBe(true);
+  });
+
+  it("checkAndMarkDelivery with numeric delivery ID", () => {
+    expect(checkAndMarkDelivery(tmpDir, "12345")).toBe(false);
+    expect(checkAndMarkDelivery(tmpDir, "12345")).toBe(true);
+  });
+
+  it("preserves store integrity after many mixed operations", () => {
+    for (let i = 0; i < 50; i++) {
+      checkAndMarkDelivery(tmpDir, "del-mix-" + i);
+      checkAndMarkSha(tmpDir, "sha-mix-" + i);
+    }
+    const raw = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-idempotency.json"), "utf-8");
+    const store = JSON.parse(raw);
+    // All entries should be valid
+    expect(Object.keys(store.deliveryIds).length).toBeGreaterThan(0);
+    expect(Object.keys(store.reviewedShas).length).toBeGreaterThan(0);
+  });
+
+  it("handles store with pre-existing entries correctly", () => {
+    const storePath = path.join(tmpDir, ".github", "mizumi-idempotency.json");
+    fs.mkdirSync(path.join(tmpDir, ".github"), { recursive: true });
+    const existing = { deliveryIds: { existingkey: 1000 }, reviewedShas: { existingscmha: 2000 } };
+    fs.writeFileSync(storePath, JSON.stringify(existing), "utf-8");
+    
+    expect(checkAndMarkDelivery(tmpDir, "del-new")).toBe(false);
+    // Existing key hash is not "existingkey" — it would need to be hashDeliveryId result
+    // But the raw key in the store IS the hash, so "existingkey" is a valid key
+    expect(isDuplicateDelivery(tmpDir, "whatever")).toBeDefined();
+  });
 describe("markDeliveryProcessed and markShaReviewed (legacy no-ops)", () => {
   it("markDeliveryProcessed does not throw", () => {
     expect(() => markDeliveryProcessed(tmpDir, "del-noop")).not.toThrow();

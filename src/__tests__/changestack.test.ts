@@ -90,6 +90,50 @@ describe("classifyCohort", () => {
   });
 });
 
+
+  // --- Additional classifyCohort edge cases ---
+
+  it("classifies entity files as data-model", () => {
+    expect(classifyCohort("src/entity/User.ts")).toBe("data-model");
+  });
+
+  it("classifies interface files as data-model", () => {
+    expect(classifyCohort("src/interfaces/IUser.ts")).toBe("data-model");
+  });
+
+  it("classifies /types/ directory files as data-model", () => {
+    expect(classifyCohort("src/types/index.ts")).toBe("data-model");
+  });
+
+  it("classifies .d.ts files as data-model", () => {
+    expect(classifyCohort("src/global.d.ts")).toBe("data-model");
+  });
+
+  it("classifies function files as logic", () => {
+    expect(classifyCohort("src/functions/transform.ts")).toBe("logic");
+  });
+
+  it("classifies view files as consumer", () => {
+    expect(classifyCohort("src/views/Dashboard.tsx")).toBe("consumer");
+  });
+
+  it("classifies files under schema directory as data-model", () => {
+    expect(classifyCohort("prisma/schema.prisma")).toBe("data-model");
+  });
+
+  it("is case-insensitive for cohort classification", () => {
+    expect(classifyCohort("src/Models/User.ts").toLowerCase()).toBe("data-model");
+  });
+
+  it("classifies deep path by matching first pattern", () => {
+    // src/api/users/helpers.ts — api matches before helper
+    expect(classifyCohort("src/api/users/helpers.ts")).toBe("contract");
+  });
+
+  it("classifies files with multiple pattern matches by first cohort", () => {
+    // src/test-utils/mock.ts — test matches before util/logic
+    expect(classifyCohort("src/test-utils/mock.ts")).toBe("logic");
+  });
 describe("buildChangeStack", () => {
   it("returns empty string for fewer than 5 findings", () => {
     const findings = [
@@ -237,5 +281,76 @@ describe("buildChangeStack", () => {
 
   it("data model matched before contract for model files", () => {
     expect(classifyCohort("src/models/api.ts")).toBe("data-model");
+  });
+
+  // --- Additional buildChangeStack edge cases ---
+
+  it("returns empty string for exactly 4 findings", () => {
+    const findings = Array.from({ length: 4 }, (_, i) =>
+      makeFinding({ file: "src/api/file" + i + ".ts", severity: "low", category: "style", message: "m" + i })
+    );
+    expect(buildChangeStack(findings)).toBe("");
+  });
+
+  it("handles exactly 5 findings", () => {
+    const findings = Array.from({ length: 5 }, (_, i) =>
+      makeFinding({ file: "src/api/file" + i + ".ts", severity: "low", category: "style", message: "m" + i })
+    );
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("Change Stack");
+  });
+
+  it("outputs correct severity for CRITICAL findings", () => {
+    const findings = [
+      makeFinding({ file: "src/api/a.ts", line: 1, severity: "critical", category: "security", message: "RCE" }),
+      makeFinding({ file: "src/models/b.ts", line: 2, severity: "high", category: "bug", message: "Null" }),
+      makeFinding({ file: "src/utils/c.ts", line: 3, severity: "medium", category: "performance", message: "Slow" }),
+      makeFinding({ file: "src/components/d.tsx", line: 4, severity: "low", category: "style", message: "Fmt" }),
+      makeFinding({ file: "src/__tests__/e.test.ts", line: 5, severity: "nitpick", category: "architecture", message: "Test" }),
+    ];
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("[CRITICAL]");
+    expect(stack).toContain("[HIGH]");
+    expect(stack).toContain("[MEDIUM]");
+  });
+
+  it("handles all-other cohort", () => {
+    const findings = [
+      { file: "Dockerfile", line: 1, severity: "low" as const, category: "style", message: "m1", confidence: 80 },
+      { file: "Makefile", line: 2, severity: "low" as const, category: "style", message: "m2", confidence: 80 },
+      { file: ".github/workflows/ci.yml", line: 3, severity: "low" as const, category: "style", message: "m3", confidence: 80 },
+      { file: "scripts/deploy.sh", line: 4, severity: "low" as const, category: "style", message: "m4", confidence: 80 },
+      { file: "config.json", line: 5, severity: "low" as const, category: "style", message: "m5", confidence: 80 },
+    ];
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("Other Changes");
+  });
+
+  it("formats file references as backtick code", () => {
+    const findings = [
+      makeFinding({ file: "src/api/auth.ts", line: 42, severity: "critical", category: "security", message: "Bypass" }),
+      makeFinding({ file: "src/models/user.ts", line: 10, severity: "high", category: "bug", message: "Null" }),
+      makeFinding({ file: "src/utils/format.ts", line: 5, severity: "medium", category: "performance", message: "N+1" }),
+      makeFinding({ file: "src/components/Button.tsx", line: 3, severity: "low", category: "style", message: "Key" }),
+      makeFinding({ file: "src/tests/a.test.ts", line: 1, severity: "nitpick", category: "style", message: "Fmt" }),
+    ];
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("`src/api/auth.ts:42`");
+  });
+
+  it("builds stack for many findings across all cohorts", () => {
+    const findings = [
+      ...Array.from({ length: 3 }, (_, i) => makeFinding({ file: "src/models/m" + i + ".ts", severity: "high", category: "bug", message: "m" + i })),
+      ...Array.from({ length: 3 }, (_, i) => makeFinding({ file: "src/api/a" + i + ".ts", severity: "medium", category: "security", message: "a" + i })),
+      ...Array.from({ length: 3 }, (_, i) => makeFinding({ file: "src/utils/u" + i + ".ts", severity: "low", category: "performance", message: "u" + i })),
+      ...Array.from({ length: 3 }, (_, i) => makeFinding({ file: "src/components/c" + i + ".tsx", severity: "nitpick", category: "style", message: "c" + i })),
+      ...Array.from({ length: 3 }, (_, i) => makeFinding({ file: "src/__tests__/t" + i + ".test.ts", severity: "nitpick", category: "style", message: "t" + i })),
+    ];
+    const stack = buildChangeStack(findings);
+    expect(stack).toContain("Data Models");
+    expect(stack).toContain("API Contracts");
+    expect(stack).toContain("Core Logic");
+    expect(stack).toContain("Tests &");
+    expect(stack).toContain("Consumers");
   });
 });

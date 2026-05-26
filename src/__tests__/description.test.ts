@@ -148,6 +148,69 @@ describe("scorePRDescription", () => {
 
 });
 
+
+  // --- Additional edge cases ---
+
+  it("gives 0 for whitespace-only title and body", () => {
+    const result = scorePRDescription(" ", " ");
+    expect(result.score).toBe(0);
+  });
+
+  it("detects since as why explanation", () => {
+    const result = scorePRDescription("Refactor", "Since the old code was buggy, this rewrites it.");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("does not flag linked issue for bare # in body", () => {
+    // A bare # without a digit should not match
+    const result = scorePRDescription("Update", "See # for details");
+    expect(result.missing).toContain("linked issue or ticket reference");
+  });
+
+  it("detects refs #N pattern", () => {
+    const result = scorePRDescription("Hotfix", "Refs #999");
+    expect(result.missing).not.toContain("linked issue or ticket reference");
+  });
+
+  it("body over 100 chars counts as why explanation", () => {
+    const longBody = "x".repeat(101);
+    const result = scorePRDescription("Update", longBody);
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
+
+  it("body exactly 100 chars does not count as why explanation when no why keywords", () => {
+    const body = "a".repeat(100);
+    const result = scorePRDescription("Update", body);
+    expect(result.missing).toContain("explanation of why this change is needed");
+  });
+
+  it("detects migration guide as breaking change", () => {
+    const result = scorePRDescription("API v2", "Migration guide: update your endpoints");
+    expect(result.missing).not.toContain("breaking change notes (if applicable)");
+  });
+
+  it("detects upgrade guide as breaking change", () => {
+    const result = scorePRDescription("Release", "Upgrade guide: see the breaking changes section");
+    expect(result.missing).not.toContain("breaking change notes (if applicable)");
+  });
+
+  it("flags missing breaking change for non-empty body", () => {
+    const result = scorePRDescription("Feature", "Add new endpoint");
+    expect(result.missing).toContain("breaking change notes (if applicable)");
+  });
+
+  it("score 2 when 2 elements are missing", () => {
+    const result = scorePRDescription("Fix bug", "Because root cause was X. Fixes #3.");
+    // Has why (because) + linked issue (fixes #3), but no test plan or breaking note
+    expect(result.missing).toHaveLength(2);
+    expect(result.score).toBe(2);
+  });
+
+  it("title contributes to why detection", () => {
+    // fix in title should count as why
+    const result = scorePRDescription("Fix login bug", "just a small change");
+    expect(result.missing).not.toContain("explanation of why this change is needed");
+  });
 describe("formatDescriptionFeedback", () => {
   it("returns empty string for score >= 3", () => {
     const result = formatDescriptionFeedback({ score: 3, missing: [] });
@@ -182,5 +245,48 @@ describe("formatDescriptionFeedback", () => {
     const result = formatDescriptionFeedback({ score: 1, missing: ["item A", "item B"] });
     expect(result).toContain("- item A");
     expect(result).toContain("- item B");
+  });
+
+  // --- Additional edge cases ---
+
+  it("returns empty string for score 3 with empty missing", () => {
+    const result = formatDescriptionFeedback({ score: 3, missing: [] });
+    expect(result).toBe("");
+  });
+
+  it("returns feedback for score 0", () => {
+    const result = formatDescriptionFeedback({ score: 0, missing: ["a", "b", "c", "d"] });
+    expect(result).toContain("0/4");
+    expect(result).toContain("a");
+  });
+
+  it("returns feedback for score 1", () => {
+    const result = formatDescriptionFeedback({ score: 1, missing: ["x", "y"] });
+    expect(result).toContain("1/4");
+  });
+
+  it("returns feedback for score 2", () => {
+    const result = formatDescriptionFeedback({ score: 2, missing: ["x", "y"] });
+    expect(result).toContain("2/4");
+  });
+
+  it("markdown formatting includes PR Description Quality header", () => {
+    const result = formatDescriptionFeedback({ score: 1, missing: ["test plan"] });
+    expect(result).toContain("## PR Description Quality");
+  });
+
+  it("suggests improving the description", () => {
+    const result = formatDescriptionFeedback({ score: 1, missing: ["why explanation"] });
+    expect(result).toContain("Consider suggesting");
+  });
+
+  it("single missing item produces one bullet", () => {
+    const result = formatDescriptionFeedback({ score: 3, missing: ["test plan"] });
+    expect(result).toBe(""); // score 3 is too high
+  });
+
+  it("score just below threshold produces feedback", () => {
+    const result = formatDescriptionFeedback({ score: 2, missing: ["x"] });
+    expect(result).not.toBe("");
   });
 });

@@ -1,5 +1,16 @@
-import { describe, it, expect } from "vitest";
-import { ghostWarnings } from "../memory.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi } from "vitest";
+
+vi.mock("@actions/core", () => ({
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
+import { ghostWarnings, readRules, buildLearningPrompt, autoGenerateSkills, loadSkills } from "../memory.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 describe("ghostWarnings", () => {
   it("returns empty for empty memory", () => {
@@ -235,5 +246,130 @@ describe("ghostWarnings", () => {
     const memory = "Some random text\n[] broken brackets\n-- dash line";
     const result = ghostWarnings(memory, ["src/auth.ts"]);
     expect(result).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readRules — scan project rules files
+// ---------------------------------------------------------------------------
+
+describe("readRules", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-rules-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns empty string when no rules files exist", () => {
+    
+    expect(readRules(tmpDir)).toBe("");
+  });
+
+  it("reads REVIEW.md from workspace root", () => {
+    
+    fs.writeFileSync(path.join(tmpDir, "REVIEW.md"), "# Review Rules");
+    expect(readRules(tmpDir)).toContain("Review Rules");
+  });
+
+  it("reads CLAUDE.md from workspace root", () => {
+    
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "# Claude Rules");
+    expect(readRules(tmpDir)).toContain("Claude Rules");
+  });
+
+  it("reads .cursorrules from workspace root", () => {
+    
+    fs.writeFileSync(path.join(tmpDir, ".cursorrules"), "Always use tabs");
+    expect(readRules(tmpDir)).toContain("Always use tabs");
+  });
+
+  it("reads copilot-instructions.md from .github", () => {
+    
+    fs.mkdirSync(path.join(tmpDir, ".github"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, ".github", "copilot-instructions.md"), "Use strict mode");
+    expect(readRules(tmpDir)).toContain("Use strict mode");
+  });
+
+  it("combines multiple rules files", () => {
+    
+    fs.writeFileSync(path.join(tmpDir, "REVIEW.md"), "Rule A");
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "Rule B");
+    const result = readRules(tmpDir);
+    expect(result).toContain("Rule A");
+    expect(result).toContain("Rule B");
+  });
+
+  it("skips empty rules files", () => {
+    
+    fs.writeFileSync(path.join(tmpDir, "REVIEW.md"), "  ");
+    expect(readRules(tmpDir)).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildLearningPrompt — adaptive learning from feedback
+// ---------------------------------------------------------------------------
+
+describe("buildLearningPrompt", () => {
+  it("returns empty string when no learning data", () => {
+    
+    const result = buildLearningPrompt({}, {});
+    expect(result).toBe("");
+  });
+
+  it("mentions demoted categories", () => {
+    
+    const result = buildLearningPrompt({ style: "demote" }, {});
+    expect(result).toContain("style");
+    expect(result).toContain("dismisses");
+  });
+
+  it("mentions promoted categories", () => {
+    
+    const result = buildLearningPrompt({ security: "promote" }, {});
+    expect(result).toContain("security");
+    expect(result).toContain("values");
+  });
+
+  it("includes low-acceptance categories with detail", () => {
+    
+    const rates = { style: { helpful: 2, unhelpful: 8, rate: 0.2 } };
+    const result = buildLearningPrompt({}, rates);
+    expect(result).toContain("20%");
+    expect(result).toContain("style");
+  });
+
+  it("skips categories with too few responses (< 5)", () => {
+    
+    const rates = { bug: { helpful: 1, unhelpful: 3, rate: 0.25 } };
+    const result = buildLearningPrompt({}, rates);
+    // total responses = 4 < 5, so should be skipped
+    expect(result).not.toContain("25%");
+  });
+
+  it("combines demotion and low-acceptance recommendations", () => {
+    
+    const weights = { nitpick: "demote" };
+    const rates = { style: { helpful: 1, unhelpful: 9, rate: 0.1 } };
+    const result = buildLearningPrompt(weights, rates);
+    expect(result).toContain("nitpick");
+    expect(result).toContain("style");
+  });
+
+  it("neutral categories are not mentioned", () => {
+    
+    const result = buildLearningPrompt({ bug: "neutral" }, {});
+    expect(result).toBe("");
+  });
+
+  it("reports multiple demoted categories", () => {
+    
+    const result = buildLearningPrompt({ style: "demote", nitpick: "demote" }, {});
+    expect(result).toContain("style");
+    expect(result).toContain("nitpick");
   });
 });
