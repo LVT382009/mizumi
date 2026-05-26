@@ -79,6 +79,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     crossPRPersistence: true,
     sarifExport: true,
     reviewPriority: true,
+    defenseFramework: true,
     ...overrides,
   };
 }

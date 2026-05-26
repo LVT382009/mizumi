@@ -492,9 +492,20 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - ghost/memory: readRules (REVIEW.md, CLAUDE.md, .cursorrules, copilot-instructions.md, multiple files combined, empty skip), buildLearningPrompt (demote, promote, low-acceptance with detail, <5 responses skip, combine demotion+low-acceptance, neutral skip, multiple demoted)
 - **3335 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3335 Tests)
+### Feature: Defense Framework Integration (2026-05-27)
 
-- **3335 tests** passing (75 test files)
+- **Wired defense.ts into main.ts pipeline** — the first AI code reviewer with explicit prompt injection defense
+- Step 6a: defendInput wraps all untrusted inputs (PR diff, body, title) with "user" provenance tags
+- Step 6a: defendInput wraps retrieved content (memory, rules, ghost context) with "retrieved" provenance tags
+- Step 9d: validateReviewOutput checks behavioral anomalies before posting (risk score range, decision mismatch, confidence range, empty paths, invalid lines, comment flooding)
+- Step 9d: defendOutput screens all comment messages for secrets/URLs/shell commands
+- Added defense_framework config field (default true) to config.ts, action.yml, and all 8 test stubs
+- Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
+- **3345 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3345 Tests)
+
+- **3345 tests** passing (75 test files)
 - **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)

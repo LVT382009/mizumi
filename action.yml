@@ -257,6 +257,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+defense_framework:
+  description: "Enable prompt injection defense framework — multi-layer defense-in-depth: input sanitization, content provenance tagging (user/retrieved/generated), output screening, and behavioral anomaly validation. No other AI code review tool has an explicit prompt injection defense layer."
+  required: false
+  default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

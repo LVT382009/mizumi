@@ -113,6 +113,7 @@ const testConfig = {
     crossPRPersistence: true,
     sarifExport: true,
     reviewPriority: true,
+    defenseFramework: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

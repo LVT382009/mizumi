@@ -69,6 +69,7 @@ import { analyzeThreadContinuity } from "./thread-continuity.js";
 import { trackCrossPRFindings } from "./crosspr-persist.js";
 import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
 import { prioritizeFindings } from "./review-priority.js";
+import { defendInput, defendOutput, validateReviewOutput } from "./defense.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -758,6 +759,25 @@ if (config.adaptiveStrategy) {
   core.info(`Adaptive strategy: ${prClassification.category}`);
 }
 }
+// 6a. Defense framework — apply input provenance tags and sanitization
+if (config.defenseFramework) {
+  try {
+    context.diffText = defendInput(context.diffText, "user", "pr-diff");
+    if (context.memoryContent) {
+      context.memoryContent = defendInput(context.memoryContent, "retrieved", "memory");
+    }
+    if (context.rulesContent) {
+      context.rulesContent = defendInput(context.rulesContent, "retrieved", "rules");
+    }
+    if (context.ghostContent) {
+      context.ghostContent = defendInput(context.ghostContent, "retrieved", "ghost-context");
+    }
+    core.info("Defense framework: input provenance tags applied");
+  } catch (e) {
+    core.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
   // 6b. Guard context window â€” truncate diff if it exceeds modelâ€™s limit
   const guarded = guardContextWindow(context.diffText, config.provider);
   if (guarded.truncated) {
@@ -1007,6 +1027,27 @@ if (config.behavioralSummary && shouldRunBehavioralAnalysis(diff.files)) {
     octokit, owner, repo, prNumber, currentFindings
   );
   if (deletedCount > 0) core.info(`Cleaned up ${deletedCount} outdated comment(s)`);
+
+// 9d. Defense framework — validate review output for behavioral anomalies
+if (config.defenseFramework) {
+  try {
+    const defenseValidation = validateReviewOutput(mergedReview);
+    if (!defenseValidation.valid) {
+      core.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
+      for (const c of mergedReview.comments) {
+        c.message = defendOutput(c.message);
+      }
+    } else {
+      // Still screen output for secrets even when structurally valid
+      for (const c of mergedReview.comments) {
+        c.message = defendOutput(c.message);
+      }
+    }
+    core.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
+  } catch (e) {
+    core.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 
  // 10. Post review (skip in dry-run mode)
  if (config.dryRun) {

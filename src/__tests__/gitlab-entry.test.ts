@@ -82,6 +82,7 @@ vi.mock("../config.js", () => ({
     crossPRPersistence: true,
     sarifExport: true,
     reviewPriority: true,
+    defenseFramework: true,
   })),
 }));
 
