@@ -68,6 +68,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     authBoundary: true,
     fatigueDashboard: true,
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
+      orgMemory: true,
     ...overrides,
   };
 }

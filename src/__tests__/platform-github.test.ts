@@ -142,6 +142,7 @@ vi.mock("../config.js", () => ({
     authBoundary: true,
     fatigueDashboard: true,
     secretEntropy: true, safetyScore: true, adaptiveStrategy: true, businessContext: true,
+      orgMemory: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

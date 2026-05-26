@@ -55,6 +55,7 @@ import { runEntropyAnalysis, buildEntropyContext } from "./secret-entropy.js";
 import { runAttributionAnalysis, applyAttributionConfidence, buildAttributionContext } from "./attribution.js";
 import { computeSafetyScore, postSafetyScore } from "./safety-score.js";
 import { fetchBusinessContext, parseMCPEndpoints } from "./business-context.js";
+import { runOrgMemoryRetrieval, recordPRHistory, pruneOldHistory } from "./org-memory.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -393,6 +394,25 @@ if (config.businessContext) {
   }
 }
 
+// 4a11. Organizational memory — retrieve similar past PRs by file path overlap
+let orgMemoryResult: import("./org-memory.js").OrgMemoryResult | null = null;
+if (config.orgMemory) {
+  try {
+    orgMemoryResult = runOrgMemoryRetrieval(
+      workspace, `${owner}/${repo}`,
+      diff.files.map((f) => f.path),
+      prNumber
+    );
+    if (orgMemoryResult.similarPRs.length > 0) {
+      core.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
+    }
+    // Prune entries older than 180 days
+    pruneOldHistory(workspace, `${owner}/${repo}`, 180);
+  } catch (e) {
+    core.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a7. Auth boundary analysis - detect routes without authentication
 let authBoundaryResult: import("./auth-boundary.js").AuthBoundaryResult | null = null;
 if (config.authBoundary) {
@@ -571,7 +591,15 @@ ${attrCtxStr}`;
 ${businessContextResult.contextText}`;
   }
 
-  if (skills.loaded) context.rulesContent += `
+  
+// 5c10. Organizational memory context injection
+if (orgMemoryResult && orgMemoryResult.contextText) {
+  context.rulesContent += `
+
+${orgMemoryResult.contextText}`;
+}
+
+if (skills.loaded) context.rulesContent += `
 
 ## Project Skills
 ${skills.loaded}`;
@@ -951,6 +979,22 @@ recordFindings(workspace, `${owner}/${repo}`, prNumber,
     // Record suggestions to SQLite for feedback tracking
 for (const c of mergedReview.comments) {
   recordSuggestion(workspace, owner + "/" + repo, c.file, c.line, c.category, c.severity, c.message);
+}
+
+// 10d2. Record PR into organizational memory index
+if (config.orgMemory) {
+  try {
+    const { data: prData } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    recordPRHistory(
+      workspace, `${owner}/${repo}`, prNumber,
+      prData.title || "",
+      diff.files.map((f) => f.path),
+      mergedReview.comments.map((c) => ({ category: c.category, severity: c.severity, message: c.message })),
+      mergedReview.riskScore
+    );
+  } catch (e) {
+    core.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
+  }
 }
 
 writeMemory(workspace, context.memoryContent, memoryUpdate);

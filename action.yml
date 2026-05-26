@@ -202,7 +202,11 @@ inputs:
     description: "Enable business context integration - fetches Jira/Linear ticket details from PR body references and injects context into the review prompt. CodeRabbit, Bito, and Macroscope have similar features."
     required: false
     default: "true"
-  jira_base_url:
+  org_memory:
+  description: "Enable organizational memory - indexes past PR history by file paths, retrieves similar PRs for context injection. No other AI reviewer has cross-PR organizational learning."
+  required: false
+  default: "true"
+jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
   jira_api_token:
