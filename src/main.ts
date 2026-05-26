@@ -752,12 +752,12 @@ if (depImpactResult && depImpactResult.contextText) {
 // 5c17. Thread continuity context injection — tell LLM about author dismissals
 if (threadContinuityResult && threadContinuityResult.contextText) {
   context.ghostContent += "\n\n" + threadContinuityResult.contextText;
+}
 // 5c18. Adaptive strategy injection - adjust review focus based on PR type
 if (config.adaptiveStrategy) {
   const strategyPrompt = buildStrategyPrompt(prClassification.category);
   context.rulesContent += strategyPrompt;
   core.info(`Adaptive strategy: ${prClassification.category}`);
-}
 }
 // 6a. Defense framework — apply input provenance tags and sanitization
 if (config.defenseFramework) {

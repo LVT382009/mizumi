@@ -326,4 +326,134 @@ describe("checkCompliance", () => {
     expect(octokit.rest.issues.get).toHaveBeenCalledTimes(3);
     expect(result).toHaveLength(3);
   });
+
+  it("extracts issue refs from combined PR body and title", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "Auth", body: "Need auth", pull_request: undefined },
+          }),
+        },
+      },
+    };
+    mockGenerateObject.mockResolvedValue({
+      object: { level: "partially", summary: "Partial" },
+    } as any);
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1,
+      "", "Closes #55", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].issueNumber).toBe(55);
+  });
+
+  it("handles issue with empty body gracefully", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          get: vi.fn().mockResolvedValue({
+            data: { title: "Bug", body: null, pull_request: undefined },
+          }),
+        },
+      },
+    };
+    mockGenerateObject.mockResolvedValue({
+      object: { level: "partially", summary: "Limited info" },
+    } as any);
+
+    const result = await checkCompliance(
+      octokit as any, "owner", "repo", 1, "Fixes #10", "", "diff", makeConfig()
+    );
+
+    expect(result).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractIssueRefs additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("extractIssueRefs additional", () => {
+  it("handles 'closed #N' past tense", () => {
+    expect(extractIssueRefs("closed #12")).toEqual([12]);
+  });
+
+  it("handles 'ref #N' abbreviation", () => {
+    expect(extractIssueRefs("ref #33")).toEqual([33]);
+  });
+
+  it("handles number embedded in longer text", () => {
+    const refs = extractIssueRefs("As discussed in #42, this PR fixes the login flow.");
+    expect(refs).toContain(42);
+  });
+
+  it("handles multiple bare refs and explicit refs", () => {
+    const refs = extractIssueRefs("closes #1 and #2 and #3");
+    expect(refs).toContain(1);
+    expect(refs).toContain(2);
+    expect(refs).toContain(3);
+  });
+
+  it("returns unique refs even with overlapping patterns", () => {
+    const refs = extractIssueRefs("closes #5 and also #5");
+    expect(refs).toEqual([5]);
+  });
+
+  it("handles zero issue number", () => {
+    const refs = extractIssueRefs("see #0");
+    expect(refs).toEqual([0]);
+  });
+
+  it("handles large issue numbers", () => {
+    const refs = extractIssueRefs("fixes #999999");
+    expect(refs).toContain(999999);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatCompliance additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("formatCompliance additional", () => {
+  it("formats single fully compliant result with proper structure", () => {
+    const results: ComplianceResult[] = [
+      { issueNumber: 100, issueTitle: "Add OAuth2", compliance: "fully", summary: "All OAuth2 flows present" },
+    ];
+    const body = formatCompliance(results);
+    expect(body).toContain("### Issue Compliance");
+    expect(body).toContain("#100");
+    expect(body).toContain("[PASS]");
+  });
+
+  it("handles compliance result with long summary", () => {
+    const longSummary = "A".repeat(500);
+    const results: ComplianceResult[] = [
+      { issueNumber: 1, issueTitle: "Test", compliance: "partially", summary: longSummary },
+    ];
+    const body = formatCompliance(results);
+    expect(body).toContain(longSummary.slice(0, 100));
+  });
+
+  it("includes issue title in output", () => {
+    const results: ComplianceResult[] = [
+      { issueNumber: 7, issueTitle: "Security fix", compliance: "not", summary: "Not compliant" },
+    ];
+    const body = formatCompliance(results);
+    expect(body).toContain("Security fix");
+  });
+
+  it("handles multiple results with mixed compliance levels", () => {
+    const results: ComplianceResult[] = [
+      { issueNumber: 1, issueTitle: "A", compliance: "fully", summary: "OK" },
+      { issueNumber: 2, issueTitle: "B", compliance: "not", summary: "Bad" },
+      { issueNumber: 3, issueTitle: "C", compliance: "partially", summary: "Partial" },
+    ];
+    const body = formatCompliance(results);
+    expect(body).toContain("[PASS]");
+    expect(body).toContain("[FAIL]");
+    expect(body).toContain("[WARN]");
+  });
 });

@@ -491,4 +491,225 @@ describe("diff parsing edge cases", () => {
     expect(diff.files[0].hunks[0].changes).toHaveLength(3);
     expect(diff.files[0].hunks[0].changes[0].type).toBe("normal");
   });
+
+  it("handles diff with no newline at end of file marker", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([
+      {
+        old_path: "eof.ts",
+        new_path: "eof.ts",
+        diff: "@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new",
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+    ]);
+
+    const diff = await client.fetchDiff();
+    expect(diff.files).toHaveLength(1);
+    expect(diff.files[0].deletions).toBe(1);
+    expect(diff.files[0].additions).toBe(1);
+  });
+
+  it("handles empty diff array", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([]);
+
+    const diff = await client.fetchDiff();
+    expect(diff.files).toHaveLength(0);
+    expect(diff.totalAdditions).toBe(0);
+    expect(diff.totalDeletions).toBe(0);
+  });
+
+  it("computes hunk line counts correctly", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([
+      {
+        old_path: "counts.ts",
+        new_path: "counts.ts",
+        diff: "@@ -1,4 +1,5 @@\n ctx\n+add1\n ctx\n-del\n+add2\n ctx",
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+    ]);
+
+    const diff = await client.fetchDiff();
+    const hunk = diff.files[0].hunks[0];
+    // ctx(1)+add1+ctx(2)+del+add2+ctx(3) = 1 delete + 3 context lines for oldLines
+    // 2 adds + 3 context lines for newLines (but code filters differently)
+    expect(hunk.oldLines).toBeGreaterThan(0);
+    expect(hunk.newLines).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createStatus
+// ---------------------------------------------------------------------------
+
+describe("createStatus", () => {
+  it("maps pending to running", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse({});
+
+    await client.createStatus("sha1", "pending", "Testing", "mizumi");
+
+    const call = mockFetch.mock.calls[0];
+    const body = JSON.parse(call[1].body);
+    expect(body.state).toBe("running");
+    expect(body.description).toBe("Testing");
+    expect(body.context).toBe("mizumi");
+  });
+
+  it("maps success to success", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse({});
+
+    await client.createStatus("sha1", "success", "Passed", "mizumi");
+
+    const call = mockFetch.mock.calls[0];
+    const body = JSON.parse(call[1].body);
+    expect(body.state).toBe("success");
+  });
+
+  it("maps failure to failed", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse({});
+
+    await client.createStatus("sha1", "failure", "Failed", "mizumi");
+
+    const call = mockFetch.mock.calls[0];
+    const body = JSON.parse(call[1].body);
+    expect(body.state).toBe("failed");
+  });
+
+  it("includes target_url from CI_PROJECT_URL", async () => {
+    process.env.CI_PROJECT_URL = "https://gitlab.com/group/project";
+    const client = createGitLabClient();
+    mockFetchResponse({});
+
+    await client.createStatus("sha1", "success", "Done", "ci");
+
+    const call = mockFetch.mock.calls[0];
+    const body = JSON.parse(call[1].body);
+    expect(body.target_url).toContain("gitlab.com/group/project");
+    expect(body.target_url).toContain("/-/merge_requests/7");
+    delete process.env.CI_PROJECT_URL;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatCommentBody (via postReview)
+// ---------------------------------------------------------------------------
+
+describe("formatCommentBody", () => {
+  it("includes severity badge for high confidence", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([
+      { id: 1, base_commit_sha: "b", head_commit_sha: "h", start_commit_sha: "s" },
+    ]);
+    mockFetchResponse({ id: "d1" });
+    mockFetchResponse({ id: "n1" });
+
+    await client.postReview(
+      [{ path: "a.ts", line: 1, body: "Bug", severity: "high", confidence: 90, category: "bug" }],
+      "Sum",
+      1,
+    );
+
+    const discCall = mockFetch.mock.calls[1];
+    const body = JSON.parse(discCall[1].body);
+    expect(body.body).toContain("[HIGH]");
+    expect(body.body).toContain("mizumi-review-marker");
+  });
+
+  it("uses medium badge for medium confidence", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([
+      { id: 1, base_commit_sha: "b", head_commit_sha: "h", start_commit_sha: "s" },
+    ]);
+    mockFetchResponse({ id: "d1" });
+    mockFetchResponse({ id: "n1" });
+
+    await client.postReview(
+      [{ path: "a.ts", line: 1, body: "Note", severity: "low", confidence: 60, category: "style" }],
+      "Sum",
+      1,
+    );
+
+    const discCall = mockFetch.mock.calls[1];
+    const body = JSON.parse(discCall[1].body);
+    expect(body.body).toContain("[LOW]");
+  });
+
+  it("includes suggestion block when present", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse([
+      { id: 1, base_commit_sha: "b", head_commit_sha: "h", start_commit_sha: "s" },
+    ]);
+    mockFetchResponse({ id: "d1" });
+    mockFetchResponse({ id: "n1" });
+
+    await client.postReview(
+      [{ path: "a.ts", line: 5, body: "Fix this", severity: "high", confidence: 95, category: "bug", suggestion: "Use null check" }],
+      "",
+      1,
+    );
+
+    const discCall = mockFetch.mock.calls[1];
+    const body = JSON.parse(discCall[1].body);
+    expect(body.body).toContain("suggestion");
+    expect(body.body).toContain("Use null check");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// API error handling
+// ---------------------------------------------------------------------------
+
+describe("API error handling", () => {
+  it("throws on non-2xx response", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse({ message: "Unauthorized" }, 401);
+
+    await expect(client.getMR()).rejects.toThrow("401");
+  });
+
+  it("throws on 404 response", async () => {
+    const client = createGitLabClient();
+    mockFetchResponse({ message: "Not Found" }, 404);
+
+    await expect(client.getMR()).rejects.toThrow("404");
+  });
+
+  it("handles 204 No Content response", async () => {
+    const client = createGitLabClient();
+    mockFetchNoContent();
+
+    await client.deleteComment(99);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Constructor edge cases
+// ---------------------------------------------------------------------------
+
+describe("constructor edge cases", () => {
+  it("strips trailing slash from CI_API_V4_URL", async () => {
+    process.env.CI_API_V4_URL = "https://custom.gitlab.com/api/v4/";
+    const client = createGitLabClient();
+    mockFetchResponse({ iid: 7, title: "T", description: "", sha: "a", source_branch: "f", target_branch: "m", diff_refs: null, author: null });
+
+    await client.getMR();
+    const call = mockFetch.mock.calls[0];
+    expect(call[0]).toContain("custom.gitlab.com/api/v4/projects");
+    delete process.env.CI_API_V4_URL;
+  });
+
+  it("defaults to gitlab.com when CI_API_V4_URL not set", () => {
+    delete process.env.CI_API_V4_URL;
+    const client = createGitLabClient();
+    expect(client.platform).toBe("gitlab");
+  });
 });

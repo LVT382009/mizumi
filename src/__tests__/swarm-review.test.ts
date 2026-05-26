@@ -460,4 +460,106 @@ describe("buildSwarmContext advanced", () => {
     expect(ctx).toContain("critical");
     expect(ctx).toContain("high");
   });
+
+  it("includes medium and nitpick severities", () => {
+    const result: SwarmResult = {
+      findings: [
+        makeFinding({ category: "bug", severity: "medium", message: "Missing return" }),
+        makeFinding({ category: "bug", severity: "nitpick", message: "Naming" }),
+      ],
+      perspectiveCounts: { security: 0, correctness: 2, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("medium");
+    expect(ctx).toContain("nitpick");
+  });
+
+  it("formats file:line reference with backticks", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ file: "src/api/auth.ts", line: 42, category: "security", message: "XSS" })],
+      perspectiveCounts: { security: 1, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("`src/api/auth.ts:42`");
+  });
+
+  it("handles finding without suggestion", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "security", message: "SQL injection", suggestion: undefined })],
+      perspectiveCounts: { security: 1, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("SQL injection");
+    expect(ctx).not.toContain("→");
+  });
+
+  it("handles findings with endLine set", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "bug", message: "Block issue", endLine: 55 })],
+      perspectiveCounts: { security: 0, correctness: 1, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("Block issue");
+  });
+
+  it("trims trailing whitespace from output", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "security" })],
+      perspectiveCounts: { security: 1, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).not.toMatch(/\n$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deduplicateFindings more edge cases
+// ---------------------------------------------------------------------------
+
+describe("deduplicateFindings additional", () => {
+  it("handles findings with very long file paths", () => {
+    const longPath = "src/very/deeply/nested/module/sub/package/feature/component/service.ts";
+    const findings = [
+      makeFinding({ file: longPath, line: 1, category: "security" }),
+      makeFinding({ file: longPath, line: 1, category: "security", confidence: 99 }),
+    ];
+    const { unique, duplicatesRemoved } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(1);
+    expect(duplicatesRemoved).toBe(1);
+    expect(unique[0].confidence).toBe(99);
+  });
+
+  it("handles same file different lines same category", () => {
+    const findings = [
+      makeFinding({ file: "app.ts", line: 10, category: "security" }),
+      makeFinding({ file: "app.ts", line: 20, category: "security" }),
+      makeFinding({ file: "app.ts", line: 30, category: "security" }),
+    ];
+    const { unique, duplicatesRemoved } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(3);
+    expect(duplicatesRemoved).toBe(0);
+  });
+
+  it("handles same file same line different categories", () => {
+    const findings = [
+      makeFinding({ file: "x.ts", line: 5, category: "security" }),
+      makeFinding({ file: "x.ts", line: 5, category: "bug" }),
+      makeFinding({ file: "x.ts", line: 5, category: "performance" }),
+    ];
+    const { unique } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(3);
+  });
+
+  it("handles single finding", () => {
+    const { unique, duplicatesRemoved } = deduplicateFindings([
+      makeFinding({ file: "solo.ts", line: 1, category: "bug" }),
+    ]);
+    expect(unique).toHaveLength(1);
+    expect(duplicatesRemoved).toBe(0);
+  });
 });

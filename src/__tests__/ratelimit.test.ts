@@ -263,5 +263,133 @@ describe("createRateLimiter", () => {
       expect(config.rps).toBeGreaterThanOrEqual(0);
     }
   });
+});
 
+// ---------------------------------------------------------------------------
+// RateLimiter edge cases
+// ---------------------------------------------------------------------------
+
+describe("RateLimiter edge cases", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("handles very high RPM values", async () => {
+    const limiter = new RateLimiter({ rpm: 1000, rps: 0 });
+    for (let i = 0; i < 10; i++) await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(10);
+  });
+
+  it("handles very high RPS values", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 100 });
+    for (let i = 0; i < 50; i++) await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(50);
+  });
+
+  it("RPM refill interval is 60000/rpm milliseconds", async () => {
+    const limiter = new RateLimiter({ rpm: 10, rps: 0 });
+    // Drain 10 tokens
+    for (let i = 0; i < 10; i++) await limiter.acquire();
+    // 11th should wait 6000ms (60000/10)
+    const promise = limiter.acquire();
+    vi.advanceTimersByTime(6100);
+    await promise;
+    expect(limiter.getRequestCount()).toBe(11);
+  });
+
+  it("RPS refill interval is 1000/rps milliseconds", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 5 });
+    // Drain 5 tokens
+    for (let i = 0; i < 5; i++) await limiter.acquire();
+    // 6th should wait 200ms (1000/5)
+    const promise = limiter.acquire();
+    vi.advanceTimersByTime(250);
+    await promise;
+    expect(limiter.getRequestCount()).toBe(6);
+  });
+
+  it("acquire respects both RPM and RPS limits", async () => {
+    const limiter = new RateLimiter({ rpm: 5, rps: 2 });
+    // RPS is more restrictive (2 at a time)
+    await limiter.acquire();
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(2);
+  });
+
+  it("request count persists across multiple acquires", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 0 });
+    await limiter.acquire();
+    await limiter.acquire();
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(3);
+  });
+
+  it("handles RPM=1 correctly", async () => {
+    const limiter = new RateLimiter({ rpm: 1, rps: 0 });
+    await limiter.acquire();
+    expect(limiter.getRequestCount()).toBe(1);
+    // Next requires 60s wait
+    const promise = limiter.acquire();
+    vi.advanceTimersByTime(61000);
+    await promise;
+    expect(limiter.getRequestCount()).toBe(2);
+  });
+
+  it("handles RPS=1 correctly", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 1 });
+    await limiter.acquire();
+    const promise = limiter.acquire();
+    vi.advanceTimersByTime(1100);
+    await promise;
+    expect(limiter.getRequestCount()).toBe(2);
+  });
+
+  it("does not overfill tokens past max on refill", async () => {
+    const limiter = new RateLimiter({ rpm: 0, rps: 3 });
+    // Use 1 token
+    await limiter.acquire();
+    // Wait very long — should not get more than 3 tokens
+    vi.advanceTimersByTime(30000);
+    // Should be able to acquire 3 more (3 max minus current)
+    await limiter.acquire();
+    await limiter.acquire();
+    // 4th total acquire should wait (only 3 tokens per period)
+    const promise = limiter.acquire();
+    vi.advanceTimersByTime(1100);
+    await promise;
+    expect(limiter.getRequestCount()).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createRateLimiter edge cases
+// ---------------------------------------------------------------------------
+
+describe("createRateLimiter edge cases", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("creates limiter with defaults for known provider", () => {
+    const limiter = createRateLimiter("anthropic");
+    expect(limiter).toBeInstanceOf(RateLimiter);
+  });
+
+  it("unknown provider falls back to 60rpm/5rps defaults", () => {
+    const limiter = createRateLimiter("unknown-provider");
+    expect(limiter).toBeInstanceOf(RateLimiter);
+  });
+
+  it("local provider creates unlimited limiter", () => {
+    const limiter = createRateLimiter("local");
+    expect(limiter).toBeInstanceOf(RateLimiter);
+  });
 });
