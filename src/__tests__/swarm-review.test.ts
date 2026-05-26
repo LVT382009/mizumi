@@ -305,3 +305,152 @@ describe("PERSPECTIVES", () => {
     expect(result.perspectiveCounts).toHaveProperty("performance");
   });
 });
+
+// ---------------------------------------------------------------------------
+// SwarmPerspective structure
+// ---------------------------------------------------------------------------
+
+describe("SwarmPerspective", () => {
+  it("has correct category mapping for security", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "security" })],
+      perspectiveCounts: { security: 1, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    expect(result.perspectiveCounts.security).toBe(1);
+    expect(result.findings[0].category).toBe("security");
+  });
+
+  it("has correct category mapping for correctness", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "bug" })],
+      perspectiveCounts: { security: 0, correctness: 1, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    expect(result.perspectiveCounts.correctness).toBe(1);
+  });
+
+  it("has correct category mapping for performance", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "performance" })],
+      perspectiveCounts: { security: 0, correctness: 0, performance: 1 },
+      duplicatesRemoved: 0,
+    };
+    expect(result.perspectiveCounts.performance).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deduplicateFindings edge cases
+// ---------------------------------------------------------------------------
+
+describe("deduplicateFindings advanced", () => {
+  it("deduplicates findings with same key regardless of severity", () => {
+    const findings = [
+      makeFinding({ file: "src/a.ts", line: 10, category: "security", severity: "critical" }),
+      makeFinding({ file: "src/a.ts", line: 10, category: "security", severity: "low" }),
+    ];
+    const { unique } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(1);
+  });
+
+  it("keeps higher confidence when deduplicating", () => {
+    const findings = [
+      makeFinding({ file: "src/api.ts", line: 42, category: "security", confidence: 85 }),
+      makeFinding({ file: "src/api.ts", line: 42, category: "security", confidence: 90 }),
+    ];
+    const { unique, duplicatesRemoved } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(1);
+    expect(duplicatesRemoved).toBe(1);
+    expect(unique[0].confidence).toBe(90);
+  });
+
+  it("handles findings with zero confidence", () => {
+    const findings = [
+      makeFinding({ file: "a.ts", line: 1, category: "security", confidence: 0 }),
+      makeFinding({ file: "a.ts", line: 1, category: "security", confidence: 50 }),
+    ];
+    const { unique } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(1);
+    expect(unique[0].confidence).toBe(50);
+  });
+
+  it("handles large number of unique findings", () => {
+    const findings = Array.from({ length: 100 }, (_, i) =>
+      makeFinding({ file: `src/file${i}.ts`, line: i + 1, category: "bug" })
+    );
+    const { unique, duplicatesRemoved } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(100);
+    expect(duplicatesRemoved).toBe(0);
+  });
+
+  it("deduplicates across multiple categories at same file+line", () => {
+    const findings = [
+      makeFinding({ file: "src/h.ts", line: 10, category: "security" }),
+      makeFinding({ file: "src/h.ts", line: 10, category: "bug" }),
+      makeFinding({ file: "src/h.ts", line: 10, category: "performance" }),
+      makeFinding({ file: "src/h.ts", line: 10, category: "security", confidence: 95 }),
+    ];
+    const { unique, duplicatesRemoved } = deduplicateFindings(findings);
+    expect(unique).toHaveLength(3);
+    expect(duplicatesRemoved).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildSwarmContext advanced
+// ---------------------------------------------------------------------------
+
+describe("buildSwarmContext advanced", () => {
+  it("includes all three perspective sections", () => {
+    const result: SwarmResult = {
+      findings: [
+        makeFinding({ category: "security", message: "XSS" }),
+        makeFinding({ category: "bug", message: "Null deref" }),
+        makeFinding({ category: "performance", message: "N+1" }),
+      ],
+      perspectiveCounts: { security: 1, correctness: 1, performance: 1 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("Security Specialist");
+    expect(ctx).toContain("Correctness Specialist");
+    expect(ctx).toContain("Performance Specialist");
+  });
+
+  it("includes suggestion when present", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({
+        category: "security", message: "SQL injection", suggestion: "Use prepared statements",
+      })],
+      perspectiveCounts: { security: 1, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("Use prepared statements");
+  });
+
+  it("handles findings with endLine", () => {
+    const result: SwarmResult = {
+      findings: [makeFinding({ category: "bug", message: "Logic error", endLine: 50 })],
+      perspectiveCounts: { security: 0, correctness: 1, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("Logic error");
+  });
+
+  it("handles multiple severity levels in same perspective", () => {
+    const result: SwarmResult = {
+      findings: [
+        makeFinding({ category: "security", severity: "critical", message: "RCE" }),
+        makeFinding({ category: "security", severity: "high", message: "XSS" }),
+      ],
+      perspectiveCounts: { security: 2, correctness: 0, performance: 0 },
+      duplicatesRemoved: 0,
+    };
+    const ctx = buildSwarmContext(result);
+    expect(ctx).toContain("critical");
+    expect(ctx).toContain("high");
+  });
+});

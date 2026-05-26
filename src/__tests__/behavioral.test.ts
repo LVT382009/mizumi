@@ -278,4 +278,55 @@ describe("formatBehavioralSummary", () => {
     const result = formatBehavioralSummary(sampleSummary);
     expect(result).toContain("Session management, Token refresh flow, Cookie fallback");
   });
+
+  it("handles empty changes array", () => {
+    const empty: BehavioralSummaryType = {
+      headline: "Empty PR",
+      changes: [],
+      riskAreas: [],
+      testingFocus: "Nothing to test",
+    };
+    const result = formatBehavioralSummary(empty);
+    expect(result).toContain("Empty PR");
+  });
+
+  it("wraps content in details block for collapsible display", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("<details>");
+    expect(result).toContain("<summary>");
+    expect(result).toContain("Behavioral");
+  });
+
+  it("handles very long headline", () => {
+    const long: BehavioralSummaryType = {
+      headline: "This is a very long headline that describes a complex refactoring of the entire authentication and authorization system including OAuth2, SAML, and custom token-based approaches across multiple microservices",
+      changes: [
+        { type: "added", area: "auth", description: "Complex auth", impact: "high", files: ["a.ts"] },
+      ],
+      riskAreas: ["Auth"],
+      testingFocus: "Test auth flows",
+    };
+    const result = formatBehavioralSummary(long);
+    expect(result).toContain("OAuth2");
+  });
+
+  it("handles change with many files", () => {
+    const manyFiles: BehavioralSummaryType = {
+      headline: "Renames package",
+      changes: [
+        {
+          type: "refactored",
+          area: "package",
+          description: "Package renamed",
+          impact: "medium",
+          files: ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"],
+        },
+      ],
+      riskAreas: [],
+      testingFocus: "Re-import check",
+    };
+    const result = formatBehavioralSummary(manyFiles);
+    expect(result).toContain("`src/a.ts`");
+    expect(result).toContain("`src/e.ts`");
+  });
 });
