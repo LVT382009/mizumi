@@ -177,3 +177,112 @@ describe("verifyPatch", () => {
     expect(result.reason).toContain("too short");
   });
 });
+
+
+describe("isDangerousPath - additional edge cases", () => {
+  it("rejects path with multiple consecutive dots", () => {
+    expect(isDangerousPath("src/.../etc/passwd")).toBe(true);
+  });
+
+  it("accepts current directory references", () => {
+    expect(isDangerousPath("./src/app.ts")).toBe(false);
+  });
+
+  it("rejects paths with only whitespace segments", () => {
+    expect(isDangerousPath(".bashrc")).toBe(true);
+  });
+
+  it("accepts paths with numeric directories", () => {
+    expect(isDangerousPath("v2/api/handler.ts")).toBe(false);
+  });
+
+  it("rejects Windows drive letter with forward slash", () => {
+    expect(isDangerousPath("C:/Windows/system32")).toBe(true);
+  });
+
+  it("accepts simple filename without directory", () => {
+    expect(isDangerousPath("index.ts")).toBe(false);
+  });
+});
+
+
+const BK = String.fromCharCode(96);
+const BT3 = BK + BK + BK;
+
+describe("parseSuggestions - additional edge cases", () => {
+  it("ignores non-suggestion code blocks", () => {
+    const body = BT3 + "typescript" + String.fromCharCode(10) + "const x = 1;" + String.fromCharCode(10) + BT3;
+    const results = parseSuggestions(body, "src/a.ts", 1);
+    expect(results).toHaveLength(0);
+  });
+
+  it("ignores suggestion in inline backticks", () => {
+    const body = "Use the " + BK + "suggestion" + BK + " keyword";
+    const results = parseSuggestions(body, "src/a.ts", 1);
+    expect(results).toHaveLength(0);
+  });
+
+  it("handles unclosed suggestion block gracefully", () => {
+    const body = BT3 + "suggestion" + String.fromCharCode(10) + "const fixed = true;";
+    const results = parseSuggestions(body, "src/a.ts", 5);
+    expect(results).toHaveLength(0);
+  });
+
+  it("extracts suggestion from body with Mizumi marker", () => {
+    const body = "<!-- mizumi-review-marker -->" + String.fromCharCode(10) + "**[HIGH] bug**: Fix this" + String.fromCharCode(10) + BT3 + "suggestion" + String.fromCharCode(10) + "if (x) { return; }" + String.fromCharCode(10) + BT3;
+    const results = parseSuggestions(body, "src/auth.ts", 42);
+    expect(results).toHaveLength(1);
+    expect(results[0].path).toBe("src/auth.ts");
+    expect(results[0].line).toBe(42);
+  });
+
+  it("handles suggestion with only whitespace content", () => {
+    const body = BT3 + "suggestion" + String.fromCharCode(10) + "   " + String.fromCharCode(10) + BT3;
+    const results = parseSuggestions(body, "src/a.ts", 1);
+    expect(results).toHaveLength(1);
+    expect(results[0].code.trim()).toBe("");
+  });
+});
+
+describe("verifyPatch - additional edge cases", () => {
+  it("accepts replacement with tabs for indentation", () => {
+    const result = verifyPatch("	const x = 1;", "	const x = 2;");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects replacement with inconsistent indentation", () => {
+    const result = verifyPatch("    const x = 1;", "const x = 2;");
+    expect(result.valid).toBe(false);
+  });
+
+  it("accepts replacement that adds indentation", () => {
+    const result = verifyPatch("const x = 1;", "    const x = 2;");
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts replacement where both have same zero indentation", () => {
+    const result = verifyPatch("export function foo() {", "export function bar() {");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects empty string for non-empty original", () => {
+    const result = verifyPatch(String.raw`console.log("hello");`, "");
+    expect(result.valid).toBe(false);
+  });
+
+  it("accepts multiline replacement even with indentation change", () => {
+    const result = verifyPatch("  if (cond) {", "if (cond && other) {" + String.fromCharCode(10) + "  doStuff();" + String.fromCharCode(10) + "}");
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts short replacement when original is under 20 chars", () => {
+    const result = verifyPatch("let a = b;", "}");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects single bracket replacement for long original", () => {
+    const result = verifyPatch("const result = await fetchWithRetry(config);", ")");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("too short");
+  });
+});

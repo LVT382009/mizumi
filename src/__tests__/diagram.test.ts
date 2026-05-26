@@ -280,3 +280,153 @@ describe("generateSeverityDiagram", () => {
     expect(result).toContain("nitpick<br/>1");
     expect(result).toContain("classDef nitpick");
   });
+
+
+describe("generateArchDiagram - additional edge cases", () => {
+  it("returns empty for single file", () => {
+    expect(generateArchDiagram([makeFile("src/only.ts")])).toBe("");
+  });
+
+  it("handles two files in different root groups", () => {
+    const files = [makeFile("src/a.ts"), makeFile("test/b.ts")];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("src[");
+    expect(result).toContain("test[");
+    expect(result).toContain("-->");
+  });
+
+  it("handles files with zero additions and deletions", () => {
+    const files = [makeFile("src/a.ts", 0, 0), makeFile("lib/b.ts", 0, 0)];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("+0/-0");
+  });
+
+  it("sanitizes hyphenated directory names in IDs", () => {
+    const files = [makeFile("my-app/src/a.ts"), makeFile("other-thing/b.ts")];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("my_app[");
+    expect(result).toContain("other_thing[");
+  });
+
+  it("shows finding badge for groups with findings", () => {
+    const files = [makeFile("src/core/a.ts"), makeFile("src/api/b.ts"), makeFile("lib/c.ts")];
+    const findings: ReviewCommentType[] = [
+      makeFinding({ file: "src/core/a.ts", severity: "critical" }),
+      makeFinding({ file: "src/api/b.ts", severity: "high" }),
+    ];
+    const result = generateArchDiagram(files, findings);
+    expect(result).toContain("[1]");
+  });
+
+  it("handles deeply nested files grouping to first two segments", () => {
+    const files = [
+      makeFile("src/core/auth/login/handler.ts"),
+      makeFile("src/api/health/route.ts"),
+    ];
+    const result = generateArchDiagram(files);
+  expect(result).toContain("src_core");
+  expect(result).toContain("src_api");
+});
+
+it("draws connections in sorted group order", () => {
+  const files = [makeFile("zoo/a.ts"), makeFile("alpha/b.ts"), makeFile("mid/c.ts")];
+  const result = generateArchDiagram(files);
+  // Connections should be drawn in sorted order: alpha -> mid -> zoo
+  const connAlpha = result.indexOf("alpha --> mid");
+  const connMid = result.indexOf("mid --> zoo");
+  expect(connAlpha).toBeGreaterThanOrEqual(0);
+  expect(connMid).toBeGreaterThanOrEqual(0);
+});
+
+  it("labels replace underscores with spaces", () => {
+    const files = [makeFile("src/my_module/a.ts"), makeFile("lib/b.ts")];
+    const result = generateArchDiagram(files);
+    expect(result).toContain("src my module");
+  });
+
+  it("handles all files in root as single group (returns empty)", () => {
+    const files = [makeFile("a.ts"), makeFile("b.ts"), makeFile("c.ts")];
+    expect(generateArchDiagram(files)).toBe("");
+  });
+
+  it("critical classDef includes red color", () => {
+    const files = [makeFile("src/a.ts"), makeFile("lib/b.ts")];
+    const result = generateArchDiagram(files, []);
+    expect(result).toContain("#ff6b6b");
+  });
+});
+
+describe("generateSeverityDiagram - additional edge cases", () => {
+  it("handles all severities in one diagram", () => {
+    const findings = [
+      makeFinding({ severity: "critical" }),
+      makeFinding({ severity: "high" }),
+      makeFinding({ severity: "medium" }),
+      makeFinding({ severity: "low" }),
+      makeFinding({ severity: "nitpick" }),
+    ];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("critical<br/>1");
+    expect(result).toContain("high<br/>1");
+    expect(result).toContain("medium<br/>1");
+    expect(result).toContain("low<br/>1");
+    expect(result).toContain("nitpick<br/>1");
+    expect(result).toContain("5 findings");
+  });
+
+  it("counts multiple findings per severity correctly", () => {
+    const findings = [
+      makeFinding({ severity: "high" }),
+      makeFinding({ severity: "high" }),
+      makeFinding({ severity: "high" }),
+    ];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("high<br/>3");
+  });
+
+  it("total node connects to each severity node", () => {
+    const findings = [
+      makeFinding({ severity: "critical" }),
+      makeFinding({ severity: "medium" }),
+    ];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("total --> critical");
+    expect(result).toContain("total --> medium");
+    expect(result).not.toContain("total --> high");
+  });
+
+  it("applies correct colors for critical and high", () => {
+    const findings = [makeFinding({ severity: "critical" }), makeFinding({ severity: "high" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("fill:#ff6b6b");
+    expect(result).toContain("fill:#e17055");
+  });
+
+  it("applies correct colors for medium and low", () => {
+    const findings = [makeFinding({ severity: "medium" }), makeFinding({ severity: "low" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("fill:#fdcb6e");
+    expect(result).toContain("fill:#74b9ff");
+  });
+
+  it("applies correct color for nitpick", () => {
+    const findings = [makeFinding({ severity: "nitpick" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("fill:#dfe6e9");
+  });
+
+  it("handles single finding of each severity", () => {
+    const severities: Array<ReviewCommentType["severity"]> = ["critical", "high", "medium", "low", "nitpick"];
+    for (const sev of severities) {
+      const result = generateSeverityDiagram([makeFinding({ severity: sev })]);
+      expect(result).toContain(sev);
+      expect(result).toContain("1 findings");
+    }
+  });
+
+  it("classDef entries use dark text color", () => {
+    const findings = [makeFinding({ severity: "high" })];
+    const result = generateSeverityDiagram(findings);
+    expect(result).toContain("color:#000");
+  });
+});

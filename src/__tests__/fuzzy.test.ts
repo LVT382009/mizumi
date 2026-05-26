@@ -349,3 +349,125 @@ describe("findStaleComments — additional edge cases", () => {
     expect(stale).toHaveLength(0);
   });
 });
+
+
+describe("deduplicateFindings - threshold boundary", () => {
+  const makeFinding2 = (message: string) => ({
+    file: "src/main.ts",
+    line: 10,
+    severity: "high" as const,
+    category: "security" as const,
+    message,
+    confidence: 90,
+  });
+
+  const makeExisting2 = (message: string, id = 1): ExistingComment => ({
+    id,
+    file: "src/main.ts",
+    line: 10,
+    body: `<!-- mizumi-review-marker -->\n**[HIGH] security**: ${message}`,
+  });
+
+  it("dedupes exact duplicate messages", () => {
+    const findings = [makeFinding2("SQL injection vulnerability")];
+    const existing = [makeExisting2("SQL injection vulnerability")];
+    const result = deduplicateFindings(findings, existing);
+    expect(result).toHaveLength(0);
+  });
+
+  it("keeps structurally different messages", () => {
+    const findings = [makeFinding2("Buffer overflow in memory allocation")];
+    const existing = [makeExisting2("SQL injection in user query")];
+    const result = deduplicateFindings(findings, existing);
+    expect(result).toHaveLength(1);
+  });
+
+  it("handles findings with same message but different severity", () => {
+    const findings = [{ file: "src/a.ts", line: 5, severity: "low" as const, category: "style" as const, message: "Missing semicolon at end of line", confidence: 70 }];
+    const existing: ExistingComment[] = [{ id: 1, file: "src/a.ts", line: 5, body: "<!-- mizumi-review-marker -->\n**[LOW] style**: Missing semicolon at end of line" }];
+    const result = deduplicateFindings(findings, existing);
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe("findStaleComments - threshold boundary", () => {
+  const makeFinding3 = (message: string) => ({
+    file: "src/main.ts",
+    line: 10,
+    severity: "high" as const,
+    category: "bug" as const,
+    message,
+    confidence: 85,
+  });
+
+  const makeExisting3 = (message: string, id = 1): ExistingComment => ({
+    id,
+    file: "src/main.ts",
+    line: 10,
+    body: `<!-- mizumi-review-marker -->\n**[HIGH] bug**: ${message}`,
+  });
+
+  it("identifies exact match as not stale", () => {
+    const findings = [makeFinding3("Null pointer dereference in handler")];
+    const existing = [makeExisting3("Null pointer dereference in handler")];
+    const stale = findStaleComments(findings, existing);
+    expect(stale).toHaveLength(0);
+  });
+
+  it("identifies completely unrelated comments as stale", () => {
+    const findings = [makeFinding3("Race condition in concurrent access")];
+    const existing = [makeExisting3("CSS class naming convention violation")];
+    const stale = findStaleComments(findings, existing);
+    expect(stale.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles multiple stale and multiple non-stale", () => {
+    const findings = [
+      makeFinding3("Memory leak in event listener"),
+      makeFinding3("Unhandled promise rejection in async flow"),
+    ];
+    const existing = [
+      makeExisting3("Memory leak in event listener", 1),
+      makeExisting3("Old deprecated API call", 2),
+      makeExisting3("Completely unrelated typo fix", 3),
+    ];
+    const stale = findStaleComments(findings, existing);
+    expect(stale.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("returns empty when all comments match findings", () => {
+    const findings = [
+      makeFinding3("Missing input validation"),
+      makeFinding3("SQL injection risk"),
+    ];
+    const existing = [
+      makeExisting3("Missing input validation on form", 1),
+      makeExisting3("SQL injection risk in query", 2),
+    ];
+    const stale = findStaleComments(findings, existing);
+    expect(stale).toHaveLength(0);
+  });
+});
+
+describe("deduplicateFindings - category handling", () => {
+  it("deduplicates findings with same message across categories", () => {
+    const findings = [
+      { file: "src/a.ts", line: 10, severity: "high" as const, category: "security" as const, message: "Dangerous SQL query construction", confidence: 90 },
+      { file: "src/a.ts", line: 10, severity: "medium" as const, category: "bug" as const, message: "Dangerous SQL query construction", confidence: 80 },
+    ];
+    const existing: ExistingComment[] = [{ id: 1, file: "src/a.ts", line: 10, body: "<!-- mizumi-review-marker -->\n**[HIGH] security**: Dangerous SQL query construction" }];
+    const result = deduplicateFindings(findings, existing);
+    expect(result.length).toBeLessThanOrEqual(1);
+  });
+
+  it("preserves findings with unique messages even in same category", () => {
+    const findings = [
+      { file: "src/a.ts", line: 5, severity: "high" as const, category: "security" as const, message: "Missing authentication check", confidence: 90 },
+      { file: "src/a.ts", line: 20, severity: "high" as const, category: "security" as const, message: "SQL injection vulnerability", confidence: 95 },
+    ];
+    const existing: ExistingComment[] = [{ id: 1, file: "src/a.ts", line: 5, body: "<!-- mizumi-review-marker -->\n**[HIGH] security**: Missing authentication check" }];
+    const result = deduplicateFindings(findings, existing);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result.some(f => f.message.includes("SQL injection"))).toBe(true);
+  });
+});

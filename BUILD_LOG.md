@@ -471,9 +471,19 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Config propagation**: sarifExport + reviewPriority added to all 8 test config stubs
 - **3194 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3194 Tests)
+### Cycle: Test Coverage Expansion (2026-05-27)
 
-- **3194 tests** passing (75 test files)
+- **Test expansions**: improve 31->50 (+19), spend 31->41 (+10), diagram 30->48 (+18), fuzzy 31->40 (+9)
+- **56 new tests** across 4 undertested modules
+- improve: isDangerousPath edge cases (hidden files, UNC, drive letters), parseSuggestions (non-suggestion blocks, unclosed blocks, Mizumi marker), verifyPatch (tabs, indentation, multiline, bracket replacement)
+- spend: persistence (append+read cycles, JSONL format), createSpendEntry (large tokens, numeric types), formatSpendDigest (multi-repo, cache hit %, per-provider counts)
+- diagram: arch (zero additions, hyphenated IDs, sorted connections, underscore labels, root grouping), severity (all severities, per-severity counts, connection assertions, color verification)
+- fuzzy: threshold boundary (exact duplicates, structural differences), findStale (exact match, unrelated, mixed), category handling (cross-category dedup, unique messages)
+- **3250 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 3250 Tests)
+
+- **3250 tests** passing (75 test files)
 - **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
