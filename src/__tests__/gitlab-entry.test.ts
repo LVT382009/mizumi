@@ -80,6 +80,7 @@ vi.mock("../config.js", () => ({
     depImpactAnalysis: true,
     threadContinuity: true,
     crossPRPersistence: true,
+    sarifExport: true,
   })),
 }));
 

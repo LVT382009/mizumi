@@ -123,6 +123,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     depImpactAnalysis: true,
     threadContinuity: true,
     crossPRPersistence: true,
+    sarifExport: true,
     ...overrides,
   };
 }

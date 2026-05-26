@@ -277,6 +277,7 @@ describe("runSwarmReview", () => {
     depImpactAnalysis: true,
     threadContinuity: true,
     crossPRPersistence: true,
+    sarifExport: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

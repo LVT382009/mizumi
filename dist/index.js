@@ -1074,14 +1074,14 @@ var require_util = __commonJS({
         }
         const port = url2.port != null ? url2.port : url2.protocol === "https:" ? 443 : 80;
         let origin = url2.origin != null ? url2.origin : `${url2.protocol || ""}//${url2.hostname || ""}:${port}`;
-        let path20 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
+        let path21 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
         if (origin[origin.length - 1] === "/") {
           origin = origin.slice(0, origin.length - 1);
         }
-        if (path20 && path20[0] !== "/") {
-          path20 = `/${path20}`;
+        if (path21 && path21[0] !== "/") {
+          path21 = `/${path21}`;
         }
-        return new URL(`${origin}${path20}`);
+        return new URL(`${origin}${path21}`);
       }
       if (!isHttpOrHttpsPrefixed(url2.origin || url2.protocol)) {
         throw new InvalidArgumentError3("Invalid URL protocol: the URL must start with `http:` or `https:`.");
@@ -1532,39 +1532,39 @@ var require_diagnostics = __commonJS({
       });
       diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
         const {
-          request: { method, path: path20, origin }
+          request: { method, path: path21, origin }
         } = evt;
-        debuglog("sending request to %s %s/%s", method, origin, path20);
+        debuglog("sending request to %s %s/%s", method, origin, path21);
       });
       diagnosticsChannel.channel("undici:request:headers").subscribe((evt) => {
         const {
-          request: { method, path: path20, origin },
+          request: { method, path: path21, origin },
           response: { statusCode }
         } = evt;
         debuglog(
           "received response to %s %s/%s - HTTP %d",
           method,
           origin,
-          path20,
+          path21,
           statusCode
         );
       });
       diagnosticsChannel.channel("undici:request:trailers").subscribe((evt) => {
         const {
-          request: { method, path: path20, origin }
+          request: { method, path: path21, origin }
         } = evt;
-        debuglog("trailers received from %s %s/%s", method, origin, path20);
+        debuglog("trailers received from %s %s/%s", method, origin, path21);
       });
       diagnosticsChannel.channel("undici:request:error").subscribe((evt) => {
         const {
-          request: { method, path: path20, origin },
+          request: { method, path: path21, origin },
           error: error52
         } = evt;
         debuglog(
           "request to %s %s/%s errored - %s",
           method,
           origin,
-          path20,
+          path21,
           error52.message
         );
       });
@@ -1613,9 +1613,9 @@ var require_diagnostics = __commonJS({
         });
         diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
           const {
-            request: { method, path: path20, origin }
+            request: { method, path: path21, origin }
           } = evt;
-          debuglog("sending request to %s %s/%s", method, origin, path20);
+          debuglog("sending request to %s %s/%s", method, origin, path21);
         });
       }
       diagnosticsChannel.channel("undici:websocket:open").subscribe((evt) => {
@@ -1678,7 +1678,7 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var Request = class {
       constructor(origin, {
-        path: path20,
+        path: path21,
         method,
         body,
         headers,
@@ -1693,11 +1693,11 @@ var require_request = __commonJS({
         expectContinue,
         servername
       }, handler2) {
-        if (typeof path20 !== "string") {
+        if (typeof path21 !== "string") {
           throw new InvalidArgumentError3("path must be a string");
-        } else if (path20[0] !== "/" && !(path20.startsWith("http://") || path20.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path21[0] !== "/" && !(path21.startsWith("http://") || path21.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError3("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.test(path20)) {
+        } else if (invalidPathRegex.test(path21)) {
           throw new InvalidArgumentError3("invalid request path");
         }
         if (typeof method !== "string") {
@@ -1763,7 +1763,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? buildURL(path20, query) : path20;
+        this.path = query ? buildURL(path21, query) : path21;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6289,7 +6289,7 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     function writeH1(client, request2) {
-      const { method, path: path20, host, upgrade, blocking, reset } = request2;
+      const { method, path: path21, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util2.isFormDataLike(body)) {
@@ -6355,7 +6355,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path20} HTTP/1.1\r
+      let header = `${method} ${path21} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -6881,7 +6881,7 @@ var require_client_h2 = __commonJS({
     }
     function writeH2(client, request2) {
       const session = client[kHTTP2Session];
-      const { method, path: path20, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { method, path: path21, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
         util2.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -6948,7 +6948,7 @@ var require_client_h2 = __commonJS({
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path20;
+      headers[HTTP2_HEADER_PATH] = path21;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -7301,9 +7301,9 @@ var require_redirect_handler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path20 = search ? `${pathname}${search}` : pathname;
+        const path21 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path20;
+        this.opts.path = path21;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -8538,10 +8538,10 @@ var require_proxy_agent = __commonJS({
         };
         const {
           origin,
-          path: path20 = "/",
+          path: path21 = "/",
           headers = {}
         } = opts;
-        opts.path = origin + path20;
+        opts.path = origin + path21;
         if (!("host" in headers) && !("Host" in headers)) {
           const { host } = new URL2(origin);
           headers.host = host;
@@ -10462,20 +10462,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path20) {
-      if (typeof path20 !== "string") {
-        return path20;
+    function safeUrl(path21) {
+      if (typeof path21 !== "string") {
+        return path21;
       }
-      const pathSegments = path20.split("?");
+      const pathSegments = path21.split("?");
       if (pathSegments.length !== 2) {
-        return path20;
+        return path21;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path20, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path20);
+    function matchKey(mockDispatch2, { path: path21, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path21);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10497,7 +10497,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path20 }) => matchValue(safeUrl(path20), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path21 }) => matchValue(safeUrl(path21), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10535,9 +10535,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path20, method, body, headers, query } = opts;
+      const { path: path21, method, body, headers, query } = opts;
       return {
-        path: path20,
+        path: path21,
         method,
         body,
         headers,
@@ -11000,10 +11000,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path20, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path21, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path20,
+            Path: path21,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
@@ -15884,9 +15884,9 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path20) {
-      for (let i = 0; i < path20.length; ++i) {
-        const code = path20.charCodeAt(i);
+    function validateCookiePath(path21) {
+      for (let i = 0; i < path21.length; ++i) {
+        const code = path21.charCodeAt(i);
         if (code < 32 || // exclude CTLs (0-31)
         code === 127 || // DEL
         code === 59) {
@@ -18563,11 +18563,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError3("invalid opts.path");
           }
-          let path20 = opts.path;
+          let path21 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path20 = `/${path20}`;
+            path21 = `/${path21}`;
           }
-          url2 = new URL(util2.parseOrigin(url2).origin + path20);
+          url2 = new URL(util2.parseOrigin(url2).origin + path21);
         } else {
           if (!opts) {
             opts = typeof url2 === "object" ? url2 : {};
@@ -21144,8 +21144,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module.exports = __toCommonJS(auth_config_exports);
-    var fs19 = __toESM2(__require("fs"));
-    var path20 = __toESM2(__require("path"));
+    var fs20 = __toESM2(__require("fs"));
+    var path21 = __toESM2(__require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -21154,15 +21154,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path20.join(dataDir, "auth.json");
+      return path21.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs19.existsSync(authPath)) {
+        if (!fs20.existsSync(authPath)) {
           return null;
         }
-        const content = fs19.readFileSync(authPath, "utf8");
+        const content = fs20.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -21173,11 +21173,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path20.dirname(authPath);
-      if (!fs19.existsSync(authDir)) {
-        fs19.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path21.dirname(authPath);
+      if (!fs20.existsSync(authDir)) {
+        fs20.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs19.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs20.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -21368,8 +21368,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module.exports = __toCommonJS(token_util_exports);
-    var path20 = __toESM2(__require("path"));
-    var fs19 = __toESM2(__require("fs"));
+    var path21 = __toESM2(__require("path"));
+    var fs20 = __toESM2(__require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -21381,7 +21381,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path20.join(dataDir, vercelFolder);
+      return path21.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -21457,13 +21457,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path20.join(dir, ".vercel", "project.json");
-      if (!fs19.existsSync(prjPath)) {
+      const prjPath = path21.join(dir, ".vercel", "project.json");
+      if (!fs20.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs19.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs20.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -21478,11 +21478,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs19.mkdirSync(path20.dirname(tokenPath), { mode: 504, recursive: true });
-      fs19.writeFileSync(tokenPath, tokenJson);
-      fs19.chmodSync(tokenPath, 432);
+      fs20.mkdirSync(path21.dirname(tokenPath), { mode: 504, recursive: true });
+      fs20.writeFileSync(tokenPath, tokenJson);
+      fs20.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -21492,11 +21492,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path20.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs19.existsSync(tokenPath)) {
+      const tokenPath = path21.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs20.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs19.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs20.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -22352,10 +22352,10 @@ var require_util9 = __commonJS({
     function cloneDef2(schema) {
       return mergeDefs2(schema._zod.def);
     }
-    function getElementAtPath2(obj, path20) {
-      if (!path20)
+    function getElementAtPath2(obj, path21) {
+      if (!path21)
         return obj;
-      return path20.reduce((acc, key) => acc?.[key], obj);
+      return path21.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject2(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -22765,11 +22765,11 @@ var require_util9 = __commonJS({
       }
       return false;
     }
-    function prefixIssues2(path20, issues) {
+    function prefixIssues2(path21, issues) {
       return issues.map((iss) => {
         var _a21;
         (_a21 = iss).path ?? (_a21.path = []);
-        iss.path.unshift(path20);
+        iss.path.unshift(path21);
         return iss;
       });
     }
@@ -22958,16 +22958,16 @@ var require_errors2 = __commonJS({
     }
     function formatError2(error52, mapper = (issue3) => issue3.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error53, path20 = []) => {
+      const processError = (error53, path21 = []) => {
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path20, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path21, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
           } else {
-            const fullpath = [...path20, ...issue3.path];
+            const fullpath = [...path21, ...issue3.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue3));
             } else {
@@ -22994,17 +22994,17 @@ var require_errors2 = __commonJS({
     }
     function treeifyError2(error52, mapper = (issue3) => issue3.message) {
       const result = { errors: [] };
-      const processError = (error53, path20 = []) => {
+      const processError = (error53, path21 = []) => {
         var _a21, _b17;
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path20, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path21, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
           } else {
-            const fullpath = [...path20, ...issue3.path];
+            const fullpath = [...path21, ...issue3.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue3));
               continue;
@@ -23036,8 +23036,8 @@ var require_errors2 = __commonJS({
     }
     function toDotPath2(_path) {
       const segs = [];
-      const path20 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path20) {
+      const path21 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path21) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -38369,13 +38369,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path20 = ref.slice(1).split("/").filter(Boolean);
-      if (path20.length === 0) {
+      const path21 = ref.slice(1).split("/").filter(Boolean);
+      if (path21.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path20[0] === defsKey) {
-        const key = path20[1];
+      if (path21[0] === defsKey) {
+        const key = path21[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -39426,8 +39426,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors4();
     var en_js_1 = __importDefault(require_en2());
     var makeIssue2 = (params) => {
-      const { data, path: path20, errorMaps, issueData } = params;
-      const fullPath = [...path20, ...issueData.path || []];
+      const { data, path: path21, errorMaps, issueData } = params;
+      const fullPath = [...path21, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -39581,11 +39581,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util10();
     var ParseInputLazyPath2 = class {
-      constructor(parent, value, path20, key) {
+      constructor(parent, value, path21, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path20;
+        this._path = path21;
         this._key = key;
       }
       get path() {
@@ -52448,8 +52448,8 @@ var Context = class {
       if (existsSync2(process.env.GITHUB_EVENT_PATH)) {
         this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
       } else {
-        const path20 = process.env.GITHUB_EVENT_PATH;
-        process.stdout.write(`GITHUB_EVENT_PATH ${path20} does not exist${EOL5}`);
+        const path21 = process.env.GITHUB_EVENT_PATH;
+        process.stdout.write(`GITHUB_EVENT_PATH ${path21} does not exist${EOL5}`);
       }
     }
     this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -56151,17 +56151,17 @@ function requestLog(octokit) {
     octokit.log.debug("request", options);
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
-    const path20 = requestOptions.url.replace(options.baseUrl, "");
+    const path21 = requestOptions.url.replace(options.baseUrl, "");
     return request2(options).then((response) => {
       const requestId = response.headers["x-github-request-id"];
       octokit.log.info(
-        `${requestOptions.method} ${path20} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path21} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       return response;
     }).catch((error52) => {
       const requestId = error52.response?.headers["x-github-request-id"] || "UNKNOWN";
       octokit.log.error(
-        `${requestOptions.method} ${path20} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path21} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       throw error52;
     });
@@ -56333,6 +56333,7 @@ function loadConfig() {
   const depImpactAnalysis = getInput("dep_impact_analysis") !== "false";
   const threadContinuity = getInput("thread_continuity") !== "false";
   const crossPRPersistence = getInput("cross_pr_persistence") !== "false";
+  const sarifExport = getInput("sarif_export") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56432,7 +56433,8 @@ function loadConfig() {
     intentClassification,
     depImpactAnalysis,
     threadContinuity,
-    crossPRPersistence
+    crossPRPersistence,
+    sarifExport
   };
 }
 function parseSimpleYaml(text2) {
@@ -59940,10 +59942,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path20) {
-  if (!path20)
+function getElementAtPath(obj, path21) {
+  if (!path21)
     return obj;
-  return path20.reduce((acc, key) => acc?.[key], obj);
+  return path21.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -60352,11 +60354,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path20, issues) {
+function prefixIssues(path21, issues) {
   return issues.map((iss) => {
     var _a21;
     (_a21 = iss).path ?? (_a21.path = []);
-    iss.path.unshift(path20);
+    iss.path.unshift(path21);
     return iss;
   });
 }
@@ -60503,16 +60505,16 @@ function flattenError(error52, mapper = (issue3) => issue3.message) {
 }
 function formatError(error52, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error53, path20 = []) => {
+  const processError = (error53, path21 = []) => {
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path20, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path21, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
       } else {
-        const fullpath = [...path20, ...issue3.path];
+        const fullpath = [...path21, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -60539,17 +60541,17 @@ function formatError(error52, mapper = (issue3) => issue3.message) {
 }
 function treeifyError(error52, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error53, path20 = []) => {
+  const processError = (error53, path21 = []) => {
     var _a21, _b17;
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path20, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path21, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path20, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path21, ...issue3.path]);
       } else {
-        const fullpath = [...path20, ...issue3.path];
+        const fullpath = [...path21, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -60581,8 +60583,8 @@ function treeifyError(error52, mapper = (issue3) => issue3.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path20 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path20) {
+  const path21 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path21) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -73274,13 +73276,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path20 = ref.slice(1).split("/").filter(Boolean);
-  if (path20.length === 0) {
+  const path21 = ref.slice(1).split("/").filter(Boolean);
+  if (path21.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path20[0] === defsKey) {
-    const key = path20[1];
+  if (path21[0] === defsKey) {
+    const key = path21[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -74047,8 +74049,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path20, errorMaps, issueData } = params;
-  const fullPath = [...path20, ...issueData.path || []];
+  const { data, path: path21, errorMaps, issueData } = params;
+  const fullPath = [...path21, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -74163,11 +74165,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path20, key) {
+  constructor(parent, value, path21, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path20;
+    this._path = path21;
     this._key = key;
   }
   get path() {
@@ -100186,37 +100188,37 @@ function createOpenAI(options = {}) {
   );
   const createChatModel = (modelId) => new OpenAIChatLanguageModel(modelId, {
     provider: `${providerName}.chat`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createCompletionModel = (modelId) => new OpenAICompletionLanguageModel(modelId, {
     provider: `${providerName}.completion`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createEmbeddingModel = (modelId) => new OpenAIEmbeddingModel(modelId, {
     provider: `${providerName}.embedding`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createImageModel = (modelId) => new OpenAIImageModel(modelId, {
     provider: `${providerName}.image`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createTranscriptionModel = (modelId) => new OpenAITranscriptionModel(modelId, {
     provider: `${providerName}.transcription`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createSpeechModel = (modelId) => new OpenAISpeechModel(modelId, {
     provider: `${providerName}.speech`,
-    url: ({ path: path20 }) => `${baseURL}${path20}`,
+    url: ({ path: path21 }) => `${baseURL}${path21}`,
     headers: getHeaders,
     fetch: options.fetch
   });
@@ -100231,7 +100233,7 @@ function createOpenAI(options = {}) {
   const createResponsesModel = (modelId) => {
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${providerName}.responses`,
-      url: ({ path: path20 }) => `${baseURL}${path20}`,
+      url: ({ path: path21 }) => `${baseURL}${path21}`,
       headers: getHeaders,
       fetch: options.fetch,
       fileIdPrefixes: ["file-"]
@@ -108324,16 +108326,16 @@ function createAgentTools(octokit, owner, repo, headSha) {
     inputSchema: external_exports.object({
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
-    execute: async ({ path: path20 }) => {
-      if (isBlockedPath(path20)) {
-        warning(`Agent read_file blocked: ${path20} matches secret file pattern`);
-        return `Access denied: ${path20} is a protected file (secrets/credentials)`;
+    execute: async ({ path: path21 }) => {
+      if (isBlockedPath(path21)) {
+        warning(`Agent read_file blocked: ${path21} matches secret file pattern`);
+        return `Access denied: ${path21} is a protected file (secrets/credentials)`;
       }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
-          path: path20,
+          path: path21,
           ref: headSha,
           headers: { accept: "application/vnd.github.raw+json" }
         });
@@ -108344,9 +108346,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
           const decoded = Buffer.from(data.content, "base64").toString("utf-8");
           return truncate(decoded, 5e3);
         }
-        return `File: ${path20} - could not read content`;
+        return `File: ${path21} - could not read content`;
       } catch {
-        return `File not found or inaccessible: ${path20}`;
+        return `File not found or inaccessible: ${path21}`;
       }
     }
   });
@@ -110168,11 +110170,11 @@ function runASTContractAnalysis(diffFiles, workspace) {
   for (const file2 of diffFiles) {
     if (!/\.[tj]sx?$/.test(file2.path)) continue;
     try {
-      const fs19 = __require("node:fs");
-      const path20 = __require("node:path");
-      const fullPath = path20.join(workspace, file2.path);
-      if (fs19.existsSync(fullPath)) {
-        allFileContents.set(file2.path, fs19.readFileSync(fullPath, "utf-8"));
+      const fs20 = __require("node:fs");
+      const path21 = __require("node:path");
+      const fullPath = path21.join(workspace, file2.path);
+      if (fs20.existsSync(fullPath)) {
+        allFileContents.set(file2.path, fs20.readFileSync(fullPath, "utf-8"));
         filesAnalyzed++;
       }
     } catch {
@@ -111587,9 +111589,9 @@ var PUBLIC_ROUTE_PATTERNS = [
   /^\/graphql/i
   // Often public, but may have auth at middleware level
 ];
-function isPublicRoute(path20) {
-  if (!path20) return false;
-  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path20));
+function isPublicRoute(path21) {
+  if (!path21) return false;
+  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path21));
 }
 function hasAuthSignal(content) {
   return AUTH_SIGNALS.some((re2) => re2.test(content));
@@ -113806,12 +113808,12 @@ function detectLockfileChanges(files) {
   }
   return lockfileChanges;
 }
-function isDepFile(path20) {
-  if (PACKAGE_JSON_PATTERN.test(path20)) return true;
+function isDepFile(path21) {
+  if (PACKAGE_JSON_PATTERN.test(path21)) return true;
   for (const pattern of LOCKFILE_PATTERNS) {
-    if (pattern.test(path20)) return true;
+    if (pattern.test(path21)) return true;
   }
-  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path20)) {
+  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path21)) {
     return true;
   }
   return false;
@@ -114332,6 +114334,150 @@ function buildCrossPRBodySummary(result) {
 </details>
 `;
   return body;
+}
+
+// src/sarif.ts
+import * as fs19 from "node:fs";
+import * as path20 from "node:path";
+var MIZUMI_VERSION = "0.1.0";
+var MIZUMI_INFO_URI = "https://github.com/LVT382009/mizumi";
+var SEVERITY_TO_LEVEL = {
+  critical: "error",
+  high: "error",
+  medium: "warning",
+  low: "note",
+  nitpick: "none"
+};
+var CATEGORY_HELP = {
+  bug: "Potential bug or logic error detected by Mizumi AI review",
+  security: "Security vulnerability detected by Mizumi AI review",
+  performance: "Performance issue detected by Mizumi AI review",
+  style: "Code style issue detected by Mizumi AI review",
+  architecture: "Architecture concern detected by Mizumi AI review",
+  compliance: "Compliance issue detected by Mizumi AI review"
+};
+var CATEGORY_RULE_PREFIX = {
+  bug: "MIZ",
+  security: "MIZ-SEC",
+  performance: "MIZ-PERF",
+  style: "MIZ-STYLE",
+  architecture: "MIZ-ARCH",
+  compliance: "MIZ-COMP"
+};
+function fingerprintFinding2(finding) {
+  const raw = `${finding.category}:${finding.file}:${finding.line}:${finding.message.substring(0, 80)}`;
+  let hash2 = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const chr = raw.charCodeAt(i);
+    hash2 = (hash2 << 5) - hash2 + chr | 0;
+  }
+  return Math.abs(hash2).toString(36);
+}
+function severityToLevel(severity) {
+  return SEVERITY_TO_LEVEL[severity] || "warning";
+}
+function buildRuleId(category, index) {
+  const prefix = CATEGORY_RULE_PREFIX[category] || "MIZ";
+  return `${prefix}/${index + 1}`;
+}
+function buildRules(findings) {
+  const seen = /* @__PURE__ */ new Map();
+  const rules = [];
+  for (const f of findings) {
+    if (seen.has(f.category)) continue;
+    seen.set(f.category, rules.length);
+    const id = buildRuleId(f.category, seen.get(f.category));
+    const helpText = CATEGORY_HELP[f.category] || `Issue detected by Mizumi AI review (${f.category})`;
+    const level = severityToLevel(f.severity);
+    rules.push({
+      id,
+      name: `mizumi-${f.category}`,
+      shortDescription: { text: helpText },
+      fullDescription: { text: helpText },
+      helpUri: `${MIZUMI_INFO_URI}#${f.category}`,
+      defaultConfiguration: { level },
+      properties: { tags: [f.category, "ai-review", "mizumi"] }
+    });
+  }
+  return rules;
+}
+function generateSARIF(findings, repoUrl) {
+  const rules = buildRules(findings);
+  const categoryIndex = /* @__PURE__ */ new Map();
+  for (let i = 0; i < rules.length; i++) {
+    categoryIndex.set(rules[i].name.replace("mizumi-", ""), i);
+  }
+  const results = findings.map((f) => {
+    const ruleIdx = categoryIndex.get(f.category) ?? 0;
+    const rule = rules[ruleIdx];
+    const level = severityToLevel(f.severity);
+    const fingerprint = fingerprintFinding2(f);
+    const location = {
+      physicalLocation: {
+        artifactLocation: { uri: f.file, uriBaseId: "%SRCROOT%" },
+        region: { startLine: f.line }
+      }
+    };
+    if (f.endLine && f.endLine > f.line) {
+      location.physicalLocation.region.endLine = f.endLine;
+    }
+    return {
+      ruleId: rule.id,
+      ruleIndex: ruleIdx,
+      level,
+      message: { text: f.message },
+      locations: [location],
+      fingerprints: { primaryLocationLineHash: fingerprint },
+      properties: {
+        confidence: f.confidence,
+        severity: f.severity
+      }
+    };
+  });
+  const run2 = {
+    tool: {
+      driver: {
+        name: "Mizumi",
+        version: MIZUMI_VERSION,
+        informationUri: repoUrl || MIZUMI_INFO_URI,
+        rules
+      }
+    },
+    results,
+    invocations: [{
+      executionSuccessful: true,
+      startTimeUtc: (/* @__PURE__ */ new Date()).toISOString()
+    }]
+  };
+  return {
+    $schema: "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+    version: "2.1.0",
+    runs: [run2]
+  };
+}
+function writeSARIF(workspace, sarif) {
+  const outDir = path20.join(workspace, ".github");
+  if (!fs19.existsSync(outDir)) fs19.mkdirSync(outDir, { recursive: true });
+  const outPath = path20.join(outDir, "mizumi-results.sarif");
+  fs19.writeFileSync(outPath, JSON.stringify(sarif, null, 2), "utf-8");
+  return outPath;
+}
+async function uploadSARIF(octokit, owner, repo, headSha, sarifPath) {
+  if (!fs19.existsSync(sarifPath)) return null;
+  const sarifContent = fs19.readFileSync(sarifPath, "utf-8");
+  const encoded = Buffer.from(sarifContent, "utf-8").toString("base64");
+  try {
+    const result = await octokit.rest.codeScanning.uploadSarif({
+      owner,
+      repo,
+      commit_sha: headSha,
+      sarif: encoded,
+      ref: `refs/heads/${headSha.substring(0, 7)}`
+    });
+    return result.data?.id ?? "uploaded";
+  } catch {
+    return null;
+  }
 }
 
 // src/main.ts
@@ -115419,6 +115565,23 @@ ${digest}
         });
       } catch (e) {
         warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (config2.sarifExport && mergedReview.comments.length > 0) {
+      try {
+        const sarif = generateSARIF(mergedReview.comments, `https://github.com/${owner}/${repo}`);
+        const sarifPath = writeSARIF(workspace, sarif);
+        info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
+        if (!config2.dryRun) {
+          const uploadId = await uploadSARIF(octokit, owner, repo, headSha, sarifPath);
+          if (uploadId) {
+            info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
+          } else {
+            info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
+          }
+        }
+      } catch (e) {
+        warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     recordFindings(

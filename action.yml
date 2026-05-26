@@ -247,6 +247,11 @@ pr_split_suggestions:
     required: false
     default: "true"
 
+  sarif_export:
+    description: "Enable SARIF 2.1.0 export — upload findings to GitHub Code Scanning alerts tab (alongside CodeQL). No other AI reviewer integrates with Code Scanning."
+    required: false
+    default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

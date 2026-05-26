@@ -60,6 +60,7 @@ export interface MizumiConfig {
   depImpactAnalysis: boolean;
   threadContinuity: boolean;
   crossPRPersistence: boolean;
+  sarifExport: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -143,6 +144,7 @@ const findingLifecycle = core.getInput("finding_lifecycle") !== "false"; // defa
 const depImpactAnalysis = core.getInput("dep_impact_analysis") !== "false"; // default true
 const threadContinuity = core.getInput("thread_continuity") !== "false"; // default true
 const crossPRPersistence = core.getInput("cross_pr_persistence") !== "false"; // default true
+const sarifExport = core.getInput("sarif_export") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -245,6 +247,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     depImpactAnalysis,
     threadContinuity,
     crossPRPersistence,
+    sarifExport,
   };
 }
 

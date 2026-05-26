@@ -66,6 +66,7 @@ import { classifyIntents } from "./intent-classifier.js";
 import { analyzeDepImpact } from "./dep-impact.js";
 import { analyzeThreadContinuity } from "./thread-continuity.js";
 import { trackCrossPRFindings } from "./crosspr-persist.js";
+import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -1252,6 +1253,25 @@ if (crossPRResult && crossPRResult.bodySummary) {
   }
 }
 
+
+// 10d2. SARIF export - upload findings to GitHub Code Scanning
+if (config.sarifExport && mergedReview.comments.length > 0) {
+  try {
+    const sarif = generateSARIF(mergedReview.comments, `https://github.com/${owner}/${repo}`);
+    const sarifPath = writeSARIF(workspace, sarif);
+    core.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
+    if (!config.dryRun) {
+      const uploadId = await uploadSARIF(octokit, owner, repo, headSha, sarifPath);
+      if (uploadId) {
+        core.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
+      } else {
+        core.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
+      }
+    }
+  } catch (e) {
+    core.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // 10d. Record findings for emoji feedback tracking
 recordFindings(workspace, `${owner}/${repo}`, prNumber,
   mergedReview.comments.map((c) => ({ file: c.file, line: c.line, category: c.category, severity: c.severity, message: c.message }))

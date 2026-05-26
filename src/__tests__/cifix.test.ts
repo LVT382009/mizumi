@@ -111,6 +111,7 @@ const testConfig = {
     depImpactAnalysis: true,
     threadContinuity: true,
     crossPRPersistence: true,
+    sarifExport: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
