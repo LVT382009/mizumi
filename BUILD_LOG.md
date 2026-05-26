@@ -10,7 +10,7 @@
 | 1.2 Inline suggestions | ✅ | `post.ts` — `line`/`start_line`/`side` params, multi-line support |
 | 1.3 PR Review via createReview | ✅ | `post.ts` — DraftReviewComment with COMMENT/REQUEST_CHANGES event |
 | 1.4 Summary comment | ✅ | `post.ts` — buildSummaryComment with risk score + severity table |
-| 1.5 Checks API | ⏳ v1 | Summary comment sufficient for v0.1 |
+| 1.5 Checks API | ✅ | `checks.ts` — Check Runs with annotations, severity→annotation_level mapping, 50-batch, conclusion logic |
 | 1.6 Self-critique | ✅ | `critique.ts` — obra "subterfuge" framing, graceful provider fallback |
 | 1.7 Confidence scoring | ✅ | Zod schema 0-100, filterByConfidence with threshold |
 | 1.8 HTML marker dedup | ✅ | `<!-- mizumi-review-marker -->` update-in-place |
@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3345 Tests)
+### Build Stats (Current — 3456 Tests)
 
-- **3345 tests** passing (75 test files)
+- **3456 tests** passing (77 test files)
 - **8,600+ production lines** (51+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)

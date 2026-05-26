@@ -543,4 +543,86 @@ describe("buildContext", () => {
     );
     expect(buildLearningPrompt).toHaveBeenCalledWith(learning.learningWeights, learning.acceptanceRates);
   });
+
+  it("passes changed files to ghostWarnings", async () => {
+    await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ghostWarnings).toHaveBeenCalledWith(expect.any(String), ["src/auth.ts"]);
+  });
+
+  it("formats ghost warnings with dash prefix", async () => {
+    vi.mocked(ghostWarnings).mockReturnValueOnce(["[high] auth.ts:10 — security: XSS risk"]);
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.ghostContent).toContain("- [high] auth.ts:10");
+    expect(ctx.ghostContent).toContain("Review Ghost");
+  });
+
+  it("context text includes PR Classification section", async () => {
+    const classification = { category: "refactor" as const, confidence: 60, reason: "code restructuring" };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace", classification
+    );
+    expect(ctx.diffText).toContain("## PR Classification");
+    expect(ctx.diffText).toContain("refactor");
+  });
+
+  it("returns correct files array from diff", async () => {
+    const multiDiff: ParsedDiff = {
+      files: [
+        { path: "a.ts", status: "modified", additions: 1, deletions: 0, hunks: [{ oldStart: 1, oldLines: 0, newStart: 1, newLines: 1, content: "@@ -0 +1 @@", changes: [{ type: "add", line: 1, oldLine: 0, content: "x" }] }] },
+        { path: "b.ts", status: "added", additions: 2, deletions: 0, hunks: [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: 2, content: "@@ -0 +1 @@", changes: [{ type: "add", line: 1, oldLine: 0, content: "y" }] }] },
+      ],
+      totalAdditions: 3,
+      totalDeletions: 0,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, multiDiff, "/workspace"
+    );
+    expect(ctx.files).toHaveLength(2);
+    expect(ctx.changedFiles).toEqual(["a.ts", "b.ts"]);
+  });
+
+  it("includes renamed file status in diff header", async () => {
+    const renamedDiff: ParsedDiff = {
+      files: [{
+        path: "src/new-name.ts", status: "renamed", additions: 3, deletions: 2,
+        hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, content: "@@ -1,2 +1,3 @@", changes: [{ type: "normal", line: 1, oldLine: 1, content: "same" }] }],
+      }],
+      totalAdditions: 3,
+      totalDeletions: 2,
+      rawDiff: "",
+    };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, renamedDiff, "/workspace"
+    );
+    expect(ctx.diffText).toContain("(renamed, +3/-2)");
+  });
+
+  it("does not call ghostWarnings when no memory content", async () => {
+    vi.mocked(ghostWarnings).mockReturnValueOnce([]);
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ghostWarnings).toHaveBeenCalled();
+    expect(ctx.ghostContent).toBe("");
+  });
+
+  it("handles classification with high confidence", async () => {
+    const classification = { category: "feature" as const, confidence: 95, reason: "new functionality" };
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace", classification
+    );
+    expect(ctx.classification?.confidence).toBe(95);
+  });
+
+  it("handles empty learning data gracefully", async () => {
+    const ctx = await buildContext(
+      mockOctokit as any, "owner", "repo", 42, sampleDiff, "/workspace"
+    );
+    expect(ctx.learningContent).toBeDefined();
+  });
 });
