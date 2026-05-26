@@ -71,6 +71,7 @@ import { generateSARIF, writeSARIF, uploadSARIF } from "./sarif.js";
 import { prioritizeFindings } from "./review-priority.js";
 import { defendInput, defendOutput, validateReviewOutput } from "./defense.js";
 import { createCheckRun } from "./checks.js";
+import { buildProjectIndex } from "./project-index.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -621,6 +622,19 @@ if (manualInstructions) {
     context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
   }
   
+// 5b2. Project structure index - zero-LLM ad-hoc workspace scan (competitive gap #3.1)
+try {
+  const projectIndex = buildProjectIndex(workspace);
+  if (projectIndex.contextText) {
+    context.rulesContent += `
+
+` + projectIndex.contextText;
+    core.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
+  }
+} catch (e) {
+  core.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+}
+
 // 5c. ADR context injection - inject ADR context into review
 const adrContextStr = buildADRContext(adrs);
 if (adrContextStr) {
