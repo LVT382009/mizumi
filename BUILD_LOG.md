@@ -749,4 +749,13 @@ adjustment (score 4+ -> -10, score 3 -> -5). Clamped 0-100.
 State: >=70 success, >=40 pending, <40 failure.
 Integration: step 10b-gate2 (after merge gate), gated on config
 `safetyScore` boolean (default true). 19 tests in safety-score.test.ts.
-- 2250 tests, 0 TS errors, bundle rebuilt
+- **PR Type-Adaptive Review Strategy (Gap #4)** (8ee6c16)
+`review-strategy.ts` -- Adjusts review focus based on PR category.
+Security PRs get hardened scrutiny (severity elevation, skip style);
+docs PRs get lightweight review (skip runtime bugs, reduce severity);
+tests PRs check correctness and flaky patterns; config PRs verify
+misconfigurations; cosmetic PRs are lightweight. Strategy injected into
+LLM system prompt via buildStrategyPrompt(). Config: `adaptiveStrategy`
+boolean (default true), action.yml `adaptive_strategy` input.
+24 tests in review-strategy.test.ts.
+- 2299 tests, 0 TS errors, bundle rebuilt
