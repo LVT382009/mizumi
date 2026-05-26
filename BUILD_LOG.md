@@ -434,10 +434,23 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Path normalization**: `toPosix()` helper in test-gap.ts ensures forward-slash paths on Windows, fixing test failures from `path.join` producing backslash separators.
 - 2662 tests passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 2824 Tests)
+### Cycle: Semantic Change Intent Classification (Competitive Gap #3) + Test Expansion (2026-05-26)
 
-- **2824 tests** passing (70 test files)
-- **6,600+ production lines** (44+ source modules)
+- **Semantic change intent classification** (`intent-classifier.ts`): Heuristic-based file intent labeling — classifies each diff file as feature, bugfix, refactor, security, perf, dead_code, test, docs, config, or chore. Uses 22 path patterns, file status signals, change ratio heuristics, and hunk content keyword detection. Priority: security > bugfix > perf > feature > refactor > dead_code > test > docs > config > chore. Generates LLM prompt context (risk-prioritized review guidance) and review body summary (collapsible intent table + high-risk file list). Zero LLM cost. No other AI code reviewer classifies change intent. CodeRabbit groups by file area but doesn't label intent; others just summarize. Config: `intent_classification` input (default true). 50 tests.
+- **Brace imbalance fix in main.ts**: Fixed 2 extra open braces introduced by prior node splice operations — duplicate `if (intentResult...)` block and missing `}` on `if (ownershipBody)` block.
+- **Test expansions**: safety-score.test.ts 26→40 (+14), attribution.test.ts 26→45 (+19), delta.test.ts 26→52 (+26)
+- **2874 tests** passing, 0 TS errors
+
+### Cycle: Dependency Change Impact Analysis (Competitive Gap #4) + Test Expansion (2026-05-26)
+
+- **Dependency change impact analysis** (`dep-impact.ts`): Detects package.json/lockfile changes in PR diffs, classifies risk (major/minor/patch bumps, added/removed deps, dev vs prod), traces which source files import affected packages via import patterns, generates risk-prioritized context for LLM and review body. Zero LLM cost. No other AI code reviewer analyzes dependency change impact. CodeRabbit treats package.json like any other file; CodeGuru and Sourcery ignore dependency changes entirely. Config: `dep_impact_analysis` input (default true). 65 tests.
+- **Test expansions**: autofix.test.ts 27→40 (+13), router.test.ts 27→49 (+22), labels.test.ts 29→46 (+17)
+- **2991 tests** passing, 0 TS errors, bundle rebuilt
+
+### Build Stats (Current — 2991 Tests)
+
+- **2991 tests** passing (72 test files)
+- **7,400+ production lines** (46+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -448,6 +461,8 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **PR complexity predictor**: multi-signal weighted model (size, spread, new exports, architecture, blast radius, taint traces) → score 1-10 + estimated review minutes. Zero LLM cost. No other AI reviewer estimates review time.
 - **PR split suggestions**: when complex (score >= 7), groups files by functional area and suggests concrete file groupings for splitting into smaller PRs. Zero LLM cost. No other AI reviewer suggests HOW to split.
 - **Finding lifecycle tracking**: tracks findings per PR across pushes, detects persisted/resolved/new findings between iterations. Surfaces "3 findings from your last push are still unresolved" to avoid re-raising known issues. Zero LLM cost. No other AI reviewer tracks finding lifecycle.
+- **Semantic change intent classification**: labels each diff file by intent (feature/bugfix/refactor/security/perf/dead_code/test/docs/config/chore) with risk-prioritized review guidance for LLM. Zero LLM cost. No other AI reviewer classifies change intent.
+- **Dependency change impact analysis**: detects package.json/lockfile changes, classifies version bump risk, traces import impact. Zero LLM cost. No other AI reviewer analyzes dep impact.
 - **Org memory**: PR history semantic index with Jaccard similarity
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
