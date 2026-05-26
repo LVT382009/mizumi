@@ -74,6 +74,7 @@ vi.mock("../config.js", () => ({
       orgMemory: true,
         testGapDetection: true,
     suppressionMemories: true,
+    swarmReview: true,
   })),
 }));
 

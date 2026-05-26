@@ -206,6 +206,10 @@ inputs:
   description: "Enable organizational memory - indexes past PR history by file paths, retrieves similar PRs for context injection. No other AI reviewer has cross-PR organizational learning."
   required: false
   default: "true"
+swarm_review:
+  description: "Enable parallel multi-perspective swarm review - 3 specialist agents (security, correctness, performance) review the PR simultaneously using lightweight models, then findings are deduplicated and merged. 74% more addressed comments (Greptile benchmark)."
+  required: false
+  default: "true"
 suppression_memories:
   description: "Enable AI Memorized Triage — stores human dismissal reasoning in SQLite and auto-suppresses matching findings in future reviews. Zero LLM cost. No other AI reviewer has memorized triage."
   required: false

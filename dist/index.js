@@ -56325,6 +56325,7 @@ function loadConfig() {
   const orgMemory = getInput("org_memory") !== "false";
   const testGapDetection = getInput("test_gap_detection") !== "false";
   const suppressionMemories = getInput("suppression_memories") !== "false";
+  const swarmReview = getInput("swarm_review") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56416,7 +56417,8 @@ function loadConfig() {
     businessContext,
     orgMemory,
     testGapDetection,
-    suppressionMemories
+    suppressionMemories,
+    swarmReview
   };
 }
 function parseSimpleYaml(text2) {
@@ -112809,6 +112811,153 @@ function runSuppressionMemories(workspace, repo, findings) {
   return { filtered, result };
 }
 
+// src/swarm-review.ts
+var PERSPECTIVES = [
+  {
+    id: "security",
+    name: "Security Specialist",
+    category: "security",
+    prompt: `You are a security specialist reviewing this PR. Focus EXCLUSIVELY on:
+- Injection vulnerabilities (SQL, XSS, command, LDAP, path traversal)
+- Authentication/authorization bypass
+- Sensitive data exposure (PII, secrets, tokens in logs/responses)
+- Insecure crypto or random number generation
+- SSRF, CSRF, open redirect, clickjacking
+- Missing input validation or output encoding
+- Unsafe deserialization or eval usage
+
+Ignore all non-security issues. Rate security findings with high confidence only (80+).
+Return findings with category "security".`
+  },
+  {
+    id: "correctness",
+    name: "Correctness Specialist",
+    category: "bug",
+    prompt: `You are a correctness specialist reviewing this PR. Focus EXCLUSIVELY on:
+- Logic errors and incorrect conditions
+- Off-by-one errors, wrong operators
+- Null/undefined dereference risks
+- Race conditions and concurrency bugs
+- Missing error handling (unhandled promises, empty catch blocks)
+- Resource leaks (unclosed connections, file handles)
+- Type mismatches and incorrect API usage
+- Wrong return values or missing returns
+
+Ignore style, performance, and security issues. Rate findings with high confidence only (80+).
+Return findings with category "bug".`
+  },
+  {
+    id: "performance",
+    name: "Performance Specialist",
+    category: "performance",
+    prompt: `You are a performance specialist reviewing this PR. Focus EXCLUSIVELY on:
+- N+1 queries or unnecessary database calls
+- O(n^2) or worse algorithms where O(n) suffices
+- Memory leaks (unbounded caches, missing cleanup)
+- Synchronous operations that should be async
+- Redundant computations or unnecessary data copies
+- Missing indexes or full table scans
+- Large object allocations in hot paths
+- Inefficient string concatenation or regex in loops
+
+Ignore style, security, and correctness issues. Rate findings with high confidence only (80+).
+Return findings with category "performance".`
+  }
+];
+var SpecialistResponse = external_exports.object({
+  comments: external_exports.array(ReviewComment).describe("Specialist findings")
+});
+async function runSpecialistReview(perspective, diffContent, validPositions, config2, classification) {
+  const model = classification?.tier === "light" ? createLightModel(config2) : createLightModel(config2);
+  const systemPrompt = `You are Mizumi's ${perspective.name}.
+
+${perspective.prompt}
+
+## Output Format
+Respond with JSON: { "comments": [ { file, line, severity, category, message, suggestion?, confidence } ] }
+
+## Line Number Rules
+You can ONLY comment on lines in the diff. Valid positions:
+${validPositions}
+
+If a finding doesn't map to a valid line, set line to the nearest valid line.
+NEVER fabricate line numbers.`;
+  const userPrompt = wrapDiff(diffContent);
+  try {
+    const result = await generateObject({
+      model,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      schema: SpecialistResponse,
+      maxOutputTokens: 2048
+    });
+    return result.object.comments.map((c) => ({
+      ...c,
+      category: perspective.category
+    }));
+  } catch (e) {
+    warning(`Swarm ${perspective.id} review failed: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}
+function deduplicateFindings(findings) {
+  const seen = /* @__PURE__ */ new Map();
+  for (const finding of findings) {
+    const key = `${finding.file}:${finding.line}:${finding.category}`;
+    const existing = seen.get(key);
+    if (!existing || finding.confidence > existing.confidence) {
+      seen.set(key, finding);
+    }
+  }
+  return {
+    unique: [...seen.values()],
+    duplicatesRemoved: findings.length - seen.size
+  };
+}
+async function runSwarmReview(diffContent, validPositions, config2, classification) {
+  const results = await Promise.all(
+    PERSPECTIVES.map((p) => runSpecialistReview(p, diffContent, validPositions, config2, classification))
+  );
+  const allFindings = results.flat();
+  const perspectiveCounts = {};
+  for (let i = 0; i < PERSPECTIVES.length; i++) {
+    perspectiveCounts[PERSPECTIVES[i].id] = results[i].length;
+  }
+  const { unique, duplicatesRemoved } = deduplicateFindings(allFindings);
+  info(
+    `Swarm review: ${allFindings.length} findings from ${PERSPECTIVES.length} perspectives (${duplicatesRemoved} duplicates removed, ${unique.length} unique)`
+  );
+  return {
+    findings: unique,
+    perspectiveCounts,
+    duplicatesRemoved
+  };
+}
+function buildSwarmContext(result) {
+  if (result.findings.length === 0) return "";
+  let ctx = `## Swarm Review \u2014 Specialist Agent Findings
+`;
+  ctx += "Three specialist agents reviewed this PR in parallel. Their findings are included below. ";
+  ctx += "Integrate these with your own analysis but do not duplicate them:\n\n";
+  for (const [id, count] of Object.entries(result.perspectiveCounts)) {
+    if (count > 0) {
+      const perspective = PERSPECTIVES.find((p) => p.id === id);
+      ctx += `- **${perspective?.name ?? id}**: ${count} finding(s)
+`;
+    }
+  }
+  ctx += `
+${result.duplicatesRemoved > 0 ? `(${result.duplicatesRemoved} duplicate(s) removed across perspectives)
+` : ""}`;
+  for (const finding of result.findings) {
+    ctx += `- **${finding.severity}** [${finding.category}] \`${finding.file}:${finding.line}\`: ${finding.message}`;
+    if (finding.suggestion) ctx += ` \u2192 ${finding.suggestion}`;
+    ctx += `
+`;
+  }
+  return ctx.trim();
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -113323,6 +113472,23 @@ ${testGapResult.contextText}`;
 ## Slop Detection
 This PR appears to contain low-quality AI-generated code (score: ${slopResult.score}/100). Reasons: ${slopResult.reasons.join("; ")}. Focus review on structural issues rather than line-by-line quality.`;
     }
+    let swarmResult = null;
+    if (config2.swarmReview && classification.tier !== "light") {
+      try {
+        info("Running swarm review (3 specialist agents in parallel)...");
+        swarmResult = await runSwarmReview(
+          context4.diffText,
+          positionHint,
+          config2,
+          classification
+        );
+        if (swarmResult.findings.length > 0) {
+          info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
+        }
+      } catch (e) {
+        warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let agentContext = "";
     if (classification.tier !== "light") {
       try {
@@ -113341,6 +113507,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         }
       } catch (e) {
         warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (swarmResult && swarmResult.findings.length > 0) {
+      const swarmCtx = buildSwarmContext(swarmResult);
+      if (swarmCtx) {
+        context4.ghostContent += "\n\n" + swarmCtx;
       }
     }
     info("Running review pass...");
@@ -113443,7 +113615,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         confidence: 85
         // Rule engine findings
       })),
-      ...filtered.comments
+      ...filtered.comments,
+      ...swarmResult?.findings.map((f) => ({
+        file: f.file,
+        line: f.line,
+        severity: f.severity,
+        category: f.category,
+        message: f.message,
+        suggestion: f.suggestion,
+        confidence: f.confidence
+      })) ?? []
     ];
     let suppressionResult = null;
     if (config2.suppressionMemories) {

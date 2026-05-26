@@ -58,6 +58,7 @@ import { fetchBusinessContext, parseMCPEndpoints } from "./business-context.js";
 import { runOrgMemoryRetrieval, recordPRHistory, pruneOldHistory } from "./org-memory.js";
 import { runTestGapDetection } from "./test-gap.js";
 import { runSuppressionMemories } from "./suppression-memories.js";
+import { runSwarmReview, buildSwarmContext } from "./swarm-review.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -644,6 +645,23 @@ if (slopResult.isSlop) {
 This PR appears to contain low-quality AI-generated code (score: ${slopResult.score}/100). Reasons: ${slopResult.reasons.join("; ")}. Focus review on structural issues rather than line-by-line quality.`;
 }
 
+// 6d. Swarm review — parallel multi-perspective specialist agents
+let swarmResult: import("./swarm-review.js").SwarmResult | null = null;
+if (config.swarmReview && classification.tier !== "light") {
+  try {
+    core.info("Running swarm review (3 specialist agents in parallel)...");
+    swarmResult = await runSwarmReview(
+      context.diffText, positionHint, config, classification
+    );
+    if (swarmResult.findings.length > 0) {
+      core.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
+    }
+  } catch (e) {
+    core.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+
     // 7. Run review (first pass â€” LLM)
     // 6c. Agent context gathering â€” explore codebase with tools for cross-file context
 let agentContext = "";
@@ -658,6 +676,14 @@ if (classification.tier !== "light") {
     }
   } catch (e) {
     core.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 6d-ctx. Inject swarm specialist findings into review context
+if (swarmResult && swarmResult.findings.length > 0) {
+  const swarmCtx = buildSwarmContext(swarmResult);
+  if (swarmCtx) {
+    context.ghostContent += "\n\n" + swarmCtx;
   }
 }
 
@@ -781,7 +807,16 @@ if (config.confidenceCalibration || config.complianceCheck) {
     confidence: 85, // Rule engine findings
   })),
       ...filtered.comments,
-    ];
+  ...(swarmResult?.findings.map((f) => ({
+    file: f.file,
+    line: f.line,
+    severity: f.severity as "critical" | "high" | "medium" | "low",
+    category: f.category as "security" | "compliance" | "performance" | "bug" | "style" | "architecture",
+    message: f.message,
+    suggestion: f.suggestion as string | undefined,
+    confidence: f.confidence,
+  })) ?? []),
+  ];
 
     
 // 9-sup. Apply suppression memories — auto-filter findings that humans have previously dismissed

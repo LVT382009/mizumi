@@ -105,6 +105,7 @@ const testConfig = {
       orgMemory: true,
         testGapDetection: true,
     suppressionMemories: true,
+    swarmReview: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
