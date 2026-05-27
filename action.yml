@@ -297,6 +297,11 @@ defense_framework:
   required: false
   default: "true"
 
+  review_replay:
+  description: "Enable review replay — reconstruct any past review run from audit trail data: full finding provenance, stage timeline, LLM cost breakdown, finding-level diff, and config diff between runs. No AI code reviewer offers replay."
+  required: false
+  default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

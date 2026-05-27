@@ -68,6 +68,7 @@ const baseConfig: MizumiConfig = {
     pipelineParallel: true,
     reviewDashboard: true,
       auditTrail: true,
+      reviewReplay: true,
 };
 
 describe("classifyDiff", () => {

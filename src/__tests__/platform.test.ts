@@ -2,6 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { detectPlatform, isCI, getWorkspace, createPlatformClient } from "../platform.js";
 import type { PlatformType, InlineComment, PlatformMR, PlatformComment, PlatformReviewResult, PlatformClient } from "../platform.js";
 
+vi.mock("@actions/core", () => ({
+  info: vi.fn(),
+  warning: vi.fn(),
+  debug: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  getInput: vi.fn(() => ""),
+  getBooleanInput: vi.fn(() => false),
+  isDebug: vi.fn(() => false),
+}));
+
+import * as actionsCore from "@actions/core";
+
 // ---------------------------------------------------------------------------
 // detectPlatform
 // ---------------------------------------------------------------------------
@@ -415,5 +429,407 @@ describe("InlineComment type", () => {
       category: "security",
     };
     expect(comment.suggestion).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectPlatform additional edge cases — truthy but semantically false
+// ---------------------------------------------------------------------------
+
+describe("detectPlatform truthy-but-falsy semantics", () => {
+  const origEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...origEnv };
+    delete process.env.GITHUB_ACTION;
+    delete process.env.GITLAB_CI;
+  });
+
+  afterAll(() => {
+    process.env = origEnv;
+  });
+
+  it('returns github for GITHUB_ACTION="false" (string is truthy in env)', () => {
+    process.env.GITHUB_ACTION = "false";
+    expect(detectPlatform()).toBe("github");
+  });
+
+  it('returns gitlab for GITLAB_CI="false" (string is truthy in env)', () => {
+    process.env.GITLAB_CI = "false";
+    expect(detectPlatform()).toBe("gitlab");
+  });
+
+  it('returns github for GITHUB_ACTION="0" (string "0" is truthy in env)', () => {
+    process.env.GITHUB_ACTION = "0";
+    expect(detectPlatform()).toBe("github");
+  });
+
+  it("returns github when only whitespace env vars are set", () => {
+    process.env.GITHUB_ACTION = "   ";
+    expect(detectPlatform()).toBe("github");
+  });
+
+  it("defaults to github when env has no platform-specific vars at all", () => {
+    const cleanEnv = { ...origEnv };
+    delete cleanEnv.GITHUB_ACTION;
+    delete cleanEnv.GITLAB_CI;
+    delete cleanEnv.CI;
+    process.env = cleanEnv;
+    expect(detectPlatform()).toBe("github");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isCI additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("isCI additional edge cases", () => {
+  const origEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...origEnv };
+    delete process.env.GITHUB_ACTION;
+    delete process.env.GITLAB_CI;
+  });
+
+  afterAll(() => {
+    process.env = origEnv;
+  });
+
+  it("returns true when both GITHUB_ACTION and GITLAB_CI are set", () => {
+    process.env.GITHUB_ACTION = "true";
+    process.env.GITLAB_CI = "true";
+    expect(isCI()).toBe(true);
+  });
+
+  it('returns false for empty GITHUB_ACTION string', () => {
+    process.env.GITHUB_ACTION = "";
+    expect(isCI()).toBe(false);
+  });
+
+  it('returns false for empty GITLAB_CI string', () => {
+    process.env.GITLAB_CI = "";
+    expect(isCI()).toBe(false);
+  });
+
+  it("returns true only when at least one platform env var is truthy", () => {
+    process.env.GITHUB_ACTION = "run";
+    expect(isCI()).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getWorkspace additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("getWorkspace additional edge cases", () => {
+  const origEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...origEnv };
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.CI_PROJECT_DIR;
+  });
+
+  afterAll(() => {
+    process.env = origEnv;
+  });
+
+  it("returns dot when both workspace env vars are empty strings", () => {
+    process.env.GITHUB_WORKSPACE = "";
+    process.env.CI_PROJECT_DIR = "";
+    expect(getWorkspace()).toBe(".");
+  });
+
+  it("returns root path when GITHUB_WORKSPACE is /", () => {
+    process.env.GITHUB_WORKSPACE = "/";
+    expect(getWorkspace()).toBe("/");
+  });
+
+  it("handles relative parent path in CI_PROJECT_DIR", () => {
+    process.env.CI_PROJECT_DIR = "..";
+    expect(getWorkspace()).toBe("..");
+  });
+
+  it("handles Unicode characters in workspace path", () => {
+    process.env.GITHUB_WORKSPACE = "/home/ユーザー/project";
+    expect(getWorkspace()).toBe("/home/ユーザー/project");
+  });
+
+  it("handles very long workspace path", () => {
+    const longPath = "/a/" + "subdir/".repeat(100);
+    process.env.GITHUB_WORKSPACE = longPath;
+    expect(getWorkspace()).toBe(longPath);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createPlatformClient — core.info logging and MIZUMI_GITLAB_TOKEN
+// ---------------------------------------------------------------------------
+
+describe("createPlatformClient logging and token fallback", () => {
+  const origEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...origEnv };
+    delete process.env.GITHUB_ACTION;
+    delete process.env.GITLAB_CI;
+    delete process.env.GITLAB_TOKEN;
+    delete process.env.MIZUMI_GITLAB_TOKEN;
+    delete process.env.CI_PROJECT_ID;
+    delete process.env.CI_MERGE_REQUEST_IID;
+    delete process.env.GITHUB_TOKEN;
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    process.env = origEnv;
+  });
+
+  it("logs detected platform via core.info for GitHub", async () => {
+    process.env.GITHUB_ACTION = "true";
+    process.env.GITHUB_TOKEN = "ghp-test";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_EVENT_PATH = "/dev/null";
+    process.env.GITHUB_SHA = "abc123";
+    const { createPlatformClient } = await import("../platform.js");
+    await createPlatformClient();
+    expect(actionsCore.info).toHaveBeenCalledWith("Platform detected: github");
+  });
+
+  it("logs detected platform via core.info for GitLab", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.GITLAB_TOKEN = "glpat-test";
+    process.env.CI_PROJECT_ID = "100";
+    process.env.CI_MERGE_REQUEST_IID = "200";
+    const { createPlatformClient } = await import("../platform.js");
+    await createPlatformClient();
+    expect(actionsCore.info).toHaveBeenCalledWith("Platform detected: gitlab");
+  });
+
+  it("creates gitlab client with MIZUMI_GITLAB_TOKEN fallback", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.MIZUMI_GITLAB_TOKEN = "mizumi-token";
+    process.env.CI_PROJECT_ID = "10";
+    process.env.CI_MERGE_REQUEST_IID = "20";
+    const { createPlatformClient } = await import("../platform.js");
+    const client = await createPlatformClient();
+    expect(client.platform).toBe("gitlab");
+  });
+
+  it("throws when both GITLAB_TOKEN and MIZUMI_GITLAB_TOKEN are missing", async () => {
+    process.env.GITLAB_CI = "true";
+    delete process.env.GITLAB_TOKEN;
+    delete process.env.MIZUMI_GITLAB_TOKEN;
+    const { createPlatformClient } = await import("../platform.js");
+    await expect(createPlatformClient()).rejects.toThrow("GITLAB_TOKEN");
+  });
+
+  it("prefers GITLAB_TOKEN over MIZUMI_GITLAB_TOKEN when both are set", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.GITLAB_TOKEN = "primary-token";
+    process.env.MIZUMI_GITLAB_TOKEN = "fallback-token";
+    process.env.CI_PROJECT_ID = "10";
+    process.env.CI_MERGE_REQUEST_IID = "20";
+    const { createPlatformClient } = await import("../platform.js");
+    const client = await createPlatformClient();
+    expect(client.platform).toBe("gitlab");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PlatformMR type compliance
+// ---------------------------------------------------------------------------
+
+describe("PlatformMR type", () => {
+  it("creates valid PlatformMR with all required fields", () => {
+    const mr: PlatformMR = {
+      number: 42,
+      title: "Add feature X",
+      body: "This PR adds X",
+      headSha: "abc123",
+      headRef: "feature-x",
+      baseRef: "main",
+      baseSha: "def456",
+      author: "devuser",
+    };
+    expect(mr.number).toBe(42);
+    expect(mr.headSha).toBe("abc123");
+    expect(mr.baseRef).toBe("main");
+  });
+
+  it("handles empty string fields in PlatformMR", () => {
+    const mr: PlatformMR = {
+      number: 1,
+      title: "",
+      body: "",
+      headSha: "",
+      headRef: "",
+      baseRef: "",
+      baseSha: "",
+      author: "",
+    };
+    expect(mr.title).toBe("");
+    expect(mr.body).toBe("");
+    expect(mr.headSha).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PlatformComment type compliance
+// ---------------------------------------------------------------------------
+
+describe("PlatformComment type", () => {
+  it("creates valid PlatformComment with all fields", () => {
+    const comment: PlatformComment = {
+      id: 101,
+      body: "Review finding",
+      path: "src/foo.ts",
+      line: 15,
+      createdAt: "2025-06-01T12:00:00Z",
+    };
+    expect(comment.id).toBe(101);
+    expect(comment.path).toBe("src/foo.ts");
+    expect(comment.line).toBe(15);
+  });
+
+  it("creates PlatformComment without optional path and line", () => {
+    const comment: PlatformComment = {
+      id: 202,
+      body: "General note",
+      createdAt: "2025-06-01T12:00:00Z",
+    };
+    expect(comment.path).toBeUndefined();
+    expect(comment.line).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PlatformReviewResult type compliance
+// ---------------------------------------------------------------------------
+
+describe("PlatformReviewResult type", () => {
+  it("creates valid PlatformReviewResult", () => {
+    const result: PlatformReviewResult = {
+      reviewId: 999,
+      findingCount: 5,
+    };
+    expect(result.reviewId).toBe(999);
+    expect(result.findingCount).toBe(5);
+  });
+
+  it("handles zero finding count", () => {
+    const result: PlatformReviewResult = {
+      reviewId: 0,
+      findingCount: 0,
+    };
+    expect(result.findingCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// InlineComment boundary values
+// ---------------------------------------------------------------------------
+
+describe("InlineComment boundary values", () => {
+  it("handles confidence at boundary 0", () => {
+    const comment: InlineComment = {
+      path: "src/a.ts",
+      line: 1,
+      body: "Low confidence finding",
+      severity: "low",
+      confidence: 0,
+      category: "style",
+    };
+    expect(comment.confidence).toBe(0);
+  });
+
+  it("handles confidence at boundary 100", () => {
+    const comment: InlineComment = {
+      path: "src/b.ts",
+      line: 1,
+      body: "Certain finding",
+      severity: "critical",
+      confidence: 100,
+      category: "security",
+    };
+    expect(comment.confidence).toBe(100);
+  });
+
+  it("handles line number 0", () => {
+    const comment: InlineComment = {
+      path: "src/c.ts",
+      line: 0,
+      body: "File-level comment",
+      severity: "medium",
+      confidence: 50,
+      category: "architecture",
+    };
+    expect(comment.line).toBe(0);
+  });
+
+  it("handles suggestion with empty string", () => {
+    const comment: InlineComment = {
+      path: "src/d.ts",
+      line: 10,
+      body: "Consider refactoring",
+      severity: "low",
+      confidence: 40,
+      category: "style",
+      suggestion: "",
+    };
+    expect(comment.suggestion).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PlatformClient interface — applyFix optional method
+// ---------------------------------------------------------------------------
+
+describe("PlatformClient applyFix optional method", () => {
+  const origEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...origEnv };
+    delete process.env.GITHUB_ACTION;
+    delete process.env.GITLAB_CI;
+  });
+
+  afterAll(() => {
+    process.env = origEnv;
+  });
+
+  it("GitHub client does not expose applyFix by default", async () => {
+    process.env.GITHUB_ACTION = "true";
+    process.env.GITHUB_TOKEN = "ghp-test";
+    process.env.GITHUB_REPOSITORY = "test/repo";
+    process.env.GITHUB_EVENT_PATH = "/dev/null";
+    process.env.GITHUB_SHA = "abc123";
+    try {
+      const client = await createPlatformClient();
+      expect(client.applyFix).toBeUndefined();
+    } finally {
+      delete process.env.GITHUB_ACTION;
+      delete process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_REPOSITORY;
+      delete process.env.GITHUB_EVENT_PATH;
+      delete process.env.GITHUB_SHA;
+    }
+  });
+
+  it("GitLab client does not expose applyFix by default", async () => {
+    process.env.GITLAB_CI = "true";
+    process.env.GITLAB_TOKEN = "glpat-test";
+    process.env.CI_PROJECT_ID = "55";
+    process.env.CI_MERGE_REQUEST_IID = "66";
+    try {
+      const client = await createPlatformClient();
+      expect(client.applyFix).toBeUndefined();
+    } finally {
+      delete process.env.GITLAB_CI;
+      delete process.env.GITLAB_TOKEN;
+      delete process.env.CI_PROJECT_ID;
+      delete process.env.CI_MERGE_REQUEST_IID;
+    }
   });
 });

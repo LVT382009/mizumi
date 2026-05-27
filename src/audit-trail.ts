@@ -242,7 +242,7 @@ export function compareAuditTrails(a: AuditTrail, b: AuditTrail): string {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatNumber(n: number): string {
+export function formatNumber(n: number): string {
   const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return n < 0 ? `-${abs}` : abs;
 }

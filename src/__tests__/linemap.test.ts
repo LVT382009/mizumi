@@ -559,4 +559,373 @@ describe("validateFinding", () => {
     expect(result!.endLine).toBeDefined();
     expect([12, 14]).toContain(result!.endLine);
   });
+
+  // ---------------------------------------------------------------------------
+  // Additional edge cases for buildLineMapFromRawDiff
+  // ---------------------------------------------------------------------------
+
+  it("should handle binary file marker in diff", () => {
+    const binaryDiff = [
+      "diff --git a/image.png b/image.png",
+      "Binary files /dev/null and b/image.png differ",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(binaryDiff);
+    // File is registered but has no valid lines
+    expect(map.has("image.png")).toBe(true);
+    expect(map.get("image.png")!.size).toBe(0);
+  });
+
+  it("should handle diff with only rename (no content changes)", () => {
+    const renameDiff = [
+      "diff --git a/old_name.ts b/new_name.ts",
+      "similarity index 100%",
+      "rename from old_name.ts",
+      "rename to new_name.ts",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(renameDiff);
+    // File new_name.ts is registered from the diff header
+    // Non-standard lines like "similarity index..." are treated as context lines
+    // by the raw diff walker (they don't match any skip prefix), so they get counted
+    expect(map.has("new_name.ts")).toBe(true);
+    // The raw diff walker counts "similarity index 100%", "rename from old_name.ts",
+    // and "rename to new_name.ts" as context lines (3 non-special lines)
+    expect(map.get("new_name.ts")!.size).toBe(3);
+  });
+
+  it("should handle very large line numbers in hunk header", () => {
+    const largeDiff = [
+      "diff --git a/big.ts b/big.ts",
+      "index aaa..bbb 100644",
+      "--- a/big.ts",
+      "+++ b/big.ts",
+      "@@ -99999,1 +99999,1 @@",
+      "+changed line",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(largeDiff);
+    const lineSet = map.get("big.ts");
+    expect(lineSet!.has(99999)).toBe(true);
+  });
+
+  it("should handle hunk with no comma in new file range", () => {
+    // @@ -5 +10 @@ means start at line 10 with 1 line implied
+    const noCommaDiff = [
+      "diff --git a/a.ts b/a.ts",
+      "index aaa..bbb 100644",
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -5 +10 @@",
+      "+added at 10",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(noCommaDiff);
+    const lineSet = map.get("a.ts");
+    expect(lineSet!.has(10)).toBe(true);
+  });
+
+  it("should handle multiple hunks in one file", () => {
+    const multiHunkDiff = [
+      "diff --git a/multi.ts b/multi.ts",
+      "index aaa..bbb 100644",
+      "--- a/multi.ts",
+      "+++ b/multi.ts",
+      "@@ -1,3 +1,4 @@",
+      " ctx1",
+      "+added1",
+      " ctx2",
+      " ctx3",
+      "@@ -10,3 +11,4 @@",
+      " ctx10",
+      "+added2",
+      " ctx11",
+      " ctx12",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(multiHunkDiff);
+    const lineSet = map.get("multi.ts");
+    // First hunk: ctx1=1, added1=2, ctx2=3, ctx3=4
+    // Second hunk starts at +11: ctx10=11, added2=12, ctx11=13, ctx12=14
+    expect(lineSet!.has(1)).toBe(true);
+    expect(lineSet!.has(2)).toBe(true);
+    expect(lineSet!.has(3)).toBe(true);
+    expect(lineSet!.has(4)).toBe(true);
+    expect(lineSet!.has(11)).toBe(true);
+    expect(lineSet!.has(12)).toBe(true);
+    expect(lineSet!.has(13)).toBe(true);
+    expect(lineSet!.has(14)).toBe(true);
+  });
+
+  it("should handle overlapping hunks (same line number in two hunks)", () => {
+    const overlapDiff = [
+      "diff --git a/overlap.ts b/overlap.ts",
+      "index aaa..bbb 100644",
+      "--- a/overlap.ts",
+      "+++ b/overlap.ts",
+      "@@ -1,2 +1,3 @@",
+      " line1",
+      "+inserted",
+      " line2",
+      "@@ -2,2 +3,3 @@",
+      " line3",
+      "+inserted2",
+      " line4",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(overlapDiff);
+    const lineSet = map.get("overlap.ts");
+    // First hunk: line1=1, inserted=2, line2=3
+    // Second hunk starts at +3: line3=3, inserted2=4, line4=5
+    // Line 3 is added twice to the Set (idempotent)
+    expect(lineSet!.has(3)).toBe(true);
+  });
+
+  it("should skip lines starting with backslash (no-newline-at-end marker)", () => {
+    const noNewlineDiff = [
+      "diff --git a/noeol.ts b/noeol.ts",
+      "index aaa..bbb 100644",
+      "--- a/noeol.ts",
+      "+++ b/noeol.ts",
+      "@@ -1,2 +1,3 @@",
+      " line1",
+      "+added line",
+      " line2",
+      "\\ No newline at end of file",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(noNewlineDiff);
+    const lineSet = map.get("noeol.ts");
+    // Backslash line should be skipped, not counted as context or added
+    // line1=1, added=2, line2=3
+    expect(lineSet!.size).toBe(3);
+    expect(lineSet!.has(1)).toBe(true);
+    expect(lineSet!.has(2)).toBe(true);
+    expect(lineSet!.has(3)).toBe(true);
+  });
+
+  it("should handle diff with malformed diff header (no match)", () => {
+    const malformedDiff = [
+      "diff --git malformed header",
+      "+some line",
+    ].join("\n");
+    const map = buildLineMapFromRawDiff(malformedDiff);
+    // Malformed header doesn't match the regex, so currentFile stays null
+    // No file should be registered
+    expect(map.size).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Additional edge cases for resolveLine
+  // ---------------------------------------------------------------------------
+
+  it("should resolve to nearest valid line when two candidates at different distances", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("f.ts", new Set([10, 13]));
+    // Request line 14: 13 is distance 1, 10 is distance 4
+    const result = resolveLine(map, "f.ts", 14);
+    expect(result).toBe(13);
+  });
+
+  it("should resolve to line at exactly distance 5 (boundary)", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("f.ts", new Set([10]));
+    // Request line 15: distance from 10 is exactly 5
+    const result = resolveLine(map, "f.ts", 15);
+    expect(result).toBe(10);
+  });
+
+  it("should not resolve when nearest line is distance 6", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("f.ts", new Set([10]));
+    // Request line 16: distance from 10 is 6 > 5
+    const result = resolveLine(map, "f.ts", 16);
+    expect(result).toBeNull();
+  });
+
+  it("should resolve to valid line at boundary below (distance 5)", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("f.ts", new Set([20]));
+    // Request line 15: distance from 20 is exactly 5
+    const result = resolveLine(map, "f.ts", 15);
+    expect(result).toBe(20);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Additional edge cases for buildPositionHint
+  // ---------------------------------------------------------------------------
+
+  it("should produce multiple range segments for gapped line numbers", () => {
+    const files: DiffFile[] = [
+      {
+        path: "gaps.ts",
+        status: "modified",
+        additions: 3,
+        deletions: 0,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 1,
+            newStart: 1,
+            newLines: 3,
+            content: "@@ -1 +1,3 @@",
+            changes: [
+              { type: "add", line: 1, oldLine: 0, content: "a" },
+              { type: "add", line: 2, oldLine: 0, content: "b" },
+              { type: "add", line: 5, oldLine: 0, content: "c" },
+              { type: "add", line: 8, oldLine: 0, content: "d" },
+              { type: "add", line: 9, oldLine: 0, content: "e" },
+            ],
+          },
+        ],
+      },
+    ];
+    const hint = buildPositionHint(files);
+    // Lines: 1,2,5,8,9 => ranges: "1-2", "5", "8-9"
+    expect(hint).toBe("gaps.ts: lines 1-2, 5, 8-9");
+  });
+
+  it("should skip files with only delete changes in hint", () => {
+    const files: DiffFile[] = [
+      {
+        path: "only-del.ts",
+        status: "modified",
+        additions: 0,
+        deletions: 3,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 3,
+            newStart: 0,
+            newLines: 0,
+            content: "@@ -1,3 +0 @@",
+            changes: [
+              { type: "delete", line: 0, oldLine: 1, content: "d1" },
+              { type: "delete", line: 0, oldLine: 2, content: "d2" },
+            ],
+          },
+        ],
+      },
+    ];
+    const hint = buildPositionHint(files);
+    expect(hint).toBe("");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Additional edge cases for buildLineMap (fallback)
+  // ---------------------------------------------------------------------------
+
+  it("should handle file with multiple hunks in buildLineMap", () => {
+    const files: DiffFile[] = [
+      {
+        path: "multi-hunk.ts",
+        status: "modified",
+        additions: 2,
+        deletions: 0,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 1,
+            newStart: 1,
+            newLines: 2,
+            content: "@@ -1 +1,2 @@",
+            changes: [
+              { type: "add", line: 1, oldLine: 0, content: "a" },
+              { type: "add", line: 2, oldLine: 0, content: "b" },
+            ],
+          },
+          {
+            oldStart: 10,
+            oldLines: 1,
+            newStart: 10,
+            newLines: 2,
+            content: "@@ -10 +10,2 @@",
+            changes: [
+              { type: "normal", line: 10, oldLine: 10, content: "ctx" },
+              { type: "add", line: 11, oldLine: 0, content: "c" },
+            ],
+          },
+        ],
+      },
+    ];
+    const map = buildLineMap(files);
+    const lineSet = map.get("multi-hunk.ts")!;
+    expect(lineSet.has(1)).toBe(true);
+    expect(lineSet.has(2)).toBe(true);
+    expect(lineSet.has(10)).toBe(true);
+    expect(lineSet.has(11)).toBe(true);
+    expect(lineSet.size).toBe(4);
+  });
+
+  it("should handle negative line numbers in changes (excluded)", () => {
+    const files: DiffFile[] = [
+      {
+        path: "neg.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        hunks: [
+          {
+            oldStart: 1,
+            oldLines: 1,
+            newStart: 1,
+            newLines: 1,
+            content: "@@ -1 +1 @@",
+            changes: [
+              { type: "add", line: -1, oldLine: 0, content: "bad" },
+              { type: "add", line: 5, oldLine: 0, content: "good" },
+            ],
+          },
+        ],
+      },
+    ];
+    const map = buildLineMap(files);
+    const lineSet = map.get("neg.ts")!;
+    expect(lineSet.has(5)).toBe(true);
+    expect(lineSet.has(-1)).toBe(false);
+    expect(lineSet.size).toBe(1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Additional edge cases for validateFinding
+  // ---------------------------------------------------------------------------
+
+  it("should return null for empty LineMap", () => {
+    const map = new Map<string, Set<number>>();
+    const result = validateFinding(map, "anything.ts", 1);
+    expect(result).toBeNull();
+  });
+
+  it("should resolve endLine via proximity when it is close but not exact", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10, 11, 16, 17]));
+    const result = validateFinding(map, "src/app.ts", 10, 15);
+    // Start: 10 (exact). End: 15 not in set, closest within +5 is 16 (dist 1) or 11 (dist 4)
+    // 16 is distance 1, 11 is distance 4. Since 16 > resolved(10), it qualifies
+    expect(result!.line).toBe(10);
+    expect(result!.endLine).toBe(16);
+  });
+
+  it("should omit endLine when resolved endLine equals resolved start line", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10]));
+    const result = validateFinding(map, "src/app.ts", 10, 10);
+    // endLine 10 > line 10 is false (equal), so endLine is omitted
+    expect(result!.line).toBe(10);
+    expect(result!.endLine).toBeUndefined();
+  });
+
+  it("should handle endLine resolution when endLine equals start line value", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([10, 11, 12]));
+    const result = validateFinding(map, "src/app.ts", 10, 10);
+    // endLine is 10, line is 10. endLine > line is false, so no endLine
+    expect(result).toEqual({ line: 10 });
+  });
+
+  it("should resolve both start and end via proximity for completely off-target finding", () => {
+    const map = new Map<string, Set<number>>();
+    map.set("src/app.ts", new Set([8, 9, 16, 17]));
+    const result = validateFinding(map, "src/app.ts", 10, 15);
+    // Start 10: closest valid within +/-5 is 9 (dist 1) or 8 (dist 2)
+    // End 15: closest valid within +/-5 is 16 (dist 1) or 17 (dist 2)
+    expect(result).not.toBeNull();
+    expect([8, 9]).toContain(result!.line);
+    expect([16, 17]).toContain(result!.endLine!);
+    // endLine must be > resolved start line, so if start=9 and end=16, ok
+    expect(result!.endLine!).toBeGreaterThan(result!.line);
+  });
 });

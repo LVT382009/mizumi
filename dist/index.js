@@ -56517,6 +56517,7 @@ function loadConfig() {
   const pipelineParallel = getInput("pipeline_parallel") !== "false";
   const reviewDashboard = getInput("review_dashboard") !== "false";
   const auditTrail = getInput("audit_trail") !== "false";
+  const reviewReplay = getInput("review_replay") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56627,7 +56628,8 @@ function loadConfig() {
     findingDedup,
     pipelineParallel,
     reviewDashboard,
-    auditTrail
+    auditTrail,
+    reviewReplay
   };
 }
 function parseSimpleYaml(text2) {
@@ -115701,6 +115703,24 @@ function writeAuditTrail(workspace, trail) {
   info(`Audit trail written to ${filePath} (${trail.stages.length} stages, ${trail.findings.length} findings, ${trail.llmCalls.length} LLM calls)`);
   return filePath;
 }
+function readAuditTrail(workspace, runId) {
+  const filePath = path24.join(workspace, ".mizumi", "audit", `audit-${runId}.json`);
+  try {
+    if (!fs23.existsSync(filePath)) return null;
+    return JSON.parse(fs23.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+function listAuditTrails(workspace) {
+  const dir = path24.join(workspace, ".mizumi", "audit");
+  if (!fs23.existsSync(dir)) return [];
+  return fs23.readdirSync(dir).filter((f) => f.startsWith("audit-") && f.endsWith(".json")).map((f) => f.slice(6, -5)).sort();
+}
+function formatNumber(n) {
+  const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return n < 0 ? `-${abs}` : abs;
+}
 function generateRunId() {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 8);
@@ -115984,6 +116004,58 @@ function writeDashboard(workspace, html) {
   fs24.writeFileSync(filePath, html, "utf8");
   info(`Dashboard written to ${filePath}`);
   return filePath;
+}
+
+// src/review-replay.ts
+function findRunsForPR(workspace, owner, repo, prNumber) {
+  const runIds = listAuditTrails(workspace);
+  const results = [];
+  for (const runId of runIds) {
+    const trail = readAuditTrail(workspace, runId);
+    if (trail && trail.meta.owner === owner && trail.meta.repo === repo && trail.meta.prNumber === prNumber) {
+      results.push(trailToReplay(trail));
+    }
+  }
+  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+}
+function formatReplayTimeline(runs) {
+  if (runs.length === 0) return "*No review history for this PR.*";
+  let text2 = `<details>
+<summary>Review History (${runs.length} run${runs.length > 1 ? "s" : ""})</summary>
+
+`;
+  text2 += `| # | Run ID | Timestamp | Commit | Findings | Duration | Config Hash |
+`;
+  text2 += `|---|--------|-----------|--------|----------|----------|-------------|
+`;
+  runs.forEach((run2, i) => {
+    text2 += `| ${i + 1} | \`${run2.runId.slice(0, 8)}\` | ${run2.timestamp.slice(0, 19)} | \`${run2.headSha.slice(0, 7)}\` | ${run2.findings.length} | ${formatNumber(run2.totalDurationMs)}ms | \`${run2.configHash}\` |
+`;
+  });
+  const totalTokens = runs.reduce((s, r) => s + r.llmCalls.reduce((s2, c) => s2 + c.inputTokens + c.outputTokens, 0), 0);
+  const totalFindings = runs.reduce((s, r) => s + r.findings.length, 0);
+  text2 += `
+**Cumulative:** ${formatNumber(totalFindings)} findings across ${runs.length} run${runs.length > 1 ? "s" : ""}, ${formatNumber(totalTokens)} total tokens
+`;
+  text2 += `
+</details>`;
+  return text2;
+}
+function trailToReplay(trail) {
+  return {
+    runId: trail.meta.runId,
+    timestamp: trail.meta.timestamp,
+    owner: trail.meta.owner,
+    repo: trail.meta.repo,
+    prNumber: trail.meta.prNumber,
+    headSha: trail.meta.headSha,
+    configHash: trail.meta.configHash,
+    totalDurationMs: trail.totalDurationMs,
+    stages: trail.stages,
+    findings: trail.findings,
+    llmCalls: trail.llmCalls,
+    configSnapshot: trail.configSnapshot
+  };
 }
 
 // src/main.ts
@@ -117327,6 +117399,31 @@ ${digest}
         info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
       } catch (e) {
         warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (config2.reviewReplay && config2.auditTrail) {
+      try {
+        const prRuns = findRunsForPR(workspace, owner, repo, prNumber);
+        if (prRuns.length > 1) {
+          const timelineBody = formatReplayTimeline(prRuns);
+          if (!config2.dryRun) {
+            await octokit.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body: `<!-- mizumi-replay-marker -->
+## Review History
+
+${timelineBody}
+
+---
+*Posted by Mizumi*`
+            });
+          }
+          info("Review replay: posted timeline with " + prRuns.length + " runs");
+        }
+      } catch (e) {
+        warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     info("Mizumi review complete");

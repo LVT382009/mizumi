@@ -77,6 +77,7 @@ import { planChunkedReview, type ChunkPlan } from "./chunk-review.js";
 import { planFileReviews, cacheReviewResults, formatCacheStats } from "./review-cache.js";
 import { AuditTrailBuilder, writeAuditTrail, computeConfigHash } from "./audit-trail.js";
 import { collectDashboardMetrics, generateDashboardHTML, writeDashboard } from "./review-dashboard.js";
+import { findRunsForPR, formatReplayTimeline } from "./review-replay.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -1551,6 +1552,25 @@ if (config.reviewDashboard) {
     core.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
   } catch (e) {
     core.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 14. Review replay — post PR review history timeline
+if (config.reviewReplay && config.auditTrail) {
+  try {
+    const prRuns = findRunsForPR(workspace, owner, repo, prNumber);
+    if (prRuns.length > 1) {
+      const timelineBody = formatReplayTimeline(prRuns);
+      if (!config.dryRun) {
+        await octokit.rest.issues.createComment({
+          owner, repo, issue_number: prNumber,
+          body: `<!-- mizumi-replay-marker -->\n## Review History\n\n${timelineBody}\n\n---\n*Posted by Mizumi*`,
+        });
+      }
+      core.info("Review replay: posted timeline with " + prRuns.length + " runs");
+    }
+  } catch (e) {
+    core.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
   // Always exit 0 â€” never fail the build by default

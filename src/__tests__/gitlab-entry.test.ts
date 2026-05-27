@@ -91,6 +91,7 @@ vi.mock("../config.js", () => ({
     pipelineParallel: true,
     reviewDashboard: true,
       auditTrail: true,
+      reviewReplay: true,
   })),
 }));
 

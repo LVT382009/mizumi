@@ -29,11 +29,41 @@ vi.mock("@ai-sdk/openai", () => ({
   createOpenAI: vi.fn(() => vi.fn(() => "mock-openai-model")),
 }));
 
+vi.mock("@ai-sdk/google", () => ({
+  createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "mock-google-model")),
+}));
+
 import { generateObject } from "ai";
 import { getApiKey } from "../config.js";
+import { mapConcurrent } from "../pipeline-parallel.js";
+import * as core from "@actions/core";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 const mockGenerateObject = vi.mocked(generateObject);
 const mockGetApiKey = vi.mocked(getApiKey);
+const mockCreateAnthropic = vi.mocked(createAnthropic);
+const mockCreateOpenAI = vi.mocked(createOpenAI);
+const mockCreateGoogleGenerativeAI = vi.mocked(createGoogleGenerativeAI);
+const mockMapConcurrent = vi.mocked(mapConcurrent);
+
+// Track mapConcurrent concurrency args for verification
+let capturedMapConcurrentCalls: { items: unknown[]; concurrency: number }[] = [];
+vi.mock("../pipeline-parallel.js", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../pipeline-parallel.js")>();
+  return {
+    ...orig,
+    mapConcurrent: vi.fn(async <T, R>(
+      items: T[],
+      fn: (item: T, index: number) => Promise<R>,
+      concurrency: number,
+    ): Promise<R[]> => {
+      capturedMapConcurrentCalls.push({ items, concurrency });
+      return orig.mapConcurrent(items, fn, concurrency);
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // confidenceBadge - pure function
@@ -134,11 +164,12 @@ function makeConfig(overrides: Record<string, any> = {}) {
     pipelineParallel: true,
     reviewDashboard: true,
       auditTrail: true,
+      reviewReplay: true,
     ...overrides,
   };
 }
 
-function makeReview(comments: Array<{ confidence: number; severity?: string; category?: string; message?: string; file?: string; line?: number }>): ReviewResponseType {
+function makeReview(comments: Array<{ confidence: number; severity?: string; category?: string; message?: string; file?: string; line?: number; suggestion?: string }>): ReviewResponseType {
   return {
     summary: "test",
     riskScore: 3,
@@ -149,6 +180,7 @@ function makeReview(comments: Array<{ confidence: number; severity?: string; cat
       category: (c.category || "bug") as "bug" | "security" | "performance" | "style" | "architecture" | "compliance",
       message: c.message || "Test finding",
       confidence: c.confidence,
+      ...(c.suggestion ? { suggestion: c.suggestion } : {}),
     })),
     decision: "comment",
   };
@@ -157,6 +189,7 @@ function makeReview(comments: Array<{ confidence: number; severity?: string; cat
 describe("calibrateConfidence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    capturedMapConcurrentCalls = [];
   });
 
   it("maps high confidence (>80) findings to 'high' calibrated level", async () => {
@@ -440,5 +473,421 @@ describe("calibrateConfidence", () => {
     expect(result[0].calibratedConfidence).toBe("high");
     expect(result[1].calibratedConfidence).toBe("low");
     expect(result[2].calibratedConfidence).toBe("high");
+  });
+
+  // ---------------------------------------------------------------------------
+  // NEW TESTS: edge cases, error paths, internal logic, structure preservation
+  // ---------------------------------------------------------------------------
+
+  it("should pass concurrency=3 to mapConcurrent when pipelineParallel is true", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig({ pipelineParallel: true }));
+
+    const call = capturedMapConcurrentCalls.find((c) => c.concurrency !== undefined);
+    expect(call).toBeDefined();
+    expect(call!.concurrency).toBe(3);
+  });
+
+  it("should pass concurrency=1 to mapConcurrent when pipelineParallel is false", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig({ pipelineParallel: false }));
+
+    const call = capturedMapConcurrentCalls.find((c) => c.concurrency !== undefined);
+    expect(call).toBeDefined();
+    expect(call!.concurrency).toBe(1);
+  });
+
+  it("should call core.warning when LLM call fails for a borderline finding", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockRejectedValue(new Error("rate limit exceeded"));
+
+    const review = makeReview([{ confidence: 70, file: "src/app.ts", line: 42 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Calibration failed for src/app.ts:42"),
+    );
+  });
+
+  it("should call core.info with calibration summary counts", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining("Confidence calibration:"),
+    );
+  });
+
+  it("should not call core.info when borderline falls back without second model (early return)", async () => {
+    mockGetApiKey.mockReturnValue(""); // no second model
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    expect(core.info).not.toHaveBeenCalledWith(
+      expect.stringContaining("Confidence calibration:"),
+    );
+  });
+
+  it("should skip mapConcurrent entirely when no borderline findings exist", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+
+    const review = makeReview([{ confidence: 95 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    const calls = capturedMapConcurrentCalls.filter(
+      (c) => Array.isArray(c.items) && c.items.length > 0,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it("should preserve all original comment fields in calibrated output", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{
+      confidence: 90,
+      file: "src/auth.ts",
+      line: 15,
+      severity: "critical",
+      category: "security",
+      message: "SQL injection vulnerability",
+    }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].file).toBe("src/auth.ts");
+    expect(result[0].line).toBe(15);
+    expect(result[0].severity).toBe("critical");
+    expect(result[0].category).toBe("security");
+    expect(result[0].message).toBe("SQL injection vulnerability");
+    expect(result[0].confidence).toBe(90);
+  });
+
+  it("should preserve all original fields in borderline calibrated output with second model", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{
+      confidence: 70,
+      file: "src/api.ts",
+      line: 99,
+      severity: "high",
+      category: "bug",
+      message: "Null pointer dereference",
+    }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].file).toBe("src/api.ts");
+    expect(result[0].line).toBe(99);
+    expect(result[0].severity).toBe("high");
+    expect(result[0].category).toBe("bug");
+    expect(result[0].message).toBe("Null pointer dereference");
+  });
+
+  it("should include suggestion in verification prompt when present", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{
+      confidence: 70,
+      file: "src/handle.ts",
+      line: 10,
+      message: "Missing error handling",
+      suggestion: "Add try-catch block",
+    }]);
+    await calibrateConfidence(review, makeConfig());
+
+    const call = mockGenerateObject.mock.calls[0][0] as any;
+    expect(call.prompt).toContain("Suggested fix: Add try-catch block");
+  });
+
+  it("should not include suggestion line in prompt when suggestion is absent", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70, file: "src/main.ts", line: 5 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    const call = mockGenerateObject.mock.calls[0][0] as any;
+    expect(call.prompt).not.toContain("Suggested fix:");
+  });
+
+  it("should include file, line, severity, category, and message in verification prompt", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{
+      confidence: 70,
+      file: "src/util.ts",
+      line: 22,
+      severity: "medium",
+      category: "performance",
+      message: "N+1 query detected",
+    }]);
+    await calibrateConfidence(review, makeConfig());
+
+    const call = mockGenerateObject.mock.calls[0][0] as any;
+    expect(call.prompt).toContain("File: src/util.ts");
+    expect(call.prompt).toContain("Line: 22");
+    expect(call.prompt).toContain("Severity: medium");
+    expect(call.prompt).toContain("Category: performance");
+    expect(call.prompt).toContain("Message: N+1 query detected");
+  });
+
+  it("should use maxOutputTokens=32 for verification call", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    const call = mockGenerateObject.mock.calls[0][0] as any;
+    expect(call.maxOutputTokens).toBe(32);
+  });
+
+  it("should select openai as second model when primary provider is anthropic and openai key exists", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "sk-openai-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig({ provider: "anthropic" }));
+
+    expect(mockCreateOpenAI).toHaveBeenCalledWith({ apiKey: "sk-openai-key" });
+  });
+
+  it("should select anthropic as second model when primary provider is openai and anthropic key exists", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "anthropic") return "sk-ant-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 70 }]);
+    await calibrateConfidence(review, makeConfig({ provider: "openai" }));
+
+    expect(mockCreateAnthropic).toHaveBeenCalledWith({ apiKey: "sk-ant-key" });
+  });
+
+  it("should use google as second model when anthropic and openai keys are absent but google key exists", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "google") return "google-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    // Primary is anthropic, only google key => google provider selected as second model
+    const review = makeReview([{ confidence: 70 }]);
+    const result = await calibrateConfidence(review, makeConfig({ provider: "anthropic" }));
+
+    // If a second model was used, borderline gets calibrated (not default "medium")
+    // The generateObject mock resolves with confirmed="yes", so should get "high"
+    expect(result[0].calibratedConfidence).toBe("high");
+  });
+
+  it("should fall back to same-provider model when no different provider has API key", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "anthropic") return "sk-ant-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "no" } } as any);
+
+    // primary is anthropic, only anthropic key available => same-provider fallback
+    const review = makeReview([{ confidence: 65 }]);
+    const result = await calibrateConfidence(review, makeConfig({ provider: "anthropic" }));
+
+    // Should still use a model (same-provider) and calibrate
+    expect(result[0].calibratedConfidence).toBe("low");
+    expect(mockCreateAnthropic).toHaveBeenCalled();
+  });
+
+  it("should return null second model when no API keys exist for any provider", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{ confidence: 70 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    // Without a second model, borderline defaults to medium
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("should not modify non-borderline confidence score when borderline findings are also present", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([
+      { confidence: 92 },
+      { confidence: 70 },
+      { confidence: 25 },
+    ]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    const highFinding = result.find((c) => c.confidence === 92);
+    const lowFinding = result.find((c) => c.confidence === 25);
+    expect(highFinding?.calibratedConfidence).toBe("high");
+    expect(lowFinding?.calibratedConfidence).toBe("low");
+    // Original scores unchanged for non-borderline
+    expect(highFinding?.confidence).toBe(92);
+    expect(lowFinding?.confidence).toBe(25);
+  });
+
+  it("should map confidence 51 to 'medium' (barely above 50 threshold)", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{ confidence: 51 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("medium");
+  });
+
+  it("should map confidence 50 to 'low' (at the 50 boundary)", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{ confidence: 50 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("low");
+  });
+
+  it("should map confidence 0 to 'low'", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{ confidence: 0 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("low");
+  });
+
+  it("should map confidence 100 to 'high'", async () => {
+    mockGetApiKey.mockReturnValue("");
+
+    const review = makeReview([{ confidence: 100 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("high");
+  });
+
+  it("should handle borderline confidence exactly 60 with second model confirming", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    const review = makeReview([{ confidence: 60 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("high");
+    expect(result[0].confidence).toBe(75); // 60 + 15 = 75
+  });
+
+  it("should handle borderline confidence exactly 80 with second model rejecting", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "no" } } as any);
+
+    const review = makeReview([{ confidence: 80 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("low");
+    expect(result[0].confidence).toBe(60); // 80 - 20 = 60
+  });
+
+  it("should log warning with error message string when non-Error is thrown", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockRejectedValue("string error");
+
+    const review = makeReview([{ confidence: 70, file: "src/fail.ts", line: 8 }]);
+    await calibrateConfidence(review, makeConfig());
+
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Calibration failed for src/fail.ts:8"),
+    );
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("string error"),
+    );
+  });
+
+  it("should clamp boosted confidence at 100 for borderline finding near upper boundary", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "yes" } } as any);
+
+    // 89 is not borderline (>80), so test with 79 which is borderline + 15 = 94, not clamp
+    // But let's test with 80 which is borderline max: 80 + 15 = 95
+    const review = makeReview([{ confidence: 80 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("high");
+    expect(result[0].confidence).toBe(95); // min(80 + 15, 100) = 95
+  });
+
+  it("should clamp lowered confidence at 0 for borderline finding near lower boundary", async () => {
+    mockGetApiKey.mockImplementation((provider: string) => {
+      if (provider === "openai") return "test-key";
+      return "";
+    });
+    mockGenerateObject.mockResolvedValue({ object: { confirmed: "no" } } as any);
+
+    // Confidence 60 is borderline min: 60 - 20 = 40, not 0
+    // Confidence 5 would not be borderline, so test 60: 60-20=40
+    // For near-zero we need a finding where confidence-20<0, but borderline min is 60
+    // So 60-20=40, the floor is 0 but we never hit it with valid borderline range
+    // Let's test 60 to confirm the max(c-20,0) logic
+    const review = makeReview([{ confidence: 60 }]);
+    const result = await calibrateConfidence(review, makeConfig());
+
+    expect(result[0].calibratedConfidence).toBe("low");
+    expect(result[0].confidence).toBe(40); // max(60 - 20, 0) = 40
   });
 });

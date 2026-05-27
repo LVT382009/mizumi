@@ -122,6 +122,7 @@ const testConfig = {
     pipelineParallel: true,
     reviewDashboard: true,
       auditTrail: true,
+      reviewReplay: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

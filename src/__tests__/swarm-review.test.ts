@@ -288,6 +288,7 @@ describe("runSwarmReview", () => {
     pipelineParallel: true,
     reviewDashboard: true,
       auditTrail: true,
+      reviewReplay: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);
