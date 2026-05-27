@@ -352,4 +352,49 @@ describe("detectErrorHandlingGaps — edge cases", () => {
     const result = detectErrorHandlingGaps(files);
     expect(result.issues.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("detects findOne without await", () => {
+    const files = [makeFile("src/db.ts", [
+      "+const user = findOne({ id });",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects execute without await", () => {
+    const files = [makeFile("src/db.ts", [
+      "+const result = execute(sql);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("skips return statements (even with async calls)", () => {
+    const files = [makeFile("src/api.ts", [
+      "+return fetch(url);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("detects writeFile without await", () => {
+    const files = [makeFile("src/files.ts", [
+      "+writeFile(path, content);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("handles deduplication of same category+file+line", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const res = fetch(url);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
 });

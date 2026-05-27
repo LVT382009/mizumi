@@ -538,4 +538,40 @@ describe("detectTypeSafetyErosion — edge cases", () => {
     const assertions = result.issues.filter((i) => i.category === "type-assertion");
     expect(assertions).toHaveLength(0);
   });
+
+  it("detects @ts-ignore inline in code", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const x = obj.missing; // @ts-ignore",
+    ])];
+    const result = detectTypeSafetyErosion(files);
+    const tsDirectives = result.issues.filter((i) => i.category === "ts-directive");
+    expect(tsDirectives).toHaveLength(1);
+  });
+
+  it("detects as assertion in return statement", () => {
+    const files = [makeFile("src/app.ts", [
+      "+return data as ApiResponse;",
+    ])];
+    const result = detectTypeSafetyErosion(files);
+    const assertions = result.issues.filter((i) => i.category === "type-assertion");
+    expect(assertions).toHaveLength(1);
+  });
+
+  it("detects eslint-disable for specific rule", () => {
+    const files = [makeFile("src/app.ts", [
+      "+/* eslint-disable @typescript-eslint/no-explicit-any */",
+    ])];
+    const result = detectTypeSafetyErosion(files);
+    const lints = result.issues.filter((i) => i.category === "lint-suppression");
+    expect(lints).toHaveLength(1);
+  });
+
+  it("detects any in generic function call", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const result = parse<any>(input);",
+    ])];
+    const result = detectTypeSafetyErosion(files);
+    const anys = result.issues.filter((i) => i.category === "any-type");
+    expect(anys.length).toBeGreaterThanOrEqual(1);
+  });
 });

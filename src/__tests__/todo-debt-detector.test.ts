@@ -373,4 +373,41 @@ describe("detectTechDebt — edge cases", () => {
     const todos = result.issues.filter((i) => i.category === "todo");
     expect(todos).toHaveLength(1);
   });
+
+  it("detects FIXME in multi-line comment", () => {
+    const files = [makeFile("src/app.ts", [
+      "+ * FIXME: this is broken",
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+  });
+
+  it("skips empty closing braces", () => {
+    const files = [makeFile("src/app.ts", [
+      "+}",
+    ])];
+    const result = detectTechDebt(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles marker at start of line (no preceding comment)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+TODO: add feature",
+    ])];
+    const result = detectTechDebt(files);
+    const todos = result.issues.filter((i) => i.category === "todo");
+    expect(todos).toHaveLength(1);
+  });
+
+  it("works with multiple FIXME markers across files", () => {
+    const files = [
+      makeFile("src/a.ts", ["+// FIXME: bug in a"]),
+      makeFile("src/b.ts", ["+// FIXME: bug in b"]),
+      makeFile("src/c.ts", ["+// FIXME: bug in c"]),
+    ];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(3);
+  });
 });
