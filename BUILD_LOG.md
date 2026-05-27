@@ -503,10 +503,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 4496 Tests)
+### Build Stats (Current — 4545 Tests)
 
-- **4496 tests** passing (87 test files)
-- **9,900+ production lines** (60+ source modules)
+- **4545 tests** passing (87 test files)
+- **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -547,3 +547,13 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
+
+### Cycle: agentskills.io Skill System + Test Expansion (2026-05-27)
+
+- **agentskills.io-compliant skill generation**: Upgraded `autoGenerateSkills` from one-liner skills to structured SKILL.md files with YAML frontmatter (name, description, tags, category, version, confidence, occurrence_count, trigger_conditions, created_at, updated_at) and markdown body (When to Use, Procedure, Pitfalls, Verification Checklist). Self-improvement: existing skills get version bump + occurrence increment instead of overwrite. Confidence scales with observations (70 base + 5 per 3 occurrences, cap 95). 6 category procedures: security, bug, performance, style, architecture, compliance. Follows Hermes agent / agentskills.io open standard. No other AI code reviewer has self-improving skills.
+- **Enhanced skill loading**: `loadSkills` now matches on file_pattern + tags (backward-compatible with legacy simple frontmatter). New `parseSkillFrontmatter` export for structured metadata parsing.
+- **Fix intermittent review-replay test**: added runId as secondary sort key when timestamps collide in `findRunsForPR` — same-millisecond trails were non-deterministic.
+- **Restored rule-engine.ts**: recovered original 592-line implementation from git (was accidentally overwritten with broken class-based code). Deleted broken `rule-engine-autodiscovery.test.ts`. Reverted vitest 4.x → 3.x (the upgrade broke Octokit mocks). All 4496 tests passing after recovery.
+- **Test expansions**: memory 44→65 (+21), audit-trail 35→52 (+17), chunk-review 35→46 (+11)
+- **49 new tests** across 3 modules
+- **4545 tests** passing, 0 TS errors, bundle rebuilt
