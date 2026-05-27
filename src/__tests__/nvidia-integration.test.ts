@@ -81,6 +81,7 @@ const makeNvidiaConfig = (overrides?: Partial<MizumiConfig>): MizumiConfig => ({
   checksApi: true,
   repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
   ...overrides,
 });
 
@@ -140,6 +141,7 @@ const makeConfig = (provider: string, model: string, overrides?: Partial<MizumiC
   checksApi: true,
   repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
   ...overrides,
 });
 
@@ -336,6 +338,7 @@ describe("NVIDIA NIM provider configuration", () => {
       checksApi: true,
       repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
     };
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
     try {
@@ -1321,6 +1324,7 @@ skipIfNoKey("NVIDIA NIM live integration", () => {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
   };
 
   it("calls NVIDIA NIM and returns structured review output", async () => {

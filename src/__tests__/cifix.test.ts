@@ -117,6 +117,7 @@ const testConfig = {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

@@ -271,6 +271,11 @@ defense_framework:
     required: false
     default: "true"
 
+  review_cache:
+    description: "Enable per-file content-hash review result cache — skip re-reviewing unchanged files on iterative PR pushes for 30-70% token savings. No competitor caches by content hash."
+    required: false
+    default: "true"
+
 
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."

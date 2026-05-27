@@ -283,6 +283,7 @@ describe("runSwarmReview", () => {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

@@ -129,6 +129,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
     ...overrides,
   };
 }

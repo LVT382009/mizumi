@@ -66,6 +66,7 @@ export interface MizumiConfig {
   checksApi: boolean;
   repoHealth: boolean;
   chunkReview: boolean;
+  reviewCache: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -155,6 +156,7 @@ const defenseFramework = core.getInput("defense_framework") !== "false"; // defa
 const checksApi = core.getInput("checks_api") !== "false"; // default true
 const repoHealth = core.getInput("repo_health") !== "false"; // default true
 const chunkReview = core.getInput("chunk_review") !== "false"; // default true
+const reviewCache = core.getInput("review_cache") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -263,6 +265,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   checksApi,
   repoHealth,
     chunkReview,
+    reviewCache,
   };
 }
 

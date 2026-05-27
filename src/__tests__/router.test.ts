@@ -63,6 +63,7 @@ const baseConfig: MizumiConfig = {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
 };
 
 describe("classifyDiff", () => {

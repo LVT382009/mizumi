@@ -83,6 +83,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
     ...overrides,
   };
 }

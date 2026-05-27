@@ -74,6 +74,7 @@ import { createCheckRun } from "./checks.js";
 import { buildProjectIndex, type ProjectIndex } from "./project-index.js";
 import { computeRepoHealth } from "./repo-health.js";
 import { planChunkedReview, type ChunkPlan } from "./chunk-review.js";
+import { planFileReviews, cacheReviewResults, formatCacheStats } from "./review-cache.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -882,6 +883,24 @@ if (swarmResult && swarmResult.findings.length > 0) {
   }
 }
 
+// 6e. Review cache — check for cached results from unchanged files
+if (config.reviewCache) {
+  try {
+    const reviewPlan = planFileReviews(workspace, diff.files.map(f => ({
+      path: f.path,
+      content: f.hunks.flatMap(h => h.changes).map(c => c.content).join("\n"),
+    })));
+    if (reviewPlan.cached.length > 0) {
+      core.info(formatCacheStats(reviewPlan.stats));
+    }
+    if (reviewPlan.toReview.length < diff.files.length) {
+      core.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
+    }
+  } catch (e) {
+    core.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 core.info("Running review pass...");
     const { output: review, usage: reviewUsage } = await runReview(
       context.diffText,
@@ -895,6 +914,29 @@ core.info("Running review pass...");
     );
   core.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
 
+// 7b. Store review results in cache for future reuse
+if (config.reviewCache && review.comments.length > 0) {
+  try {
+    const filesByPath = new Map(diff.files.map(f => [f.path, f]));
+    const cacheInput: Array<{ path: string; content: string; findings: import("./review-cache.js").CachedFinding[]; riskScore: number; summary: string }> = [];
+    for (const c of review.comments) {
+      const df = filesByPath.get(c.file);
+      if (!df) continue;
+      cacheInput.push({
+        path: c.file,
+        content: df.hunks.flatMap(h => h.changes).map(ch => ch.content).join("\n"),
+        findings: [{ file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, confidence: c.confidence }],
+        riskScore: review.riskScore,
+        summary: review.summary,
+      });
+    }
+    if (cacheInput.length > 0) {
+      cacheReviewResults(workspace, cacheInput);
+    }
+  } catch (e) {
+    core.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
     // 8. Self-critique (second pass â€” cheaper model)
     core.info("Running self-critique pass...");
     await rateLimiter.acquire();

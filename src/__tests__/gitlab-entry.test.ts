@@ -86,6 +86,7 @@ vi.mock("../config.js", () => ({
     checksApi: true,
     repoHealth: true,
     chunkReview: true,
+    reviewCache: true,
   })),
 }));
 
