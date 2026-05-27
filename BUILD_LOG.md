@@ -673,3 +673,13 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 ### Test Coverage Expansion (2026-05-28)
 - Added 5 edge case tests to type-safety-erosion (47 total)
 - Added 5 edge case tests to todo-debt-detector (32 total)
+
+### Performance Anti-Pattern Detector (2026-05-28)
+- **New file**: `src/performance-antipattern-detector.ts` — detect performance anti-patterns in PR diffs
+- **4 detection categories**: n-plus-1-query (query/find/execute inside loop — critical), sync-in-async (readFileSync/writeFileSync in async context — critical/warning), waterfall-await (sequential awaits that could be Promise.all() — warning), unnecessary-await (awaiting non-promise values — warning)
+- **Pattern analysis**: LOOP_KEYWORD_RE for keyword loops at line start, LOOP_METHOD_RE for method chains (forEach/map/filter), QUERY_IN_LOOP_RE for nested query calls, SYNC_IO_RE for 17 sync I/O functions, AWAIT_ASSIGN_RE for const x = await assignments, UNNECESSARY_AWAIT_RE for await on constants/sync functions
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `performance_antipattern_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **27 tests** in `src/__tests__/performance-antipattern-detector.test.ts`
+- **4880 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer flags performance anti-patterns at PR review time. Amazon CodeGuru has limited N+1 detection for Java only (not in PR diffs). CodeRabbit, Copilot, and Sourcery all miss N+1 queries, sync I/O in async functions, waterfall awaits, and unnecessary awaits.
