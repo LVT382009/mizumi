@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 3456 Tests)
 
-- **3494 tests** passing (78 test files)
+- **3845 tests** passing (81 test files)
 - **8,800+ production lines** (53+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -524,6 +524,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **SARIF 2.1.0 export**: uploads findings to GitHub Code Scanning alerts tab (alongside CodeQL). Stable fingerprints for alert tracking, severity→level mapping, rule metadata. No other AI reviewer integrates with Code Scanning.
 - **Review priority scoring**: per-finding 1-10 priority combining severity, confidence, category, ownership, intent, recurrence. Zero LLM cost. No other AI reviewer computes per-finding priority.
 - **Org memory**: PR history semantic index with Jaccard similarity
+- **Project index**: zero-LLM workspace tree scan (depth 3, 23 key file patterns, language/framework detection)
+- **Repo health score**: 10-signal weighted 0-100 assessment (CI, test, linter, container, dep mgmt, etc.)
+- **Review cache**: per-file content-hash result cache (7-day TTL, 500-entry cap, 30-70% token savings on re-pushes)
+- **Adaptive chunked review**: split large PRs into logical chunks by directory/area (≤10=single, 11-25=by-dir, 26+=by-area). No competitor does this.
 - **Commit status merge gate**: enforceable quality gate via branch protection
 - **Report card grading**: 5-dimension quality scoring (A-F) per review
 - **Adaptive noise reduction**: suppresses repeatedly-dismissed finding patterns
