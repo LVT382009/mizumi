@@ -639,3 +639,23 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **43 tests** in `src/__tests__/type-safety-erosion.test.ts`
 - **4758 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer flags type safety erosion. CodeRabbit, Copilot, CodeGuru, and Sourcery all miss `as` assertions, `any` escape hatches, and @ts-ignore suppressions.
+
+### TODO/FIXME Tech Debt Detector (2026-05-28)
+- **New file**: `src/todo-debt-detector.ts` — detect tech debt markers added in PR diffs
+- **5 detection categories**: fixme (critical), hack (critical), xxx (critical), todo (warning), workaround (warning)
+- **Description extraction**: captures text after marker (e.g., `// FIXME: crash on null` → "crash on null")
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `todo_debt_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **28 tests** in `src/__tests__/todo-debt-detector.test.ts`
+- **4786 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer flags tech debt markers at PR review time. SonarQube S1135 tracks TODOs at repo level but not in PR reviews. CodeRabbit, Copilot, and Sourcery all ignore them.
+
+### Magic Number Detector (2026-05-28)
+- **New file**: `src/magic-number-detector.ts` — detect hardcoded literals that should be named constants
+- **3 detection categories**: numeric-literal (hardcoded numbers in assignments, excluding 0/1/2/years/power-of-2), string-literal (hardcoded strings ≥3 chars in comparisons/assignments), timeout-duration (hardcoded timeout/delay/interval/ttl/backoff values — critical severity)
+- **Test file skip**: `.test.ts` and `.spec.ts` files are excluded from detection (test assertions are expected to use literal values)
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `magic_number_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **26 tests** in `src/__tests__/magic-number-detector.test.ts`
+- **4812 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects magic numbers at PR diff level. SonarQube S109 exists but only works at full-repo scan level.
