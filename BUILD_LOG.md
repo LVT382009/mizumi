@@ -601,3 +601,22 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **29 tests** in `src/__tests__/test-assertion-audit.test.ts`
 - **4628 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) audits test assertion quality
+
+### Breaking Change Radar (2026-05-28)
+- **New file**: `src/breaking-change-radar.ts` — detect code-level breaking changes in PR diffs
+- **6 detection categories**: removed-export, renamed-export, new-required-param, return-type-narrowing, changed-thrown-exceptions, deleted-public-method
+- **Pipeline integration**: main.ts runs radar on diff files, injects context, posts summary comment
+- **Config propagation**: `breaking_change_radar` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **36 tests** in `src/__tests__/breaking-change-radar.test.ts`
+- **4665 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects code-level breaking changes (oasdiff only covers OpenAPI schema diffs)
+
+### Import Cycle Detector (2026-05-28)
+- **New file**: `src/import-cycle-detector.ts` — detect circular dependency chains in PR diffs
+- **3 detection categories**: direct-cycle (2-node A↔B), indirect-cycle (3+ node A→B→C→A), self-import (file imports itself)
+- **Path normalization**: `stripExtension()` resolves mismatch between `extractImportEdges` targets (extensionless) and source file paths (with .ts)
+- **Pipeline integration**: main.ts runs detection on diff files, injects context, posts summary comment
+- **Config propagation**: `import_cycle_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **24 tests** in `src/__tests__/import-cycle-detector.test.ts`
+- **4689 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects import cycles. Only standalone tools (madge, dependency-cruiser) exist.
