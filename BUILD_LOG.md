@@ -659,3 +659,17 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **26 tests** in `src/__tests__/magic-number-detector.test.ts`
 - **4812 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects magic numbers at PR diff level. SonarQube S109 exists but only works at full-repo scan level.
+
+### Error Handling Gap Detector (2026-05-28)
+- **New file**: `src/error-handling-detector.ts` — detect error handling gaps in PR diffs
+- **3 detection categories**: unhandled-promise (.then() without .catch(), floating Promises), missing-await (fetch/axios/readFile/writeFile/query/connect/execute without await), swallowed-error (catch with only comments or console.log)
+- **Missing await covers**: fetch, axios.*, readFile, writeFile, mkdir, rm, readdir, copyFile, pipeline, query, execute, connect, disconnect, find, findById, findOne, save, remove, deleteOne, updateOne, create, aggregate, bulkWrite
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `error_handling_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **33 tests** in `src/__tests__/error-handling-detector.test.ts`
+- **4853 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects error handling gaps at PR diff level. CodeGuru has partial N+1 detection for Java but not for unhandled promises or missing await. DeepSource has partial empty-catch detection but not at PR review time.
+
+### Test Coverage Expansion (2026-05-28)
+- Added 5 edge case tests to type-safety-erosion (47 total)
+- Added 5 edge case tests to todo-debt-detector (32 total)
