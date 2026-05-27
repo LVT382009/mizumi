@@ -56336,6 +56336,7 @@ function loadConfig() {
   const reviewPriority = getInput("review_priority") !== "false";
   const defenseFramework = getInput("defense_framework") !== "false";
   const checksApi = getInput("checks_api") !== "false";
+  const repoHealth = getInput("repo_health") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56439,7 +56440,8 @@ function loadConfig() {
     sarifExport,
     reviewPriority,
     defenseFramework,
-    checksApi
+    checksApi,
+    repoHealth
   };
 }
 function parseSimpleYaml(text2) {
