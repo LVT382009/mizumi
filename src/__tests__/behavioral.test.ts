@@ -1,6 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { shouldRunBehavioralAnalysis, formatBehavioralSummary } from "../behavioral.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { shouldRunBehavioralAnalysis, formatBehavioralSummary, generateBehavioralSummary } from "../behavioral.js";
 import type { BehavioralSummaryType } from "../behavioral.js";
+import type { DiffFile } from "../diff.js";
+
+// ---------------------------------------------------------------------------
+// Mocks for generateBehavioralSummary LLM call tests
+// ---------------------------------------------------------------------------
+
+const mockGenerateObject = vi.fn();
+
+vi.mock("ai", () => ({
+  generateObject: (...args: unknown[]) => mockGenerateObject(...args),
+}));
+
+vi.mock("../models.js", () => ({
+  createModel: vi.fn().mockReturnValue("mock-model"),
+}));
+
+vi.mock("../sanitize.js", () => ({
+  sanitizeInput: vi.fn((s: string) => s),
+}));
+
+vi.mock("../config.js", () => ({
+  requireApiKey: vi.fn().mockReturnValue("test-key"),
+}));
 
 // ---------------------------------------------------------------------------
 // shouldRunBehavioralAnalysis
@@ -78,6 +101,246 @@ describe("shouldRunBehavioralAnalysis", () => {
       { path: "big.ts", status: "modified" as const, additions: 500, deletions: 200, hunks: [] },
     ];
     expect(shouldRunBehavioralAnalysis(files)).toBe(false);
+  });
+
+  it("returns false for 2 files with many lines each", () => {
+    const files = [
+      { path: "a.ts", status: "modified" as const, additions: 200, deletions: 100, hunks: [] },
+      { path: "b.ts", status: "modified" as const, additions: 150, deletions: 50, hunks: [] },
+    ];
+    expect(shouldRunBehavioralAnalysis(files)).toBe(false);
+  });
+
+  it("returns true for exactly 3 files with exactly 50 lines", () => {
+    const files = [
+      { path: "a.ts", status: "modified" as const, additions: 10, deletions: 10, hunks: [] },
+      { path: "b.ts", status: "modified" as const, additions: 10, deletions: 10, hunks: [] },
+      { path: "c.ts", status: "modified" as const, additions: 10, deletions: 0, hunks: [] },
+    ];
+    // 10+10 + 10+10 + 10+0 = 50
+    expect(shouldRunBehavioralAnalysis(files)).toBe(true);
+  });
+
+  it("returns false for 3 files with 49 lines total", () => {
+    const files = [
+      { path: "a.ts", status: "modified" as const, additions: 10, deletions: 9, hunks: [] },
+      { path: "b.ts", status: "modified" as const, additions: 10, deletions: 10, hunks: [] },
+      { path: "c.ts", status: "modified" as const, additions: 10, deletions: 0, hunks: [] },
+    ];
+    // 10+9 + 10+10 + 10+0 = 49
+    expect(shouldRunBehavioralAnalysis(files)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateBehavioralSummary — LLM call path
+// ---------------------------------------------------------------------------
+
+describe("generateBehavioralSummary", () => {
+  const mockConfig = {
+    provider: "anthropic" as const,
+    model: "claude-sonnet-4-20250514",
+    baseUrl: "",
+    profile: "assertive" as const,
+    maxComments: 10,
+    language: "en",
+    selfCritique: false,
+    confidenceThreshold: 0.7,
+    autoReview: false,
+    autoPauseAfter: 0,
+    excludePatterns: [],
+    tierRouting: false,
+    smallDiffThreshold: 200,
+    securityPaths: [],
+    complianceCheck: false,
+    autoFix: false,
+    confidenceCalibration: false,
+    changeStack: false,
+    improveEnabled: false,
+    dryRun: false,
+    linterScan: false,
+    autoLabels: false,
+    spendThreshold: 0,
+    gateThreshold: "none" as const,
+    ruleEngine: false,
+    ciValidatedFix: false,
+    ciFixTimeout: 0,
+    ciFixMaxRetries: 0,
+    ciFixRevertOnFailure: false,
+    astContractAnalysis: false,
+    behavioralSummary: true,
+    ownershipRouting: false,
+    deltaReview: false,
+    taintAnalysis: false,
+    reviewLearning: false,
+    blastRadius: false,
+    specCompliance: false,
+    authBoundary: false,
+    fatigueDashboard: false,
+    secretEntropy: false,
+    safetyScore: false,
+    adaptiveStrategy: false,
+    businessContext: false,
+    orgMemory: false,
+    testGapDetection: false,
+    suppressionMemories: false,
+    swarmReview: false,
+    complexityPrediction: false,
+    prSplitSuggestions: false,
+    findingLifecycle: false,
+    intentClassification: false,
+    depImpactAnalysis: false,
+    threadContinuity: false,
+    crossPRPersistence: false,
+    sarifExport: false,
+    reviewPriority: false,
+    defenseFramework: false,
+    checksApi: false,
+    repoHealth: false,
+    chunkReview: false,
+    reviewCache: false,
+    findingDedup: false,
+    pipelineParallel: false,
+  };
+
+  const sampleDiffFiles: DiffFile[] = [
+    { path: "src/auth/login.ts", status: "modified", additions: 30, deletions: 10, hunks: [] },
+    { path: "src/auth/token.ts", status: "added", additions: 50, deletions: 0, hunks: [] },
+    { path: "src/middleware.ts", status: "modified", additions: 20, deletions: 5, hunks: [] },
+  ];
+
+  const sampleOutput: BehavioralSummaryType = {
+    headline: "Replaces session auth with JWT token auth",
+    changes: [
+      {
+        type: "replaced",
+        area: "authentication",
+        description: "Session auth replaced with JWT tokens",
+        impact: "high",
+        files: ["src/auth/login.ts", "src/auth/token.ts"],
+      },
+    ],
+    riskAreas: ["Token refresh"],
+    testingFocus: "Verify JWT token issuance and refresh",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls createModel with config", async () => {
+    const { createModel } = await import("../models.js");
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    await generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig);
+
+    expect(createModel).toHaveBeenCalledWith(mockConfig);
+  });
+
+  it("calls sanitizeInput on diff text", async () => {
+    const { sanitizeInput } = await import("../sanitize.js");
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    await generateBehavioralSummary("raw diff content", sampleDiffFiles, mockConfig);
+
+    expect(sanitizeInput).toHaveBeenCalled();
+  });
+
+  it("truncates diff text to 40000 characters", async () => {
+    const { sanitizeInput } = await import("../sanitize.js");
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    const longDiff = "a".repeat(50000);
+    await generateBehavioralSummary(longDiff, sampleDiffFiles, mockConfig);
+
+    // sanitizeInput gets called with the first 40000 chars
+    expect(sanitizeInput).toHaveBeenCalledWith(longDiff.slice(0, 40000));
+  });
+
+  it("passes diff text shorter than 40000 chars untruncated", async () => {
+    const { sanitizeInput } = await import("../sanitize.js");
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    const shortDiff = "short diff";
+    await generateBehavioralSummary(shortDiff, sampleDiffFiles, mockConfig);
+
+    expect(sanitizeInput).toHaveBeenCalledWith(shortDiff);
+  });
+
+  it("formats file summary as path: +N/-N (status)", async () => {
+    mockGenerateObject.mockImplementation(async (opts: Record<string, unknown>) => {
+      // Capture the prompt for inspection
+      const prompt = opts.prompt as string;
+      expect(prompt).toContain("src/auth/login.ts: +30/-10 (modified)");
+      expect(prompt).toContain("src/auth/token.ts: +50/-0 (added)");
+      expect(prompt).toContain("src/middleware.ts: +20/-5 (modified)");
+      return { object: sampleOutput };
+    });
+
+    await generateBehavioralSummary("diff", sampleDiffFiles, mockConfig);
+  });
+
+  it("calls generateObject with correct parameters", async () => {
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    await generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig);
+
+    expect(mockGenerateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "mock-model",
+        maxOutputTokens: 1536,
+      }),
+    );
+  });
+
+  it("includes system prompt in generateObject call", async () => {
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    await generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig);
+
+    const callArg = mockGenerateObject.mock.calls[0][0] as Record<string, unknown>;
+    expect(callArg.system).toContain("senior engineer");
+    expect(callArg.system).toContain("behavioral");
+  });
+
+  it("returns the LLM output as BehavioralSummaryType", async () => {
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    const result = await generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig);
+
+    expect(result.headline).toBe("Replaces session auth with JWT token auth");
+    expect(result.changes).toHaveLength(1);
+    expect(result.riskAreas).toContain("Token refresh");
+  });
+
+  it("propagates error when LLM call fails", async () => {
+    mockGenerateObject.mockRejectedValue(new Error("LLM service unavailable"));
+
+    await expect(
+      generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig),
+    ).rejects.toThrow("LLM service unavailable");
+  });
+
+  it("includes file summary section in prompt", async () => {
+    mockGenerateObject.mockImplementation(async (opts: Record<string, unknown>) => {
+      const prompt = opts.prompt as string;
+      expect(prompt).toContain("File summary:");
+      return { object: sampleOutput };
+    });
+
+    await generateBehavioralSummary("diff text", sampleDiffFiles, mockConfig);
+  });
+
+  it("includes diff content in prompt", async () => {
+    const { sanitizeInput } = await import("../sanitize.js");
+    mockGenerateObject.mockResolvedValue({ object: sampleOutput });
+
+    await generateBehavioralSummary("the actual diff content", sampleDiffFiles, mockConfig);
+
+    const callArg = mockGenerateObject.mock.calls[0][0] as Record<string, unknown>;
+    const prompt = callArg.prompt as string;
+    // The sanitized diff should appear in the prompt
+    expect(prompt).toContain("the actual diff content");
   });
 });
 
@@ -328,5 +591,259 @@ describe("formatBehavioralSummary", () => {
     const result = formatBehavioralSummary(manyFiles);
     expect(result).toContain("`src/a.ts`");
     expect(result).toContain("`src/e.ts`");
+  });
+
+  it("handles very long area name", () => {
+    const longArea: BehavioralSummaryType = {
+      headline: "Refactors subsystem",
+      changes: [
+        {
+          type: "modified",
+          area: "authentication-authorization-and-access-control-management-subsystem",
+          description: "Auth flow updated",
+          impact: "high",
+          files: ["src/auth/main.ts"],
+        },
+      ],
+      riskAreas: [],
+      testingFocus: "Test auth",
+    };
+    const result = formatBehavioralSummary(longArea);
+    expect(result).toContain("authentication-authorization");
+  });
+
+  it("handles files with special characters in paths", () => {
+    const special: BehavioralSummaryType = {
+      headline: "Updates modules",
+      changes: [
+        {
+          type: "modified",
+          area: "utils",
+          description: "Helper utilities updated",
+          impact: "medium",
+          files: ["src/utils/string.helper.ts", "src/utils/data_parser.ts", "src/utils/@scope/module.ts"],
+        },
+      ],
+      riskAreas: [],
+      testingFocus: "Check utility outputs",
+    };
+    const result = formatBehavioralSummary(special);
+    expect(result).toContain("`src/utils/string.helper.ts`");
+    expect(result).toContain("`src/utils/data_parser.ts`");
+    expect(result).toContain("`src/utils/@scope/module.ts`");
+  });
+
+  it("handles change with empty files array", () => {
+    const emptyFiles: BehavioralSummaryType = {
+      headline: "Config change",
+      changes: [
+        { type: "modified", area: "config", description: "Environment vars changed", impact: "medium", files: [] },
+      ],
+      riskAreas: [],
+      testingFocus: "Verify env vars",
+    };
+    const result = formatBehavioralSummary(emptyFiles);
+    expect(result).toContain("Config change");
+    expect(result).toContain("**Modified**");
+  });
+
+  it("handles change with single file", () => {
+    const singleFile: BehavioralSummaryType = {
+      headline: "Single file change",
+      changes: [
+        { type: "added", area: "API", description: "New endpoint", impact: "high", files: ["src/api/new.ts"] },
+      ],
+      riskAreas: ["API stability"],
+      testingFocus: "Test new endpoint",
+    };
+    const result = formatBehavioralSummary(singleFile);
+    expect(result).toContain("`src/api/new.ts`");
+  });
+
+  it("handles high impact badge for all changes", () => {
+    const allHigh: BehavioralSummaryType = {
+      headline: "Critical changes",
+      changes: [
+        { type: "added", area: "core", description: "Core feature", impact: "high", files: ["a.ts"] },
+        { type: "replaced", area: "data", description: "Data layer swap", impact: "high", files: ["b.ts"] },
+        { type: "removed", area: "legacy", description: "Legacy removed", impact: "high", files: ["c.ts"] },
+      ],
+      riskAreas: ["Everything"],
+      testingFocus: "Full regression",
+    };
+    const result = formatBehavioralSummary(allHigh);
+    const warningCount = (result.match(/⚠️/g) || []).length;
+    expect(warningCount).toBe(3);
+  });
+
+  it("handles all changes same type", () => {
+    const allAdded: BehavioralSummaryType = {
+      headline: "New features",
+      changes: [
+        { type: "added", area: "a", description: "Feature a", impact: "high", files: ["a.ts"] },
+        { type: "added", area: "b", description: "Feature b", impact: "medium", files: ["b.ts"] },
+        { type: "added", area: "c", description: "Feature c", impact: "low", files: ["c.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test all new features",
+    };
+    const result = formatBehavioralSummary(allAdded);
+    const addedCount = (result.match(/\*\*Added\*\*/g) || []).length;
+    expect(addedCount).toBe(3);
+  });
+
+  it("handles summary with no testing focus text", () => {
+    const noFocus: BehavioralSummaryType = {
+      headline: "Minor change",
+      changes: [
+        { type: "modified", area: "ui", description: "Button color changed", impact: "low", files: ["ui.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "",
+    };
+    const result = formatBehavioralSummary(noFocus);
+    expect(result).toContain("**Testing Focus:**");
+    // Testing focus section exists but is empty
+  });
+
+  it("handles very short headline", () => {
+    const short: BehavioralSummaryType = {
+      headline: "Fix",
+      changes: [
+        { type: "modified", area: "bug", description: "Fixed null pointer", impact: "medium", files: ["fix.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Re-test",
+    };
+    const result = formatBehavioralSummary(short);
+    expect(result).toContain("Fix");
+    expect(result).toContain("<summary>");
+  });
+
+  it("handles risk areas with special characters", () => {
+    const specialRisk: BehavioralSummaryType = {
+      headline: "Security update",
+      changes: [
+        { type: "modified", area: "auth", description: "Auth updated", impact: "high", files: ["a.ts"] },
+      ],
+      riskAreas: ["OAuth2/PKCE-flow", "token-refresh (auto)", "session<->cookie bridge"],
+      testingFocus: "Test all auth paths",
+    };
+    const result = formatBehavioralSummary(specialRisk);
+    expect(result).toContain("OAuth2/PKCE-flow");
+    expect(result).toContain("token-refresh (auto)");
+  });
+
+  it("renders medium impact badge as clipboard", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Medium impact test",
+      changes: [
+        { type: "added", area: "x", description: "Medium impact change", impact: "medium", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("📋");
+  });
+
+  it("renders low impact badge as pencil", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Low impact test",
+      changes: [
+        { type: "added", area: "x", description: "Low impact change", impact: "low", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("✏️");
+  });
+
+  it("renders replaced emoji as yellow circle", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Replace test",
+      changes: [
+        { type: "replaced", area: "x", description: "Replaced something", impact: "medium", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("🟡");
+  });
+
+  it("renders added emoji as green circle", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Add test",
+      changes: [
+        { type: "added", area: "x", description: "Added something", impact: "low", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("🟢");
+  });
+
+  it("renders removed emoji as red circle", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Remove test",
+      changes: [
+        { type: "removed", area: "x", description: "Removed something", impact: "high", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("🔴");
+  });
+
+  it("renders modified and refactored as white circles", () => {
+    const summary: BehavioralSummaryType = {
+      headline: "Modify test",
+      changes: [
+        { type: "modified", area: "x", description: "Modified something", impact: "medium", files: ["x.ts"] },
+      ],
+      riskAreas: [],
+      testingFocus: "Test",
+    };
+    const result = formatBehavioralSummary(summary);
+    expect(result).toContain("⚪");
+  });
+
+  it("summary with all 5 change types at once", () => {
+    const allFive: BehavioralSummaryType = {
+      headline: "Full spectrum changes",
+      changes: [
+        { type: "added", area: "a", description: "New feature", impact: "high", files: ["a.ts"] },
+        { type: "removed", area: "b", description: "Old feature gone", impact: "high", files: ["b.ts"] },
+        { type: "replaced", area: "c", description: "Swapped implementation", impact: "medium", files: ["c.ts"] },
+        { type: "modified", area: "d", description: "Behavior changed", impact: "medium", files: ["d.ts"] },
+        { type: "refactored", area: "e", description: "Same result new code", impact: "low", files: ["e.ts"] },
+      ],
+      riskAreas: ["Integration", "Regression"],
+      testingFocus: "All paths",
+    };
+    const result = formatBehavioralSummary(allFive);
+    expect(result).toContain("🟢");
+    expect(result).toContain("🔴");
+    expect(result).toContain("🟡");
+    expect(result).toContain("⚪");
+    // Two white circles for modified + refactored
+    const whiteCount = (result.match(/⚪/g) || []).length;
+    expect(whiteCount).toBe(2);
+  });
+
+  it("ends output with closing details tag", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result.trimEnd()).toMatch(/<\/details>\s*$/);
+  });
+
+  it("formats area name in italics", () => {
+    const result = formatBehavioralSummary(sampleSummary);
+    expect(result).toContain("*authentication*");
+    expect(result).toContain("*security*");
+    expect(result).toContain("*error handling*");
   });
 });

@@ -89,6 +89,7 @@ vi.mock("../config.js", () => ({
     reviewCache: true,
     findingDedup: true,
     pipelineParallel: true,
+    reviewDashboard: true,
   })),
 }));
 

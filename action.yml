@@ -287,6 +287,11 @@ defense_framework:
     default: "true"
 
 
+  review_dashboard:
+    description: "Enable review metrics dashboard — generates a standalone HTML dashboard with review quality trends, acceptance rates, severity distribution, risk score trends, provider usage, and suppressed patterns. No AI code reviewer provides a review dashboard."
+    required: false
+    default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

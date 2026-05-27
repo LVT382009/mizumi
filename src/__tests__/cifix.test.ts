@@ -120,6 +120,7 @@ const testConfig = {
     reviewCache: true,
     findingDedup: true,
     pipelineParallel: true,
+    reviewDashboard: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

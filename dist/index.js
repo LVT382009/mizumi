@@ -34868,6 +34868,7 @@ function loadConfig() {
     const reviewCache = getInput("review_cache") !== "false"; // default true
     const findingDedup = getInput("finding_dedup") !== "false"; // default true
     const pipelineParallel = getInput("pipeline_parallel") !== "false"; // default true
+    const reviewDashboard = getInput("review_dashboard") !== "false"; // default true
     let securityPaths = [...DEFAULT_SECURITY_PATHS];
     const configPath = path$1.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
     let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -34989,6 +34990,7 @@ function loadConfig() {
         reviewCache,
         findingDedup,
         pipelineParallel,
+        reviewDashboard,
     };
 }
 /**
