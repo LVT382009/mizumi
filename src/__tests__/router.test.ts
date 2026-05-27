@@ -74,6 +74,7 @@ const baseConfig: MizumiConfig = {
     architectureDriftDetection: true,
     testAssertionAudit: true,
 breakingChangeRadar: true,
+importCycleDetector: true,
 };
 
 describe("classifyDiff", () => {

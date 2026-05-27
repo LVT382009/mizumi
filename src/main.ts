@@ -83,6 +83,7 @@ import { detectCrossPRConflicts, buildOpenPRSummary } from "./crosspr-conflict.j
 import { detectArchitectureDrift, loadArchitectureModel } from "./architecture-drift.js";
 import { auditTestAssertions } from "./test-assertion-audit.js";
 import { detectBreakingChanges } from "./breaking-change-radar.js";
+import { detectImportCycles } from "./import-cycle-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -451,6 +452,18 @@ core.info("Breaking change radar: " + breakingChangeResult.changes.length + " de
 core.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
 }
 }
+// 4a3g. Import cycle detector — detect circular dependency chains
+let importCycleResult: import("./import-cycle-detector.js").CycleDetectionResult | null = null;
+if (config.importCycleDetector) {
+ try {
+ importCycleResult = detectImportCycles(diff.files);
+ if (importCycleResult.cycles.length > 0) {
+ core.info("Import cycle detection: " + importCycleResult.cycles.length + " cycle(s) detected");
+ }
+ } catch (e) {
+ core.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -804,6 +817,10 @@ if (assertionAuditResult && assertionAuditResult.contextText) {
 // 5c2f. Breaking change radar context injection
 if (breakingChangeResult && breakingChangeResult.contextText) {
   context.rulesContent += "\n\n" + breakingChangeResult.contextText;
+}
+// 5c2g. Import cycle detector context injection
+if (importCycleResult && importCycleResult.contextText) {
+  context.rulesContent += "\n\n" + importCycleResult.contextText;
 }
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
@@ -1544,6 +1561,17 @@ if (breakingChangeResult && breakingChangeResult.bodySummary) {
  core.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
  }
 }
+// Post import cycle detection summary as a separate comment
+if (importCycleResult && importCycleResult.bodySummary) {
+ try {
+ await octokit.rest.issues.createComment({
+ owner, repo, issue_number: prNumber, body: importCycleResult.bodySummary,
+ });
+ } catch (e) {
+ core.warning("Import cycle detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+}
+
 
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
@@ -1690,6 +1718,7 @@ if (config.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0
 if (config.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
 if (config.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
 if (config.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0, true);
+if (config.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

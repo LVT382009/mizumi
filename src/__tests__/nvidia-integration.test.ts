@@ -92,6 +92,7 @@ const makeNvidiaConfig = (overrides?: Partial<MizumiConfig>): MizumiConfig => ({
     architectureDriftDetection: true,
     testAssertionAudit: true,
 breakingChangeRadar: true,
+importCycleDetector: true,
   ...overrides,
 });
 

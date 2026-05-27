@@ -128,6 +128,7 @@ const testConfig = {
     architectureDriftDetection: true,
     testAssertionAudit: true,
 breakingChangeRadar: true,
+importCycleDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

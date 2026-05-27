@@ -170,6 +170,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     architectureDriftDetection: true,
     testAssertionAudit: true,
 breakingChangeRadar: true,
+importCycleDetector: true,
     ...overrides,
   };
 }

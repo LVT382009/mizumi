@@ -294,6 +294,7 @@ describe("runSwarmReview", () => {
     architectureDriftDetection: true,
     testAssertionAudit: true,
 breakingChangeRadar: true,
+importCycleDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

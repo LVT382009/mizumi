@@ -2276,17 +2276,17 @@ var require_parse = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports._safeDecodeAsync = exports.safeEncodeAsync = exports._safeEncodeAsync = exports.safeDecode = exports._safeDecode = exports.safeEncode = exports._safeEncode = exports.decodeAsync = exports._decodeAsync = exports.encodeAsync = exports._encodeAsync = exports.decode = exports._decode = exports.encode = exports._encode = exports.safeParseAsync = exports._safeParseAsync = exports.safeParse = exports._safeParse = exports.parseAsync = exports._parseAsync = exports.parse = exports._parse = void 0;
-    var core50 = __importStar(require_core());
+    var core51 = __importStar(require_core());
     var errors = __importStar(require_errors());
     var util2 = __importStar(require_util());
     var _parse3 = (_Err) => (schema, value, _ctx, _params) => {
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core50.$ZodAsyncError();
+        throw new core51.$ZodAsyncError();
       }
       if (result.issues.length) {
-        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())));
+        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())));
         util2.captureStackTrace(e, _params?.callee);
         throw e;
       }
@@ -2300,7 +2300,7 @@ var require_parse = __commonJS({
       if (result instanceof Promise)
         result = await result;
       if (result.issues.length) {
-        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())));
+        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())));
         util2.captureStackTrace(e, params?.callee);
         throw e;
       }
@@ -2312,11 +2312,11 @@ var require_parse = __commonJS({
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core50.$ZodAsyncError();
+        throw new core51.$ZodAsyncError();
       }
       return result.issues.length ? {
         success: false,
-        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())))
+        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParse = _safeParse2;
@@ -2328,7 +2328,7 @@ var require_parse = __commonJS({
         result = await result;
       return result.issues.length ? {
         success: false,
-        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())))
+        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParseAsync = _safeParseAsync2;
@@ -2554,10 +2554,10 @@ var require_checks = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.$ZodCheckOverwrite = exports.$ZodCheckMimeType = exports.$ZodCheckProperty = exports.$ZodCheckEndsWith = exports.$ZodCheckStartsWith = exports.$ZodCheckIncludes = exports.$ZodCheckUpperCase = exports.$ZodCheckLowerCase = exports.$ZodCheckRegex = exports.$ZodCheckStringFormat = exports.$ZodCheckLengthEquals = exports.$ZodCheckMinLength = exports.$ZodCheckMaxLength = exports.$ZodCheckSizeEquals = exports.$ZodCheckMinSize = exports.$ZodCheckMaxSize = exports.$ZodCheckBigIntFormat = exports.$ZodCheckNumberFormat = exports.$ZodCheckMultipleOf = exports.$ZodCheckGreaterThan = exports.$ZodCheckLessThan = exports.$ZodCheck = void 0;
-    var core50 = __importStar(require_core());
+    var core51 = __importStar(require_core());
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
-    exports.$ZodCheck = core50.$constructor("$ZodCheck", (inst, def) => {
+    exports.$ZodCheck = core51.$constructor("$ZodCheck", (inst, def) => {
       var _a21;
       inst._zod ?? (inst._zod = {});
       inst._zod.def = def;
@@ -2568,7 +2568,7 @@ var require_checks = __commonJS({
       bigint: "bigint",
       object: "date"
     };
-    exports.$ZodCheckLessThan = core50.$constructor("$ZodCheckLessThan", (inst, def) => {
+    exports.$ZodCheckLessThan = core51.$constructor("$ZodCheckLessThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -2596,7 +2596,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckGreaterThan = core50.$constructor("$ZodCheckGreaterThan", (inst, def) => {
+    exports.$ZodCheckGreaterThan = core51.$constructor("$ZodCheckGreaterThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -2624,7 +2624,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core50.$constructor("$ZodCheckMultipleOf", (inst, def) => {
+    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core51.$constructor("$ZodCheckMultipleOf", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
         var _a21;
@@ -2646,7 +2646,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckNumberFormat = core50.$constructor("$ZodCheckNumberFormat", (inst, def) => {
+    exports.$ZodCheckNumberFormat = core51.$constructor("$ZodCheckNumberFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       def.format = def.format || "float64";
       const isInt = def.format?.includes("int");
@@ -2725,7 +2725,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckBigIntFormat = core50.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
+    exports.$ZodCheckBigIntFormat = core51.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const [minimum, maximum] = util2.BIGINT_FORMAT_RANGES[def.format];
       inst._zod.onattach.push((inst2) => {
@@ -2760,7 +2760,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckMaxSize = core50.$constructor("$ZodCheckMaxSize", (inst, def) => {
+    exports.$ZodCheckMaxSize = core51.$constructor("$ZodCheckMaxSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2788,7 +2788,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinSize = core50.$constructor("$ZodCheckMinSize", (inst, def) => {
+    exports.$ZodCheckMinSize = core51.$constructor("$ZodCheckMinSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2816,7 +2816,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckSizeEquals = core50.$constructor("$ZodCheckSizeEquals", (inst, def) => {
+    exports.$ZodCheckSizeEquals = core51.$constructor("$ZodCheckSizeEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2846,7 +2846,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMaxLength = core50.$constructor("$ZodCheckMaxLength", (inst, def) => {
+    exports.$ZodCheckMaxLength = core51.$constructor("$ZodCheckMaxLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2875,7 +2875,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinLength = core50.$constructor("$ZodCheckMinLength", (inst, def) => {
+    exports.$ZodCheckMinLength = core51.$constructor("$ZodCheckMinLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2904,7 +2904,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLengthEquals = core50.$constructor("$ZodCheckLengthEquals", (inst, def) => {
+    exports.$ZodCheckLengthEquals = core51.$constructor("$ZodCheckLengthEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -2935,7 +2935,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStringFormat = core50.$constructor("$ZodCheckStringFormat", (inst, def) => {
+    exports.$ZodCheckStringFormat = core51.$constructor("$ZodCheckStringFormat", (inst, def) => {
       var _a21, _b17;
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
@@ -2965,7 +2965,7 @@ var require_checks = __commonJS({
         (_b17 = inst._zod).check ?? (_b17.check = () => {
         });
     });
-    exports.$ZodCheckRegex = core50.$constructor("$ZodCheckRegex", (inst, def) => {
+    exports.$ZodCheckRegex = core51.$constructor("$ZodCheckRegex", (inst, def) => {
       exports.$ZodCheckStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         def.pattern.lastIndex = 0;
@@ -2982,15 +2982,15 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLowerCase = core50.$constructor("$ZodCheckLowerCase", (inst, def) => {
+    exports.$ZodCheckLowerCase = core51.$constructor("$ZodCheckLowerCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.lowercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckUpperCase = core50.$constructor("$ZodCheckUpperCase", (inst, def) => {
+    exports.$ZodCheckUpperCase = core51.$constructor("$ZodCheckUpperCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.uppercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckIncludes = core50.$constructor("$ZodCheckIncludes", (inst, def) => {
+    exports.$ZodCheckIncludes = core51.$constructor("$ZodCheckIncludes", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const escapedRegex = util2.escapeRegex(def.includes);
       const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position}}${escapedRegex}` : escapedRegex);
@@ -3014,7 +3014,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStartsWith = core50.$constructor("$ZodCheckStartsWith", (inst, def) => {
+    exports.$ZodCheckStartsWith = core51.$constructor("$ZodCheckStartsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`^${util2.escapeRegex(def.prefix)}.*`);
       def.pattern ?? (def.pattern = pattern);
@@ -3037,7 +3037,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckEndsWith = core50.$constructor("$ZodCheckEndsWith", (inst, def) => {
+    exports.$ZodCheckEndsWith = core51.$constructor("$ZodCheckEndsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`.*${util2.escapeRegex(def.suffix)}$`);
       def.pattern ?? (def.pattern = pattern);
@@ -3065,7 +3065,7 @@ var require_checks = __commonJS({
         payload.issues.push(...util2.prefixIssues(property, result.issues));
       }
     }
-    exports.$ZodCheckProperty = core50.$constructor("$ZodCheckProperty", (inst, def) => {
+    exports.$ZodCheckProperty = core51.$constructor("$ZodCheckProperty", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         const result = def.schema._zod.run({
@@ -3079,7 +3079,7 @@ var require_checks = __commonJS({
         return;
       };
     });
-    exports.$ZodCheckMimeType = core50.$constructor("$ZodCheckMimeType", (inst, def) => {
+    exports.$ZodCheckMimeType = core51.$constructor("$ZodCheckMimeType", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const mimeSet = new Set(def.mime);
       inst._zod.onattach.push((inst2) => {
@@ -3097,7 +3097,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckOverwrite = core50.$constructor("$ZodCheckOverwrite", (inst, def) => {
+    exports.$ZodCheckOverwrite = core51.$constructor("$ZodCheckOverwrite", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         payload.value = def.tx(payload.value);
@@ -3202,13 +3202,13 @@ var require_schemas = __commonJS({
     exports.isValidBase64URL = isValidBase64URL2;
     exports.isValidJWT = isValidJWT3;
     var checks = __importStar(require_checks());
-    var core50 = __importStar(require_core());
+    var core51 = __importStar(require_core());
     var doc_js_1 = require_doc();
     var parse_js_1 = require_parse();
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
     var versions_js_1 = require_versions();
-    exports.$ZodType = core50.$constructor("$ZodType", (inst, def) => {
+    exports.$ZodType = core51.$constructor("$ZodType", (inst, def) => {
       var _a21;
       inst ?? (inst = {});
       inst._zod.def = def;
@@ -3245,7 +3245,7 @@ var require_schemas = __commonJS({
             const currLen = payload.issues.length;
             const _ = ch._zod.check(payload);
             if (_ instanceof Promise && ctx?.async === false) {
-              throw new core50.$ZodAsyncError();
+              throw new core51.$ZodAsyncError();
             }
             if (asyncResult || _ instanceof Promise) {
               asyncResult = (asyncResult ?? Promise.resolve()).then(async () => {
@@ -3279,7 +3279,7 @@ var require_schemas = __commonJS({
           const checkResult = runChecks(payload, checks2, ctx);
           if (checkResult instanceof Promise) {
             if (ctx.async === false)
-              throw new core50.$ZodAsyncError();
+              throw new core51.$ZodAsyncError();
             return checkResult.then((checkResult2) => inst._zod.parse(checkResult2, ctx));
           }
           return inst._zod.parse(checkResult, ctx);
@@ -3300,7 +3300,7 @@ var require_schemas = __commonJS({
           const result = inst._zod.parse(payload, ctx);
           if (result instanceof Promise) {
             if (ctx.async === false)
-              throw new core50.$ZodAsyncError();
+              throw new core51.$ZodAsyncError();
             return result.then((result2) => runChecks(result2, checks2, ctx));
           }
           return runChecks(result, checks2, ctx);
@@ -3323,7 +3323,7 @@ var require_schemas = __commonJS({
     Object.defineProperty(exports, "clone", { enumerable: true, get: function() {
       return util_js_1.clone;
     } });
-    exports.$ZodString = core50.$constructor("$ZodString", (inst, def) => {
+    exports.$ZodString = core51.$constructor("$ZodString", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? regexes.string(inst._zod.bag);
       inst._zod.parse = (payload, _) => {
@@ -3343,15 +3343,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodStringFormat = core50.$constructor("$ZodStringFormat", (inst, def) => {
+    exports.$ZodStringFormat = core51.$constructor("$ZodStringFormat", (inst, def) => {
       checks.$ZodCheckStringFormat.init(inst, def);
       exports.$ZodString.init(inst, def);
     });
-    exports.$ZodGUID = core50.$constructor("$ZodGUID", (inst, def) => {
+    exports.$ZodGUID = core51.$constructor("$ZodGUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.guid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodUUID = core50.$constructor("$ZodUUID", (inst, def) => {
+    exports.$ZodUUID = core51.$constructor("$ZodUUID", (inst, def) => {
       if (def.version) {
         const versionMap = {
           v1: 1,
@@ -3371,11 +3371,11 @@ var require_schemas = __commonJS({
         def.pattern ?? (def.pattern = regexes.uuid());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodEmail = core50.$constructor("$ZodEmail", (inst, def) => {
+    exports.$ZodEmail = core51.$constructor("$ZodEmail", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.email);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodURL = core50.$constructor("$ZodURL", (inst, def) => {
+    exports.$ZodURL = core51.$constructor("$ZodURL", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         try {
@@ -3439,56 +3439,56 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodEmoji = core50.$constructor("$ZodEmoji", (inst, def) => {
+    exports.$ZodEmoji = core51.$constructor("$ZodEmoji", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.emoji());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodNanoID = core50.$constructor("$ZodNanoID", (inst, def) => {
+    exports.$ZodNanoID = core51.$constructor("$ZodNanoID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.nanoid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID = core50.$constructor("$ZodCUID", (inst, def) => {
+    exports.$ZodCUID = core51.$constructor("$ZodCUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID2 = core50.$constructor("$ZodCUID2", (inst, def) => {
+    exports.$ZodCUID2 = core51.$constructor("$ZodCUID2", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid2);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodULID = core50.$constructor("$ZodULID", (inst, def) => {
+    exports.$ZodULID = core51.$constructor("$ZodULID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ulid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodXID = core50.$constructor("$ZodXID", (inst, def) => {
+    exports.$ZodXID = core51.$constructor("$ZodXID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.xid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodKSUID = core50.$constructor("$ZodKSUID", (inst, def) => {
+    exports.$ZodKSUID = core51.$constructor("$ZodKSUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ksuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODateTime = core50.$constructor("$ZodISODateTime", (inst, def) => {
+    exports.$ZodISODateTime = core51.$constructor("$ZodISODateTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.datetime(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODate = core50.$constructor("$ZodISODate", (inst, def) => {
+    exports.$ZodISODate = core51.$constructor("$ZodISODate", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.date);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISOTime = core50.$constructor("$ZodISOTime", (inst, def) => {
+    exports.$ZodISOTime = core51.$constructor("$ZodISOTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.time(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODuration = core50.$constructor("$ZodISODuration", (inst, def) => {
+    exports.$ZodISODuration = core51.$constructor("$ZodISODuration", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.duration);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodIPv4 = core50.$constructor("$ZodIPv4", (inst, def) => {
+    exports.$ZodIPv4 = core51.$constructor("$ZodIPv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv4);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv4`;
     });
-    exports.$ZodIPv6 = core50.$constructor("$ZodIPv6", (inst, def) => {
+    exports.$ZodIPv6 = core51.$constructor("$ZodIPv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv6`;
@@ -3506,16 +3506,16 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodMAC = core50.$constructor("$ZodMAC", (inst, def) => {
+    exports.$ZodMAC = core51.$constructor("$ZodMAC", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.mac(def.delimiter));
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `mac`;
     });
-    exports.$ZodCIDRv4 = core50.$constructor("$ZodCIDRv4", (inst, def) => {
+    exports.$ZodCIDRv4 = core51.$constructor("$ZodCIDRv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv4);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCIDRv6 = core50.$constructor("$ZodCIDRv6", (inst, def) => {
+    exports.$ZodCIDRv6 = core51.$constructor("$ZodCIDRv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
@@ -3557,7 +3557,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodBase64 = core50.$constructor("$ZodBase64", (inst, def) => {
+    exports.$ZodBase64 = core51.$constructor("$ZodBase64", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64";
@@ -3580,7 +3580,7 @@ var require_schemas = __commonJS({
       const padded = base643.padEnd(Math.ceil(base643.length / 4) * 4, "=");
       return isValidBase642(padded);
     }
-    exports.$ZodBase64URL = core50.$constructor("$ZodBase64URL", (inst, def) => {
+    exports.$ZodBase64URL = core51.$constructor("$ZodBase64URL", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64url);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64url";
@@ -3596,7 +3596,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodE164 = core50.$constructor("$ZodE164", (inst, def) => {
+    exports.$ZodE164 = core51.$constructor("$ZodE164", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.e164);
       exports.$ZodStringFormat.init(inst, def);
     });
@@ -3620,7 +3620,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodJWT = core50.$constructor("$ZodJWT", (inst, def) => {
+    exports.$ZodJWT = core51.$constructor("$ZodJWT", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (isValidJWT3(payload.value, def.alg))
@@ -3634,7 +3634,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodCustomStringFormat = core50.$constructor("$ZodCustomStringFormat", (inst, def) => {
+    exports.$ZodCustomStringFormat = core51.$constructor("$ZodCustomStringFormat", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (def.fn(payload.value))
@@ -3648,7 +3648,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodNumber = core50.$constructor("$ZodNumber", (inst, def) => {
+    exports.$ZodNumber = core51.$constructor("$ZodNumber", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = inst._zod.bag.pattern ?? regexes.number;
       inst._zod.parse = (payload, _ctx) => {
@@ -3672,11 +3672,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNumberFormat = core50.$constructor("$ZodNumberFormat", (inst, def) => {
+    exports.$ZodNumberFormat = core51.$constructor("$ZodNumberFormat", (inst, def) => {
       checks.$ZodCheckNumberFormat.init(inst, def);
       exports.$ZodNumber.init(inst, def);
     });
-    exports.$ZodBoolean = core50.$constructor("$ZodBoolean", (inst, def) => {
+    exports.$ZodBoolean = core51.$constructor("$ZodBoolean", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.boolean;
       inst._zod.parse = (payload, _ctx) => {
@@ -3697,7 +3697,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigInt = core50.$constructor("$ZodBigInt", (inst, def) => {
+    exports.$ZodBigInt = core51.$constructor("$ZodBigInt", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.bigint;
       inst._zod.parse = (payload, _ctx) => {
@@ -3717,11 +3717,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigIntFormat = core50.$constructor("$ZodBigIntFormat", (inst, def) => {
+    exports.$ZodBigIntFormat = core51.$constructor("$ZodBigIntFormat", (inst, def) => {
       checks.$ZodCheckBigIntFormat.init(inst, def);
       exports.$ZodBigInt.init(inst, def);
     });
-    exports.$ZodSymbol = core50.$constructor("$ZodSymbol", (inst, def) => {
+    exports.$ZodSymbol = core51.$constructor("$ZodSymbol", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -3736,7 +3736,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodUndefined = core50.$constructor("$ZodUndefined", (inst, def) => {
+    exports.$ZodUndefined = core51.$constructor("$ZodUndefined", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.undefined;
       inst._zod.values = /* @__PURE__ */ new Set([void 0]);
@@ -3753,7 +3753,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNull = core50.$constructor("$ZodNull", (inst, def) => {
+    exports.$ZodNull = core51.$constructor("$ZodNull", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.null;
       inst._zod.values = /* @__PURE__ */ new Set([null]);
@@ -3770,15 +3770,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodAny = core50.$constructor("$ZodAny", (inst, def) => {
+    exports.$ZodAny = core51.$constructor("$ZodAny", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodUnknown = core50.$constructor("$ZodUnknown", (inst, def) => {
+    exports.$ZodUnknown = core51.$constructor("$ZodUnknown", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodNever = core50.$constructor("$ZodNever", (inst, def) => {
+    exports.$ZodNever = core51.$constructor("$ZodNever", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         payload.issues.push({
@@ -3790,7 +3790,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodVoid = core50.$constructor("$ZodVoid", (inst, def) => {
+    exports.$ZodVoid = core51.$constructor("$ZodVoid", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -3805,7 +3805,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodDate = core50.$constructor("$ZodDate", (inst, def) => {
+    exports.$ZodDate = core51.$constructor("$ZodDate", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (def.coerce) {
@@ -3835,7 +3835,7 @@ var require_schemas = __commonJS({
       }
       final.value[index] = result.value;
     }
-    exports.$ZodArray = core50.$constructor("$ZodArray", (inst, def) => {
+    exports.$ZodArray = core51.$constructor("$ZodArray", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -3948,7 +3948,7 @@ var require_schemas = __commonJS({
         return payload;
       });
     }
-    exports.$ZodObject = core50.$constructor("$ZodObject", (inst, def) => {
+    exports.$ZodObject = core51.$constructor("$ZodObject", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const desc = Object.getOwnPropertyDescriptor(def, "shape");
       if (!desc?.get) {
@@ -4012,7 +4012,7 @@ var require_schemas = __commonJS({
         return handleCatchall2(proms, input, payload, ctx, _normalized.value, inst);
       };
     });
-    exports.$ZodObjectJIT = core50.$constructor("$ZodObjectJIT", (inst, def) => {
+    exports.$ZodObjectJIT = core51.$constructor("$ZodObjectJIT", (inst, def) => {
       exports.$ZodObject.init(inst, def);
       const superParse = inst._zod.parse;
       const _normalized = util2.cached(() => normalizeDef2(def));
@@ -4111,7 +4111,7 @@ var require_schemas = __commonJS({
       };
       let fastpass;
       const isObject2 = util2.isObject;
-      const jit = !core50.globalConfig.jitless;
+      const jit = !core51.globalConfig.jitless;
       const allowsEval2 = util2.allowsEval;
       const fastEnabled = jit && allowsEval2.value;
       const catchall = def.catchall;
@@ -4155,11 +4155,11 @@ var require_schemas = __commonJS({
         code: "invalid_union",
         input: final.value,
         inst,
-        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())))
+        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())))
       });
       return final;
     }
-    exports.$ZodUnion = core50.$constructor("$ZodUnion", (inst, def) => {
+    exports.$ZodUnion = core51.$constructor("$ZodUnion", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.options.some((o) => o._zod.optin === "optional") ? "optional" : void 0);
       util2.defineLazy(inst._zod, "optout", () => def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
@@ -4215,7 +4215,7 @@ var require_schemas = __commonJS({
           code: "invalid_union",
           input: final.value,
           inst,
-          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())))
+          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())))
         });
       } else {
         final.issues.push({
@@ -4228,7 +4228,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodXor = core50.$constructor("$ZodXor", (inst, def) => {
+    exports.$ZodXor = core51.$constructor("$ZodXor", (inst, def) => {
       exports.$ZodUnion.init(inst, def);
       def.inclusive = false;
       const first = def.options.length === 1 ? def.options[0]._zod.run : null;
@@ -4257,7 +4257,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core50.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
+    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core51.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
       def.inclusive = false;
       exports.$ZodUnion.init(inst, def);
       const _super = inst._zod.parse;
@@ -4324,7 +4324,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodIntersection = core50.$constructor("$ZodIntersection", (inst, def) => {
+    exports.$ZodIntersection = core51.$constructor("$ZodIntersection", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -4422,7 +4422,7 @@ var require_schemas = __commonJS({
       result.value = merged.data;
       return result;
     }
-    exports.$ZodTuple = core50.$constructor("$ZodTuple", (inst, def) => {
+    exports.$ZodTuple = core51.$constructor("$ZodTuple", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const items = def.items;
       inst._zod.parse = (payload, ctx) => {
@@ -4528,7 +4528,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodRecord = core50.$constructor("$ZodRecord", (inst, def) => {
+    exports.$ZodRecord = core51.$constructor("$ZodRecord", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -4557,7 +4557,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())),
                   input: key,
                   path: [key],
                   inst
@@ -4624,7 +4624,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config())),
                   input: key,
                   path: [key],
                   inst
@@ -4654,7 +4654,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodMap = core50.$constructor("$ZodMap", (inst, def) => {
+    exports.$ZodMap = core51.$constructor("$ZodMap", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -4695,7 +4695,7 @@ var require_schemas = __commonJS({
             origin: "map",
             input,
             inst,
-            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config()))
+            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config()))
           });
         }
       }
@@ -4709,13 +4709,13 @@ var require_schemas = __commonJS({
             input,
             inst,
             key,
-            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config()))
+            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config()))
           });
         }
       }
       final.value.set(keyResult.value, valueResult.value);
     }
-    exports.$ZodSet = core50.$constructor("$ZodSet", (inst, def) => {
+    exports.$ZodSet = core51.$constructor("$ZodSet", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -4748,7 +4748,7 @@ var require_schemas = __commonJS({
       }
       final.value.add(result.value);
     }
-    exports.$ZodEnum = core50.$constructor("$ZodEnum", (inst, def) => {
+    exports.$ZodEnum = core51.$constructor("$ZodEnum", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const values = util2.getEnumValues(def.entries);
       const valuesSet = new Set(values);
@@ -4768,7 +4768,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodLiteral = core50.$constructor("$ZodLiteral", (inst, def) => {
+    exports.$ZodLiteral = core51.$constructor("$ZodLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       if (def.values.length === 0) {
         throw new Error("Cannot create literal schema with no valid values");
@@ -4790,7 +4790,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFile = core50.$constructor("$ZodFile", (inst, def) => {
+    exports.$ZodFile = core51.$constructor("$ZodFile", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -4805,12 +4805,12 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodTransform = core50.$constructor("$ZodTransform", (inst, def) => {
+    exports.$ZodTransform = core51.$constructor("$ZodTransform", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core50.$ZodEncodeError(inst.constructor.name);
+          throw new core51.$ZodEncodeError(inst.constructor.name);
         }
         const _out = def.transform(payload.value, payload);
         if (ctx.async) {
@@ -4822,7 +4822,7 @@ var require_schemas = __commonJS({
           });
         }
         if (_out instanceof Promise) {
-          throw new core50.$ZodAsyncError();
+          throw new core51.$ZodAsyncError();
         }
         payload.value = _out;
         payload.fallback = true;
@@ -4835,7 +4835,7 @@ var require_schemas = __commonJS({
       }
       return result;
     }
-    exports.$ZodOptional = core50.$constructor("$ZodOptional", (inst, def) => {
+    exports.$ZodOptional = core51.$constructor("$ZodOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.optout = "optional";
@@ -4860,7 +4860,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodExactOptional = core50.$constructor("$ZodExactOptional", (inst, def) => {
+    exports.$ZodExactOptional = core51.$constructor("$ZodExactOptional", (inst, def) => {
       exports.$ZodOptional.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
       util2.defineLazy(inst._zod, "pattern", () => def.innerType._zod.pattern);
@@ -4868,7 +4868,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNullable = core50.$constructor("$ZodNullable", (inst, def) => {
+    exports.$ZodNullable = core51.$constructor("$ZodNullable", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.innerType._zod.optin);
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -4885,7 +4885,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodDefault = core50.$constructor("$ZodDefault", (inst, def) => {
+    exports.$ZodDefault = core51.$constructor("$ZodDefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -4910,7 +4910,7 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodPrefault = core50.$constructor("$ZodPrefault", (inst, def) => {
+    exports.$ZodPrefault = core51.$constructor("$ZodPrefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -4924,7 +4924,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNonOptional = core50.$constructor("$ZodNonOptional", (inst, def) => {
+    exports.$ZodNonOptional = core51.$constructor("$ZodNonOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => {
         const v = def.innerType._zod.values;
@@ -4949,11 +4949,11 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodSuccess = core50.$constructor("$ZodSuccess", (inst, def) => {
+    exports.$ZodSuccess = core51.$constructor("$ZodSuccess", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core50.$ZodEncodeError("ZodSuccess");
+          throw new core51.$ZodEncodeError("ZodSuccess");
         }
         const result = def.innerType._zod.run(payload, ctx);
         if (result instanceof Promise) {
@@ -4966,7 +4966,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodCatch = core50.$constructor("$ZodCatch", (inst, def) => {
+    exports.$ZodCatch = core51.$constructor("$ZodCatch", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -4983,7 +4983,7 @@ var require_schemas = __commonJS({
               payload.value = def.catchValue({
                 ...payload,
                 error: {
-                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config()))
+                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config()))
                 },
                 input: payload.value
               });
@@ -4998,7 +4998,7 @@ var require_schemas = __commonJS({
           payload.value = def.catchValue({
             ...payload,
             error: {
-              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core50.config()))
+              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core51.config()))
             },
             input: payload.value
           });
@@ -5008,7 +5008,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNaN = core50.$constructor("$ZodNaN", (inst, def) => {
+    exports.$ZodNaN = core51.$constructor("$ZodNaN", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (typeof payload.value !== "number" || !Number.isNaN(payload.value)) {
@@ -5023,7 +5023,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodPipe = core50.$constructor("$ZodPipe", (inst, def) => {
+    exports.$ZodPipe = core51.$constructor("$ZodPipe", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -5051,7 +5051,7 @@ var require_schemas = __commonJS({
       }
       return next._zod.run({ value: left.value, issues: left.issues, fallback: left.fallback }, ctx);
     }
-    exports.$ZodCodec = core50.$constructor("$ZodCodec", (inst, def) => {
+    exports.$ZodCodec = core51.$constructor("$ZodCodec", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -5101,10 +5101,10 @@ var require_schemas = __commonJS({
       }
       return nextSchema._zod.run({ value, issues: left.issues }, ctx);
     }
-    exports.$ZodPreprocess = core50.$constructor("$ZodPreprocess", (inst, def) => {
+    exports.$ZodPreprocess = core51.$constructor("$ZodPreprocess", (inst, def) => {
       exports.$ZodPipe.init(inst, def);
     });
-    exports.$ZodReadonly = core50.$constructor("$ZodReadonly", (inst, def) => {
+    exports.$ZodReadonly = core51.$constructor("$ZodReadonly", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "propValues", () => def.innerType._zod.propValues);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -5125,7 +5125,7 @@ var require_schemas = __commonJS({
       payload.value = Object.freeze(payload.value);
       return payload;
     }
-    exports.$ZodTemplateLiteral = core50.$constructor("$ZodTemplateLiteral", (inst, def) => {
+    exports.$ZodTemplateLiteral = core51.$constructor("$ZodTemplateLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const regexParts = [];
       for (const part of def.parts) {
@@ -5170,7 +5170,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFunction = core50.$constructor("$ZodFunction", (inst, def) => {
+    exports.$ZodFunction = core51.$constructor("$ZodFunction", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._def = def;
       inst._zod.def = def;
@@ -5247,13 +5247,13 @@ var require_schemas = __commonJS({
       };
       return inst;
     });
-    exports.$ZodPromise = core50.$constructor("$ZodPromise", (inst, def) => {
+    exports.$ZodPromise = core51.$constructor("$ZodPromise", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         return Promise.resolve(payload.value).then((inner) => def.innerType._zod.run({ value: inner, issues: [] }, ctx));
       };
     });
-    exports.$ZodLazy = core50.$constructor("$ZodLazy", (inst, def) => {
+    exports.$ZodLazy = core51.$constructor("$ZodLazy", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "innerType", () => {
         const d = def;
@@ -5270,7 +5270,7 @@ var require_schemas = __commonJS({
         return inner._zod.run(payload, ctx);
       };
     });
-    exports.$ZodCustom = core50.$constructor("$ZodCustom", (inst, def) => {
+    exports.$ZodCustom = core51.$constructor("$ZodCustom", (inst, def) => {
       checks.$ZodCheck.init(inst, def);
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _) => {
@@ -15759,35 +15759,35 @@ var require_iso = __commonJS({
     exports.date = date5;
     exports.time = time3;
     exports.duration = duration3;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
-    exports.ZodISODateTime = core50.$constructor("ZodISODateTime", (inst, def) => {
-      core50.$ZodISODateTime.init(inst, def);
+    exports.ZodISODateTime = core51.$constructor("ZodISODateTime", (inst, def) => {
+      core51.$ZodISODateTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function datetime3(params) {
-      return core50._isoDateTime(exports.ZodISODateTime, params);
+      return core51._isoDateTime(exports.ZodISODateTime, params);
     }
-    exports.ZodISODate = core50.$constructor("ZodISODate", (inst, def) => {
-      core50.$ZodISODate.init(inst, def);
+    exports.ZodISODate = core51.$constructor("ZodISODate", (inst, def) => {
+      core51.$ZodISODate.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function date5(params) {
-      return core50._isoDate(exports.ZodISODate, params);
+      return core51._isoDate(exports.ZodISODate, params);
     }
-    exports.ZodISOTime = core50.$constructor("ZodISOTime", (inst, def) => {
-      core50.$ZodISOTime.init(inst, def);
+    exports.ZodISOTime = core51.$constructor("ZodISOTime", (inst, def) => {
+      core51.$ZodISOTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function time3(params) {
-      return core50._isoTime(exports.ZodISOTime, params);
+      return core51._isoTime(exports.ZodISOTime, params);
     }
-    exports.ZodISODuration = core50.$constructor("ZodISODuration", (inst, def) => {
-      core50.$ZodISODuration.init(inst, def);
+    exports.ZodISODuration = core51.$constructor("ZodISODuration", (inst, def) => {
+      core51.$ZodISODuration.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function duration3(params) {
-      return core50._isoDuration(exports.ZodISODuration, params);
+      return core51._isoDuration(exports.ZodISODuration, params);
     }
   }
 });
@@ -15825,7 +15825,7 @@ var require_errors2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ZodRealError = exports.ZodError = void 0;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var util2 = __importStar(require_util());
     var initializer3 = (inst, issues) => {
@@ -15833,11 +15833,11 @@ var require_errors2 = __commonJS({
       inst.name = "ZodError";
       Object.defineProperties(inst, {
         format: {
-          value: (mapper) => core50.formatError(inst, mapper)
+          value: (mapper) => core51.formatError(inst, mapper)
           // enumerable: false,
         },
         flatten: {
-          value: (mapper) => core50.flattenError(inst, mapper)
+          value: (mapper) => core51.flattenError(inst, mapper)
           // enumerable: false,
         },
         addIssue: {
@@ -15862,8 +15862,8 @@ var require_errors2 = __commonJS({
         }
       });
     };
-    exports.ZodError = core50.$constructor("ZodError", initializer3);
-    exports.ZodRealError = core50.$constructor("ZodError", initializer3, {
+    exports.ZodError = core51.$constructor("ZodError", initializer3);
+    exports.ZodRealError = core51.$constructor("ZodError", initializer3, {
       Parent: Error
     });
   }
@@ -15902,20 +15902,20 @@ var require_parse2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports.safeEncodeAsync = exports.safeDecode = exports.safeEncode = exports.decodeAsync = exports.encodeAsync = exports.decode = exports.encode = exports.safeParseAsync = exports.safeParse = exports.parseAsync = exports.parse = void 0;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     var errors_js_1 = require_errors2();
-    exports.parse = core50._parse(errors_js_1.ZodRealError);
-    exports.parseAsync = core50._parseAsync(errors_js_1.ZodRealError);
-    exports.safeParse = core50._safeParse(errors_js_1.ZodRealError);
-    exports.safeParseAsync = core50._safeParseAsync(errors_js_1.ZodRealError);
-    exports.encode = core50._encode(errors_js_1.ZodRealError);
-    exports.decode = core50._decode(errors_js_1.ZodRealError);
-    exports.encodeAsync = core50._encodeAsync(errors_js_1.ZodRealError);
-    exports.decodeAsync = core50._decodeAsync(errors_js_1.ZodRealError);
-    exports.safeEncode = core50._safeEncode(errors_js_1.ZodRealError);
-    exports.safeDecode = core50._safeDecode(errors_js_1.ZodRealError);
-    exports.safeEncodeAsync = core50._safeEncodeAsync(errors_js_1.ZodRealError);
-    exports.safeDecodeAsync = core50._safeDecodeAsync(errors_js_1.ZodRealError);
+    exports.parse = core51._parse(errors_js_1.ZodRealError);
+    exports.parseAsync = core51._parseAsync(errors_js_1.ZodRealError);
+    exports.safeParse = core51._safeParse(errors_js_1.ZodRealError);
+    exports.safeParseAsync = core51._safeParseAsync(errors_js_1.ZodRealError);
+    exports.encode = core51._encode(errors_js_1.ZodRealError);
+    exports.decode = core51._decode(errors_js_1.ZodRealError);
+    exports.encodeAsync = core51._encodeAsync(errors_js_1.ZodRealError);
+    exports.decodeAsync = core51._decodeAsync(errors_js_1.ZodRealError);
+    exports.safeEncode = core51._safeEncode(errors_js_1.ZodRealError);
+    exports.safeDecode = core51._safeDecode(errors_js_1.ZodRealError);
+    exports.safeEncodeAsync = core51._safeEncodeAsync(errors_js_1.ZodRealError);
+    exports.safeDecodeAsync = core51._safeDecodeAsync(errors_js_1.ZodRealError);
   }
 });
 
@@ -16048,7 +16048,7 @@ var require_schemas2 = __commonJS({
     exports.instanceof = _instanceof2;
     exports.json = json3;
     exports.preprocess = preprocess2;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var processors = __importStar(require_json_schema_processors());
     var to_json_schema_js_1 = require_to_json_schema();
@@ -16092,8 +16092,8 @@ var require_schemas2 = __commonJS({
         });
       }
     }
-    exports.ZodType = core50.$constructor("ZodType", (inst, def) => {
-      core50.$ZodType.init(inst, def);
+    exports.ZodType = core51.$constructor("ZodType", (inst, def) => {
+      core51.$ZodType.init(inst, def);
       Object.assign(inst["~standard"], {
         jsonSchema: {
           input: (0, to_json_schema_js_1.createStandardJSONSchemaMethod)(inst, "input"),
@@ -16131,7 +16131,7 @@ var require_schemas2 = __commonJS({
           return this.check(...chks);
         },
         clone(def2, params) {
-          return core50.clone(this, def2, params);
+          return core51.clone(this, def2, params);
         },
         brand() {
           return this;
@@ -16193,14 +16193,14 @@ var require_schemas2 = __commonJS({
         },
         describe(description) {
           const cl = this.clone();
-          core50.globalRegistry.add(cl, { description });
+          core51.globalRegistry.add(cl, { description });
           return cl;
         },
         meta(...args) {
           if (args.length === 0)
-            return core50.globalRegistry.get(this);
+            return core51.globalRegistry.get(this);
           const cl = this.clone();
-          core50.globalRegistry.add(cl, args[0]);
+          core51.globalRegistry.add(cl, args[0]);
           return cl;
         },
         isOptional() {
@@ -16215,14 +16215,14 @@ var require_schemas2 = __commonJS({
       });
       Object.defineProperty(inst, "description", {
         get() {
-          return core50.globalRegistry.get(inst)?.description;
+          return core51.globalRegistry.get(inst)?.description;
         },
         configurable: true
       });
       return inst;
     });
-    exports._ZodString = core50.$constructor("_ZodString", (inst, def) => {
-      core50.$ZodString.init(inst, def);
+    exports._ZodString = core51.$constructor("_ZodString", (inst, def) => {
+      core51.$ZodString.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.stringProcessor(inst, ctx, json4, params);
       const bag = inst._zod.bag;
@@ -16277,223 +16277,223 @@ var require_schemas2 = __commonJS({
         }
       });
     });
-    exports.ZodString = core50.$constructor("ZodString", (inst, def) => {
-      core50.$ZodString.init(inst, def);
+    exports.ZodString = core51.$constructor("ZodString", (inst, def) => {
+      core51.$ZodString.init(inst, def);
       exports._ZodString.init(inst, def);
-      inst.email = (params) => inst.check(core50._email(exports.ZodEmail, params));
-      inst.url = (params) => inst.check(core50._url(exports.ZodURL, params));
-      inst.jwt = (params) => inst.check(core50._jwt(exports.ZodJWT, params));
-      inst.emoji = (params) => inst.check(core50._emoji(exports.ZodEmoji, params));
-      inst.guid = (params) => inst.check(core50._guid(exports.ZodGUID, params));
-      inst.uuid = (params) => inst.check(core50._uuid(exports.ZodUUID, params));
-      inst.uuidv4 = (params) => inst.check(core50._uuidv4(exports.ZodUUID, params));
-      inst.uuidv6 = (params) => inst.check(core50._uuidv6(exports.ZodUUID, params));
-      inst.uuidv7 = (params) => inst.check(core50._uuidv7(exports.ZodUUID, params));
-      inst.nanoid = (params) => inst.check(core50._nanoid(exports.ZodNanoID, params));
-      inst.guid = (params) => inst.check(core50._guid(exports.ZodGUID, params));
-      inst.cuid = (params) => inst.check(core50._cuid(exports.ZodCUID, params));
-      inst.cuid2 = (params) => inst.check(core50._cuid2(exports.ZodCUID2, params));
-      inst.ulid = (params) => inst.check(core50._ulid(exports.ZodULID, params));
-      inst.base64 = (params) => inst.check(core50._base64(exports.ZodBase64, params));
-      inst.base64url = (params) => inst.check(core50._base64url(exports.ZodBase64URL, params));
-      inst.xid = (params) => inst.check(core50._xid(exports.ZodXID, params));
-      inst.ksuid = (params) => inst.check(core50._ksuid(exports.ZodKSUID, params));
-      inst.ipv4 = (params) => inst.check(core50._ipv4(exports.ZodIPv4, params));
-      inst.ipv6 = (params) => inst.check(core50._ipv6(exports.ZodIPv6, params));
-      inst.cidrv4 = (params) => inst.check(core50._cidrv4(exports.ZodCIDRv4, params));
-      inst.cidrv6 = (params) => inst.check(core50._cidrv6(exports.ZodCIDRv6, params));
-      inst.e164 = (params) => inst.check(core50._e164(exports.ZodE164, params));
+      inst.email = (params) => inst.check(core51._email(exports.ZodEmail, params));
+      inst.url = (params) => inst.check(core51._url(exports.ZodURL, params));
+      inst.jwt = (params) => inst.check(core51._jwt(exports.ZodJWT, params));
+      inst.emoji = (params) => inst.check(core51._emoji(exports.ZodEmoji, params));
+      inst.guid = (params) => inst.check(core51._guid(exports.ZodGUID, params));
+      inst.uuid = (params) => inst.check(core51._uuid(exports.ZodUUID, params));
+      inst.uuidv4 = (params) => inst.check(core51._uuidv4(exports.ZodUUID, params));
+      inst.uuidv6 = (params) => inst.check(core51._uuidv6(exports.ZodUUID, params));
+      inst.uuidv7 = (params) => inst.check(core51._uuidv7(exports.ZodUUID, params));
+      inst.nanoid = (params) => inst.check(core51._nanoid(exports.ZodNanoID, params));
+      inst.guid = (params) => inst.check(core51._guid(exports.ZodGUID, params));
+      inst.cuid = (params) => inst.check(core51._cuid(exports.ZodCUID, params));
+      inst.cuid2 = (params) => inst.check(core51._cuid2(exports.ZodCUID2, params));
+      inst.ulid = (params) => inst.check(core51._ulid(exports.ZodULID, params));
+      inst.base64 = (params) => inst.check(core51._base64(exports.ZodBase64, params));
+      inst.base64url = (params) => inst.check(core51._base64url(exports.ZodBase64URL, params));
+      inst.xid = (params) => inst.check(core51._xid(exports.ZodXID, params));
+      inst.ksuid = (params) => inst.check(core51._ksuid(exports.ZodKSUID, params));
+      inst.ipv4 = (params) => inst.check(core51._ipv4(exports.ZodIPv4, params));
+      inst.ipv6 = (params) => inst.check(core51._ipv6(exports.ZodIPv6, params));
+      inst.cidrv4 = (params) => inst.check(core51._cidrv4(exports.ZodCIDRv4, params));
+      inst.cidrv6 = (params) => inst.check(core51._cidrv6(exports.ZodCIDRv6, params));
+      inst.e164 = (params) => inst.check(core51._e164(exports.ZodE164, params));
       inst.datetime = (params) => inst.check(iso.datetime(params));
       inst.date = (params) => inst.check(iso.date(params));
       inst.time = (params) => inst.check(iso.time(params));
       inst.duration = (params) => inst.check(iso.duration(params));
     });
     function string4(params) {
-      return core50._string(exports.ZodString, params);
+      return core51._string(exports.ZodString, params);
     }
-    exports.ZodStringFormat = core50.$constructor("ZodStringFormat", (inst, def) => {
-      core50.$ZodStringFormat.init(inst, def);
+    exports.ZodStringFormat = core51.$constructor("ZodStringFormat", (inst, def) => {
+      core51.$ZodStringFormat.init(inst, def);
       exports._ZodString.init(inst, def);
     });
-    exports.ZodEmail = core50.$constructor("ZodEmail", (inst, def) => {
-      core50.$ZodEmail.init(inst, def);
+    exports.ZodEmail = core51.$constructor("ZodEmail", (inst, def) => {
+      core51.$ZodEmail.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function email3(params) {
-      return core50._email(exports.ZodEmail, params);
+      return core51._email(exports.ZodEmail, params);
     }
-    exports.ZodGUID = core50.$constructor("ZodGUID", (inst, def) => {
-      core50.$ZodGUID.init(inst, def);
+    exports.ZodGUID = core51.$constructor("ZodGUID", (inst, def) => {
+      core51.$ZodGUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function guid3(params) {
-      return core50._guid(exports.ZodGUID, params);
+      return core51._guid(exports.ZodGUID, params);
     }
-    exports.ZodUUID = core50.$constructor("ZodUUID", (inst, def) => {
-      core50.$ZodUUID.init(inst, def);
+    exports.ZodUUID = core51.$constructor("ZodUUID", (inst, def) => {
+      core51.$ZodUUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function uuid3(params) {
-      return core50._uuid(exports.ZodUUID, params);
+      return core51._uuid(exports.ZodUUID, params);
     }
     function uuidv42(params) {
-      return core50._uuidv4(exports.ZodUUID, params);
+      return core51._uuidv4(exports.ZodUUID, params);
     }
     function uuidv62(params) {
-      return core50._uuidv6(exports.ZodUUID, params);
+      return core51._uuidv6(exports.ZodUUID, params);
     }
     function uuidv72(params) {
-      return core50._uuidv7(exports.ZodUUID, params);
+      return core51._uuidv7(exports.ZodUUID, params);
     }
-    exports.ZodURL = core50.$constructor("ZodURL", (inst, def) => {
-      core50.$ZodURL.init(inst, def);
+    exports.ZodURL = core51.$constructor("ZodURL", (inst, def) => {
+      core51.$ZodURL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function url2(params) {
-      return core50._url(exports.ZodURL, params);
+      return core51._url(exports.ZodURL, params);
     }
     function httpUrl2(params) {
-      return core50._url(exports.ZodURL, {
-        protocol: core50.regexes.httpProtocol,
-        hostname: core50.regexes.domain,
+      return core51._url(exports.ZodURL, {
+        protocol: core51.regexes.httpProtocol,
+        hostname: core51.regexes.domain,
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEmoji = core50.$constructor("ZodEmoji", (inst, def) => {
-      core50.$ZodEmoji.init(inst, def);
+    exports.ZodEmoji = core51.$constructor("ZodEmoji", (inst, def) => {
+      core51.$ZodEmoji.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function emoji3(params) {
-      return core50._emoji(exports.ZodEmoji, params);
+      return core51._emoji(exports.ZodEmoji, params);
     }
-    exports.ZodNanoID = core50.$constructor("ZodNanoID", (inst, def) => {
-      core50.$ZodNanoID.init(inst, def);
+    exports.ZodNanoID = core51.$constructor("ZodNanoID", (inst, def) => {
+      core51.$ZodNanoID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function nanoid3(params) {
-      return core50._nanoid(exports.ZodNanoID, params);
+      return core51._nanoid(exports.ZodNanoID, params);
     }
-    exports.ZodCUID = core50.$constructor("ZodCUID", (inst, def) => {
-      core50.$ZodCUID.init(inst, def);
+    exports.ZodCUID = core51.$constructor("ZodCUID", (inst, def) => {
+      core51.$ZodCUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid4(params) {
-      return core50._cuid(exports.ZodCUID, params);
+      return core51._cuid(exports.ZodCUID, params);
     }
-    exports.ZodCUID2 = core50.$constructor("ZodCUID2", (inst, def) => {
-      core50.$ZodCUID2.init(inst, def);
+    exports.ZodCUID2 = core51.$constructor("ZodCUID2", (inst, def) => {
+      core51.$ZodCUID2.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid23(params) {
-      return core50._cuid2(exports.ZodCUID2, params);
+      return core51._cuid2(exports.ZodCUID2, params);
     }
-    exports.ZodULID = core50.$constructor("ZodULID", (inst, def) => {
-      core50.$ZodULID.init(inst, def);
+    exports.ZodULID = core51.$constructor("ZodULID", (inst, def) => {
+      core51.$ZodULID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ulid3(params) {
-      return core50._ulid(exports.ZodULID, params);
+      return core51._ulid(exports.ZodULID, params);
     }
-    exports.ZodXID = core50.$constructor("ZodXID", (inst, def) => {
-      core50.$ZodXID.init(inst, def);
+    exports.ZodXID = core51.$constructor("ZodXID", (inst, def) => {
+      core51.$ZodXID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function xid3(params) {
-      return core50._xid(exports.ZodXID, params);
+      return core51._xid(exports.ZodXID, params);
     }
-    exports.ZodKSUID = core50.$constructor("ZodKSUID", (inst, def) => {
-      core50.$ZodKSUID.init(inst, def);
+    exports.ZodKSUID = core51.$constructor("ZodKSUID", (inst, def) => {
+      core51.$ZodKSUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ksuid3(params) {
-      return core50._ksuid(exports.ZodKSUID, params);
+      return core51._ksuid(exports.ZodKSUID, params);
     }
-    exports.ZodIPv4 = core50.$constructor("ZodIPv4", (inst, def) => {
-      core50.$ZodIPv4.init(inst, def);
+    exports.ZodIPv4 = core51.$constructor("ZodIPv4", (inst, def) => {
+      core51.$ZodIPv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv43(params) {
-      return core50._ipv4(exports.ZodIPv4, params);
+      return core51._ipv4(exports.ZodIPv4, params);
     }
-    exports.ZodMAC = core50.$constructor("ZodMAC", (inst, def) => {
-      core50.$ZodMAC.init(inst, def);
+    exports.ZodMAC = core51.$constructor("ZodMAC", (inst, def) => {
+      core51.$ZodMAC.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function mac3(params) {
-      return core50._mac(exports.ZodMAC, params);
+      return core51._mac(exports.ZodMAC, params);
     }
-    exports.ZodIPv6 = core50.$constructor("ZodIPv6", (inst, def) => {
-      core50.$ZodIPv6.init(inst, def);
+    exports.ZodIPv6 = core51.$constructor("ZodIPv6", (inst, def) => {
+      core51.$ZodIPv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv63(params) {
-      return core50._ipv6(exports.ZodIPv6, params);
+      return core51._ipv6(exports.ZodIPv6, params);
     }
-    exports.ZodCIDRv4 = core50.$constructor("ZodCIDRv4", (inst, def) => {
-      core50.$ZodCIDRv4.init(inst, def);
+    exports.ZodCIDRv4 = core51.$constructor("ZodCIDRv4", (inst, def) => {
+      core51.$ZodCIDRv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv43(params) {
-      return core50._cidrv4(exports.ZodCIDRv4, params);
+      return core51._cidrv4(exports.ZodCIDRv4, params);
     }
-    exports.ZodCIDRv6 = core50.$constructor("ZodCIDRv6", (inst, def) => {
-      core50.$ZodCIDRv6.init(inst, def);
+    exports.ZodCIDRv6 = core51.$constructor("ZodCIDRv6", (inst, def) => {
+      core51.$ZodCIDRv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv63(params) {
-      return core50._cidrv6(exports.ZodCIDRv6, params);
+      return core51._cidrv6(exports.ZodCIDRv6, params);
     }
-    exports.ZodBase64 = core50.$constructor("ZodBase64", (inst, def) => {
-      core50.$ZodBase64.init(inst, def);
+    exports.ZodBase64 = core51.$constructor("ZodBase64", (inst, def) => {
+      core51.$ZodBase64.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base643(params) {
-      return core50._base64(exports.ZodBase64, params);
+      return core51._base64(exports.ZodBase64, params);
     }
-    exports.ZodBase64URL = core50.$constructor("ZodBase64URL", (inst, def) => {
-      core50.$ZodBase64URL.init(inst, def);
+    exports.ZodBase64URL = core51.$constructor("ZodBase64URL", (inst, def) => {
+      core51.$ZodBase64URL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base64url3(params) {
-      return core50._base64url(exports.ZodBase64URL, params);
+      return core51._base64url(exports.ZodBase64URL, params);
     }
-    exports.ZodE164 = core50.$constructor("ZodE164", (inst, def) => {
-      core50.$ZodE164.init(inst, def);
+    exports.ZodE164 = core51.$constructor("ZodE164", (inst, def) => {
+      core51.$ZodE164.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function e1643(params) {
-      return core50._e164(exports.ZodE164, params);
+      return core51._e164(exports.ZodE164, params);
     }
-    exports.ZodJWT = core50.$constructor("ZodJWT", (inst, def) => {
-      core50.$ZodJWT.init(inst, def);
+    exports.ZodJWT = core51.$constructor("ZodJWT", (inst, def) => {
+      core51.$ZodJWT.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function jwt2(params) {
-      return core50._jwt(exports.ZodJWT, params);
+      return core51._jwt(exports.ZodJWT, params);
     }
-    exports.ZodCustomStringFormat = core50.$constructor("ZodCustomStringFormat", (inst, def) => {
-      core50.$ZodCustomStringFormat.init(inst, def);
+    exports.ZodCustomStringFormat = core51.$constructor("ZodCustomStringFormat", (inst, def) => {
+      core51.$ZodCustomStringFormat.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function stringFormat2(format, fnOrRegex, _params = {}) {
-      return core50._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
+      return core51._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
     }
     function hostname3(_params) {
-      return core50._stringFormat(exports.ZodCustomStringFormat, "hostname", core50.regexes.hostname, _params);
+      return core51._stringFormat(exports.ZodCustomStringFormat, "hostname", core51.regexes.hostname, _params);
     }
     function hex3(_params) {
-      return core50._stringFormat(exports.ZodCustomStringFormat, "hex", core50.regexes.hex, _params);
+      return core51._stringFormat(exports.ZodCustomStringFormat, "hex", core51.regexes.hex, _params);
     }
     function hash2(alg, params) {
       const enc = params?.enc ?? "hex";
       const format = `${alg}_${enc}`;
-      const regex2 = core50.regexes[format];
+      const regex2 = core51.regexes[format];
       if (!regex2)
         throw new Error(`Unrecognized hash format: ${format}`);
-      return core50._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
+      return core51._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
     }
-    exports.ZodNumber = core50.$constructor("ZodNumber", (inst, def) => {
-      core50.$ZodNumber.init(inst, def);
+    exports.ZodNumber = core51.$constructor("ZodNumber", (inst, def) => {
+      core51.$ZodNumber.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.numberProcessor(inst, ctx, json4, params);
       _installLazyMethods2(inst, "ZodNumber", {
@@ -16551,37 +16551,37 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function number4(params) {
-      return core50._number(exports.ZodNumber, params);
+      return core51._number(exports.ZodNumber, params);
     }
-    exports.ZodNumberFormat = core50.$constructor("ZodNumberFormat", (inst, def) => {
-      core50.$ZodNumberFormat.init(inst, def);
+    exports.ZodNumberFormat = core51.$constructor("ZodNumberFormat", (inst, def) => {
+      core51.$ZodNumberFormat.init(inst, def);
       exports.ZodNumber.init(inst, def);
     });
     function int2(params) {
-      return core50._int(exports.ZodNumberFormat, params);
+      return core51._int(exports.ZodNumberFormat, params);
     }
     function float322(params) {
-      return core50._float32(exports.ZodNumberFormat, params);
+      return core51._float32(exports.ZodNumberFormat, params);
     }
     function float642(params) {
-      return core50._float64(exports.ZodNumberFormat, params);
+      return core51._float64(exports.ZodNumberFormat, params);
     }
     function int322(params) {
-      return core50._int32(exports.ZodNumberFormat, params);
+      return core51._int32(exports.ZodNumberFormat, params);
     }
     function uint322(params) {
-      return core50._uint32(exports.ZodNumberFormat, params);
+      return core51._uint32(exports.ZodNumberFormat, params);
     }
-    exports.ZodBoolean = core50.$constructor("ZodBoolean", (inst, def) => {
-      core50.$ZodBoolean.init(inst, def);
+    exports.ZodBoolean = core51.$constructor("ZodBoolean", (inst, def) => {
+      core51.$ZodBoolean.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.booleanProcessor(inst, ctx, json4, params);
     });
     function boolean4(params) {
-      return core50._boolean(exports.ZodBoolean, params);
+      return core51._boolean(exports.ZodBoolean, params);
     }
-    exports.ZodBigInt = core50.$constructor("ZodBigInt", (inst, def) => {
-      core50.$ZodBigInt.init(inst, def);
+    exports.ZodBigInt = core51.$constructor("ZodBigInt", (inst, def) => {
+      core51.$ZodBigInt.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.bigintProcessor(inst, ctx, json4, params);
       inst.gte = (value, params) => inst.check(checks.gte(value, params));
@@ -16603,76 +16603,76 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function bigint4(params) {
-      return core50._bigint(exports.ZodBigInt, params);
+      return core51._bigint(exports.ZodBigInt, params);
     }
-    exports.ZodBigIntFormat = core50.$constructor("ZodBigIntFormat", (inst, def) => {
-      core50.$ZodBigIntFormat.init(inst, def);
+    exports.ZodBigIntFormat = core51.$constructor("ZodBigIntFormat", (inst, def) => {
+      core51.$ZodBigIntFormat.init(inst, def);
       exports.ZodBigInt.init(inst, def);
     });
     function int642(params) {
-      return core50._int64(exports.ZodBigIntFormat, params);
+      return core51._int64(exports.ZodBigIntFormat, params);
     }
     function uint642(params) {
-      return core50._uint64(exports.ZodBigIntFormat, params);
+      return core51._uint64(exports.ZodBigIntFormat, params);
     }
-    exports.ZodSymbol = core50.$constructor("ZodSymbol", (inst, def) => {
-      core50.$ZodSymbol.init(inst, def);
+    exports.ZodSymbol = core51.$constructor("ZodSymbol", (inst, def) => {
+      core51.$ZodSymbol.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.symbolProcessor(inst, ctx, json4, params);
     });
     function symbol21(params) {
-      return core50._symbol(exports.ZodSymbol, params);
+      return core51._symbol(exports.ZodSymbol, params);
     }
-    exports.ZodUndefined = core50.$constructor("ZodUndefined", (inst, def) => {
-      core50.$ZodUndefined.init(inst, def);
+    exports.ZodUndefined = core51.$constructor("ZodUndefined", (inst, def) => {
+      core51.$ZodUndefined.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.undefinedProcessor(inst, ctx, json4, params);
     });
     function _undefined4(params) {
-      return core50._undefined(exports.ZodUndefined, params);
+      return core51._undefined(exports.ZodUndefined, params);
     }
-    exports.ZodNull = core50.$constructor("ZodNull", (inst, def) => {
-      core50.$ZodNull.init(inst, def);
+    exports.ZodNull = core51.$constructor("ZodNull", (inst, def) => {
+      core51.$ZodNull.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullProcessor(inst, ctx, json4, params);
     });
     function _null4(params) {
-      return core50._null(exports.ZodNull, params);
+      return core51._null(exports.ZodNull, params);
     }
-    exports.ZodAny = core50.$constructor("ZodAny", (inst, def) => {
-      core50.$ZodAny.init(inst, def);
+    exports.ZodAny = core51.$constructor("ZodAny", (inst, def) => {
+      core51.$ZodAny.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.anyProcessor(inst, ctx, json4, params);
     });
     function any2() {
-      return core50._any(exports.ZodAny);
+      return core51._any(exports.ZodAny);
     }
-    exports.ZodUnknown = core50.$constructor("ZodUnknown", (inst, def) => {
-      core50.$ZodUnknown.init(inst, def);
+    exports.ZodUnknown = core51.$constructor("ZodUnknown", (inst, def) => {
+      core51.$ZodUnknown.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unknownProcessor(inst, ctx, json4, params);
     });
     function unknown2() {
-      return core50._unknown(exports.ZodUnknown);
+      return core51._unknown(exports.ZodUnknown);
     }
-    exports.ZodNever = core50.$constructor("ZodNever", (inst, def) => {
-      core50.$ZodNever.init(inst, def);
+    exports.ZodNever = core51.$constructor("ZodNever", (inst, def) => {
+      core51.$ZodNever.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.neverProcessor(inst, ctx, json4, params);
     });
     function never2(params) {
-      return core50._never(exports.ZodNever, params);
+      return core51._never(exports.ZodNever, params);
     }
-    exports.ZodVoid = core50.$constructor("ZodVoid", (inst, def) => {
-      core50.$ZodVoid.init(inst, def);
+    exports.ZodVoid = core51.$constructor("ZodVoid", (inst, def) => {
+      core51.$ZodVoid.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.voidProcessor(inst, ctx, json4, params);
     });
     function _void3(params) {
-      return core50._void(exports.ZodVoid, params);
+      return core51._void(exports.ZodVoid, params);
     }
-    exports.ZodDate = core50.$constructor("ZodDate", (inst, def) => {
-      core50.$ZodDate.init(inst, def);
+    exports.ZodDate = core51.$constructor("ZodDate", (inst, def) => {
+      core51.$ZodDate.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.dateProcessor(inst, ctx, json4, params);
       inst.min = (value, params) => inst.check(checks.gte(value, params));
@@ -16682,10 +16682,10 @@ var require_schemas2 = __commonJS({
       inst.maxDate = c.maximum ? new Date(c.maximum) : null;
     });
     function date5(params) {
-      return core50._date(exports.ZodDate, params);
+      return core51._date(exports.ZodDate, params);
     }
-    exports.ZodArray = core50.$constructor("ZodArray", (inst, def) => {
-      core50.$ZodArray.init(inst, def);
+    exports.ZodArray = core51.$constructor("ZodArray", (inst, def) => {
+      core51.$ZodArray.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.arrayProcessor(inst, ctx, json4, params);
       inst.element = def.element;
@@ -16708,14 +16708,14 @@ var require_schemas2 = __commonJS({
       });
     });
     function array3(element, params) {
-      return core50._array(exports.ZodArray, element, params);
+      return core51._array(exports.ZodArray, element, params);
     }
     function keyof2(schema) {
       const shape = schema._zod.def.shape;
       return _enum3(Object.keys(shape));
     }
-    exports.ZodObject = core50.$constructor("ZodObject", (inst, def) => {
-      core50.$ZodObjectJIT.init(inst, def);
+    exports.ZodObject = core51.$constructor("ZodObject", (inst, def) => {
+      core51.$ZodObjectJIT.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.objectProcessor(inst, ctx, json4, params);
       index_js_1.util.defineLazy(inst, "shape", () => {
@@ -16787,8 +16787,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodUnion = core50.$constructor("ZodUnion", (inst, def) => {
-      core50.$ZodUnion.init(inst, def);
+    exports.ZodUnion = core51.$constructor("ZodUnion", (inst, def) => {
+      core51.$ZodUnion.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
@@ -16800,9 +16800,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodXor = core50.$constructor("ZodXor", (inst, def) => {
+    exports.ZodXor = core51.$constructor("ZodXor", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core50.$ZodXor.init(inst, def);
+      core51.$ZodXor.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
     });
@@ -16814,9 +16814,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodDiscriminatedUnion = core50.$constructor("ZodDiscriminatedUnion", (inst, def) => {
+    exports.ZodDiscriminatedUnion = core51.$constructor("ZodDiscriminatedUnion", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core50.$ZodDiscriminatedUnion.init(inst, def);
+      core51.$ZodDiscriminatedUnion.init(inst, def);
     });
     function discriminatedUnion2(discriminator, options, params) {
       return new exports.ZodDiscriminatedUnion({
@@ -16826,8 +16826,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodIntersection = core50.$constructor("ZodIntersection", (inst, def) => {
-      core50.$ZodIntersection.init(inst, def);
+    exports.ZodIntersection = core51.$constructor("ZodIntersection", (inst, def) => {
+      core51.$ZodIntersection.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.intersectionProcessor(inst, ctx, json4, params);
     });
@@ -16838,8 +16838,8 @@ var require_schemas2 = __commonJS({
         right
       });
     }
-    exports.ZodTuple = core50.$constructor("ZodTuple", (inst, def) => {
-      core50.$ZodTuple.init(inst, def);
+    exports.ZodTuple = core51.$constructor("ZodTuple", (inst, def) => {
+      core51.$ZodTuple.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.tupleProcessor(inst, ctx, json4, params);
       inst.rest = (rest) => inst.clone({
@@ -16848,7 +16848,7 @@ var require_schemas2 = __commonJS({
       });
     });
     function tuple2(items, _paramsOrRest, _params) {
-      const hasRest = _paramsOrRest instanceof core50.$ZodType;
+      const hasRest = _paramsOrRest instanceof core51.$ZodType;
       const params = hasRest ? _params : _paramsOrRest;
       const rest = hasRest ? _paramsOrRest : null;
       return new exports.ZodTuple({
@@ -16858,8 +16858,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodRecord = core50.$constructor("ZodRecord", (inst, def) => {
-      core50.$ZodRecord.init(inst, def);
+    exports.ZodRecord = core51.$constructor("ZodRecord", (inst, def) => {
+      core51.$ZodRecord.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.recordProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
@@ -16882,7 +16882,7 @@ var require_schemas2 = __commonJS({
       });
     }
     function partialRecord2(keyType, valueType, params) {
-      const k = core50.clone(keyType);
+      const k = core51.clone(keyType);
       k._zod.values = void 0;
       return new exports.ZodRecord({
         type: "record",
@@ -16900,16 +16900,16 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodMap = core50.$constructor("ZodMap", (inst, def) => {
-      core50.$ZodMap.init(inst, def);
+    exports.ZodMap = core51.$constructor("ZodMap", (inst, def) => {
+      core51.$ZodMap.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.mapProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
       inst.valueType = def.valueType;
-      inst.min = (...args) => inst.check(core50._minSize(...args));
-      inst.nonempty = (params) => inst.check(core50._minSize(1, params));
-      inst.max = (...args) => inst.check(core50._maxSize(...args));
-      inst.size = (...args) => inst.check(core50._size(...args));
+      inst.min = (...args) => inst.check(core51._minSize(...args));
+      inst.nonempty = (params) => inst.check(core51._minSize(1, params));
+      inst.max = (...args) => inst.check(core51._maxSize(...args));
+      inst.size = (...args) => inst.check(core51._size(...args));
     });
     function map2(keyType, valueType, params) {
       return new exports.ZodMap({
@@ -16919,14 +16919,14 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSet = core50.$constructor("ZodSet", (inst, def) => {
-      core50.$ZodSet.init(inst, def);
+    exports.ZodSet = core51.$constructor("ZodSet", (inst, def) => {
+      core51.$ZodSet.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.setProcessor(inst, ctx, json4, params);
-      inst.min = (...args) => inst.check(core50._minSize(...args));
-      inst.nonempty = (params) => inst.check(core50._minSize(1, params));
-      inst.max = (...args) => inst.check(core50._maxSize(...args));
-      inst.size = (...args) => inst.check(core50._size(...args));
+      inst.min = (...args) => inst.check(core51._minSize(...args));
+      inst.nonempty = (params) => inst.check(core51._minSize(1, params));
+      inst.max = (...args) => inst.check(core51._maxSize(...args));
+      inst.size = (...args) => inst.check(core51._size(...args));
     });
     function set2(valueType, params) {
       return new exports.ZodSet({
@@ -16935,8 +16935,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEnum = core50.$constructor("ZodEnum", (inst, def) => {
-      core50.$ZodEnum.init(inst, def);
+    exports.ZodEnum = core51.$constructor("ZodEnum", (inst, def) => {
+      core51.$ZodEnum.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.enumProcessor(inst, ctx, json4, params);
       inst.enum = def.entries;
@@ -16988,8 +16988,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLiteral = core50.$constructor("ZodLiteral", (inst, def) => {
-      core50.$ZodLiteral.init(inst, def);
+    exports.ZodLiteral = core51.$constructor("ZodLiteral", (inst, def) => {
+      core51.$ZodLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.literalProcessor(inst, ctx, json4, params);
       inst.values = new Set(def.values);
@@ -17009,24 +17009,24 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodFile = core50.$constructor("ZodFile", (inst, def) => {
-      core50.$ZodFile.init(inst, def);
+    exports.ZodFile = core51.$constructor("ZodFile", (inst, def) => {
+      core51.$ZodFile.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.fileProcessor(inst, ctx, json4, params);
-      inst.min = (size, params) => inst.check(core50._minSize(size, params));
-      inst.max = (size, params) => inst.check(core50._maxSize(size, params));
-      inst.mime = (types2, params) => inst.check(core50._mime(Array.isArray(types2) ? types2 : [types2], params));
+      inst.min = (size, params) => inst.check(core51._minSize(size, params));
+      inst.max = (size, params) => inst.check(core51._maxSize(size, params));
+      inst.mime = (types2, params) => inst.check(core51._mime(Array.isArray(types2) ? types2 : [types2], params));
     });
     function file2(params) {
-      return core50._file(exports.ZodFile, params);
+      return core51._file(exports.ZodFile, params);
     }
-    exports.ZodTransform = core50.$constructor("ZodTransform", (inst, def) => {
-      core50.$ZodTransform.init(inst, def);
+    exports.ZodTransform = core51.$constructor("ZodTransform", (inst, def) => {
+      core51.$ZodTransform.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.transformProcessor(inst, ctx, json4, params);
       inst._zod.parse = (payload, _ctx) => {
         if (_ctx.direction === "backward") {
-          throw new core50.$ZodEncodeError(inst.constructor.name);
+          throw new core51.$ZodEncodeError(inst.constructor.name);
         }
         payload.addIssue = (issue2) => {
           if (typeof issue2 === "string") {
@@ -17060,8 +17060,8 @@ var require_schemas2 = __commonJS({
         transform: fn
       });
     }
-    exports.ZodOptional = core50.$constructor("ZodOptional", (inst, def) => {
-      core50.$ZodOptional.init(inst, def);
+    exports.ZodOptional = core51.$constructor("ZodOptional", (inst, def) => {
+      core51.$ZodOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17072,8 +17072,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodExactOptional = core50.$constructor("ZodExactOptional", (inst, def) => {
-      core50.$ZodExactOptional.init(inst, def);
+    exports.ZodExactOptional = core51.$constructor("ZodExactOptional", (inst, def) => {
+      core51.$ZodExactOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17084,8 +17084,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodNullable = core50.$constructor("ZodNullable", (inst, def) => {
-      core50.$ZodNullable.init(inst, def);
+    exports.ZodNullable = core51.$constructor("ZodNullable", (inst, def) => {
+      core51.$ZodNullable.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullableProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17099,8 +17099,8 @@ var require_schemas2 = __commonJS({
     function nullish3(innerType) {
       return optional2(nullable2(innerType));
     }
-    exports.ZodDefault = core50.$constructor("ZodDefault", (inst, def) => {
-      core50.$ZodDefault.init(inst, def);
+    exports.ZodDefault = core51.$constructor("ZodDefault", (inst, def) => {
+      core51.$ZodDefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.defaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17115,8 +17115,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodPrefault = core50.$constructor("ZodPrefault", (inst, def) => {
-      core50.$ZodPrefault.init(inst, def);
+    exports.ZodPrefault = core51.$constructor("ZodPrefault", (inst, def) => {
+      core51.$ZodPrefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.prefaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17130,8 +17130,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodNonOptional = core50.$constructor("ZodNonOptional", (inst, def) => {
-      core50.$ZodNonOptional.init(inst, def);
+    exports.ZodNonOptional = core51.$constructor("ZodNonOptional", (inst, def) => {
+      core51.$ZodNonOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nonoptionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17143,8 +17143,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSuccess = core50.$constructor("ZodSuccess", (inst, def) => {
-      core50.$ZodSuccess.init(inst, def);
+    exports.ZodSuccess = core51.$constructor("ZodSuccess", (inst, def) => {
+      core51.$ZodSuccess.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.successProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17155,8 +17155,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodCatch = core50.$constructor("ZodCatch", (inst, def) => {
-      core50.$ZodCatch.init(inst, def);
+    exports.ZodCatch = core51.$constructor("ZodCatch", (inst, def) => {
+      core51.$ZodCatch.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.catchProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17169,16 +17169,16 @@ var require_schemas2 = __commonJS({
         catchValue: typeof catchValue === "function" ? catchValue : () => catchValue
       });
     }
-    exports.ZodNaN = core50.$constructor("ZodNaN", (inst, def) => {
-      core50.$ZodNaN.init(inst, def);
+    exports.ZodNaN = core51.$constructor("ZodNaN", (inst, def) => {
+      core51.$ZodNaN.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nanProcessor(inst, ctx, json4, params);
     });
     function nan2(params) {
-      return core50._nan(exports.ZodNaN, params);
+      return core51._nan(exports.ZodNaN, params);
     }
-    exports.ZodPipe = core50.$constructor("ZodPipe", (inst, def) => {
-      core50.$ZodPipe.init(inst, def);
+    exports.ZodPipe = core51.$constructor("ZodPipe", (inst, def) => {
+      core51.$ZodPipe.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.pipeProcessor(inst, ctx, json4, params);
       inst.in = def.in;
@@ -17192,9 +17192,9 @@ var require_schemas2 = __commonJS({
         // ...util.normalizeParams(params),
       });
     }
-    exports.ZodCodec = core50.$constructor("ZodCodec", (inst, def) => {
+    exports.ZodCodec = core51.$constructor("ZodCodec", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core50.$ZodCodec.init(inst, def);
+      core51.$ZodCodec.init(inst, def);
     });
     function codec2(in_, out, params) {
       return new exports.ZodCodec({
@@ -17215,12 +17215,12 @@ var require_schemas2 = __commonJS({
         reverseTransform: def.transform
       });
     }
-    exports.ZodPreprocess = core50.$constructor("ZodPreprocess", (inst, def) => {
+    exports.ZodPreprocess = core51.$constructor("ZodPreprocess", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core50.$ZodPreprocess.init(inst, def);
+      core51.$ZodPreprocess.init(inst, def);
     });
-    exports.ZodReadonly = core50.$constructor("ZodReadonly", (inst, def) => {
-      core50.$ZodReadonly.init(inst, def);
+    exports.ZodReadonly = core51.$constructor("ZodReadonly", (inst, def) => {
+      core51.$ZodReadonly.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.readonlyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17231,8 +17231,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodTemplateLiteral = core50.$constructor("ZodTemplateLiteral", (inst, def) => {
-      core50.$ZodTemplateLiteral.init(inst, def);
+    exports.ZodTemplateLiteral = core51.$constructor("ZodTemplateLiteral", (inst, def) => {
+      core51.$ZodTemplateLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.templateLiteralProcessor(inst, ctx, json4, params);
     });
@@ -17243,8 +17243,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLazy = core50.$constructor("ZodLazy", (inst, def) => {
-      core50.$ZodLazy.init(inst, def);
+    exports.ZodLazy = core51.$constructor("ZodLazy", (inst, def) => {
+      core51.$ZodLazy.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.lazyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.getter();
@@ -17255,8 +17255,8 @@ var require_schemas2 = __commonJS({
         getter
       });
     }
-    exports.ZodPromise = core50.$constructor("ZodPromise", (inst, def) => {
-      core50.$ZodPromise.init(inst, def);
+    exports.ZodPromise = core51.$constructor("ZodPromise", (inst, def) => {
+      core51.$ZodPromise.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.promiseProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -17267,8 +17267,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodFunction = core50.$constructor("ZodFunction", (inst, def) => {
-      core50.$ZodFunction.init(inst, def);
+    exports.ZodFunction = core51.$constructor("ZodFunction", (inst, def) => {
+      core51.$ZodFunction.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.functionProcessor(inst, ctx, json4, params);
     });
@@ -17279,13 +17279,13 @@ var require_schemas2 = __commonJS({
         output: params?.output ?? unknown2()
       });
     }
-    exports.ZodCustom = core50.$constructor("ZodCustom", (inst, def) => {
-      core50.$ZodCustom.init(inst, def);
+    exports.ZodCustom = core51.$constructor("ZodCustom", (inst, def) => {
+      core51.$ZodCustom.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.customProcessor(inst, ctx, json4, params);
     });
     function check2(fn) {
-      const ch = new core50.$ZodCheck({
+      const ch = new core51.$ZodCheck({
         check: "custom"
         // ...util.normalizeParams(params),
       });
@@ -17293,16 +17293,16 @@ var require_schemas2 = __commonJS({
       return ch;
     }
     function custom2(fn, _params) {
-      return core50._custom(exports.ZodCustom, fn ?? (() => true), _params);
+      return core51._custom(exports.ZodCustom, fn ?? (() => true), _params);
     }
     function refine2(fn, _params = {}) {
-      return core50._refine(exports.ZodCustom, fn, _params);
+      return core51._refine(exports.ZodCustom, fn, _params);
     }
     function superRefine2(fn, params) {
-      return core50._superRefine(fn, params);
+      return core51._superRefine(fn, params);
     }
-    exports.describe = core50.describe;
-    exports.meta = core50.meta;
+    exports.describe = core51.describe;
+    exports.meta = core51.meta;
     function _instanceof2(cls, params = {}) {
       const inst = new exports.ZodCustom({
         type: "custom",
@@ -17325,7 +17325,7 @@ var require_schemas2 = __commonJS({
       };
       return inst;
     }
-    var stringbool2 = (...args) => core50._stringbool({
+    var stringbool2 = (...args) => core51._stringbool({
       Codec: exports.ZodCodec,
       Boolean: exports.ZodBoolean,
       String: exports.ZodString
@@ -17382,7 +17382,7 @@ var require_compat = __commonJS({
     exports.ZodFirstPartyTypeKind = exports.config = exports.$brand = exports.ZodIssueCode = void 0;
     exports.setErrorMap = setErrorMap2;
     exports.getErrorMap = getErrorMap3;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     exports.ZodIssueCode = {
       invalid_type: "invalid_type",
       too_big: "too_big",
@@ -17404,12 +17404,12 @@ var require_compat = __commonJS({
       return index_js_1.config;
     } });
     function setErrorMap2(map2) {
-      core50.config({
+      core51.config({
         customError: map2
       });
     }
     function getErrorMap3() {
-      return core50.config().customError;
+      return core51.config().customError;
     }
     var ZodFirstPartyTypeKind3;
     /* @__PURE__ */ (function(ZodFirstPartyTypeKind4) {
@@ -17972,22 +17972,22 @@ var require_coerce = __commonJS({
     exports.boolean = boolean4;
     exports.bigint = bigint4;
     exports.date = date5;
-    var core50 = __importStar(require_core2());
+    var core51 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
     function string4(params) {
-      return core50._coercedString(schemas.ZodString, params);
+      return core51._coercedString(schemas.ZodString, params);
     }
     function number4(params) {
-      return core50._coercedNumber(schemas.ZodNumber, params);
+      return core51._coercedNumber(schemas.ZodNumber, params);
     }
     function boolean4(params) {
-      return core50._coercedBoolean(schemas.ZodBoolean, params);
+      return core51._coercedBoolean(schemas.ZodBoolean, params);
     }
     function bigint4(params) {
-      return core50._coercedBigint(schemas.ZodBigInt, params);
+      return core51._coercedBigint(schemas.ZodBigInt, params);
     }
     function date5(params) {
-      return core50._coercedDate(schemas.ZodDate, params);
+      return core51._coercedDate(schemas.ZodDate, params);
     }
   }
 });
@@ -31286,7 +31286,7 @@ var init_finding_dedup = __esm({
 });
 
 // src/main.ts
-import * as core49 from "@actions/core";
+import * as core50 from "@actions/core";
 import * as github from "@actions/github";
 import { Octokit } from "@octokit/rest";
 import { retry } from "@octokit/plugin-retry";
@@ -31389,6 +31389,7 @@ function loadConfig() {
   const architectureDriftDetection = core.getInput("architecture_drift_detection") !== "false";
   const testAssertionAudit = core.getInput("test_assertion_audit") !== "false";
   const breakingChangeRadar = core.getInput("breaking_change_radar") !== "false";
+  const importCycleDetector = core.getInput("import_cycle_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -31505,7 +31506,8 @@ function loadConfig() {
     crossprConflictDetection,
     architectureDriftDetection,
     testAssertionAudit,
-    breakingChangeRadar
+    breakingChangeRadar,
+    importCycleDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -92325,14 +92327,14 @@ function detectNewThrownExceptions(file2) {
       }
     }
   }
-  for (const [exceptionType, info44] of newThrows) {
+  for (const [exceptionType, info45] of newThrows) {
     if (!oldThrows.has(exceptionType)) {
       changes.push({
         category: "changed-thrown-exceptions",
         file: file2.path,
-        line: info44.line,
+        line: info45.line,
         symbol: exceptionType,
-        description: `New exception type \`${exceptionType}\` thrown in \`${file2.path}:${info44.line}\` \u2014 callers may not handle this`,
+        description: `New exception type \`${exceptionType}\` thrown in \`${file2.path}:${info45.line}\` \u2014 callers may not handle this`,
         severity: "warning"
       });
     }
@@ -92490,6 +92492,157 @@ function detectBreakingChanges(diffFiles) {
   return result;
 }
 
+// src/import-cycle-detector.ts
+import * as core49 from "@actions/core";
+function stripExtension2(p) {
+  const dot = p.lastIndexOf(".");
+  const slash = p.lastIndexOf("/");
+  if (dot > slash && dot > 0) return p.slice(0, dot);
+  return p;
+}
+function detectCycles(edges) {
+  const adj = /* @__PURE__ */ new Map();
+  for (const edge of edges) {
+    const fromNorm = stripExtension2(edge.from);
+    if (!adj.has(fromNorm)) adj.set(fromNorm, []);
+    adj.get(fromNorm).push({ to: edge.to, kind: edge.kind });
+  }
+  const allCycles = [];
+  const seenCycles = /* @__PURE__ */ new Set();
+  const nodes = [...adj.keys()];
+  for (const startNode of nodes) {
+    const stack = [
+      { node: startNode, path: [startNode], kinds: [] }
+    ];
+    const globalVisited = /* @__PURE__ */ new Set();
+    while (stack.length > 0) {
+      const { node, path: path27, kinds } = stack.pop();
+      const neighbors = adj.get(node);
+      if (!neighbors) continue;
+      for (const { to, kind } of neighbors) {
+        if (to === startNode && path27.length >= 2) {
+          const chain = [...path27, startNode];
+          const cycleKey = path27.slice().sort().join("\u2192");
+          if (!seenCycles.has(cycleKey)) {
+            seenCycles.add(cycleKey);
+            allCycles.push(classifyCycle(chain, [...kinds, kind]));
+          }
+        } else if (!path27.includes(to) && !globalVisited.has(to)) {
+          stack.push({
+            node: to,
+            path: [...path27, to],
+            kinds: [...kinds, kind]
+          });
+        }
+      }
+    }
+  }
+  for (const edge of edges) {
+    if (stripExtension2(edge.from) === edge.to) {
+      const cycleKey = `self:${edge.from}`;
+      if (!seenCycles.has(cycleKey)) {
+        seenCycles.add(cycleKey);
+        allCycles.push({
+          category: "self-import",
+          chain: [edge.from, edge.from],
+          length: 1,
+          kinds: [edge.kind],
+          description: `Self-import in \`${edge.from}\` \u2014 file imports itself`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return allCycles;
+}
+function classifyCycle(chain, kinds) {
+  const length = chain.length - 1;
+  if (length === 2) {
+    return {
+      category: "direct-cycle",
+      chain,
+      length,
+      kinds,
+      description: `Direct cycle: \`${chain[0]}\` \u2194 \`${chain[1]}\` \u2014 both files import each other, causing initialization-order bugs`,
+      severity: "critical"
+    };
+  }
+  return {
+    category: "indirect-cycle",
+    chain,
+    length,
+    kinds,
+    description: `Indirect cycle (${length}-node): ${chain.map((c) => `\`${c}\``).join(" \u2192 ")} \u2014 circular dependency chain may cause undefined-at-runtime errors`,
+    severity: "warning"
+  };
+}
+function buildCycleContext(result) {
+  if (result.cycles.length === 0) return "";
+  const critical = result.cycles.filter((c) => c.severity === "critical");
+  const warnings = result.cycles.filter((c) => c.severity === "warning");
+  let ctx = `## Import Cycle Detection (${result.cycles.length})
+`;
+  ctx += "This PR may introduce circular dependencies:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const c of critical.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const c of warnings.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCycleBodySummary(result) {
+  if (result.cycles.length === 0) return "";
+  let body = `<details><summary><strong>Import Cycle Detection</strong> \u2014 ${result.cycles.length} cycle(s)</summary>
+
+`;
+  body += "| Category | Chain | Length | Severity |\n";
+  body += "|----------|-------|--------|----------|\n";
+  for (const c of result.cycles.slice(0, 15)) {
+    const catLabel = c.category.replace(/-/g, " ");
+    const chainPreview = c.chain.slice(0, -1).map((f) => f.split("/").pop()).join(" \u2192 ");
+    body += `| ${catLabel} | ${chainPreview} | ${c.length} | ${c.severity} |
+`;
+  }
+  if (result.cycles.length > 15) {
+    body += `| ... | | | ${result.cycles.length - 15} more |
+`;
+  }
+  body += `
+*Circular dependencies cause initialization-order bugs and tree-shaking failures.*
+</details>
+`;
+  return body;
+}
+function detectImportCycles(diffFiles) {
+  const edges = extractImportEdges(diffFiles);
+  const cycles = detectCycles(edges);
+  cycles.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.length - b.length;
+  });
+  const result = {
+    cycles,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCycleContext(result);
+  result.bodySummary = buildCycleBodySummary(result);
+  if (cycles.length > 0) {
+    core49.info(`Import cycle detection: ${cycles.length} cycle(s) detected (${cycles.filter((c) => c.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit.plugin(retry);
 async function run() {
@@ -92497,23 +92650,23 @@ async function run() {
     const config2 = loadConfig();
     let manualInstructions = "";
     const ctx = github.context;
-    const token = process.env.GITHUB_TOKEN || core49.getInput("github_token");
+    const token = process.env.GITHUB_TOKEN || core50.getInput("github_token");
     if (!token) {
-      core49.setFailed("GITHUB_TOKEN is required");
+      core50.setFailed("GITHUB_TOKEN is required");
       return;
     }
     const octokit = new RetryingOctokit({ auth: token });
     const rateLimiter = createRateLimiter(config2.provider);
     const prNumber = getPrNumber(ctx);
     if (!prNumber) {
-      core49.info("No PR number found \xE2\u20AC\u201D skipping review");
+      core50.info("No PR number found \xE2\u20AC\u201D skipping review");
       return;
     }
     const owner = ctx.repo.owner;
     const repo = ctx.repo.repo;
     const isManualTrigger = ctx.eventName === "issue_comment";
-    core49.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
-    if (config2.dryRun) core49.info("DRY RUN: review will be logged but not posted");
+    core50.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
+    if (config2.dryRun) core50.info("DRY RUN: review will be logged but not posted");
     const workspace = process.env.GITHUB_WORKSPACE || ".";
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     const deliveryId = ctx.payload.delivery_id || "";
@@ -92523,7 +92676,7 @@ async function run() {
     if (isManualTrigger) {
       const cmd = parseCommand(ctx.payload.comment?.body || "");
       if (cmd?.command === "describe") {
-        core49.info("Running /mizumi describe...");
+        core50.info("Running /mizumi describe...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
         await rateLimiter.acquire();
@@ -92540,7 +92693,7 @@ async function run() {
           issue_number: prNumber,
           body: description
         });
-        core49.info("Description posted");
+        core50.info("Description posted");
         return;
       }
       if (cmd?.command === "improve") {
@@ -92553,7 +92706,7 @@ async function run() {
           });
           return;
         }
-        core49.info("Running /mizumi improve...");
+        core50.info("Running /mizumi improve...");
         const result = await generateFix(octokit, owner, repo, prNumber, config2);
         await octokit.rest.issues.createComment({
           owner,
@@ -92564,7 +92717,7 @@ async function run() {
         return;
       }
       if (cmd?.command === "test") {
-        core49.info("Running /mizumi test...");
+        core50.info("Running /mizumi test...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
         await rateLimiter.acquire();
@@ -92573,49 +92726,49 @@ async function run() {
         return;
       }
       if (cmd?.command === "spend") {
-        core49.info("Running /mizumi spend...");
+        core50.info("Running /mizumi spend...");
         const entries = readSpendLog(workspace);
         await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
         return;
       }
       if (cmd?.command === "review" && cmd.args) {
         manualInstructions = cmd.args;
-        core49.info("Custom review instructions: " + manualInstructions);
+        core50.info("Custom review instructions: " + manualInstructions);
       }
     }
     if (!config2.autoReview && !isManualTrigger) {
-      core49.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
+      core50.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
       return;
     }
     if (!isManualTrigger && config2.autoPauseAfter > 0) {
       const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
       if (reviewCount >= config2.autoPauseAfter) {
-        core49.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
+        core50.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
         return;
       }
     }
     if (checkAndMarkDelivery(workspace, deliveryId)) {
-      core49.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
+      core50.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
       return;
     }
     if (!isManualTrigger && checkAndMarkSha(workspace, headSha)) {
-      core49.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
+      core50.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
       return;
     }
     if (config2.autoFix) {
       try {
         const autoFixed = await processReactionApprovals(octokit, owner, repo, prNumber, config2);
         if (autoFixed > 0) {
-          core49.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
-          core49.setOutput("auto_fixed", autoFixed);
+          core50.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
+          core50.setOutput("auto_fixed", autoFixed);
         }
       } catch (e) {
-        core49.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.ciValidatedFix && config2.improveEnabled) {
       try {
-        core49.info("Running CI-validated fix loop...");
+        core50.info("Running CI-validated fix loop...");
         const ciResult = await runCIFixLoop(octokit, owner, repo, prNumber, {
           enabled: config2.ciValidatedFix,
           timeoutSeconds: config2.ciFixTimeout,
@@ -92627,15 +92780,15 @@ async function run() {
         const ciRetries = ciResult.retriesUsed;
         const ciReverted = ciResult.reverted;
         const ciStatus = ciResult.ciStatus;
-        core49.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
+        core50.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
       } catch (e) {
-        core49.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
       }
     } else if (config2.ciValidatedFix && !config2.improveEnabled) {
-      core49.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
+      core50.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
     }
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
-    core49.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
+    core50.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
     let deltaBody = "";
     if (config2.deltaReview) {
       try {
@@ -92651,24 +92804,24 @@ async function run() {
         );
         if (deltaResult.isIncremental && deltaResult.incrementalDiff) {
           if (deltaResult.incrementalDiff.files.length === 0) {
-            core49.info("Delta review: no new changes since last review - skipping");
+            core50.info("Delta review: no new changes since last review - skipping");
             return;
           }
-          core49.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
+          core50.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
           diff.files = deltaResult.incrementalDiff.files;
           diff.totalAdditions = deltaResult.incrementalDiff.totalAdditions;
           diff.totalDeletions = deltaResult.incrementalDiff.totalDeletions;
           diff.rawDiff = deltaResult.incrementalDiff.rawDiff;
           deltaBody = formatDeltaSummary(deltaResult);
         } else {
-          core49.info("Delta review: full review (no previous SHA or non-incremental)");
+          core50.info("Delta review: full review (no previous SHA or non-incremental)");
         }
       } catch (e) {
-        core49.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (diff.files.length === 0) {
-      core49.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
+      core50.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
       return;
     }
     const prClassification = classifyPR(
@@ -92676,14 +92829,14 @@ async function run() {
       diff.totalAdditions,
       diff.totalDeletions
     );
-    core49.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
+    core50.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
     const classification = classifyDiff(
       diff.totalAdditions + diff.totalDeletions,
       diff.files.length,
       diff.files.map((f) => f.path),
       config2
     );
-    core49.info(`Classification: ${classification.tier} (${classification.reason})`);
+    core50.info(`Classification: ${classification.tier} (${classification.reason})`);
     const slopResult = detectSlop(
       diff.rawDiff,
       diff.totalAdditions,
@@ -92692,17 +92845,17 @@ async function run() {
       diff.files.map((f) => f.path)
     );
     if (slopResult.isSlop) {
-      core49.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
+      core50.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
     }
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
     const ruleFindings = runRules(diff.files);
-    core49.info(`Rules: ${ruleFindings.length} deterministic findings`);
+    core50.info(`Rules: ${ruleFindings.length} deterministic findings`);
     const adrs = discoverADRs(workspace);
     let engineFindings = [];
     try {
       const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
       engineFindings = engineResult.findings;
-      core49.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
+      core50.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
       let adrViolations = [];
       if (adrs.length > 0) {
         try {
@@ -92716,14 +92869,14 @@ async function run() {
               message: v.message,
               rule: v.rule
             }))];
-            core49.info("ADR violations: " + adrViolations.length);
+            core50.info("ADR violations: " + adrViolations.length);
           }
         } catch (e) {
-          core49.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     } catch (e) {
-      core49.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
+      core50.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     let astViolations = [];
     if (config2.astContractAnalysis) {
@@ -92731,12 +92884,12 @@ async function run() {
         const astResult = runASTContractAnalysis(diff.files, workspace);
         astViolations = astResult.violations;
         if (astViolations.length > 0) {
-          core49.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
+          core50.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
         } else {
-          core49.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
+          core50.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
         }
       } catch (e) {
-        core49.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let taintResult = null;
@@ -92744,7 +92897,7 @@ async function run() {
       try {
         taintResult = runTaintAnalysis(diff.files);
       } catch (e) {
-        core49.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let concurrencyResult = null;
@@ -92752,10 +92905,10 @@ async function run() {
       try {
         concurrencyResult = analyzeConcurrency(diff.files);
         if (concurrencyResult.hazards.length > 0) {
-          core49.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
+          core50.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
         }
       } catch (e) {
-        core49.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let crossPRConflictResult = null;
@@ -92780,10 +92933,10 @@ async function run() {
         }
         crossPRConflictResult = detectCrossPRConflicts(diff.files, otherPRSummaries);
         if (crossPRConflictResult.conflicts.length > 0) {
-          core49.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
+          core50.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
         }
       } catch (e) {
-        core49.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let driftResult = null;
@@ -92793,11 +92946,11 @@ async function run() {
         if (archModel) {
           driftResult = detectArchitectureDrift(diff.files, archModel);
           if (driftResult.violations.length > 0) {
-            core49.info("Architecture drift: " + driftResult.violations.length + " violations detected");
+            core50.info("Architecture drift: " + driftResult.violations.length + " violations detected");
           }
         }
       } catch (e) {
-        core49.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let assertionAuditResult = null;
@@ -92805,10 +92958,10 @@ async function run() {
       try {
         assertionAuditResult = auditTestAssertions(diff.files);
         if (assertionAuditResult.issues.length > 0) {
-          core49.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
+          core50.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
         }
       } catch (e) {
-        core49.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let breakingChangeResult = null;
@@ -92816,10 +92969,21 @@ async function run() {
       try {
         breakingChangeResult = detectBreakingChanges(diff.files);
         if (breakingChangeResult.changes.length > 0) {
-          core49.info("Breaking change radar: " + breakingChangeResult.changes.length + " detected");
+          core50.info("Breaking change radar: " + breakingChangeResult.changes.length + " detected");
         }
       } catch (e) {
-        core49.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let importCycleResult = null;
+    if (config2.importCycleDetector) {
+      try {
+        importCycleResult = detectImportCycles(diff.files);
+        if (importCycleResult.cycles.length > 0) {
+          core50.info("Import cycle detection: " + importCycleResult.cycles.length + " cycle(s) detected");
+        }
+      } catch (e) {
+        core50.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let learningResult = null;
@@ -92827,7 +92991,7 @@ async function run() {
       try {
         learningResult = runReviewLearning(workspace);
       } catch (e) {
-        core49.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let blastResult = null;
@@ -92835,7 +92999,7 @@ async function run() {
       try {
         blastResult = runBlastRadiusAnalysis(diff.files);
       } catch (e) {
-        core49.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let specComplianceResults = [];
@@ -92851,9 +93015,9 @@ async function run() {
           diff.files,
           config2
         );
-        if (specComplianceResults.length > 0) core49.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
+        if (specComplianceResults.length > 0) core50.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
       } catch (e) {
-        core49.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let businessContextResult = null;
@@ -92868,11 +93032,11 @@ async function run() {
             mcpEndpoints
           );
           if (businessContextResult.totalTickets > 0) {
-            core49.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
+            core50.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
           }
         }
       } catch (e) {
-        core49.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let orgMemoryResult = null;
@@ -92885,11 +93049,11 @@ async function run() {
           prNumber
         );
         if (orgMemoryResult.similarPRs.length > 0) {
-          core49.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
+          core50.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
         }
         pruneOldHistory(workspace, `${owner}/${repo}`, 180);
       } catch (e) {
-        core49.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let testGapResult = null;
@@ -92898,10 +93062,10 @@ async function run() {
         const _tgr = runTestGapDetection(diff.files, workspace);
         testGapResult = _tgr;
         if (_tgr.gaps.length > 0) {
-          core49.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
+          core50.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
         }
       } catch (e) {
-        core49.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let complexityResult = null;
@@ -92914,9 +93078,9 @@ async function run() {
           blastResult?.totalImpact ?? 0,
           taintResult?.traces.length ?? 0
         );
-        core49.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
+        core50.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
       } catch (e) {
-        core49.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let splitResult = null;
@@ -92924,10 +93088,10 @@ async function run() {
       try {
         splitResult = suggestPRSplits(diff.files, complexityResult.score, complexityResult.category);
         if (splitResult.shouldSplit) {
-          core49.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
+          core50.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
         }
       } catch (e) {
-        core49.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let lifecycleResult = null;
@@ -92937,10 +93101,10 @@ async function run() {
         const prev = loadPreviousFindings(workspace, owner, repo, prNumber);
         lifecyclePromptCtx = prev.promptContext;
         if (prev.previousSnapshot) {
-          core49.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
+          core50.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
         }
       } catch (e) {
-        core49.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let intentResult = null;
@@ -92948,10 +93112,10 @@ async function run() {
       try {
         intentResult = classifyIntents(diff.files);
         if (intentResult.fileIntents.length > 0) {
-          core49.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
+          core50.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
         }
       } catch (e) {
-        core49.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let depImpactResult = null;
@@ -92959,10 +93123,10 @@ async function run() {
       try {
         depImpactResult = analyzeDepImpact(diff.files);
         if (depImpactResult.changes.length > 0) {
-          core49.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
+          core50.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
         }
       } catch (e) {
-        core49.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let threadContinuityResult = null;
@@ -92973,11 +93137,11 @@ async function run() {
         if (prAuthor) {
           threadContinuityResult = await analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor);
           if (threadContinuityResult.dismissalCount > 0) {
-            core49.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
+            core50.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
           }
         }
       } catch (e) {
-        core49.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let authBoundaryResult = null;
@@ -92995,7 +93159,7 @@ async function run() {
           });
         }
       } catch (e) {
-        core49.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let fatigueDashboardBody = "";
@@ -93006,10 +93170,10 @@ async function run() {
         const fatigueResult = buildFatigueDashboard(workspace, suppressed);
         if (fatigueResult.categories.length > 0) {
           fatigueDashboardBody = formatFatigueDashboard(fatigueResult);
-          core49.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
+          core50.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
         }
       } catch (e) {
-        core49.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let entropyResult = null;
@@ -93027,24 +93191,24 @@ async function run() {
           });
         }
       } catch (e) {
-        core49.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let linterFindings = [];
     try {
       linterFindings = runLinters(workspace, diff.files.map((f) => f.path));
-      if (linterFindings.length > 0) core49.info(`Linters: ${linterFindings.length} finding(s)`);
+      if (linterFindings.length > 0) core50.info(`Linters: ${linterFindings.length} finding(s)`);
     } catch (e) {
-      core49.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+      core50.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const depFindings = runDependencyAudit(workspace);
       if (depFindings.length > 0) {
         linterFindings.push(...depFindings);
-        core49.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
+        core50.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
       }
     } catch (e) {
-      core49.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core50.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     const preFeedbackStore = readFeedbackStore(workspace);
@@ -93068,19 +93232,19 @@ ${manualInstructions}`;
         context3.rulesContent += `
 
 ` + projectIndex.contextText;
-        core49.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
+        core50.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
       }
     } catch (e) {
-      core49.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core50.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const repoHealth = computeRepoHealth(workspace, projectIndex ? projectIndex.keyFiles : []);
       if (repoHealth.contextText) {
         context3.rulesContent += "\n\n" + repoHealth.contextText;
-        core49.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
+        core50.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
       }
     } catch (e) {
-      core49.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core50.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     let chunkPlan;
     try {
@@ -93088,18 +93252,18 @@ ${manualInstructions}`;
         chunkPlan = planChunkedReview(diff.files);
         if (chunkPlan.contextText) {
           context3.rulesContent += "\n\n" + chunkPlan.contextText;
-          core49.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
+          core50.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
         }
       }
     } catch (e) {
-      core49.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core50.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const adrContextStr = buildADRContext(adrs);
     if (adrContextStr) {
       context3.rulesContent += String.raw`
 
 ${adrContextStr}`;
-      core49.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
+      core50.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
     }
     if (taintResult && taintResult.traces.length > 0) {
       const taintContextStr = buildTaintContext(taintResult);
@@ -93126,6 +93290,9 @@ ${taintContextStr}`;
     }
     if (breakingChangeResult && breakingChangeResult.contextText) {
       context3.rulesContent += "\n\n" + breakingChangeResult.contextText;
+    }
+    if (importCycleResult && importCycleResult.contextText) {
+      context3.rulesContent += "\n\n" + importCycleResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -93216,7 +93383,7 @@ ${testGapResult.contextText}`;
     if (config2.adaptiveStrategy) {
       const strategyPrompt = buildStrategyPrompt(prClassification.category);
       context3.rulesContent += strategyPrompt;
-      core49.info(`Adaptive strategy: ${prClassification.category}`);
+      core50.info(`Adaptive strategy: ${prClassification.category}`);
     }
     if (config2.defenseFramework) {
       try {
@@ -93230,14 +93397,14 @@ ${testGapResult.contextText}`;
         if (context3.ghostContent) {
           context3.ghostContent = defendInput(context3.ghostContent, "retrieved", "ghost-context");
         }
-        core49.info("Defense framework: input provenance tags applied");
+        core50.info("Defense framework: input provenance tags applied");
       } catch (e) {
-        core49.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const guarded = guardContextWindow(context3.diffText, config2.provider);
     if (guarded.truncated) {
-      core49.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
+      core50.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
     }
     context3.diffText = guarded.text;
     if (slopResult.isSlop) {
@@ -93249,7 +93416,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let swarmResult = null;
     if (config2.swarmReview && classification.tier !== "light") {
       try {
-        core49.info("Running swarm review (3 specialist agents in parallel)...");
+        core50.info("Running swarm review (3 specialist agents in parallel)...");
         swarmResult = await runSwarmReview(
           context3.diffText,
           positionHint,
@@ -93257,16 +93424,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           classification
         );
         if (swarmResult.findings.length > 0) {
-          core49.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
+          core50.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
         }
       } catch (e) {
-        core49.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let agentContext = "";
     if (classification.tier !== "light") {
       try {
-        core49.info("Running agent context gathering...");
+        core50.info("Running agent context gathering...");
         agentContext = await runAgentContextGathering(
           context3.diffText,
           config2,
@@ -93280,7 +93447,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           context3.ghostContent += "\n\n## Agent-Explored Context\n" + agentContext;
         }
       } catch (e) {
-        core49.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (swarmResult && swarmResult.findings.length > 0) {
@@ -93296,16 +93463,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           content: f.hunks.flatMap((h) => h.changes).map((c) => c.content).join("\n")
         })));
         if (reviewPlan.cached.length > 0) {
-          core49.info(formatCacheStats(reviewPlan.stats));
+          core50.info(formatCacheStats(reviewPlan.stats));
         }
         if (reviewPlan.toReview.length < diff.files.length) {
-          core49.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
+          core50.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
         }
       } catch (e) {
-        core49.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
+        core50.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core49.info("Running review pass...");
+    core50.info("Running review pass...");
     const { output: review, usage: reviewUsage } = await runReview(
       context3.diffText,
       positionHint,
@@ -93316,7 +93483,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       classification,
       context3.learningContent
     );
-    core49.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
+    core50.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
     if (config2.reviewCache && review.comments.length > 0) {
       try {
         const filesByPath = new Map(diff.files.map((f) => [f.path, f]));
@@ -93336,16 +93503,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           cacheReviewResults(workspace, cacheInput);
         }
       } catch (e) {
-        core49.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
+        core50.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core49.info("Running self-critique pass...");
+    core50.info("Running self-critique pass...");
     await rateLimiter.acquire();
     const filtered = await runCritique(review, config2);
-    core49.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
+    core50.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
     const learningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     if (Object.keys(learningWeights).length > 0) {
-      core49.info("Learning weights: " + JSON.stringify(learningWeights));
+      core50.info("Learning weights: " + JSON.stringify(learningWeights));
       const adjusted = applyLearningWeights(filtered.comments, learningWeights);
       filtered.comments = adjusted;
     }
@@ -93353,13 +93520,13 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       const feedbackStore = readFeedbackStore(workspace);
       const suppressed = computeSuppressedPatterns(feedbackStore);
       if (suppressed.size > 0) {
-        core49.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
+        core50.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
         filtered.comments = applyNoiseReduction(filtered.comments, suppressed);
         if (learningResult && learningResult.newRules.length > 0) {
           filtered.comments = applyNegativeRules(filtered.comments, learningResult.newRules);
         }
         const reduced = filtered.comments.filter((c) => c.confidence < config2.confidenceThreshold).length;
-        if (reduced > 0) core49.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
+        if (reduced > 0) core50.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
       }
     } catch {
     }
@@ -93372,7 +93539,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let complianceResults = [];
     if (config2.confidenceCalibration || config2.complianceCheck) {
       const calibrationPromise = config2.confidenceCalibration ? calibrateConfidence(filtered, config2).catch((e) => {
-        core49.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
         return null;
       }) : Promise.resolve(null);
       const compliancePromise = config2.complianceCheck ? (async () => {
@@ -93390,7 +93557,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             config2
           );
         } catch (e) {
-          core49.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
           return [];
         }
       })() : Promise.resolve([]);
@@ -93398,12 +93565,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       if (calibrated) {
         const highCount = calibrated.filter((c) => c.calibratedConfidence === "high").length;
         const lowCount = calibrated.filter((c) => c.calibratedConfidence === "low").length;
-        core49.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
+        core50.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
         filtered.comments = calibrated;
       }
       complianceResults = compliance;
       if (complianceResults.length > 0) {
-        core49.info("Compliance: " + complianceResults.length + " issue(s) checked");
+        core50.info("Compliance: " + complianceResults.length + " issue(s) checked");
       }
     }
     const mergedComments = [
@@ -93450,10 +93617,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         mergedComments.length = 0;
         mergedComments.push(...supFiltered);
         if (supResult.suppressedCount > 0) {
-          core49.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
+          core50.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
         }
       } catch (e) {
-        core49.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const mergedReview = { ...filtered, comments: mergedComments };
@@ -93462,15 +93629,15 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         const { dedupFindings: dedup, formatDedupStats: fmtDedup } = await Promise.resolve().then(() => (init_finding_dedup(), finding_dedup_exports));
         const dedupResult = dedup([{ name: "merged", findings: mergedReview.comments }]);
         if (dedupResult.stats.duplicatesRemoved > 0 || dedupResult.stats.proximityMerges > 0) {
-          core49.info(fmtDedup(dedupResult.stats));
+          core50.info(fmtDedup(dedupResult.stats));
           mergedReview.comments = dedupResult.findings;
         }
       } catch (e) {
-        core49.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
+        core50.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (suppressionResult && suppressionResult.contextText) {
-      core49.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
+      core50.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
     }
     let ownershipBody = "";
     let crossPRResult = null;
@@ -93481,10 +93648,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           const ownership = matchOwnership(diff.files, ownershipRules);
           mergedReview.comments = applyOwnershipToFindings(mergedReview.comments, ownership);
           ownershipBody = buildOwnershipSummary(ownership);
-          if (ownershipBody) core49.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
+          if (ownershipBody) core50.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
         }
       } catch (e) {
-        core49.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let behavioralBody = "";
@@ -93492,9 +93659,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       try {
         const behavioralResult = await generateBehavioralSummary(diff.rawDiff, diff.files, config2);
         behavioralBody = formatBehavioralSummary(behavioralResult);
-        core49.info("Behavioral summary: " + behavioralResult.headline);
+        core50.info("Behavioral summary: " + behavioralResult.headline);
       } catch (e) {
-        core49.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const currentFindings = mergedReview.comments.map((c) => ({
@@ -93509,12 +93676,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       prNumber,
       currentFindings
     );
-    if (deletedCount > 0) core49.info(`Cleaned up ${deletedCount} outdated comment(s)`);
+    if (deletedCount > 0) core50.info(`Cleaned up ${deletedCount} outdated comment(s)`);
     if (config2.defenseFramework) {
       try {
         const defenseValidation = validateReviewOutput(mergedReview);
         if (!defenseValidation.valid) {
-          core49.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
+          core50.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
           for (const c of mergedReview.comments) {
             c.message = defendOutput(c.message);
           }
@@ -93523,21 +93690,21 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             c.message = defendOutput(c.message);
           }
         }
-        core49.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
+        core50.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
       } catch (e) {
-        core49.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.dryRun) {
-      core49.info("DRY RUN: Skipping review post. Findings:");
+      core50.info("DRY RUN: Skipping review post. Findings:");
       for (const c of mergedReview.comments) {
-        core49.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
+        core50.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
       }
-      core49.setOutput("review_id", 0);
-      core49.setOutput("finding_count", mergedReview.comments.length);
-      core49.setOutput("risk_score", mergedReview.riskScore);
+      core50.setOutput("review_id", 0);
+      core50.setOutput("finding_count", mergedReview.comments.length);
+      core50.setOutput("risk_score", mergedReview.riskScore);
     } else {
-      core49.info("Posting review...");
+      core50.info("Posting review...");
       const result = await postReview(
         octokit,
         owner,
@@ -93549,7 +93716,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         config2,
         diff.files
       );
-      core49.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+      core50.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
       if (config2.checksApi && !config2.dryRun) {
         try {
           const checkResult = await createCheckRun(
@@ -93560,9 +93727,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             mergedReview.comments,
             mergedReview.riskScore
           );
-          core49.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
+          core50.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
         } catch (e) {
-          core49.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (behavioralBody) {
@@ -93574,7 +93741,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: behavioralBody
           });
         } catch (e) {
-          core49.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (fatigueDashboardBody) {
@@ -93586,7 +93753,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: fatigueDashboardBody
           });
         } catch (e) {
-          core49.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (lifecycleResult) {
@@ -93602,7 +93769,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
                 body: lifecycleBody
               });
             } catch (e) {
-              core49.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core50.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
         }
@@ -93616,7 +93783,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: intentResult.bodySummary
           });
         } catch (e) {
-          core49.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (depImpactResult && depImpactResult.bodySummary) {
@@ -93628,7 +93795,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: depImpactResult.bodySummary
           });
         } catch (e) {
-          core49.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (threadContinuityResult && threadContinuityResult.bodySummary) {
@@ -93640,7 +93807,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: threadContinuityResult.bodySummary
           });
         } catch (e) {
-          core49.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (ownershipBody) {
@@ -93658,7 +93825,7 @@ ${ownershipBody}
             body: ownershipComment
           });
         } catch (e) {
-          core49.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (deltaBody) {
@@ -93676,22 +93843,22 @@ ${deltaBody}
             body: deltaComment
           });
         } catch (e) {
-          core49.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (config2.deltaReview) {
         try {
           recordReviewedSha(workspace, owner, repo, prNumber, headSha);
         } catch (e) {
-          core49.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
         }
       }
-      core49.setOutput("review_id", result.reviewId);
-      core49.setOutput("finding_count", result.findingCount);
-      core49.setOutput("risk_score", result.riskScore);
+      core50.setOutput("review_id", result.reviewId);
+      core50.setOutput("finding_count", result.findingCount);
+      core50.setOutput("risk_score", result.riskScore);
       if (complianceResults.length > 0) {
         const topCompliance = complianceResults[0].compliance;
-        core49.setOutput("compliance", topCompliance);
+        core50.setOutput("compliance", topCompliance);
         const complianceBody = formatCompliance(complianceResults);
         if (complianceBody) {
           await octokit.rest.issues.createComment({
@@ -93702,13 +93869,13 @@ ${deltaBody}
           });
         }
       } else {
-        core49.setOutput("compliance", "none");
+        core50.setOutput("compliance", "none");
       }
       if (config2.autoLabels) {
         try {
           await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
         } catch (e) {
-          core49.warning("Auto-labeling failed: " + (e?.message || String(e)));
+          core50.warning("Auto-labeling failed: " + (e?.message || String(e)));
         }
       }
     }
@@ -93725,9 +93892,9 @@ ${deltaBody}
           threshold: config2.gateThreshold,
           findingCount: mergedReview.comments.length
         });
-        core49.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
+        core50.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
       } catch (e) {
-        core49.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
       }
       if (config2.safetyScore && !config2.dryRun) {
         try {
@@ -93739,9 +93906,9 @@ ${deltaBody}
           };
           const safetyResult = computeSafetyScore(safetyInput);
           await postSafetyScore(octokit, owner, repo, headSha, prNumber, safetyResult.score);
-          core49.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
+          core50.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
         } catch (e) {
-          core49.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
+          core50.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     }
@@ -93771,29 +93938,29 @@ ${digest}
 ---
 *Posted by Mizumi*`;
         await createOrUpdateSpendComment(octokit, owner, repo, prNumber, dashboardBody);
-        core49.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
+        core50.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
       } catch (e) {
-        core49.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.findingLifecycle) {
       try {
         lifecycleResult = trackFindings(workspace, owner, repo, prNumber, headSha, mergedReview.comments);
         if (lifecycleResult.currentIteration > 1) {
-          core49.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
+          core50.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
         }
       } catch (e) {
-        core49.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.crossPRPersistence) {
       try {
         crossPRResult = trackCrossPRFindings(workspace, `${owner}/${repo}#${prNumber}`, mergedReview.comments);
         if (crossPRResult.recurringFindings.length > 0) {
-          core49.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
+          core50.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
         }
       } catch (e) {
-        core49.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (assertionAuditResult && assertionAuditResult.bodySummary) {
@@ -93805,7 +93972,7 @@ ${digest}
           body: assertionAuditResult.bodySummary
         });
       } catch (e) {
-        core49.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (breakingChangeResult && breakingChangeResult.bodySummary) {
@@ -93817,7 +93984,19 @@ ${digest}
           body: breakingChangeResult.bodySummary
         });
       } catch (e) {
-        core49.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (importCycleResult && importCycleResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: importCycleResult.bodySummary
+        });
+      } catch (e) {
+        core50.warning("Import cycle detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (driftResult && driftResult.bodySummary) {
@@ -93829,7 +94008,7 @@ ${digest}
           body: driftResult.bodySummary
         });
       } catch (e) {
-        core49.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
@@ -93841,7 +94020,7 @@ ${digest}
           body: crossPRConflictResult.bodySummary
         });
       } catch (e) {
-        core49.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (crossPRResult && crossPRResult.bodySummary) {
@@ -93853,24 +94032,24 @@ ${digest}
           body: crossPRResult.bodySummary
         });
       } catch (e) {
-        core49.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.sarifExport && mergedReview.comments.length > 0) {
       try {
         const sarif = generateSARIF(mergedReview.comments, `https://github.com/${owner}/${repo}`);
         const sarifPath = writeSARIF(workspace, sarif);
-        core49.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
+        core50.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
         if (!config2.dryRun) {
           const uploadId = await uploadSARIF(octokit, owner, repo, headSha, sarifPath);
           if (uploadId) {
-            core49.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
+            core50.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
           } else {
-            core49.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
+            core50.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
           }
         }
       } catch (e) {
-        core49.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewPriority && mergedReview.comments.length > 0) {
@@ -93883,7 +94062,7 @@ ${digest}
           recurrenceCount: crossPRResult ? crossPRResult.recurringFindings.find((r) => r.inCurrentPR && r.category === c.category)?.prCount ?? 0 : 0
         }));
         const priorityResult = prioritizeFindings(priorityInputs);
-        core49.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
+        core50.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
         if (priorityResult.bodySummary) {
           try {
             await octokit.rest.issues.createComment({
@@ -93893,11 +94072,11 @@ ${digest}
               body: priorityResult.bodySummary
             });
           } catch (e) {
-            core49.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
+            core50.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
           }
         }
       } catch (e) {
-        core49.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     recordFindings(
@@ -93923,21 +94102,21 @@ ${digest}
           mergedReview.riskScore
         );
       } catch (e) {
-        core49.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     writeMemory(workspace, context3.memoryContent, memoryUpdate);
     const updatedMemory = readMemory(workspace);
     const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
-    if (generatedSkills.length > 0) core49.info(`Auto-generated ${generatedSkills.length} skill(s)`);
+    if (generatedSkills.length > 0) core50.info(`Auto-generated ${generatedSkills.length} skill(s)`);
     try {
       const defaultBranch = github.context.payload.repository?.default_branch || "main";
       const persistResult = await persistLearningData(octokit, owner, repo, defaultBranch, workspace);
       if (persistResult.committed) {
-        core49.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
+        core50.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
       }
     } catch (e) {
-      core49.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
+      core50.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
     }
     if (config2.auditTrail) {
       try {
@@ -93955,6 +94134,7 @@ ${digest}
         if (config2.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
         if (config2.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
         if (config2.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0, true);
+        if (config2.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
@@ -93964,9 +94144,9 @@ ${digest}
         auditBuilder.setConfigSnapshot(config2);
         const trail = auditBuilder.build();
         writeAuditTrail(workspace, trail);
-        core49.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
+        core50.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
       } catch (e) {
-        core49.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewDashboard) {
@@ -93974,9 +94154,9 @@ ${digest}
         const dashMetrics = collectDashboardMetrics({ workspace, repoId: owner + "/" + repo });
         const dashHtml = generateDashboardHTML(dashMetrics, owner + "/" + repo);
         writeDashboard(workspace, dashHtml);
-        core49.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
+        core50.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
       } catch (e) {
-        core49.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewReplay && config2.auditTrail) {
@@ -93998,18 +94178,18 @@ ${timelineBody}
 *Posted by Mizumi*`
             });
           }
-          core49.info("Review replay: posted timeline with " + prRuns.length + " runs");
+          core50.info("Review replay: posted timeline with " + prRuns.length + " runs");
         }
       } catch (e) {
-        core49.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
+        core50.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core49.info("Mizumi review complete");
+    core50.info("Mizumi review complete");
   } catch (error52) {
-    core49.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
-    core49.setOutput("review_id", 0);
-    core49.setOutput("finding_count", 0);
-    core49.setOutput("risk_score", -1);
+    core50.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
+    core50.setOutput("review_id", 0);
+    core50.setOutput("finding_count", 0);
+    core50.setOutput("risk_score", -1);
   }
 }
 function getPrNumber(ctx) {
@@ -94025,6 +94205,6 @@ function getPrNumber(ctx) {
   return null;
 }
 void run().catch((e) => {
-  core49.setFailed(`Fatal: ${e}`);
+  core50.setFailed(`Fatal: ${e}`);
   process.exit(0);
 });

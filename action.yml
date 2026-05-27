@@ -323,6 +323,12 @@ defense_framework:
     required: false
     default: "true"
 
+import_cycle_detector:
+  description: "Enable import cycle detection — detect circular dependency chains in PR diffs including direct cycles, indirect cycles, and self-imports. Zero LLM cost. No AI code reviewer detects import cycles."
+  required: false
+  default: "true"
+
+
 breaking_change_radar:
   description: "Enable breaking change radar — detects removed exports, renamed exports, new required parameters, return type narrowing, changed thrown exceptions, and deleted public methods. Zero LLM cost. No AI code reviewer detects code-level breaking changes."
   required: false
