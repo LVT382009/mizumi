@@ -629,3 +629,13 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **26 tests** in `src/__tests__/dead-code-detector.test.ts`
 - **4715 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer flags dead code at the diff level. Only linters (ESLint, TypeScript) catch it in CI, but not in PR review context.
+
+### Type Safety Erosion Detector (2026-05-28)
+- **New file**: `src/type-safety-erosion.ts` — detect type safety regressions in PR diffs
+- **4 detection categories**: type-assertion (`as Type` bypassing type checker), any-type (`: any`, `as any`, `<any>`, `any` inside generics), ts-directive (`@ts-ignore`/`@ts-nocheck` critical, `@ts-expect-error` warning), lint-suppression (`eslint-disable`/`eslint-disable-next-line`)
+- **Exclusions**: `import X as Y` not flagged as type assertion, comments with `any` not flagged
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `type_safety_erosion` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **43 tests** in `src/__tests__/type-safety-erosion.test.ts`
+- **4758 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer flags type safety erosion. CodeRabbit, Copilot, CodeGuru, and Sourcery all miss `as` assertions, `any` escape hatches, and @ts-ignore suppressions.
