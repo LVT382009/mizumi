@@ -84,6 +84,7 @@ import { detectArchitectureDrift, loadArchitectureModel } from "./architecture-d
 import { auditTestAssertions } from "./test-assertion-audit.js";
 import { detectBreakingChanges } from "./breaking-change-radar.js";
 import { detectImportCycles } from "./import-cycle-detector.js";
+import { detectDeadCode } from "./dead-code-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -464,6 +465,18 @@ if (config.importCycleDetector) {
  core.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
  }
 }
+// 4a3h. Dead code detector — detect unreachable code, unused variables, empty catch blocks
+let deadCodeResult: import("./dead-code-detector.js").DeadCodeResult | null = null;
+if (config.deadCodeDetector) {
+ try {
+ deadCodeResult = detectDeadCode(diff.files);
+ if (deadCodeResult.issues.length > 0) {
+ core.info("Dead code detection: " + deadCodeResult.issues.length + " issue(s) detected");
+ }
+ } catch (e) {
+ core.warning("Dead code detection failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -821,6 +834,10 @@ if (breakingChangeResult && breakingChangeResult.contextText) {
 // 5c2g. Import cycle detector context injection
 if (importCycleResult && importCycleResult.contextText) {
   context.rulesContent += "\n\n" + importCycleResult.contextText;
+}
+// 5c2h. Dead code detector context injection
+if (deadCodeResult && deadCodeResult.contextText) {
+  context.rulesContent += "\n\n" + deadCodeResult.contextText;
 }
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
@@ -1573,6 +1590,17 @@ if (importCycleResult && importCycleResult.bodySummary) {
 }
 
 
+// Post dead code detector summary as a separate comment
+if (deadCodeResult && deadCodeResult.bodySummary) {
+ try {
+ await octokit.rest.issues.createComment({
+ owner, repo, issue_number: prNumber, body: deadCodeResult.bodySummary,
+ });
+ } catch (e) {
+ core.warning("Dead code detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+}
+
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1719,6 +1747,7 @@ if (config.architectureDriftDetection) auditBuilder.logStage("architecture-drift
 if (config.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
 if (config.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0, true);
 if (config.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
+if (config.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

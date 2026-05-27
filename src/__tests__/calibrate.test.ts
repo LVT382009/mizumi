@@ -171,6 +171,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     testAssertionAudit: true,
 breakingChangeRadar: true,
 importCycleDetector: true,
+deadCodeDetector: true,
     ...overrides,
   };
 }

@@ -334,6 +334,12 @@ breaking_change_radar:
   required: false
   default: "true"
 
+dead_code_detector:
+  description: "Enable dead code detector — detects unreachable code after return/throw/break/continue, unused variables, and empty catch blocks. Zero LLM cost. No AI code reviewer flags dead code at the diff level."
+  required: false
+  default: "true"
+
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

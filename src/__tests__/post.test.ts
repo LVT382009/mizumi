@@ -95,6 +95,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     testAssertionAudit: true,
 breakingChangeRadar: true,
 importCycleDetector: true,
+deadCodeDetector: true,
     ...overrides,
   };
 }

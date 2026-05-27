@@ -295,6 +295,7 @@ describe("runSwarmReview", () => {
     testAssertionAudit: true,
 breakingChangeRadar: true,
 importCycleDetector: true,
+deadCodeDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

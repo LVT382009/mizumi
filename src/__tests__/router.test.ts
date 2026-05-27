@@ -75,6 +75,7 @@ const baseConfig: MizumiConfig = {
     testAssertionAudit: true,
 breakingChangeRadar: true,
 importCycleDetector: true,
+deadCodeDetector: true,
 };
 
 describe("classifyDiff", () => {

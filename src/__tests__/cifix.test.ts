@@ -129,6 +129,7 @@ const testConfig = {
     testAssertionAudit: true,
 breakingChangeRadar: true,
 importCycleDetector: true,
+deadCodeDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
