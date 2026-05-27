@@ -80,6 +80,7 @@ import { collectDashboardMetrics, generateDashboardHTML, writeDashboard } from "
 import { findRunsForPR, formatReplayTimeline } from "./review-replay.js";
 import { analyzeConcurrency, buildConcurrencyContext } from "./concurrency.js";
 import { detectCrossPRConflicts, buildOpenPRSummary } from "./crosspr-conflict.js";
+import { detectArchitectureDrift, loadArchitectureModel } from "./architecture-drift.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -407,7 +408,23 @@ if (config.crossprConflictDetection) {
   }
 }
 
- // 4a4. Review-to-review learning — auto-suppress dismissed patterns
+ 
+// 4a3d. Architecture drift detection — detect violations against declared architecture model
+let driftResult: import("./architecture-drift.js").DriftDetectionResult | null = null;
+if (config.architectureDriftDetection) {
+  try {
+    const archModel = loadArchitectureModel(workspace);
+    if (archModel) {
+      driftResult = detectArchitectureDrift(diff.files, archModel);
+      if (driftResult.violations.length > 0) {
+        core.info("Architecture drift: " + driftResult.violations.length + " violations detected");
+      }
+    }
+  } catch (e) {
+    core.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+// 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
  try {
@@ -747,6 +764,11 @@ if (crossPRConflictResult && crossPRConflictResult.contextText) {
   context.rulesContent += "\n\n" + crossPRConflictResult.contextText;
 }
 
+
+// 5c2d. Architecture drift context injection
+if (driftResult && driftResult.contextText) {
+  context.rulesContent += "\n\n" + driftResult.contextText;
+}
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
   const learningContextStr = buildLearningContext(learningResult);
@@ -1466,6 +1488,16 @@ if (config.crossPRPersistence) {
   }
 }
 
+// Post architecture drift summary as a separate comment
+if (driftResult && driftResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: driftResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post cross-PR conflict detection summary as a separate comment
 if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
   try {
@@ -1598,6 +1630,7 @@ if (config.auditTrail) {
     if (config.taintAnalysis) auditBuilder.logStage("taint", 0, true);
 if (config.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
 if (config.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
+if (config.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

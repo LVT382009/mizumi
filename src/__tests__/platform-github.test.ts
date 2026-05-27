@@ -165,6 +165,7 @@ vi.mock("../config.js", () => ({
       reviewReplay: true,
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
+    architectureDriftDetection: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

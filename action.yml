@@ -312,6 +312,11 @@ defense_framework:
     description: "Enable cross-PR conflict detection — detects file collisions, export/signature changes, and delete-use conflicts between multiple open PRs. Zero LLM cost. No AI code reviewer analyzes cross-PR interactions."
     required: false
     default: "true"
+
+  architecture_drift_detection:
+    description: "Enable architecture drift detection — detect when PR changes violate declared architecture boundaries (layer violations, boundary crossings). Loads model from .github/mizumi-architecture.yml. Zero LLM cost. No AI code reviewer detects architecture violations."
+    required: false
+    default: "true"
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

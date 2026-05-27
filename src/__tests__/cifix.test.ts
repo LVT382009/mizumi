@@ -125,6 +125,7 @@ const testConfig = {
       reviewReplay: true,
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
+    architectureDriftDetection: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

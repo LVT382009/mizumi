@@ -71,6 +71,7 @@ const baseConfig: MizumiConfig = {
       reviewReplay: true,
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
+    architectureDriftDetection: true,
 };
 
 describe("classifyDiff", () => {
