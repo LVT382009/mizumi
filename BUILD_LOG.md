@@ -572,3 +572,17 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **26 tests** in `src/__tests__/crosspr-conflict.test.ts`
 - **4571 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) analyzes cross-PR interactions
+
+## 2026-05-27 — Architecture Drift Detection
+
+- **New module**: `src/architecture-drift.ts` — detects when PR changes violate declared architecture boundaries:
+  1. **Layer violation**: file in layer A imports from layer B when model says A must not depend on B
+  2. **Boundary violation**: file imports across bounded context boundary without anti-corruption layer
+- **Architecture model**: loaded from `.github/mizumi-architecture.yml` — declares layers, allowed dependency directions, bounded contexts, strict mode
+- **YAML parser**: `parseArchitectureYaml()` supports layers with patterns + allowedDeps, contexts, strict mode
+- **Glob matching**: supports `*`, `**`, and exact path matching for layer pattern resolution
+- **Pipeline integration**: main.ts loads model, detects drift, injects context, posts summary comment
+- **Config propagation**: `architecture_drift_detection` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **29 tests** in `src/__tests__/architecture-drift.test.ts`
+- **4599 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) detects architecture violations. Only Erode.dev standalone tool exists.
