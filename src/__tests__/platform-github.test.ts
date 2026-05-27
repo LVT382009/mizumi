@@ -174,6 +174,7 @@ deadCodeDetector: true,
     todoDebtDetector: true,
     magicNumberDetector: true,
     errorHandlingDetector: true,
+    performanceAntipatternDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

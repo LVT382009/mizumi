@@ -300,6 +300,7 @@ deadCodeDetector: true,
     todoDebtDetector: true,
     magicNumberDetector: true,
     errorHandlingDetector: true,
+    performanceAntipatternDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

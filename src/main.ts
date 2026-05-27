@@ -89,6 +89,7 @@ import { detectTypeSafetyErosion } from "./type-safety-erosion.js";
 import { detectTechDebt } from "./todo-debt-detector.js";
 import { detectMagicNumbers } from "./magic-number-detector.js";
 import { detectErrorHandlingGaps } from "./error-handling-detector.js";
+import { detectPerformanceAntiPatterns } from "./performance-antipattern-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -533,6 +534,20 @@ if (config.errorHandlingDetector) {
   }
 }
 
+
+// 4a3m. Performance anti-pattern detector — detect N+1 queries, sync I/O, waterfall awaits, unnecessary awaits
+let perfAntiPatternResult: import("./performance-antipattern-detector.js").PerfAntiPatternResult | null = null;
+if (config.performanceAntipatternDetector) {
+  try {
+    perfAntiPatternResult = detectPerformanceAntiPatterns(diff.files);
+    if (perfAntiPatternResult.issues.length > 0) {
+      core.info("Performance anti-pattern detection: " + perfAntiPatternResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Performance anti-pattern detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -913,6 +928,12 @@ if (magicNumberResult && magicNumberResult.contextText) {
 // 5c2l. Error handling gap detector context injection
 if (errorHandlingResult && errorHandlingResult.contextText) {
   context.rulesContent += "\n\n" + errorHandlingResult.contextText;
+}
+
+
+// 5c2m. Performance anti-pattern detector context injection
+if (perfAntiPatternResult && perfAntiPatternResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + perfAntiPatternResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1721,6 +1742,16 @@ if (errorHandlingResult && errorHandlingResult.bodySummary) {
   }
 }
 
+// Post performance anti-pattern detection summary as a separate comment
+if (perfAntiPatternResult && perfAntiPatternResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: perfAntiPatternResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Performance anti-pattern comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1872,6 +1903,7 @@ if (config.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, tr
 if (config.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
 if (config.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
 if (config.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
+if (config.performanceAntipatternDetector) auditBuilder.logStage("performance-antipattern-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

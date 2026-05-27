@@ -360,6 +360,11 @@ error_handling_detector:
   required: false
   default: "true"
 
+performance_antipattern_detector:
+  description: "Enable performance anti-pattern detector — flags N+1 queries, sync I/O in async functions, waterfall awaits, and unnecessary awaits. Zero LLM cost. No AI code reviewer detects performance anti-patterns at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

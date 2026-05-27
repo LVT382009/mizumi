@@ -134,6 +134,7 @@ deadCodeDetector: true,
     todoDebtDetector: true,
     magicNumberDetector: true,
     errorHandlingDetector: true,
+    performanceAntipatternDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
