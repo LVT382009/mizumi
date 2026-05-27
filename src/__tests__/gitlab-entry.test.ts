@@ -95,6 +95,7 @@ vi.mock("../config.js", () => ({
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
     architectureDriftDetection: true,
+    testAssertionAudit: true,
   })),
 }));
 

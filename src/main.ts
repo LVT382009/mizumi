@@ -81,6 +81,7 @@ import { findRunsForPR, formatReplayTimeline } from "./review-replay.js";
 import { analyzeConcurrency, buildConcurrencyContext } from "./concurrency.js";
 import { detectCrossPRConflicts, buildOpenPRSummary } from "./crosspr-conflict.js";
 import { detectArchitectureDrift, loadArchitectureModel } from "./architecture-drift.js";
+import { auditTestAssertions } from "./test-assertion-audit.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -422,6 +423,19 @@ if (config.architectureDriftDetection) {
     }
   } catch (e) {
     core.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 4a3e. Test assertion quality audit — detect weak/missing test assertions
+let assertionAuditResult: import("./test-assertion-audit.js").AssertionAuditResult | null = null;
+if (config.testAssertionAudit) {
+  try {
+    assertionAuditResult = auditTestAssertions(diff.files);
+    if (assertionAuditResult.issues.length > 0) {
+      core.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
+    }
+  } catch (e) {
+    core.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
@@ -768,6 +782,11 @@ if (crossPRConflictResult && crossPRConflictResult.contextText) {
 // 5c2d. Architecture drift context injection
 if (driftResult && driftResult.contextText) {
   context.rulesContent += "\n\n" + driftResult.contextText;
+}
+
+// 5c2e. Test assertion audit context injection
+if (assertionAuditResult && assertionAuditResult.contextText) {
+  context.rulesContent += "\n\n" + assertionAuditResult.contextText;
 }
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
@@ -1488,6 +1507,16 @@ if (config.crossPRPersistence) {
   }
 }
 
+// Post test assertion audit summary as a separate comment
+if (assertionAuditResult && assertionAuditResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: assertionAuditResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1631,6 +1660,7 @@ if (config.auditTrail) {
 if (config.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
 if (config.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
 if (config.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
+if (config.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

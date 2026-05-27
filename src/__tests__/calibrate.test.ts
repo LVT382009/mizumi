@@ -168,6 +168,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
     architectureDriftDetection: true,
+    testAssertionAudit: true,
     ...overrides,
   };
 }

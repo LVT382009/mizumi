@@ -56521,6 +56521,7 @@ function loadConfig() {
   const concurrencyAnalysis = getInput("concurrency_analysis") !== "false";
   const crossprConflictDetection = getInput("crosspr_conflict_detection") !== "false";
   const architectureDriftDetection = getInput("architecture_drift_detection") !== "false";
+  const testAssertionAudit = getInput("test_assertion_audit") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56635,7 +56636,8 @@ function loadConfig() {
     reviewReplay,
     concurrencyAnalysis,
     crossprConflictDetection,
-    architectureDriftDetection
+    architectureDriftDetection,
+    testAssertionAudit
   };
 }
 function parseSimpleYaml(text2) {
@@ -112396,14 +112398,14 @@ function runEntropyAnalysis(files) {
   const findings = [];
   let stringsAnalyzed = 0;
   for (const file2 of files) {
-    const isTestFile = /(__tests__|\.test\.|\.spec\.|_test\.|_spec\.)/.test(file2.path);
+    const isTestFile2 = /(__tests__|\.test\.|\.spec\.|_test\.|_spec\.)/.test(file2.path);
     for (const hunk of file2.hunks) {
       for (const change of hunk.changes) {
         if (change.type !== "add") continue;
         const literals = extractStringLiterals(change.content);
         for (const lit of literals) {
           stringsAnalyzed++;
-          if (isTestFile) continue;
+          if (isTestFile2) continue;
           const { likely, reason } = isLikelySecret(lit.value, change.content);
           if (!likely) continue;
           const snippet = lit.value.length > 20 ? lit.value.slice(0, 8) + "..." + lit.value.slice(-4) : lit.value.slice(0, 3) + "...";
@@ -117009,6 +117011,239 @@ function parseArchitectureYaml(raw) {
   return { layers, contexts: contexts.length > 0 ? contexts : void 0, strict };
 }
 
+// src/test-assertion-audit.ts
+var WEAK_MATCHER_PATTERNS = [
+  /expect\s*\([^)]*\)\s*\.\s*toBeDefined\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeTruthy\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeFalsy\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeNull\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBe\s*\(\s*null\s*\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBe\s*\(\s*undefined\s*\)/g
+];
+var TAUTOLOGICAL_PATTERNS = [
+  /expect\s*\(\s*true\s*\)\s*\.\s*toBe\s*\(\s*true\s*\)/g,
+  /expect\s*\(\s*false\s*\)\s*\.\s*toBe\s*\(\s*false\s*\)/g,
+  /expect\s*\(\s*1\s*\)\s*\.\s*toBe\s*\(\s*1\s*\)/g,
+  /expect\s*\(\s*0\s*\)\s*\.\s*toBe\s*\(\s*0\s*\)/g
+];
+var EXPECT_PATTERN = /expect\s*\(/g;
+var IT_PATTERN = /\b(it|test)\s*\(\s*["'`]/g;
+var DESCRIBE_PATTERN = /\bdescribe\s*\(\s*["'`]/g;
+function detectWeakAssertions(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  for (const pattern of WEAK_MATCHER_PATTERNS) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      pattern.lastIndex = 0;
+      if (pattern.test(line)) {
+        const trimmed = line.trim();
+        if (/\.\s*not\s*\.\s*(toBeDefined|toBeTruthy|toBeFalsy|toBeNull)/.test(trimmed)) continue;
+        const matcher = trimmed.match(/\.\s*(toBeDefined|toBeTruthy|toBeFalsy|toBeNull|toBe)\s*\(/)?.[1] || "weak";
+        issues.push({
+          category: "weak-assertion",
+          file: filePath,
+          line: i + 1,
+          code: trimmed,
+          description: `Weak assertion \`.${matcher}()\` in \`${filePath}:${i + 1}\` \u2014 passes too easily, consider a more specific matcher`,
+          severity: "medium"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectTautologicalAssertions(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  for (const pattern of TAUTOLOGICAL_PATTERNS) {
+    for (let i = 0; i < lines.length; i++) {
+      pattern.lastIndex = 0;
+      if (pattern.test(lines[i])) {
+        issues.push({
+          category: "tautological-assertion",
+          file: filePath,
+          line: i + 1,
+          code: lines[i].trim(),
+          description: `Tautological assertion in \`${filePath}:${i + 1}\` \u2014 always passes, tests nothing`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectZeroAssertionFiles(filePath, content) {
+  const issues = [];
+  EXPECT_PATTERN.lastIndex = 0;
+  if (!EXPECT_PATTERN.test(content)) {
+    IT_PATTERN.lastIndex = 0;
+    DESCRIBE_PATTERN.lastIndex = 0;
+    if (IT_PATTERN.test(content) || DESCRIBE_PATTERN.test(content)) {
+      issues.push({
+        category: "zero-assertion-file",
+        file: filePath,
+        line: 0,
+        code: "",
+        description: `Test file \`${filePath}\` has no \`expect()\` calls \u2014 tests provide no actual verification`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectAssertionFreeTests(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  let inItBlock = false;
+  let itStart = -1;
+  let itName = "";
+  let depth = 0;
+  let hasExpect = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const itMatch = line.match(/\b(it|test)\s*\(\s*["'`]([^"'`]+)/);
+    if (itMatch && !inItBlock) {
+      inItBlock = true;
+      itStart = i + 1;
+      itName = itMatch[2];
+      depth = 0;
+      hasExpect = false;
+      for (const ch of line) {
+        if (ch === "{") depth++;
+        if (ch === "}") depth--;
+      }
+      continue;
+    }
+    if (inItBlock) {
+      for (const ch of line) {
+        if (ch === "{") depth++;
+        if (ch === "}") depth--;
+      }
+      if (/expect\s*\(/.test(line)) hasExpect = true;
+      if (depth <= 0 && i > 0) {
+        if (!hasExpect && itName) {
+          issues.push({
+            category: "assertion-free-test",
+            file: filePath,
+            line: itStart,
+            code: `it("${itName}...")`,
+            description: `Test \`"${itName}"\` in \`${filePath}:${itStart}\` has no \`expect()\` \u2014 may be missing assertions`,
+            severity: "critical"
+          });
+        }
+        inItBlock = false;
+        itName = "";
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}:${issue3.code}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAuditContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const medium = result.issues.filter((i) => i.severity === "medium");
+  let ctx = `## Test Assertion Quality (${result.issues.length} issues)
+`;
+  ctx += "This PR may introduce weak or missing test assertions:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 5)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (medium.length > 0) {
+    ctx += "### Medium\n";
+    for (const i of medium.slice(0, 5)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAuditBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Test Assertion Quality</strong> \u2014 ${result.issues.length} issues</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    const lineStr = i.line > 0 ? String(i.line) : "-";
+    body += `| ${catLabel} | \`${i.file}\` | ${lineStr} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Weak or missing assertions give false confidence in test coverage.*
+</details>
+`;
+  return body;
+}
+function auditTestAssertions(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (!isTestFile(file2.path)) continue;
+    if (file2.status === "deleted") continue;
+    const content = reconstructContent(file2);
+    allIssues.push(...detectWeakAssertions(file2.path, content));
+    allIssues.push(...detectTautologicalAssertions(file2.path, content));
+    allIssues.push(...detectZeroAssertionFiles(file2.path, content));
+    allIssues.push(...detectAssertionFreeTests(file2.path, content));
+  }
+  const issues = dedupIssues(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAuditContext(result);
+  result.bodySummary = buildAuditBodySummary(result);
+  if (issues.length > 0) {
+    info(`Test assertion audit: ${issues.length} quality issues detected`);
+  }
+  return result;
+}
+var TEST_FILE_PATTERNS = [
+  /\.test\.[jt]s$/,
+  /\.spec\.[jt]s$/,
+  /__tests__\//,
+  /test\//,
+  /tests\//
+];
+function isTestFile(filePath) {
+  return TEST_FILE_PATTERNS.some((p) => p.test(filePath));
+}
+function reconstructContent(file2) {
+  const lines = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      lines.push(content);
+    }
+  }
+  return lines.join("\n");
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -117319,6 +117554,17 @@ async function run() {
         warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let assertionAuditResult = null;
+    if (config2.testAssertionAudit) {
+      try {
+        assertionAuditResult = auditTestAssertions(diff.files);
+        if (assertionAuditResult.issues.length > 0) {
+          info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
+        }
+      } catch (e) {
+        warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -117617,6 +117863,9 @@ ${taintContextStr}`;
     }
     if (driftResult && driftResult.contextText) {
       context4.rulesContent += "\n\n" + driftResult.contextText;
+    }
+    if (assertionAuditResult && assertionAuditResult.contextText) {
+      context4.rulesContent += "\n\n" + assertionAuditResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -118287,6 +118536,18 @@ ${digest}
         warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    if (assertionAuditResult && assertionAuditResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: assertionAuditResult.bodySummary
+        });
+      } catch (e) {
+        warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     if (driftResult && driftResult.bodySummary) {
       try {
         await octokit.rest.issues.createComment({
@@ -118420,6 +118681,7 @@ ${digest}
         if (config2.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
         if (config2.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
         if (config2.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
+        if (config2.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

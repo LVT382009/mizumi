@@ -75,6 +75,7 @@ export interface MizumiConfig {
   concurrencyAnalysis: boolean;
   crossprConflictDetection: boolean;
   architectureDriftDetection: boolean;
+  testAssertionAudit: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -173,6 +174,7 @@ const reviewReplay = core.getInput("review_replay") !== "false"; // default true
 const concurrencyAnalysis = core.getInput("concurrency_analysis") !== "false"; // default true
 const crossprConflictDetection = core.getInput("crosspr_conflict_detection") !== "false"; // default true
 const architectureDriftDetection = core.getInput("architecture_drift_detection") !== "false"; // default true
+const testAssertionAudit = core.getInput("test_assertion_audit") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -290,6 +292,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   concurrencyAnalysis,
  crossprConflictDetection,
  architectureDriftDetection,
+ testAssertionAudit,
   };
 }
 

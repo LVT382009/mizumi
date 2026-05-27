@@ -292,6 +292,7 @@ describe("runSwarmReview", () => {
       concurrencyAnalysis: true,
     crossprConflictDetection: true,
     architectureDriftDetection: true,
+    testAssertionAudit: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

@@ -317,6 +317,11 @@ defense_framework:
     description: "Enable architecture drift detection — detect when PR changes violate declared architecture boundaries (layer violations, boundary crossings). Loads model from .github/mizumi-architecture.yml. Zero LLM cost. No AI code reviewer detects architecture violations."
     required: false
     default: "true"
+
+  test_assertion_audit:
+    description: "Enable test assertion quality audit — detects weak assertions (toBeDefined, toBeTruthy), zero-assertion test files, tautological assertions, and assertion-free tests. Zero LLM cost. No AI code reviewer audits test assertion quality."
+    required: false
+    default: "true"
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
