@@ -285,6 +285,7 @@ describe("runSwarmReview", () => {
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

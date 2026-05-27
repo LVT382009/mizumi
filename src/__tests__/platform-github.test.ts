@@ -159,6 +159,7 @@ vi.mock("../config.js", () => ({
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

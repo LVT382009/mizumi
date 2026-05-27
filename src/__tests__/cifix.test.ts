@@ -119,6 +119,7 @@ const testConfig = {
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

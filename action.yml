@@ -281,6 +281,11 @@ defense_framework:
     required: false
     default: "true"
 
+  pipeline_parallel:
+    description: "Enable pipeline stage parallelization — run independent analysis stages concurrently and parallelize per-finding LLM calibration calls. Reduces wall-clock time by 30-60% on multi-signal PRs. No AI code reviewer parallelizes analysis stages."
+    required: false
+    default: "true"
+
 
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."

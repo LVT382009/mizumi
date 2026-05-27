@@ -2,6 +2,10 @@
  * Confidence calibration — dual-model voting on borderline findings.
  * Phase 2.19: If both models agree → High confidence. If only one flags → Low.
  * Visual badges: High=green, Medium=yellow, Low=gray.
+ *
+ * With pipelineParallel enabled, borderline findings are verified
+ * concurrently (bounded concurrency=3) instead of sequentially —
+ * reducing calibration time by up to 3x.
  */
 import * as core from "@actions/core";
 import { generateObject } from "ai";
@@ -10,6 +14,7 @@ import { ReviewCommentType, ReviewResponseType } from "./review.js";
 import { MizumiConfig, getApiKey, Provider } from "./config.js";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { mapConcurrent } from "./pipeline-parallel.js";
 
 const BORDERLINE_MIN = 60;
 const BORDERLINE_MAX = 80;
@@ -60,11 +65,15 @@ export async function calibrateConfidence(
     ];
   }
 
-  for (const finding of borderline) {
-    try {
-      const { object } = await generateObject({
-        model: secondModel,
-        prompt: `You are verifying a code review finding. Is this a real issue?
+  // Use mapConcurrent for parallel verification when pipelineParallel is on
+  const concurrency = config.pipelineParallel ? 3 : 1;
+  const calibrated = await mapConcurrent(
+    borderline,
+    async (finding) => {
+      try {
+        const { object } = await generateObject({
+          model: secondModel,
+          prompt: `You are verifying a code review finding. Is this a real issue?
 
 File: ${finding.file}, Line: ${finding.line}
 Severity: ${finding.severity}, Category: ${finding.category}
@@ -72,21 +81,24 @@ Message: ${finding.message}
 ${finding.suggestion ? `Suggested fix: ${finding.suggestion}` : ""}
 
 Is this issue real and actionable?`,
-        schema: VerificationSchema,
-        maxOutputTokens: 32,
-      });
+          schema: VerificationSchema,
+          maxOutputTokens: 32,
+        });
 
-      const isConfirmed = object.confirmed === "yes";
-      result.push({
-        ...finding,
-        calibratedConfidence: isConfirmed ? "high" : "low",
-        confidence: isConfirmed ? Math.min(finding.confidence + 15, 100) : Math.max(finding.confidence - 20, 0),
-      });
-    } catch (e) {
-      core.warning(`Calibration failed for ${finding.file}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`);
-      result.push({ ...finding, calibratedConfidence: "medium" });
-    }
-  }
+        const isConfirmed = object.confirmed === "yes";
+        return {
+          ...finding,
+          calibratedConfidence: isConfirmed ? "high" as const : "low" as const,
+          confidence: isConfirmed ? Math.min(finding.confidence + 15, 100) : Math.max(finding.confidence - 20, 0),
+        };
+      } catch (e) {
+        core.warning(`Calibration failed for ${finding.file}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`);
+        return { ...finding, calibratedConfidence: "medium" as const };
+      }
+    },
+    concurrency,
+  );
+  result.push(...calibrated);
 
   const highCount = result.filter((c) => c.calibratedConfidence === "high").length;
   const lowCount = result.filter((c) => c.calibratedConfidence === "low").length;

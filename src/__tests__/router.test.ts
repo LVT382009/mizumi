@@ -65,6 +65,7 @@ const baseConfig: MizumiConfig = {
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
 };
 
 describe("classifyDiff", () => {

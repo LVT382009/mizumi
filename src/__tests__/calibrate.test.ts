@@ -131,6 +131,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
     ...overrides,
   };
 }

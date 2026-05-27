@@ -85,6 +85,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     chunkReview: true,
     reviewCache: true,
     findingDedup: true,
+    pipelineParallel: true,
     ...overrides,
   };
 }

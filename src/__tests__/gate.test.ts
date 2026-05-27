@@ -376,4 +376,192 @@ describe("postGateStatus additional edge cases", () => {
     });
     expect(result).toBe("success");
   });
+
+  // --- Combined shouldFailGate + postGateStatus ---
+
+  it("combined: shouldFailGate true matches postGateStatus failure", async () => {
+    const findings = [{ severity: "critical" }];
+    const threshold: GateThreshold = "critical";
+    expect(shouldFailGate(findings, threshold)).toBe(true);
+    const octokit = makeOctokit();
+    const result = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings, riskScore: 5, threshold, findingCount: 1,
+    });
+    expect(result).toBe("failure");
+  });
+
+  it("combined: shouldFailGate false matches postGateStatus success", async () => {
+    const findings = [{ severity: "low" }];
+    const threshold: GateThreshold = "high";
+    expect(shouldFailGate(findings, threshold)).toBe(false);
+    const octokit = makeOctokit();
+    const result = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings, riskScore: 2, threshold, findingCount: 1,
+    });
+    expect(result).toBe("success");
+  });
+
+  // --- postGateStatus with risk scores 0, 1, 5 ---
+
+  it("postGateStatus with riskScore 0 includes 0/5 in description", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [], riskScore: 0, threshold: "high", findingCount: 0,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("0/5");
+  });
+
+  it("postGateStatus with riskScore 1 includes 1/5 in description", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [], riskScore: 1, threshold: "medium", findingCount: 0,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("1/5");
+  });
+
+  it("postGateStatus with riskScore 5 includes 5/5 in description", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "critical" }], riskScore: 5, threshold: "critical", findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("5/5");
+  });
+
+  // --- postGateStatus with various finding counts ---
+
+  it("postGateStatus with 0 findings shows 0 findings in description", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [], riskScore: 1, threshold: "medium", findingCount: 0,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("0 findings");
+  });
+
+  it("postGateStatus with 100 findings includes count in description", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "low" }], riskScore: 2, threshold: "high", findingCount: 100,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("100 findings");
+  });
+
+  // --- Low severity at medium threshold ---
+
+  it("does not fail gate with low findings at medium threshold", () => {
+    expect(shouldFailGate([{ severity: "low" }], "medium")).toBe(false);
+  });
+
+  it("postGateStatus returns success with low findings at medium threshold", async () => {
+    const octokit = makeOctokit();
+    const result = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "low" }, { severity: "low" }], riskScore: 2, threshold: "medium", findingCount: 2,
+    });
+    expect(result).toBe("success");
+  });
+
+  // --- Multiple calls in sequence ---
+
+  it("postGateStatus handles multiple sequential calls correctly", async () => {
+    const octokit = makeOctokit();
+    const result1 = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha1", prNumber: 1,
+      findings: [{ severity: "critical" }], riskScore: 5, threshold: "critical", findingCount: 1,
+    });
+    const result2 = await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha2", prNumber: 2,
+      findings: [], riskScore: 1, threshold: "medium", findingCount: 0,
+    });
+    expect(result1).toBe("failure");
+    expect(result2).toBe("success");
+    expect(octokit.rest.repos.createCommitStatus).toHaveBeenCalledTimes(2);
+  });
+
+  // --- Correct string for all threshold+finding combos ---
+
+  it("critical threshold + critical finding produces 'Blocked' message", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "critical" }], riskScore: 5, threshold: "critical", findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("Blocked");
+    expect(call.description).toContain("critical");
+  });
+
+  it("high threshold + medium findings produces 'Passed' message", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "medium" }], riskScore: 3, threshold: "high", findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("Passed");
+    expect(call.description).toContain("high");
+  });
+
+  it("medium threshold + medium findings produces 'Blocked' message", async () => {
+    const octokit = makeOctokit();
+    await postGateStatus({
+      octokit, owner: "t", repo: "r", headSha: "sha", prNumber: 1,
+      findings: [{ severity: "medium" }], riskScore: 3, threshold: "medium", findingCount: 1,
+    });
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.description).toContain("Blocked");
+    expect(call.description).toContain("medium");
+  });
+
+  // --- postPendingGate with various SHA formats ---
+
+  it("postPendingGate with full 40-char SHA", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "owner", "repo", "abc123def456abc123def456abc123def456abcd", 7);
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.sha).toBe("abc123def456abc123def456abc123def456abcd");
+  });
+
+  it("postPendingGate with short SHA", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "owner", "repo", "abc", 1);
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.sha).toBe("abc");
+  });
+
+  it("postPendingGate with numeric-only SHA", async () => {
+    const octokit = makeOctokit();
+    await postPendingGate(octokit, "owner", "repo", "1234567890", 5);
+    const call = octokit.rest.repos.createCommitStatus.mock.calls[0][0];
+    expect(call.sha).toBe("1234567890");
+  });
+
+  // --- Additional shouldFailGate edge cases ---
+
+  it("critical threshold fails only on critical, not high", () => {
+    expect(shouldFailGate([{ severity: "high" }], "critical")).toBe(false);
+  });
+
+  it("high threshold fails on both critical and high", () => {
+    expect(shouldFailGate([{ severity: "critical" }], "high")).toBe(true);
+    expect(shouldFailGate([{ severity: "high" }], "high")).toBe(true);
+  });
+
+  it("medium threshold fails on critical, high, and medium", () => {
+    expect(shouldFailGate([{ severity: "critical" }], "medium")).toBe(true);
+    expect(shouldFailGate([{ severity: "high" }], "medium")).toBe(true);
+    expect(shouldFailGate([{ severity: "medium" }], "medium")).toBe(true);
+    expect(shouldFailGate([{ severity: "low" }], "medium")).toBe(false);
+  });
 });

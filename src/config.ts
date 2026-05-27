@@ -68,6 +68,7 @@ export interface MizumiConfig {
   chunkReview: boolean;
   reviewCache: boolean;
   findingDedup: boolean;
+  pipelineParallel: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -159,6 +160,7 @@ const repoHealth = core.getInput("repo_health") !== "false"; // default true
 const chunkReview = core.getInput("chunk_review") !== "false"; // default true
 const reviewCache = core.getInput("review_cache") !== "false"; // default true
 const findingDedup = core.getInput("finding_dedup") !== "false"; // default true
+const pipelineParallel = core.getInput("pipeline_parallel") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -269,6 +271,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
     chunkReview,
     reviewCache,
     findingDedup,
+  pipelineParallel,
   };
 }
 

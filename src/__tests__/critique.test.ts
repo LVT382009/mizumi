@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runCritique, filterByConfidence, parseCritiqueOutput } from "../critique.js";
 import type { ReviewResponseType } from "../review.js";
 
@@ -496,5 +496,318 @@ describe("parseCritiqueOutput — additional edge cases", () => {
     const text = "```json\n" + JSON.stringify(reviewWithCode) + "\n```";
     const result = parseCritiqueOutput(text, original);
     expect(result.summary).toBe("Has code");
+  });
+
+  // --- parseCritiqueOutput with malformed inputs ---
+
+  it("returns original for HTML input", () => {
+    const html = "<html><body><p>Not JSON</p></body></html>";
+    const result = parseCritiqueOutput(html, original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for XML input", () => {
+    const xml = "<response><summary>test</summary></response>";
+    const result = parseCritiqueOutput(xml, original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for random text input", () => {
+    const text = "The quick brown fox jumps over the lazy dog";
+    const result = parseCritiqueOutput(text, original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for binary-looking content", () => {
+    const binary = "\x00\x01\x02\x03\xff\xfe\xfd";
+    const result = parseCritiqueOutput(binary, original);
+    expect(result).toBe(original);
+  });
+
+  it("returns original for JSON with missing required fields", () => {
+    const incompleteJson = JSON.stringify({ summary: "Partial" });
+    const result = parseCritiqueOutput(incompleteJson, original);
+    expect(result).toBe(original);
+  });
+
+  it("parses JSON with extra fields (returns valid subset)", () => {
+    const extraFields = JSON.stringify({
+      ...original,
+      extraField: "should be ignored",
+      anotherExtra: 42,
+    });
+    const result = parseCritiqueOutput(extraFields, original);
+    expect(result.summary).toBe("Original");
+    expect(result.riskScore).toBe(3);
+    expect(result.comments).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterByConfidence — all severity levels
+// ---------------------------------------------------------------------------
+
+describe("filterByConfidence — all severity levels", () => {
+  const allSeverities: ReviewResponseType = {
+    summary: "All severities",
+    riskScore: 5,
+    comments: [
+      { file: "a.ts", line: 1, severity: "critical", category: "security", message: "Auth bypass", confidence: 95 },
+      { file: "b.ts", line: 2, severity: "high", category: "bug", message: "Null deref", confidence: 85 },
+      { file: "c.ts", line: 3, severity: "medium", category: "performance", message: "Slow loop", confidence: 70 },
+      { file: "d.ts", line: 4, severity: "low", category: "style", message: "Bad name", confidence: 55 },
+      { file: "e.ts", line: 5, severity: "nitpick", category: "style", message: "Extra space", confidence: 30 },
+    ],
+    decision: "request_changes",
+  };
+
+  it("keeps critical and high above threshold 80, downgrades to comment-only when no high remain", () => {
+    // Only critical (95) and high (85) pass at 80 — critical+high still present
+    const result = filterByConfidence(allSeverities, 80);
+    expect(result.comments).toHaveLength(2);
+    expect(result.decision).toBe("request_changes");
+  });
+
+  it("keeps only medium+low when threshold filters out critical/high — decision becomes comment", () => {
+    const review: ReviewResponseType = {
+      ...allSeverities,
+      comments: [
+        { file: "a.ts", line: 1, severity: "critical", category: "security", message: "Auth bypass", confidence: 60 },
+        { file: "c.ts", line: 3, severity: "medium", category: "performance", message: "Slow loop", confidence: 75 },
+        { file: "d.ts", line: 4, severity: "low", category: "style", message: "Bad name", confidence: 65 },
+      ],
+    };
+    const result = filterByConfidence(review, 70);
+    // critical (60) filtered, medium (75) and low (65) — 65 < 70 so only medium passes
+    // no critical/high remain => "comment"
+    expect(result.comments).toHaveLength(1);
+    expect(result.decision).toBe("comment");
+  });
+
+  it("decision is comment when only low-severity findings remain", () => {
+    const review: ReviewResponseType = {
+      ...allSeverities,
+      comments: [
+        { file: "a.ts", line: 1, severity: "critical", category: "security", message: "Auth bypass", confidence: 40 },
+        { file: "d.ts", line: 4, severity: "low", category: "style", message: "Bad name", confidence: 85 },
+      ],
+    };
+    const result = filterByConfidence(review, 50);
+    expect(result.comments).toHaveLength(1);
+    expect(result.comments[0].severity).toBe("low");
+    expect(result.decision).toBe("comment");
+  });
+
+  it("keeps nitpick findings when threshold is very low", () => {
+    const result = filterByConfidence(allSeverities, 1);
+    expect(result.comments).toHaveLength(5);
+  });
+
+  it("filters out nitpick when threshold exceeds their confidence", () => {
+    const result = filterByConfidence(allSeverities, 40);
+    // nitpick (30) is filtered, low (55) passes
+    expect(result.comments).toHaveLength(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterByConfidence — confidence threshold boundary (79 vs 80 at threshold 80)
+// ---------------------------------------------------------------------------
+
+describe("filterByConfidence — boundary 79 vs 80", () => {
+  it("keeps finding with confidence exactly 80 at threshold 80", () => {
+    const review: ReviewResponseType = {
+      summary: "Boundary",
+      riskScore: 3,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high", category: "bug", message: "Bug", confidence: 80 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 80);
+    expect(result.comments).toHaveLength(1);
+  });
+
+  it("filters out finding with confidence 79 at threshold 80", () => {
+    const review: ReviewResponseType = {
+      summary: "Boundary",
+      riskScore: 3,
+      comments: [
+        { file: "a.ts", line: 1, severity: "high", category: "bug", message: "Bug", confidence: 79 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 80);
+    expect(result.comments).toHaveLength(0);
+    expect(result.decision).toBe("approve");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runCritique — provider fallback + prompt framing + config flags
+// ---------------------------------------------------------------------------
+
+describe("runCritique — provider and prompt details", () => {
+  const baseConfig = {
+    selfCritique: true,
+    confidenceThreshold: 80,
+    provider: "openai" as const,
+    model: "gpt-4.1-mini",
+    baseUrl: "",
+    profile: "chill" as const,
+    maxComments: 15,
+    language: "en-US",
+    autoReview: true, autoPauseAfter: 5,
+    excludePatterns: [],
+    tierRouting: true,
+    smallDiffThreshold: 50,
+    securityPaths: ["**/auth/**", "**/crypto/**", "**/sql/**", "**/secret*", "**/password*"],
+    spendThreshold: 0,
+    gateThreshold: "none" as const,
+  };
+
+  const reviewWithComments: ReviewResponseType = {
+    summary: "Has issues",
+    riskScore: 4,
+    comments: [
+      { file: "src/app.ts", line: 10, severity: "high", category: "bug", message: "Null pointer", confidence: 90 },
+      { file: "src/util.ts", line: 5, severity: "low", category: "style", message: "Bad name", confidence: 50 },
+    ],
+    decision: "request_changes",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("prompt contains obra or subterfuge framing", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Filtered",
+        riskScore: 2,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    await runCritique(reviewWithComments, baseConfig);
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.prompt).toMatch(/critically|subterfuge|obra/i);
+  });
+
+  it("respects selfCritique=false and skips LLM call", async () => {
+    const result = await runCritique(reviewWithComments, {
+      ...baseConfig,
+      selfCritique: false,
+    });
+    expect(mockGenerateObject).not.toHaveBeenCalled();
+    expect(result.comments).toHaveLength(1);
+  });
+
+  it("falls back to confidence-only filter when LLM rejects", async () => {
+    mockGenerateObject.mockRejectedValue(new Error("Rate limit exceeded"));
+
+    const result = await runCritique(reviewWithComments, baseConfig);
+    expect(result.comments).toHaveLength(1);
+    expect(result.comments[0].confidence).toBe(90);
+  });
+
+  it("uses anthropic haiku when provider is anthropic", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Anthropic critique",
+        riskScore: 1,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    const anthropicConfig = { ...baseConfig, provider: "anthropic" as const, model: "claude-sonnet-4-20250514" };
+    await runCritique(reviewWithComments, anthropicConfig);
+    expect(mockGenerateObject).toHaveBeenCalledOnce();
+  });
+
+  it("uses configured model when provider is openai", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "OpenAI critique",
+        riskScore: 1,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    await runCritique(reviewWithComments, baseConfig);
+    expect(mockGenerateObject).toHaveBeenCalledOnce();
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.model).toBeDefined();
+  });
+
+  it("uses google provider when configured", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Google critique",
+        riskScore: 1,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    const googleConfig = { ...baseConfig, provider: "google" as const, model: "gemini-2.0-flash" };
+    await runCritique(reviewWithComments, googleConfig);
+    expect(mockGenerateObject).toHaveBeenCalledOnce();
+  });
+
+  it("returns approve when critique LLM returns empty comments and filters out all", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Clean",
+        riskScore: 1,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    const result = await runCritique(reviewWithComments, baseConfig);
+    expect(result.decision).toBe("approve");
+    expect(result.comments).toHaveLength(0);
+  });
+
+  it("passes confidence threshold value in the critique prompt", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        summary: "Filtered",
+        riskScore: 2,
+        comments: [],
+        decision: "approve",
+      },
+    } as any);
+
+    const highThresholdConfig = { ...baseConfig, confidenceThreshold: 95 };
+    await runCritique(reviewWithComments, highThresholdConfig);
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.prompt).toContain("95");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterByConfidence — decision is "comment" and only low findings pass
+// ---------------------------------------------------------------------------
+
+describe("filterByConfidence — comment decision with low-only findings", () => {
+  it("decision becomes comment when only low findings pass threshold", () => {
+    const review: ReviewResponseType = {
+      summary: "Low only",
+      riskScore: 2,
+      comments: [
+        { file: "a.ts", line: 1, severity: "critical", category: "security", message: "Auth bypass", confidence: 30 },
+        { file: "b.ts", line: 2, severity: "low", category: "style", message: "Bad name", confidence: 90 },
+      ],
+      decision: "request_changes",
+    };
+    const result = filterByConfidence(review, 50);
+    expect(result.comments).toHaveLength(1);
+    expect(result.comments[0].severity).toBe("low");
+    expect(result.decision).toBe("comment");
   });
 });
