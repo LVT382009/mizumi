@@ -8,6 +8,7 @@ import {
   formatAuditJSON,
   compareAuditTrails,
   computeConfigHash,
+  formatNumber,
 } from "../audit-trail.js";
 import type { AuditTrail, AuditFindingProvenance } from "../audit-trail.js";
 
@@ -436,5 +437,187 @@ describe("computeConfigHash", () => {
   it("handles empty config", () => {
     const hash = computeConfigHash({});
     expect(hash).toHaveLength(8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatNumber
+// ---------------------------------------------------------------------------
+
+describe("formatNumber", () => {
+  it("formats zero", () => {
+    expect(formatNumber(0)).toBe("0");
+  });
+
+  it("formats small numbers without commas", () => {
+    expect(formatNumber(42)).toBe("42");
+    expect(formatNumber(999)).toBe("999");
+  });
+
+  it("formats thousands with comma", () => {
+    expect(formatNumber(1000)).toBe("1,000");
+    expect(formatNumber(12000)).toBe("12,000");
+  });
+
+  it("formats millions with commas", () => {
+    expect(formatNumber(1000000)).toBe("1,000,000");
+  });
+
+  it("formats negative numbers", () => {
+    expect(formatNumber(-500)).toBe("-500");
+    expect(formatNumber(-1200)).toBe("-1,200");
+  });
+
+  it("handles fractional numbers", () => {
+    expect(formatNumber(1.5)).toContain("1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AuditTrailBuilder — extended edge cases
+// ---------------------------------------------------------------------------
+
+describe("AuditTrailBuilder — edge cases", () => {
+  it("handles stage without error field", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    builder.logStage("review", 1000, true);
+    const trail = builder.build();
+    expect(trail.stages[0].error).toBeUndefined();
+  });
+
+  it("handles stage with undefined findingCount", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    builder.logStage("ghost", 50, true, undefined);
+    const trail = builder.build();
+    expect(trail.stages[0].success).toBe(true);
+    expect(trail.stages[0].findingCount).toBeUndefined();
+  });
+
+  it("handles multiple LLM calls with different providers", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    builder.logLLMCall({ provider: "anthropic", model: "claude-sonnet-4-6", purpose: "review", inputTokens: 10000, outputTokens: 2000, latencyMs: 3000, success: true });
+    builder.logLLMCall({ provider: "openai", model: "gpt-4.1-mini", purpose: "critique", inputTokens: 5000, outputTokens: 800, latencyMs: 1500, success: true });
+    builder.logLLMCall({ provider: "google", model: "gemini-2.5-flash", purpose: "calibrate", inputTokens: 3000, outputTokens: 500, latencyMs: 1000, success: false });
+    const trail = builder.build();
+    expect(trail.llmCalls).toHaveLength(3);
+    expect(trail.llmCalls[2].success).toBe(false);
+  });
+
+  it("handles finding with empty modifications", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    builder.logFinding({
+      fingerprint: "fp1",
+      file: "src/a.ts",
+      line: 1,
+      severity: "low",
+      category: "style",
+      message: "Nit",
+      source: "rule",
+      modifications: [],
+      finalConfidence: 30,
+    });
+    const trail = builder.build();
+    expect(trail.findings[0].modifications).toEqual([]);
+  });
+
+  it("handles config snapshot with nested objects", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    builder.setConfigSnapshot({
+      provider: "anthropic",
+      nested: { key: "value", token: "sk-secret" },
+    });
+    const trail = builder.build();
+    expect(trail.configSnapshot.provider).toBe("anthropic");
+    // Nested objects are preserved (secrets not recursively redacted)
+    expect(trail.configSnapshot.nested).toBeDefined();
+  });
+
+  it("handles very large finding counts", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    for (let i = 0; i < 50; i++) {
+      builder.logFinding({
+        fingerprint: `fp-${i}`,
+        file: `file${i}.ts`,
+        line: i,
+        severity: "medium",
+        category: "bug",
+        message: `Finding ${i}`,
+        source: "llm",
+        modifications: [],
+        finalConfidence: 70 + i,
+      });
+    }
+    const trail = builder.build();
+    expect(trail.findings).toHaveLength(50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// persistence — extended edge cases
+// ---------------------------------------------------------------------------
+
+describe("persistence — edge cases", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-audit-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns null for corrupt JSON in audit file", () => {
+    const dir = path.join(tmpDir, ".mizumi", "audit");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "audit-corrupt.json"), "{ invalid json", "utf8");
+    const read = readAuditTrail(tmpDir, "corrupt");
+    expect(read).toBeNull();
+  });
+
+  it("filters out non-audit files in directory listing", () => {
+    const dir = path.join(tmpDir, ".mizumi", "audit");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "readme.txt"), "Not an audit file", "utf8");
+    fs.writeFileSync(path.join(dir, "other.json"), "Also not audit", "utf8");
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    const trail = builder.build();
+    writeAuditTrail(tmpDir, trail);
+    const ids = listAuditTrails(tmpDir);
+    expect(ids).toHaveLength(1);
+  });
+
+  it("handles multiple audit trails for the same PR", () => {
+    const builder1 = new AuditTrailBuilder("o", "r", 42, "sha1", "hash1");
+    builder1.logStage("review", 1000, true, 3);
+    const trail1 = builder1.build();
+    writeAuditTrail(tmpDir, trail1);
+
+    const builder2 = new AuditTrailBuilder("o", "r", 42, "sha2", "hash2");
+    builder2.logStage("review", 800, true, 1);
+    const trail2 = builder2.build();
+    writeAuditTrail(tmpDir, trail2);
+
+    const ids = listAuditTrails(tmpDir);
+    expect(ids).toHaveLength(2);
+  });
+
+  it("overwrites audit trail with same runId", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    const trail1 = builder.build();
+    writeAuditTrail(tmpDir, trail1);
+
+    // Write again with same runId
+    writeAuditTrail(tmpDir, trail1);
+    const ids = listAuditTrails(tmpDir);
+    expect(ids).toHaveLength(1);
+  });
+
+  it("creates .mizumi/audit directory if missing", () => {
+    const builder = new AuditTrailBuilder("o", "r", 1, "sha", "hash");
+    const trail = builder.build();
+    expect(fs.existsSync(path.join(tmpDir, ".mizumi", "audit"))).toBe(false);
+    writeAuditTrail(tmpDir, trail);
+    expect(fs.existsSync(path.join(tmpDir, ".mizumi", "audit"))).toBe(true);
   });
 });

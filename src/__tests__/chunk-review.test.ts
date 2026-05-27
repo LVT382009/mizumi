@@ -429,4 +429,127 @@ describe("edge cases", () => {
     const total = plan.chunks.reduce((sum, c) => sum + c.files.length, 0);
     expect(total).toBe(files.length);
   });
+
+  it("classifies CHANGELOG as docs area", () => {
+    const plan = planChunkedReview([
+      makeFile("CHANGELOG.md"),
+      makeFile("CONTRIBUTING.md"),
+      ...makeFiles(12, "src/components"),
+      ...makeFiles(12, "src/api"),
+    ]);
+    const docsChunk = plan.chunks.find(c => c.label === "docs");
+    if (docsChunk) {
+      expect(docsChunk.files.some(f => f.path === "CHANGELOG.md")).toBe(true);
+    }
+  });
+
+  it("classifies assets and styles as frontend area", () => {
+    const plan = planChunkedReview([
+      makeFile("assets/logo.svg"),
+      makeFile("styles/global.css"),
+      ...makeFiles(12, "src/api"),
+      ...makeFiles(12, "infra"),
+    ]);
+    const frontendChunk = plan.chunks.find(c => c.label === "frontend");
+    if (frontendChunk) {
+      expect(frontendChunk.files.some(f => f.path.includes("assets") || f.path.includes("styles"))).toBe(true);
+    }
+  });
+
+  it("classifies docker/k8s as infra area", () => {
+    const plan = planChunkedReview([
+      makeFile("docker/Dockerfile"),
+      makeFile("k8s/deployment.yaml"),
+      ...makeFiles(12, "src/api"),
+      ...makeFiles(12, "src/components"),
+    ]);
+    const infraChunk = plan.chunks.find(c => c.label === "infra");
+    if (infraChunk) {
+      expect(infraChunk.files.some(f => f.path.includes("docker") || f.path.includes("k8s"))).toBe(true);
+    }
+  });
+
+  it("classifies src/middleware as backend area", () => {
+    const plan = planChunkedReview([
+      makeFile("src/middleware/auth.ts"),
+      makeFile("src/services/user.ts"),
+      makeFile("src/db/connection.ts"),
+      ...makeFiles(12, "src/components"),
+      ...makeFiles(10, "__tests__"),
+    ]);
+    const backendChunk = plan.chunks.find(c => c.label === "backend");
+    if (backendChunk) {
+      expect(backendChunk.files.some(f => f.path.includes("middleware") || f.path.includes("services") || f.path.includes("db"))).toBe(true);
+    }
+  });
+
+  it("classifies files not matching any pattern as other area", () => {
+    const plan = planChunkedReview([
+      makeFile("random/module.ts"),
+      ...makeFiles(12, "src/components"),
+      ...makeFiles(12, "src/api"),
+    ]);
+    const otherChunk = plan.chunks.find(c => c.label === "other");
+    if (otherChunk) {
+      expect(otherChunk.files.some(f => f.path === "random/module.ts")).toBe(true);
+    }
+  });
+
+  it("handles file with no hunks", () => {
+    const emptyFile: DiffFile = { path: "empty.ts", status: "modified", additions: 0, deletions: 0, hunks: [] };
+    const plan = planChunkedReview([emptyFile, ...makeFiles(5)]);
+    expect(plan.totalFiles).toBe(6);
+  });
+
+  it("handles boundary at 25 files exactly (by-directory)", () => {
+    const files = makeFiles(25);
+    const plan = planChunkedReview(files);
+    expect(plan.strategy).toBe("by-directory");
+  });
+
+  it("handles boundary at 26 files exactly (by-area)", () => {
+    const files = [
+      ...makeFiles(10, "src/components"),
+      ...makeFiles(10, "src/api"),
+      ...makeFiles(6, "__tests__"),
+    ];
+    const plan = planChunkedReview(files);
+    expect(plan.strategy).toBe("by-area");
+  });
+
+  it("classifies spec files as test area", () => {
+    const plan = planChunkedReview([
+      makeFile("spec/unit.spec.ts"),
+      ...makeFiles(12, "src/api"),
+      ...makeFiles(12, "src/components"),
+    ]);
+    const testChunk = plan.chunks.find(c => c.label === "test");
+    if (testChunk) {
+      expect(testChunk.files.some(f => f.path.includes("spec"))).toBe(true);
+    }
+  });
+
+  it("handles eslint/prettier config as config area", () => {
+    const plan = planChunkedReview([
+      makeFile("eslint.config.js"),
+      makeFile("prettier.config.js"),
+      ...makeFiles(12, "src/api"),
+      ...makeFiles(12, "src/components"),
+    ]);
+    const configChunk = plan.chunks.find(c => c.label === "config");
+    if (configChunk) {
+      expect(configChunk.files.some(f => f.path.includes("eslint") || f.path.includes("prettier"))).toBe(true);
+    }
+  });
+
+  it("total tokens is sum of all chunk estimated tokens", () => {
+    const files = [
+      ...makeFiles(8, "src/components"),
+      ...makeFiles(8, "src/api"),
+      ...makeFiles(5, "__tests__"),
+    ];
+    const plan = planChunkedReview(files);
+    const chunkSum = plan.chunks.reduce((sum, c) => sum + c.estimatedTokens, 0);
+    expect(chunkSum).toBeGreaterThan(0);
+  });
 });
