@@ -67,6 +67,7 @@ const baseConfig: MizumiConfig = {
     findingDedup: true,
     pipelineParallel: true,
     reviewDashboard: true,
+      auditTrail: true,
 };
 
 describe("classifyDiff", () => {

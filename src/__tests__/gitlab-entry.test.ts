@@ -90,6 +90,7 @@ vi.mock("../config.js", () => ({
     findingDedup: true,
     pipelineParallel: true,
     reviewDashboard: true,
+      auditTrail: true,
   })),
 }));
 

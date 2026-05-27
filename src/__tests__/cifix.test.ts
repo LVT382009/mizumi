@@ -121,6 +121,7 @@ const testConfig = {
     findingDedup: true,
     pipelineParallel: true,
     reviewDashboard: true,
+      auditTrail: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

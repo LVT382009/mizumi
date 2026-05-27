@@ -161,6 +161,7 @@ vi.mock("../config.js", () => ({
     findingDedup: true,
     pipelineParallel: true,
     reviewDashboard: true,
+      auditTrail: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

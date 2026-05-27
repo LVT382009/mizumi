@@ -133,6 +133,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     findingDedup: true,
     pipelineParallel: true,
     reviewDashboard: true,
+      auditTrail: true,
     ...overrides,
   };
 }

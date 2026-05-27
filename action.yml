@@ -292,6 +292,11 @@ defense_framework:
     required: false
     default: "true"
 
+  audit_trail:
+  description: "Enable audit trail — records full provenance chain for every review run: pipeline stages, finding sources and modifications, LLM call logs, and config snapshots with automatic secret redaction. No AI code reviewer provides an audit trail."
+  required: false
+  default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
