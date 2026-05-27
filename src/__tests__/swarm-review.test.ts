@@ -299,6 +299,7 @@ deadCodeDetector: true,
     typeSafetyErosion: true,
     todoDebtDetector: true,
     magicNumberDetector: true,
+    errorHandlingDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

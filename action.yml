@@ -355,6 +355,11 @@ magic_number_detector:
   required: false
   default: "true"
 
+error_handling_detector:
+  description: "Enable error handling gap detector — flags unhandled promises, missing await on async calls, and swallowed errors. Zero LLM cost. No AI code reviewer detects error handling gaps at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

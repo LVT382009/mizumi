@@ -88,6 +88,7 @@ import { detectDeadCode } from "./dead-code-detector.js";
 import { detectTypeSafetyErosion } from "./type-safety-erosion.js";
 import { detectTechDebt } from "./todo-debt-detector.js";
 import { detectMagicNumbers } from "./magic-number-detector.js";
+import { detectErrorHandlingGaps } from "./error-handling-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -519,6 +520,19 @@ if (config.magicNumberDetector) {
   }
 }
 
+// 4a3l. Error handling gap detector — detect unhandled promises, missing await, swallowed errors
+let errorHandlingResult: import("./error-handling-detector.js").ErrorHandlingResult | null = null;
+if (config.errorHandlingDetector) {
+  try {
+    errorHandlingResult = detectErrorHandlingGaps(diff.files);
+    if (errorHandlingResult.issues.length > 0) {
+      core.info("Error handling gap detection: " + errorHandlingResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Error handling gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -894,6 +908,11 @@ if (techDebtResult && techDebtResult.contextText) {
 // 5c2k. Magic number detector context injection
 if (magicNumberResult && magicNumberResult.contextText) {
   context.rulesContent += "\n\n" + magicNumberResult.contextText;
+}
+
+// 5c2l. Error handling gap detector context injection
+if (errorHandlingResult && errorHandlingResult.contextText) {
+  context.rulesContent += "\n\n" + errorHandlingResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1691,6 +1710,17 @@ if (magicNumberResult && magicNumberResult.bodySummary) {
   }
 }
 
+// Post error handling gap detection summary as a separate comment
+if (errorHandlingResult && errorHandlingResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: errorHandlingResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Error handling gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1841,6 +1871,7 @@ if (config.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true
 if (config.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
 if (config.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
 if (config.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
+if (config.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

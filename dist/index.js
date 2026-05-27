@@ -56528,6 +56528,7 @@ function loadConfig() {
   const typeSafetyErosion = getInput("type_safety_erosion") !== "false";
   const todoDebtDetector = getInput("todo_debt_detector") !== "false";
   const magicNumberDetector = getInput("magic_number_detector") !== "false";
+  const errorHandlingDetector = getInput("error_handling_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56649,7 +56650,8 @@ function loadConfig() {
     deadCodeDetector,
     typeSafetyErosion,
     todoDebtDetector,
-    magicNumberDetector
+    magicNumberDetector,
+    errorHandlingDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -118407,6 +118409,229 @@ function detectMagicNumbers(diffFiles) {
   return result;
 }
 
+// src/error-handling-detector.ts
+var THEN_WITHOUT_CATCH_RE = /\.then\s*\(/;
+var FLOATING_PROMISE_RE = /(?:new\s+Promise|Promise\.\w+)\s*\(/;
+var TRIVIAL_CATCH_RE = /catch\s*\([^)]*\)\s*\{[\s;]*\}/;
+function detectUnhandledPromises(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+    if (/^\+\s*import\s/.test(content)) continue;
+    if (trimmed.startsWith("}")) continue;
+    if (THEN_WITHOUT_CATCH_RE.test(content)) {
+      const hasNextCatch = content.includes(".catch(");
+      if (hasNextCatch) continue;
+      const changeIdx = addedChanges.indexOf(change);
+      let lineHasCatch = false;
+      for (let j = changeIdx + 1; j < Math.min(changeIdx + 3, addedChanges.length); j++) {
+        if (addedChanges[j].content.includes(".catch(")) {
+          lineHasCatch = true;
+          break;
+        }
+      }
+      if (lineHasCatch) continue;
+      issues.push({
+        category: "unhandled-promise",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise chain with .then() but no .catch() in \`${file2.path}:${change.line}\` \u2014 unhandled rejection possible, add .catch() or use await with try/catch`,
+        severity: "critical"
+      });
+    }
+    if (FLOATING_PROMISE_RE.test(content) && !content.includes("await") && !content.includes(".then(") && !content.includes(".catch(") && !content.includes("return")) {
+      if (/=\s*await/.test(content)) continue;
+      if (/return\s+new\s+Promise/.test(content)) continue;
+      issues.push({
+        category: "unhandled-promise",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise created but not handled in \`${file2.path}:${change.line}\` \u2014 add await, .then()/.catch(), or assign to a variable`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectMissingAwait(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+      if (/^\+\s*import\s/.test(content)) continue;
+      if (trimmed.startsWith("}")) continue;
+      if (/\bawait\b/.test(content)) continue;
+      if (/\basync\s+function\b/.test(content) || /\basync\s*\(/.test(content) || /\basync\s+/.test(content) && /=>/.test(content)) continue;
+      if (/\breturn\b/.test(content)) continue;
+      if (/\btry\s*\{/.test(content)) continue;
+      if (/\bconst\b.*=\s*(?:fetch|axios)/.test(content) && !content.includes("await")) {
+      } else if (/\bconst\b.*=.*Promise/.test(content)) {
+        continue;
+      }
+      const asyncMatch = content.match(/\b(fetch|axios\.\w+|readFile|writeFile|mkdir|rm|readdir|copyFile|pipeline|query|execute|connect|disconnect|find|findById|findOne|save|remove|deleteOne|updateOne|create|aggregate|bulkWrite)\s*\(/);
+      if (asyncMatch) {
+        if (/\.then\s*\(/.test(content) || /\.catch\s*\(/.test(content)) continue;
+        if (/=\s*\(\s*$/.test(content)) continue;
+        issues.push({
+          category: "missing-await",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Async function \`${asyncMatch[1]}() \` called without await in \`${file2.path}:${change.line}\` \u2014 result is a Promise, not the actual value; add await or handle rejection`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectSwallowedErrors(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes;
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i];
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (TRIVIAL_CATCH_RE.test(content)) continue;
+      const catchOpenMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*$/);
+      if (catchOpenMatch) {
+        let bodyLines = [];
+        for (let j = i + 1; j < changes.length; j++) {
+          if (changes[j].type !== "add") continue;
+          const nextTrimmed = changes[j].content.replace(/^\+/, "").trim();
+          if (nextTrimmed === "}") break;
+          bodyLines.push(nextTrimmed);
+          if (bodyLines.length >= 5) break;
+        }
+        if (bodyLines.length > 0 && bodyLines.every((l) => l.startsWith("//") || l.startsWith("/*") || l.startsWith("*"))) {
+          issues.push({
+            category: "swallowed-error",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Catch block body only contains comments in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+            severity: "warning"
+          });
+        }
+      }
+      const inlineCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*\/\*[^*]*\*+\/?\s*\}/);
+      if (inlineCatch) {
+        issues.push({
+          category: "swallowed-error",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Catch block body is only a comment in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+          severity: "warning"
+        });
+      }
+      const logOnlyCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*console\.(log|debug|info)\s*\([^)]*\)\s*;?\s*\}/);
+      if (logOnlyCatch) {
+        issues.push({
+          category: "swallowed-error",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Catch block only logs error in \`${file2.path}:${change.line}\` \u2014 error is logged but not propagated; consider logging at warning/error level and rethrowing or adding monitoring`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues6(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildErrorHandlingContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Error Handling Gaps (${result.issues.length})
+`;
+  ctx += "This PR may have error handling gaps:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildErrorHandlingBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Error Handling Gap Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Unhandled promises and missing awaits cause production incidents. Swallowed errors mask bugs.*
+</details>
+`;
+  return body;
+}
+function detectErrorHandlingGaps(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnhandledPromises(file2));
+    allIssues.push(...detectMissingAwait(file2));
+    allIssues.push(...detectSwallowedErrors(file2));
+  }
+  const issues = dedupIssues6(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildErrorHandlingContext(result);
+  result.bodySummary = buildErrorHandlingBodySummary(result);
+  if (issues.length > 0) {
+    info(`Error handling gap detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -118794,6 +119019,17 @@ async function run() {
         warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let errorHandlingResult = null;
+    if (config2.errorHandlingDetector) {
+      try {
+        errorHandlingResult = detectErrorHandlingGaps(diff.files);
+        if (errorHandlingResult.issues.length > 0) {
+          info("Error handling gap detection: " + errorHandlingResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        warning("Error handling gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -119113,6 +119349,9 @@ ${taintContextStr}`;
     }
     if (magicNumberResult && magicNumberResult.contextText) {
       context4.rulesContent += "\n\n" + magicNumberResult.contextText;
+    }
+    if (errorHandlingResult && errorHandlingResult.contextText) {
+      context4.rulesContent += "\n\n" + errorHandlingResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -119867,6 +120106,18 @@ ${digest}
         warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    if (errorHandlingResult && errorHandlingResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: errorHandlingResult.bodySummary
+        });
+      } catch (e) {
+        warning("Error handling gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     if (driftResult && driftResult.bodySummary) {
       try {
         await octokit.rest.issues.createComment({
@@ -120007,6 +120258,7 @@ ${digest}
         if (config2.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
         if (config2.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
         if (config2.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
+        if (config2.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
