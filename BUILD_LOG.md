@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 4450 Tests)
+### Build Stats (Current — 4496 Tests)
 
-- **4450 tests** passing (87 test files)
+- **4496 tests** passing (87 test files)
 - **9,900+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
