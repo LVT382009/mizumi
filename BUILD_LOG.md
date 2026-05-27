@@ -586,3 +586,18 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **29 tests** in `src/__tests__/architecture-drift.test.ts`
 - **4599 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) detects architecture violations. Only Erode.dev standalone tool exists.
+
+## 2026-05-27 — Test Assertion Quality Audit
+
+- **New module**: `src/test-assertion-audit.ts` — audits test file assertions for quality:
+  1. **Weak assertions**: toBeDefined, toBeTruthy, toBeFalsy, toBeNull, toBe(null/undefined) — pass too easily
+  2. **Tautological assertions**: expect(true).toBe(true) — always passes, tests nothing
+  3. **Zero-assertion files**: test files with no expect() calls at all
+  4. **Assertion-free tests**: it() blocks with code but no assertions
+- **Pattern analysis**: pure regex matching on test file hunk content, no AST required
+- **Test file detection**: .test.ts/js, .spec.ts/js, __tests__/, test/, tests/ directories
+- **Pipeline integration**: main.ts runs audit on diff test files, injects context, posts summary
+- **Config propagation**: `test_assertion_audit` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **29 tests** in `src/__tests__/test-assertion-audit.test.ts`
+- **4628 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) audits test assertion quality
