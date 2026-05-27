@@ -503,10 +503,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 4278 Tests)
+### Build Stats (Current — 4418 Tests)
 
-- **4278 tests** passing (85 test files)
-- **9,600+ production lines** (58+ source modules)
+- **4418 tests** passing (86 test files)
+- **9,900+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -541,6 +541,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Pipeline parallelizer**: runs independent analysis stages concurrently, parallelizes calibration loop with bounded concurrency (3). Reduces wall-clock time by 30-60%. No AI code reviewer parallelizes analysis stages.
 - **Review dashboard**: standalone HTML dashboard with review quality trends, acceptance rates, severity distribution, risk score trends, provider usage, suppressed patterns. No AI code reviewer provides a review dashboard.
 - **Audit trail**: full provenance chain for every review run — pipeline stages, finding provenance (source + modifications), LLM call logs, config snapshots with automatic secret redaction, run comparison, config fingerprinting. No AI code reviewer provides an audit trail.
+- **Review replay**: reconstruct any past review run from audit trail — finding-level diff, config change detection, PR review history timeline. No AI code reviewer offers replay.
 - **Finding dedup engine**: 3-phase dedup (exact fingerprint + proximity merge + fuzzy Levenshtein), keeps highest severity + confidence. No competitor does intelligent cross-source finding dedup.
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
