@@ -127,6 +127,7 @@ const testConfig = {
     crossprConflictDetection: true,
     architectureDriftDetection: true,
     testAssertionAudit: true,
+breakingChangeRadar: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

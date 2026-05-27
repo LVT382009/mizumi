@@ -73,6 +73,7 @@ const baseConfig: MizumiConfig = {
     crossprConflictDetection: true,
     architectureDriftDetection: true,
     testAssertionAudit: true,
+breakingChangeRadar: true,
 };
 
 describe("classifyDiff", () => {

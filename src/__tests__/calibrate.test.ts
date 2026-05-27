@@ -169,6 +169,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     crossprConflictDetection: true,
     architectureDriftDetection: true,
     testAssertionAudit: true,
+breakingChangeRadar: true,
     ...overrides,
   };
 }

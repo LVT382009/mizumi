@@ -322,6 +322,12 @@ defense_framework:
     description: "Enable test assertion quality audit — detects weak assertions (toBeDefined, toBeTruthy), zero-assertion test files, tautological assertions, and assertion-free tests. Zero LLM cost. No AI code reviewer audits test assertion quality."
     required: false
     default: "true"
+
+breaking_change_radar:
+  description: "Enable breaking change radar — detects removed exports, renamed exports, new required parameters, return type narrowing, changed thrown exceptions, and deleted public methods. Zero LLM cost. No AI code reviewer detects code-level breaking changes."
+  required: false
+  default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

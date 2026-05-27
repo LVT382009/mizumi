@@ -93,6 +93,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     crossprConflictDetection: true,
     architectureDriftDetection: true,
     testAssertionAudit: true,
+breakingChangeRadar: true,
     ...overrides,
   };
 }
