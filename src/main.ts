@@ -75,6 +75,8 @@ import { buildProjectIndex, type ProjectIndex } from "./project-index.js";
 import { computeRepoHealth } from "./repo-health.js";
 import { planChunkedReview, type ChunkPlan } from "./chunk-review.js";
 import { planFileReviews, cacheReviewResults, formatCacheStats } from "./review-cache.js";
+import { AuditTrailBuilder, writeAuditTrail, computeConfigHash } from "./audit-trail.js";
+import { collectDashboardMetrics, generateDashboardHTML, writeDashboard } from "./review-dashboard.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -1511,6 +1513,46 @@ if (generatedSkills.length > 0) core.info(`Auto-generated ${generatedSkills.leng
     core.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
   }
 
+
+// 12. Audit trail — record full provenance chain for this run
+if (config.auditTrail) {
+  try {
+    const configHash = computeConfigHash({ provider: config.provider, model: config.model, profile: config.profile, maxComments: config.maxComments, confidenceThreshold: config.confidenceThreshold, selfCritique: config.selfCritique, confidenceCalibration: config.confidenceCalibration, changeStack: config.changeStack, tierRouting: config.tierRouting, gateThreshold: config.gateThreshold, ruleEngine: config.ruleEngine, linterScan: config.linterScan, complianceCheck: config.complianceCheck, autoFix: config.autoFix });
+    const auditBuilder = new AuditTrailBuilder(owner, repo, prNumber, headSha, configHash);
+    auditBuilder.logStage("review", 0, true, mergedReview.comments.length);
+    if (config.selfCritique) auditBuilder.logStage("critique", 0, true, mergedReview.comments.length);
+    if (config.confidenceCalibration) auditBuilder.logStage("calibration", 0, true);
+    if (config.complianceCheck) auditBuilder.logStage("compliance", 0, complianceResults.length > 0);
+    if (config.ruleEngine) auditBuilder.logStage("rule-engine", 0, true);
+    if (config.linterScan) auditBuilder.logStage("linter", 0, true);
+    if (config.taintAnalysis) auditBuilder.logStage("taint", 0, true);
+    for (const c of mergedReview.comments) {
+      auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
+    }
+    if (reviewUsage.inputTokens > 0 || reviewUsage.outputTokens > 0) {
+      auditBuilder.logLLMCall({ provider: config.provider, model: config.model, purpose: "review", inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, latencyMs: 0, success: true });
+    }
+    auditBuilder.setConfigSnapshot(config as unknown as Record<string, unknown>);
+    const trail = auditBuilder.build();
+    writeAuditTrail(workspace, trail);
+    core.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
+  } catch (e) {
+    core.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 13. Review dashboard — generate standalone HTML metrics dashboard
+if (config.reviewDashboard) {
+  try {
+    const dashMetrics = collectDashboardMetrics({ workspace, repoId: owner+"/"+repo });
+    const dashHtml = generateDashboardHTML(dashMetrics, owner+"/"+repo);
+    writeDashboard(workspace, dashHtml);
+    
+    core.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
+  } catch (e) {
+    core.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   // Always exit 0 â€” never fail the build by default
     core.info("Mizumi review complete");
   } catch (error) {

@@ -1076,14 +1076,14 @@ var require_util = __commonJS({
         }
         const port = url2.port != null ? url2.port : url2.protocol === "https:" ? 443 : 80;
         let origin = url2.origin != null ? url2.origin : `${url2.protocol || ""}//${url2.hostname || ""}:${port}`;
-        let path24 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
+        let path26 = url2.path != null ? url2.path : `${url2.pathname || ""}${url2.search || ""}`;
         if (origin[origin.length - 1] === "/") {
           origin = origin.slice(0, origin.length - 1);
         }
-        if (path24 && path24[0] !== "/") {
-          path24 = `/${path24}`;
+        if (path26 && path26[0] !== "/") {
+          path26 = `/${path26}`;
         }
-        return new URL(`${origin}${path24}`);
+        return new URL(`${origin}${path26}`);
       }
       if (!isHttpOrHttpsPrefixed(url2.origin || url2.protocol)) {
         throw new InvalidArgumentError3("Invalid URL protocol: the URL must start with `http:` or `https:`.");
@@ -1534,39 +1534,39 @@ var require_diagnostics = __commonJS({
       });
       diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
         const {
-          request: { method, path: path24, origin }
+          request: { method, path: path26, origin }
         } = evt;
-        debuglog("sending request to %s %s/%s", method, origin, path24);
+        debuglog("sending request to %s %s/%s", method, origin, path26);
       });
       diagnosticsChannel.channel("undici:request:headers").subscribe((evt) => {
         const {
-          request: { method, path: path24, origin },
+          request: { method, path: path26, origin },
           response: { statusCode }
         } = evt;
         debuglog(
           "received response to %s %s/%s - HTTP %d",
           method,
           origin,
-          path24,
+          path26,
           statusCode
         );
       });
       diagnosticsChannel.channel("undici:request:trailers").subscribe((evt) => {
         const {
-          request: { method, path: path24, origin }
+          request: { method, path: path26, origin }
         } = evt;
-        debuglog("trailers received from %s %s/%s", method, origin, path24);
+        debuglog("trailers received from %s %s/%s", method, origin, path26);
       });
       diagnosticsChannel.channel("undici:request:error").subscribe((evt) => {
         const {
-          request: { method, path: path24, origin },
+          request: { method, path: path26, origin },
           error: error52
         } = evt;
         debuglog(
           "request to %s %s/%s errored - %s",
           method,
           origin,
-          path24,
+          path26,
           error52.message
         );
       });
@@ -1615,9 +1615,9 @@ var require_diagnostics = __commonJS({
         });
         diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
           const {
-            request: { method, path: path24, origin }
+            request: { method, path: path26, origin }
           } = evt;
-          debuglog("sending request to %s %s/%s", method, origin, path24);
+          debuglog("sending request to %s %s/%s", method, origin, path26);
         });
       }
       diagnosticsChannel.channel("undici:websocket:open").subscribe((evt) => {
@@ -1680,7 +1680,7 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var Request = class {
       constructor(origin, {
-        path: path24,
+        path: path26,
         method,
         body,
         headers,
@@ -1695,11 +1695,11 @@ var require_request = __commonJS({
         expectContinue,
         servername
       }, handler2) {
-        if (typeof path24 !== "string") {
+        if (typeof path26 !== "string") {
           throw new InvalidArgumentError3("path must be a string");
-        } else if (path24[0] !== "/" && !(path24.startsWith("http://") || path24.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path26[0] !== "/" && !(path26.startsWith("http://") || path26.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError3("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.test(path24)) {
+        } else if (invalidPathRegex.test(path26)) {
           throw new InvalidArgumentError3("invalid request path");
         }
         if (typeof method !== "string") {
@@ -1765,7 +1765,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? buildURL(path24, query) : path24;
+        this.path = query ? buildURL(path26, query) : path26;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6291,7 +6291,7 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     function writeH1(client, request2) {
-      const { method, path: path24, host, upgrade, blocking, reset } = request2;
+      const { method, path: path26, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util2.isFormDataLike(body)) {
@@ -6357,7 +6357,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path24} HTTP/1.1\r
+      let header = `${method} ${path26} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -6883,7 +6883,7 @@ var require_client_h2 = __commonJS({
     }
     function writeH2(client, request2) {
       const session = client[kHTTP2Session];
-      const { method, path: path24, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { method, path: path26, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
         util2.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -6950,7 +6950,7 @@ var require_client_h2 = __commonJS({
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path24;
+      headers[HTTP2_HEADER_PATH] = path26;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -7303,9 +7303,9 @@ var require_redirect_handler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path24 = search ? `${pathname}${search}` : pathname;
+        const path26 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path24;
+        this.opts.path = path26;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -8540,10 +8540,10 @@ var require_proxy_agent = __commonJS({
         };
         const {
           origin,
-          path: path24 = "/",
+          path: path26 = "/",
           headers = {}
         } = opts;
-        opts.path = origin + path24;
+        opts.path = origin + path26;
         if (!("host" in headers) && !("Host" in headers)) {
           const { host } = new URL2(origin);
           headers.host = host;
@@ -10464,20 +10464,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path24) {
-      if (typeof path24 !== "string") {
-        return path24;
+    function safeUrl(path26) {
+      if (typeof path26 !== "string") {
+        return path26;
       }
-      const pathSegments = path24.split("?");
+      const pathSegments = path26.split("?");
       if (pathSegments.length !== 2) {
-        return path24;
+        return path26;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path24, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path24);
+    function matchKey(mockDispatch2, { path: path26, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path26);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10499,7 +10499,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path24 }) => matchValue(safeUrl(path24), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path26 }) => matchValue(safeUrl(path26), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10537,9 +10537,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path24, method, body, headers, query } = opts;
+      const { path: path26, method, body, headers, query } = opts;
       return {
-        path: path24,
+        path: path26,
         method,
         body,
         headers,
@@ -11002,10 +11002,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path24, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path26, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path24,
+            Path: path26,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
@@ -15886,9 +15886,9 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path24) {
-      for (let i = 0; i < path24.length; ++i) {
-        const code = path24.charCodeAt(i);
+    function validateCookiePath(path26) {
+      for (let i = 0; i < path26.length; ++i) {
+        const code = path26.charCodeAt(i);
         if (code < 32 || // exclude CTLs (0-31)
         code === 127 || // DEL
         code === 59) {
@@ -18565,11 +18565,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError3("invalid opts.path");
           }
-          let path24 = opts.path;
+          let path26 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path24 = `/${path24}`;
+            path26 = `/${path26}`;
           }
-          url2 = new URL(util2.parseOrigin(url2).origin + path24);
+          url2 = new URL(util2.parseOrigin(url2).origin + path26);
         } else {
           if (!opts) {
             opts = typeof url2 === "object" ? url2 : {};
@@ -21146,8 +21146,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module.exports = __toCommonJS(auth_config_exports);
-    var fs23 = __toESM2(__require("fs"));
-    var path24 = __toESM2(__require("path"));
+    var fs25 = __toESM2(__require("fs"));
+    var path26 = __toESM2(__require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -21156,15 +21156,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path24.join(dataDir, "auth.json");
+      return path26.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs23.existsSync(authPath)) {
+        if (!fs25.existsSync(authPath)) {
           return null;
         }
-        const content = fs23.readFileSync(authPath, "utf8");
+        const content = fs25.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -21175,11 +21175,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path24.dirname(authPath);
-      if (!fs23.existsSync(authDir)) {
-        fs23.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path26.dirname(authPath);
+      if (!fs25.existsSync(authDir)) {
+        fs25.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs23.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs25.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -21370,8 +21370,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module.exports = __toCommonJS(token_util_exports);
-    var path24 = __toESM2(__require("path"));
-    var fs23 = __toESM2(__require("fs"));
+    var path26 = __toESM2(__require("path"));
+    var fs25 = __toESM2(__require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -21383,7 +21383,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path24.join(dataDir, vercelFolder);
+      return path26.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -21459,13 +21459,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path24.join(dir, ".vercel", "project.json");
-      if (!fs23.existsSync(prjPath)) {
+      const prjPath = path26.join(dir, ".vercel", "project.json");
+      if (!fs25.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs23.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs25.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -21480,11 +21480,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path24.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path26.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs23.mkdirSync(path24.dirname(tokenPath), { mode: 504, recursive: true });
-      fs23.writeFileSync(tokenPath, tokenJson);
-      fs23.chmodSync(tokenPath, 432);
+      fs25.mkdirSync(path26.dirname(tokenPath), { mode: 504, recursive: true });
+      fs25.writeFileSync(tokenPath, tokenJson);
+      fs25.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -21494,11 +21494,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path24.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs23.existsSync(tokenPath)) {
+      const tokenPath = path26.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs25.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs23.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs25.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -22218,7 +22218,7 @@ var require_util9 = __commonJS({
     exports.getElementAtPath = getElementAtPath2;
     exports.promiseAllObject = promiseAllObject2;
     exports.randomString = randomString2;
-    exports.esc = esc2;
+    exports.esc = esc3;
     exports.slugify = slugify2;
     exports.isObject = isObject2;
     exports.isPlainObject = isPlainObject5;
@@ -22354,10 +22354,10 @@ var require_util9 = __commonJS({
     function cloneDef2(schema) {
       return mergeDefs2(schema._zod.def);
     }
-    function getElementAtPath2(obj, path24) {
-      if (!path24)
+    function getElementAtPath2(obj, path26) {
+      if (!path26)
         return obj;
-      return path24.reduce((acc, key) => acc?.[key], obj);
+      return path26.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject2(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -22378,7 +22378,7 @@ var require_util9 = __commonJS({
       }
       return str;
     }
-    function esc2(str) {
+    function esc3(str) {
       return JSON.stringify(str);
     }
     function slugify2(input) {
@@ -22767,11 +22767,11 @@ var require_util9 = __commonJS({
       }
       return false;
     }
-    function prefixIssues2(path24, issues) {
+    function prefixIssues2(path26, issues) {
       return issues.map((iss) => {
         var _a21;
         (_a21 = iss).path ?? (_a21.path = []);
-        iss.path.unshift(path24);
+        iss.path.unshift(path26);
         return iss;
       });
     }
@@ -22960,16 +22960,16 @@ var require_errors2 = __commonJS({
     }
     function formatError2(error52, mapper = (issue3) => issue3.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error53, path24 = []) => {
+      const processError = (error53, path26 = []) => {
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path24, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path26, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
           } else {
-            const fullpath = [...path24, ...issue3.path];
+            const fullpath = [...path26, ...issue3.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue3));
             } else {
@@ -22996,17 +22996,17 @@ var require_errors2 = __commonJS({
     }
     function treeifyError2(error52, mapper = (issue3) => issue3.message) {
       const result = { errors: [] };
-      const processError = (error53, path24 = []) => {
+      const processError = (error53, path26 = []) => {
         var _a21, _b17;
         for (const issue3 of error53.issues) {
           if (issue3.code === "invalid_union" && issue3.errors.length) {
-            issue3.errors.map((issues) => processError({ issues }, [...path24, ...issue3.path]));
+            issue3.errors.map((issues) => processError({ issues }, [...path26, ...issue3.path]));
           } else if (issue3.code === "invalid_key") {
-            processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
           } else if (issue3.code === "invalid_element") {
-            processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+            processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
           } else {
-            const fullpath = [...path24, ...issue3.path];
+            const fullpath = [...path26, ...issue3.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue3));
               continue;
@@ -23038,8 +23038,8 @@ var require_errors2 = __commonJS({
     }
     function toDotPath2(_path) {
       const segs = [];
-      const path24 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path24) {
+      const path26 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path26) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -38371,13 +38371,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path24 = ref.slice(1).split("/").filter(Boolean);
-      if (path24.length === 0) {
+      const path26 = ref.slice(1).split("/").filter(Boolean);
+      if (path26.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path24[0] === defsKey) {
-        const key = path24[1];
+      if (path26[0] === defsKey) {
+        const key = path26[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -39428,8 +39428,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors4();
     var en_js_1 = __importDefault(require_en2());
     var makeIssue2 = (params) => {
-      const { data, path: path24, errorMaps, issueData } = params;
-      const fullPath = [...path24, ...issueData.path || []];
+      const { data, path: path26, errorMaps, issueData } = params;
+      const fullPath = [...path26, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -39583,11 +39583,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util10();
     var ParseInputLazyPath2 = class {
-      constructor(parent, value, path24, key) {
+      constructor(parent, value, path26, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path24;
+        this._path = path26;
         this._key = key;
       }
       get path() {
@@ -52621,8 +52621,8 @@ var Context = class {
       if (existsSync2(process.env.GITHUB_EVENT_PATH)) {
         this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
       } else {
-        const path24 = process.env.GITHUB_EVENT_PATH;
-        process.stdout.write(`GITHUB_EVENT_PATH ${path24} does not exist${EOL5}`);
+        const path26 = process.env.GITHUB_EVENT_PATH;
+        process.stdout.write(`GITHUB_EVENT_PATH ${path26} does not exist${EOL5}`);
       }
     }
     this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -56324,17 +56324,17 @@ function requestLog(octokit) {
     octokit.log.debug("request", options);
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
-    const path24 = requestOptions.url.replace(options.baseUrl, "");
+    const path26 = requestOptions.url.replace(options.baseUrl, "");
     return request2(options).then((response) => {
       const requestId = response.headers["x-github-request-id"];
       octokit.log.info(
-        `${requestOptions.method} ${path24} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path26} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       return response;
     }).catch((error52) => {
       const requestId = error52.response?.headers["x-github-request-id"] || "UNKNOWN";
       octokit.log.error(
-        `${requestOptions.method} ${path24} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
+        `${requestOptions.method} ${path26} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
       );
       throw error52;
     });
@@ -60135,10 +60135,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path24) {
-  if (!path24)
+function getElementAtPath(obj, path26) {
+  if (!path26)
     return obj;
-  return path24.reduce((acc, key) => acc?.[key], obj);
+  return path26.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -60547,11 +60547,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path24, issues) {
+function prefixIssues(path26, issues) {
   return issues.map((iss) => {
     var _a21;
     (_a21 = iss).path ?? (_a21.path = []);
-    iss.path.unshift(path24);
+    iss.path.unshift(path26);
     return iss;
   });
 }
@@ -60698,16 +60698,16 @@ function flattenError(error52, mapper = (issue3) => issue3.message) {
 }
 function formatError(error52, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error53, path24 = []) => {
+  const processError = (error53, path26 = []) => {
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path24, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path26, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
       } else {
-        const fullpath = [...path24, ...issue3.path];
+        const fullpath = [...path26, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -60734,17 +60734,17 @@ function formatError(error52, mapper = (issue3) => issue3.message) {
 }
 function treeifyError(error52, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error53, path24 = []) => {
+  const processError = (error53, path26 = []) => {
     var _a21, _b17;
     for (const issue3 of error53.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path24, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path26, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path24, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path26, ...issue3.path]);
       } else {
-        const fullpath = [...path24, ...issue3.path];
+        const fullpath = [...path26, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -60776,8 +60776,8 @@ function treeifyError(error52, mapper = (issue3) => issue3.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path24 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path24) {
+  const path26 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path26) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -73469,13 +73469,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path24 = ref.slice(1).split("/").filter(Boolean);
-  if (path24.length === 0) {
+  const path26 = ref.slice(1).split("/").filter(Boolean);
+  if (path26.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path24[0] === defsKey) {
-    const key = path24[1];
+  if (path26[0] === defsKey) {
+    const key = path26[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -74242,8 +74242,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path24, errorMaps, issueData } = params;
-  const fullPath = [...path24, ...issueData.path || []];
+  const { data, path: path26, errorMaps, issueData } = params;
+  const fullPath = [...path26, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -74358,11 +74358,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path24, key) {
+  constructor(parent, value, path26, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path24;
+    this._path = path26;
     this._key = key;
   }
   get path() {
@@ -100381,37 +100381,37 @@ function createOpenAI(options = {}) {
   );
   const createChatModel = (modelId) => new OpenAIChatLanguageModel(modelId, {
     provider: `${providerName}.chat`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createCompletionModel = (modelId) => new OpenAICompletionLanguageModel(modelId, {
     provider: `${providerName}.completion`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createEmbeddingModel = (modelId) => new OpenAIEmbeddingModel(modelId, {
     provider: `${providerName}.embedding`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createImageModel = (modelId) => new OpenAIImageModel(modelId, {
     provider: `${providerName}.image`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createTranscriptionModel = (modelId) => new OpenAITranscriptionModel(modelId, {
     provider: `${providerName}.transcription`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createSpeechModel = (modelId) => new OpenAISpeechModel(modelId, {
     provider: `${providerName}.speech`,
-    url: ({ path: path24 }) => `${baseURL}${path24}`,
+    url: ({ path: path26 }) => `${baseURL}${path26}`,
     headers: getHeaders,
     fetch: options.fetch
   });
@@ -100426,7 +100426,7 @@ function createOpenAI(options = {}) {
   const createResponsesModel = (modelId) => {
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${providerName}.responses`,
-      url: ({ path: path24 }) => `${baseURL}${path24}`,
+      url: ({ path: path26 }) => `${baseURL}${path26}`,
       headers: getHeaders,
       fetch: options.fetch,
       fileIdPrefixes: ["file-"]
@@ -108557,16 +108557,16 @@ function createAgentTools(octokit, owner, repo, headSha) {
     inputSchema: external_exports.object({
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
-    execute: async ({ path: path24 }) => {
-      if (isBlockedPath(path24)) {
-        warning(`Agent read_file blocked: ${path24} matches secret file pattern`);
-        return `Access denied: ${path24} is a protected file (secrets/credentials)`;
+    execute: async ({ path: path26 }) => {
+      if (isBlockedPath(path26)) {
+        warning(`Agent read_file blocked: ${path26} matches secret file pattern`);
+        return `Access denied: ${path26} is a protected file (secrets/credentials)`;
       }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
-          path: path24,
+          path: path26,
           ref: headSha,
           headers: { accept: "application/vnd.github.raw+json" }
         });
@@ -108577,9 +108577,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
           const decoded = Buffer.from(data.content, "base64").toString("utf-8");
           return truncate(decoded, 5e3);
         }
-        return `File: ${path24} - could not read content`;
+        return `File: ${path26} - could not read content`;
       } catch {
-        return `File not found or inaccessible: ${path24}`;
+        return `File not found or inaccessible: ${path26}`;
       }
     }
   });
@@ -110401,11 +110401,11 @@ function runASTContractAnalysis(diffFiles, workspace) {
   for (const file2 of diffFiles) {
     if (!/\.[tj]sx?$/.test(file2.path)) continue;
     try {
-      const fs23 = __require("node:fs");
-      const path24 = __require("node:path");
-      const fullPath = path24.join(workspace, file2.path);
-      if (fs23.existsSync(fullPath)) {
-        allFileContents.set(file2.path, fs23.readFileSync(fullPath, "utf-8"));
+      const fs25 = __require("node:fs");
+      const path26 = __require("node:path");
+      const fullPath = path26.join(workspace, file2.path);
+      if (fs25.existsSync(fullPath)) {
+        allFileContents.set(file2.path, fs25.readFileSync(fullPath, "utf-8"));
         filesAnalyzed++;
       }
     } catch {
@@ -111820,9 +111820,9 @@ var PUBLIC_ROUTE_PATTERNS = [
   /^\/graphql/i
   // Often public, but may have auth at middleware level
 ];
-function isPublicRoute(path24) {
-  if (!path24) return false;
-  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path24));
+function isPublicRoute(path26) {
+  if (!path26) return false;
+  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path26));
 }
 function hasAuthSignal(content) {
   return AUTH_SIGNALS.some((re2) => re2.test(content));
@@ -114039,12 +114039,12 @@ function detectLockfileChanges(files) {
   }
   return lockfileChanges;
 }
-function isDepFile(path24) {
-  if (PACKAGE_JSON_PATTERN.test(path24)) return true;
+function isDepFile(path26) {
+  if (PACKAGE_JSON_PATTERN.test(path26)) return true;
   for (const pattern of LOCKFILE_PATTERNS) {
-    if (pattern.test(path24)) return true;
+    if (pattern.test(path26)) return true;
   }
-  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path24)) {
+  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path26)) {
     return true;
   }
   return false;
@@ -115642,6 +115642,350 @@ function formatCacheStats(stats) {
   return `Review cache: ${stats.hits}/${total} files cached (${hitRate}% hit rate), ~${stats.tokensSaved.toLocaleString()} tokens saved`;
 }
 
+// src/audit-trail.ts
+import * as fs23 from "node:fs";
+import * as path24 from "node:path";
+var AuditTrailBuilder = class {
+  meta;
+  stages = [];
+  findings = [];
+  llmCalls = [];
+  configSnapshot = {};
+  startTime;
+  constructor(owner, repo, prNumber, headSha, configHash) {
+    this.startTime = Date.now();
+    this.meta = {
+      runId: generateRunId(),
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      owner,
+      repo,
+      prNumber,
+      headSha,
+      configHash
+    };
+  }
+  /** Record a pipeline stage execution */
+  logStage(name21, durationMs, success2, findingCount, error52) {
+    this.stages.push({ name: name21, durationMs, success: success2, findingCount, error: error52 });
+  }
+  /** Record a finding with its provenance */
+  logFinding(provenance) {
+    this.findings.push(provenance);
+  }
+  /** Record an LLM call */
+  logLLMCall(call) {
+    this.llmCalls.push(call);
+  }
+  /** Record the full config snapshot */
+  setConfigSnapshot(config2) {
+    this.configSnapshot = sanitizeConfig(config2);
+  }
+  /** Build the final audit trail */
+  build() {
+    return {
+      meta: this.meta,
+      stages: this.stages,
+      findings: this.findings,
+      llmCalls: this.llmCalls,
+      configSnapshot: this.configSnapshot,
+      totalDurationMs: Date.now() - this.startTime
+    };
+  }
+};
+function writeAuditTrail(workspace, trail) {
+  const dir = path24.join(workspace, ".mizumi", "audit");
+  if (!fs23.existsSync(dir)) fs23.mkdirSync(dir, { recursive: true });
+  const fileName = `audit-${trail.meta.runId}.json`;
+  const filePath = path24.join(dir, fileName);
+  fs23.writeFileSync(filePath, JSON.stringify(trail, null, 2), "utf8");
+  info(`Audit trail written to ${filePath} (${trail.stages.length} stages, ${trail.findings.length} findings, ${trail.llmCalls.length} LLM calls)`);
+  return filePath;
+}
+function generateRunId() {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${ts}-${rand}`;
+}
+function sanitizeConfig(config2) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(config2)) {
+    if (/key|token|secret|password|credential/i.test(key)) {
+      sanitized[key] = "[REDACTED]";
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+function computeConfigHash(config2) {
+  const str = JSON.stringify(config2, Object.keys(config2).sort());
+  let hash2 = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash2 ^= str.charCodeAt(i);
+    hash2 = Math.imul(hash2, 16777619);
+  }
+  return (hash2 >>> 0).toString(16).padStart(8, "0");
+}
+
+// src/review-dashboard.ts
+import * as fs24 from "node:fs";
+import * as path25 from "node:path";
+function collectDashboardMetrics(config2) {
+  const weeks = config2.weeks ?? 4;
+  const workspace = config2.workspace;
+  const acceptanceByCategory = {};
+  try {
+    const feedbackPath = path25.join(workspace, ".mizumi", "feedback.json");
+    if (fs24.existsSync(feedbackPath)) {
+      const store = JSON.parse(fs24.readFileSync(feedbackPath, "utf8"));
+      for (const entry of store) {
+        const cat = entry.category || "other";
+        if (!acceptanceByCategory[cat]) {
+          acceptanceByCategory[cat] = { accepted: 0, total: 0, rate: 0 };
+        }
+        acceptanceByCategory[cat].total++;
+        if (entry.outcome === "accepted") {
+          acceptanceByCategory[cat].accepted++;
+        }
+      }
+      for (const cat of Object.keys(acceptanceByCategory)) {
+        const d = acceptanceByCategory[cat];
+        d.rate = d.total > 0 ? Math.round(d.accepted / d.total * 100) : 0;
+      }
+    }
+  } catch {
+  }
+  const providerUsage = {};
+  let totalFindings = 0;
+  let totalReviews = 0;
+  const severityDist = {};
+  const weeklyReviews = {};
+  const weeklyFindings = {};
+  const weeklyRisk = {};
+  const categoryCounts = {};
+  try {
+    const spendPath = path25.join(workspace, ".mizumi", "spend.jsonl");
+    if (fs24.existsSync(spendPath)) {
+      const lines = fs24.readFileSync(spendPath, "utf8").trim().split("\n");
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line);
+          totalReviews++;
+          const provider = String(entry.provider || "unknown");
+          if (!providerUsage[provider]) {
+            providerUsage[provider] = { inputTokens: 0, outputTokens: 0, cost: 0 };
+          }
+          providerUsage[provider].inputTokens += Number(entry.inputTokens || 0);
+          providerUsage[provider].outputTokens += Number(entry.outputTokens || 0);
+          providerUsage[provider].cost += Number(entry.cost || 0);
+          const findings = Number(entry.findingCount || 0);
+          totalFindings += findings;
+          const severities = entry.severities;
+          if (severities) {
+            for (const [sev, count] of Object.entries(severities)) {
+              severityDist[sev] = (severityDist[sev] || 0) + count;
+            }
+          }
+          const categories = entry.categories;
+          if (categories) {
+            for (const [cat, count] of Object.entries(categories)) {
+              categoryCounts[cat] = (categoryCounts[cat] || 0) + count;
+            }
+          }
+          const ts = String(entry.timestamp || "");
+          if (ts) {
+            const week = getWeekKey(ts);
+            weeklyReviews[week] = (weeklyReviews[week] || 0) + 1;
+            weeklyFindings[week] = (weeklyFindings[week] || 0) + findings;
+            const risk = Number(entry.riskScore || 0);
+            if (risk > 0) {
+              if (!weeklyRisk[week]) weeklyRisk[week] = [];
+              weeklyRisk[week].push(risk);
+            }
+          }
+        } catch {
+        }
+      }
+    }
+  } catch {
+  }
+  const topSuppressed = [];
+  try {
+    const suppPath = path25.join(workspace, ".mizumi", "suppressions.jsonl");
+    if (fs24.existsSync(suppPath)) {
+      const lines = fs24.readFileSync(suppPath, "utf8").trim().split("\n");
+      const patternCounts = {};
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line);
+          const key = String(entry.category || "other") + ":" + String(entry.messagePattern || "");
+          if (!patternCounts[key]) {
+            patternCounts[key] = { count: 0, category: String(entry.category || "other") };
+          }
+          patternCounts[key].count += Number(entry.suppressCount || 1);
+        } catch {
+        }
+      }
+      for (const [pattern, data] of Object.entries(patternCounts)) {
+        topSuppressed.push({ pattern, count: data.count, category: data.category });
+      }
+      topSuppressed.sort((a, b) => b.count - a.count);
+    }
+  } catch {
+  }
+  const allWeeks = Object.keys(weeklyReviews).sort();
+  const recentWeeks = allWeeks.slice(-weeks);
+  const weeklyVolume = recentWeeks.map((w) => ({
+    week: w,
+    reviews: weeklyReviews[w] || 0,
+    findings: weeklyFindings[w] || 0
+  }));
+  const riskTrend = recentWeeks.map((w) => ({
+    week: w,
+    avgRisk: weeklyRisk[w] && weeklyRisk[w].length > 0 ? Math.round(weeklyRisk[w].reduce((s, v) => s + v, 0) / weeklyRisk[w].length * 10) / 10 : 0
+  }));
+  const topCategories = Object.entries(categoryCounts).sort(([, a], [, b]) => b - a).slice(0, 10).map(([category, count]) => ({ category, count }));
+  const avgRiskScore = totalReviews > 0 ? Math.round(Object.values(weeklyRisk).flat().reduce((s, v) => s + v, 0) / Math.max(Object.values(weeklyRisk).flat().length, 1) * 10) / 10 : 0;
+  return {
+    totalReviews,
+    totalFindings,
+    avgRiskScore,
+    acceptanceByCategory,
+    topSuppressed: topSuppressed.slice(0, 10),
+    severityDistribution: severityDist,
+    weeklyVolume,
+    riskTrend,
+    providerUsage,
+    topCategories
+  };
+}
+function generateDashboardHTML(metrics, repoId) {
+  const acceptanceRows = Object.entries(metrics.acceptanceByCategory).map(([cat, data]) => `<tr><td>${esc2(cat)}</td><td>${data.total}</td><td>${data.accepted}</td><td>${data.rate}%</td></tr>`).join("\n");
+  const suppressionRows = metrics.topSuppressed.map((s) => `<tr><td>${esc2(s.category)}</td><td>${esc2(s.pattern.split(":").pop() || s.pattern)}</td><td>${s.count}</td></tr>`).join("\n");
+  const weeklyRows = metrics.weeklyVolume.map((w) => `<tr><td>${esc2(w.week)}</td><td>${w.reviews}</td><td>${w.findings}</td></tr>`).join("\n");
+  const riskRows = metrics.riskTrend.map((r) => `<tr><td>${esc2(r.week)}</td><td>${r.avgRisk}</td></tr>`).join("\n");
+  const providerRows = Object.entries(metrics.providerUsage).map(([p, d]) => `<tr><td>${esc2(p)}</td><td>${formatTokens(d.inputTokens)}</td><td>${formatTokens(d.outputTokens)}</td><td>$${d.cost.toFixed(2)}</td></tr>`).join("\n");
+  const categoryRows = metrics.topCategories.map((c) => `<tr><td>${esc2(c.category)}</td><td>${c.count}</td></tr>`).join("\n");
+  const sevData = Object.entries(metrics.severityDistribution).map(([sev, count]) => `<div class="sev-bar"><span class="sev-label ${sev}">${esc2(sev)}</span><span class="sev-count">${count}</span></div>`).join("\n");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mizumi Dashboard \u2014 ${esc2(repoId)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0d1117;color:#c9d1d9;padding:24px}
+h1{color:#58a6ff;font-size:1.5em;margin-bottom:8px}
+.subtitle{color:#8b949e;margin-bottom:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px}
+.card h2{color:#58a6ff;font-size:1.1em;margin-bottom:12px;border-bottom:1px solid #30363d;padding-bottom:8px}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #21262d}
+th{color:#8b949e;font-weight:600;font-size:0.85em}
+td{font-size:0.9em}
+.stat{font-size:2em;color:#58a6ff;font-weight:700}
+.stat-label{color:#8b949e;font-size:0.85em}
+.sev-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+.sev-label{padding:2px 8px;border-radius:4px;font-size:0.85em;font-weight:600}
+.sev-label.critical{background:#da3633;color:#fff}
+.sev-label.high{background:#d29922;color:#fff}
+.sev-label.medium{background:#1f6feb;color:#fff}
+.sev-label.low{background:#238636;color:#fff}
+.sev-label.nitpick{background:#30363d;color:#8b949e}
+.sev-count{color:#c9d1d9;font-weight:600}
+footer{color:#484f58;font-size:0.8em;text-align:center;margin-top:32px}
+</style>
+</head>
+<body>
+<h1>Mizumi Review Dashboard</h1>
+<p class="subtitle">${esc2(repoId)}</p>
+
+<div class="grid">
+<div class="card">
+  <div class="stat">${metrics.totalReviews}</div>
+  <div class="stat-label">Total Reviews</div>
+</div>
+<div class="card">
+  <div class="stat">${metrics.totalFindings}</div>
+  <div class="stat-label">Total Findings</div>
+</div>
+<div class="card">
+  <div class="stat">${metrics.avgRiskScore}</div>
+  <div class="stat-label">Avg Risk Score</div>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+  <h2>Severity Distribution</h2>
+  ${sevData || "<p>No severity data</p>"}
+</div>
+<div class="card">
+  <h2>Top Categories</h2>
+  <table><tr><th>Category</th><th>Count</th></tr>${categoryRows || "<tr><td colspan=2>No data</td></tr>"}</table>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+  <h2>Acceptance Rate by Category</h2>
+  <table><tr><th>Category</th><th>Total</th><th>Accepted</th><th>Rate</th></tr>${acceptanceRows || "<tr><td colspan=4>No data</td></tr>"}</table>
+</div>
+<div class="card">
+  <h2>Top Suppressed Patterns</h2>
+  <table><tr><th>Category</th><th>Pattern</th><th>Suppressed</th></tr>${suppressionRows || "<tr><td colspan=3>No suppressions</td></tr>"}</table>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+  <h2>Weekly Volume</h2>
+  <table><tr><th>Week</th><th>Reviews</th><th>Findings</th></tr>${weeklyRows || "<tr><td colspan=3>No data</td></tr>"}</table>
+</div>
+<div class="card">
+  <h2>Risk Score Trend</h2>
+  <table><tr><th>Week</th><th>Avg Risk</th></tr>${riskRows || "<tr><td colspan=2>No data</td></tr>"}</table>
+</div>
+</div>
+
+<div class="card">
+  <h2>Provider Usage</h2>
+  <table><tr><th>Provider</th><th>Input Tokens</th><th>Output Tokens</th><th>Cost</th></tr>${providerRows || "<tr><td colspan=4>No spend data</td></tr>"}</table>
+</div>
+
+<footer>Generated by Mizumi Review Dashboard</footer>
+</body>
+</html>`;
+}
+function esc2(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function formatTokens(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return String(n);
+}
+function getWeekKey(timestamp) {
+  try {
+    const d = new Date(timestamp);
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 864e5 + jan1.getDay() + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  } catch {
+    return "unknown";
+  }
+}
+function writeDashboard(workspace, html) {
+  const dir = path25.join(workspace, ".mizumi");
+  if (!fs24.existsSync(dir)) fs24.mkdirSync(dir, { recursive: true });
+  const filePath = path25.join(dir, "dashboard.html");
+  fs24.writeFileSync(filePath, html, "utf8");
+  info(`Dashboard written to ${filePath}`);
+  return filePath;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -116949,6 +117293,41 @@ ${digest}
       }
     } catch (e) {
       warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+    if (config2.auditTrail) {
+      try {
+        const configHash = computeConfigHash({ provider: config2.provider, model: config2.model, profile: config2.profile, maxComments: config2.maxComments, confidenceThreshold: config2.confidenceThreshold, selfCritique: config2.selfCritique, confidenceCalibration: config2.confidenceCalibration, changeStack: config2.changeStack, tierRouting: config2.tierRouting, gateThreshold: config2.gateThreshold, ruleEngine: config2.ruleEngine, linterScan: config2.linterScan, complianceCheck: config2.complianceCheck, autoFix: config2.autoFix });
+        const auditBuilder = new AuditTrailBuilder(owner, repo, prNumber, headSha, configHash);
+        auditBuilder.logStage("review", 0, true, mergedReview.comments.length);
+        if (config2.selfCritique) auditBuilder.logStage("critique", 0, true, mergedReview.comments.length);
+        if (config2.confidenceCalibration) auditBuilder.logStage("calibration", 0, true);
+        if (config2.complianceCheck) auditBuilder.logStage("compliance", 0, complianceResults.length > 0);
+        if (config2.ruleEngine) auditBuilder.logStage("rule-engine", 0, true);
+        if (config2.linterScan) auditBuilder.logStage("linter", 0, true);
+        if (config2.taintAnalysis) auditBuilder.logStage("taint", 0, true);
+        for (const c of mergedReview.comments) {
+          auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
+        }
+        if (reviewUsage.inputTokens > 0 || reviewUsage.outputTokens > 0) {
+          auditBuilder.logLLMCall({ provider: config2.provider, model: config2.model, purpose: "review", inputTokens: reviewUsage.inputTokens, outputTokens: reviewUsage.outputTokens, latencyMs: 0, success: true });
+        }
+        auditBuilder.setConfigSnapshot(config2);
+        const trail = auditBuilder.build();
+        writeAuditTrail(workspace, trail);
+        info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
+      } catch (e) {
+        warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (config2.reviewDashboard) {
+      try {
+        const dashMetrics = collectDashboardMetrics({ workspace, repoId: owner + "/" + repo });
+        const dashHtml = generateDashboardHTML(dashMetrics, owner + "/" + repo);
+        writeDashboard(workspace, dashHtml);
+        info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
+      } catch (e) {
+        warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+      }
     }
     info("Mizumi review complete");
   } catch (error52) {
