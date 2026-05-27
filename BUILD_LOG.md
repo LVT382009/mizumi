@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 3456 Tests)
 
-- **3845 tests** passing (81 test files)
+- **4009 tests** passing (82 test files)
 - **8,800+ production lines** (53+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)

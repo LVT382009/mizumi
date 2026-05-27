@@ -118,6 +118,7 @@ const testConfig = {
     repoHealth: true,
     chunkReview: true,
     reviewCache: true,
+    findingDedup: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

@@ -276,6 +276,11 @@ defense_framework:
     required: false
     default: "true"
 
+  finding_dedup:
+    description: "Enable cross-source finding deduplication — merge overlapping findings from chunk review, swarm specialists, cached results, and rule engine using exact fingerprint, proximity, and fuzzy message matching. No competitor does intelligent finding dedup."
+    required: false
+    default: "true"
+
 
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."

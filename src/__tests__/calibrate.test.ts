@@ -130,6 +130,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     repoHealth: true,
     chunkReview: true,
     reviewCache: true,
+    findingDedup: true,
     ...overrides,
   };
 }
