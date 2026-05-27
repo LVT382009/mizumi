@@ -290,6 +290,7 @@ describe("runSwarmReview", () => {
       auditTrail: true,
       reviewReplay: true,
       concurrencyAnalysis: true,
+    crossprConflictDetection: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

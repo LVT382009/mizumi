@@ -307,6 +307,11 @@ defense_framework:
   required: false
   default: "true"
 
+
+  crosspr_conflict_detection:
+    description: "Enable cross-PR conflict detection — detects file collisions, export/signature changes, and delete-use conflicts between multiple open PRs. Zero LLM cost. No AI code reviewer analyzes cross-PR interactions."
+    required: false
+    default: "true"
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

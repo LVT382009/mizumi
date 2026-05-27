@@ -79,6 +79,7 @@ import { AuditTrailBuilder, writeAuditTrail, computeConfigHash } from "./audit-t
 import { collectDashboardMetrics, generateDashboardHTML, writeDashboard } from "./review-dashboard.js";
 import { findRunsForPR, formatReplayTimeline } from "./review-replay.js";
 import { analyzeConcurrency, buildConcurrencyContext } from "./concurrency.js";
+import { detectCrossPRConflicts, buildOpenPRSummary } from "./crosspr-conflict.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -376,6 +377,35 @@ if (config.astContractAnalysis) {
  core.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
  }
  }
+
+// 4a3c. Cross-PR conflict detection — detect collisions between open PRs
+let crossPRConflictResult: import("./crosspr-conflict.js").CrossPRConflictResult | null = null;
+if (config.crossprConflictDetection) {
+  try {
+    const openPRs = await octokit.rest.pulls.list({ owner, repo, state: "open", per_page: 100 });
+    const otherPRSummaries: import("./crosspr-conflict.js").OpenPRSummary[] = [];
+    for (const pr of openPRs.data) {
+      if (pr.number === prNumber) continue;
+      try {
+        const prDiff = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: pr.number });
+        const prFiles: import("./diff.js").DiffFile[] = prDiff.data.map((f: any) => ({
+          path: f.filename,
+          status: f.status === "removed" ? "deleted" : f.status === "renamed" ? "modified" : (f.status || "modified"),
+          additions: f.additions || 0,
+          deletions: f.deletions || 0,
+          hunks: [],
+        }));
+        otherPRSummaries.push(buildOpenPRSummary(pr.number, pr.title, prFiles));
+      } catch { /* skip PRs we cannot read */ }
+    }
+    crossPRConflictResult = detectCrossPRConflicts(diff.files, otherPRSummaries);
+    if (crossPRConflictResult.conflicts.length > 0) {
+      core.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
+    }
+  } catch (e) {
+    core.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 
  // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
@@ -712,6 +742,11 @@ if (concurrencyResult && concurrencyResult.hazards.length > 0) {
       context.rulesContent += "\n\n" + concurrencyCtx;
 }
   }
+// 5c2c. Cross-PR conflict context injection
+if (crossPRConflictResult && crossPRConflictResult.contextText) {
+  context.rulesContent += "\n\n" + crossPRConflictResult.contextText;
+}
+
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
   const learningContextStr = buildLearningContext(learningResult);
@@ -1431,6 +1466,18 @@ if (config.crossPRPersistence) {
   }
 }
 
+// Post cross-PR conflict detection summary as a separate comment
+if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: crossPRConflictResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+
 // Post cross-PR patterns summary as a separate comment
 if (crossPRResult && crossPRResult.bodySummary) {
   try {
@@ -1550,6 +1597,7 @@ if (config.auditTrail) {
     if (config.linterScan) auditBuilder.logStage("linter", 0, true);
     if (config.taintAnalysis) auditBuilder.logStage("taint", 0, true);
 if (config.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
+if (config.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

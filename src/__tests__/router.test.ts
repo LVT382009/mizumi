@@ -70,6 +70,7 @@ const baseConfig: MizumiConfig = {
       auditTrail: true,
       reviewReplay: true,
       concurrencyAnalysis: true,
+    crossprConflictDetection: true,
 };
 
 describe("classifyDiff", () => {

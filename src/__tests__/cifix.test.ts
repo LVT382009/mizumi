@@ -124,6 +124,7 @@ const testConfig = {
       auditTrail: true,
       reviewReplay: true,
       concurrencyAnalysis: true,
+    crossprConflictDetection: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

@@ -56518,6 +56518,8 @@ function loadConfig() {
   const reviewDashboard = getInput("review_dashboard") !== "false";
   const auditTrail = getInput("audit_trail") !== "false";
   const reviewReplay = getInput("review_replay") !== "false";
+  const concurrencyAnalysis = getInput("concurrency_analysis") !== "false";
+  const crossprConflictDetection = getInput("crosspr_conflict_detection") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56629,7 +56631,9 @@ function loadConfig() {
     pipelineParallel,
     reviewDashboard,
     auditTrail,
-    reviewReplay
+    reviewReplay,
+    concurrencyAnalysis,
+    crossprConflictDetection
   };
 }
 function parseSimpleYaml(text2) {
@@ -58802,6 +58806,151 @@ function ghostWarnings(memoryContent, changedFiles) {
   }
   return warnings.slice(0, 5);
 }
+var CATEGORY_PROCEDURES = {
+  security: {
+    steps: [
+      "Check for input validation on all external boundaries",
+      "Verify authentication/authorization on sensitive operations",
+      "Look for injection vectors (SQL, XSS, command)",
+      "Check for hardcoded secrets or credentials",
+      "Verify secure defaults (fail-closed, deny-by-default)"
+    ],
+    pitfalls: [
+      "Assuming client-side validation is sufficient",
+      "Missing rate limiting on auth endpoints",
+      "Using string concatenation for queries"
+    ],
+    verification: [
+      "All untrusted inputs are sanitized before use",
+      "Auth checks are not bypassable by parameter tampering",
+      "No secrets in source or config files"
+    ]
+  },
+  bug: {
+    steps: [
+      "Verify null/undefined checks before property access",
+      "Check error handling completeness (all error paths)",
+      "Validate boundary conditions and off-by-one errors",
+      "Verify type assumptions match actual runtime types",
+      "Check for race conditions in async code"
+    ],
+    pitfalls: [
+      "Assuming optional fields are always present",
+      "Ignoring error return values",
+      "Mutating shared state without synchronization"
+    ],
+    verification: [
+      "All nullable access paths are guarded",
+      "Error paths have appropriate logging/handling",
+      "Edge cases (empty arrays, zero values) are handled"
+    ]
+  },
+  performance: {
+    steps: [
+      "Check for N+1 query patterns in loops",
+      "Verify O(n^2) or worse algorithms have small n bounds",
+      "Look for unnecessary re-computations of deterministic values",
+      "Check for synchronous operations that should be async",
+      "Verify memory usage patterns (leaks, large allocations)"
+    ],
+    pitfalls: [
+      "Premature optimization without measurement",
+      "Caching without invalidation strategy",
+      "Over-fetching data from APIs/databases"
+    ],
+    verification: [
+      "No obvious O(n^2) loops over large collections",
+      "Expensive computations are memoized where appropriate",
+      "Database queries are batched, not per-loop-iteration"
+    ]
+  },
+  style: {
+    steps: [
+      "Check naming consistency with project conventions",
+      "Verify function/method length reasonableness",
+      "Look for dead code or unreachable branches",
+      "Check for consistent error handling patterns"
+    ],
+    pitfalls: [
+      "Enforcing personal preferences over project conventions",
+      "Suggesting changes that touch too many lines at once"
+    ],
+    verification: [
+      "Naming follows the dominant pattern in the codebase",
+      "No obvious dead code paths"
+    ]
+  },
+  architecture: {
+    steps: [
+      "Verify separation of concerns (no business logic in handlers)",
+      "Check dependency direction (no circular imports)",
+      "Verify interface boundaries are clean and minimal",
+      "Look for leaky abstractions across module boundaries"
+    ],
+    pitfalls: [
+      "Over-engineering simple features",
+      "Suggesting patterns the team isn't using"
+    ],
+    verification: [
+      "Layer boundaries are respected",
+      "No god objects or megaclasses"
+    ]
+  },
+  compliance: {
+    steps: [
+      "Verify PII handling follows data retention policies",
+      "Check for required audit logging on sensitive operations",
+      "Verify access control matches compliance requirements"
+    ],
+    pitfalls: [
+      "Assuming GDPR only applies to EU users",
+      "Missing consent tracking for data collection"
+    ],
+    verification: [
+      "PII fields are explicitly marked/encrypted",
+      "Audit trails exist for sensitive data mutations"
+    ]
+  }
+};
+var DEFAULT_PROCEDURE = {
+  steps: [
+    "Review code for common issues in this category",
+    "Check for inconsistencies with project conventions"
+  ],
+  pitfalls: [
+    "Flagging issues without clear remediation"
+  ],
+  verification: [
+    "Finding is actionable and specific"
+  ]
+};
+function parseSkillFrontmatter(raw) {
+  const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!fmMatch) return null;
+  const fm = fmMatch[1];
+  const getField = (key, fallback = "") => {
+    const m = fm.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
+    return m ? m[1].trim().replace(/^["']|["']$/g, "") : fallback;
+  };
+  const getList = (key) => {
+    const block = fm.match(new RegExp(`^${key}:\\n((?:\\s+- .+\\n?)+)`, "m"));
+    if (!block) return [];
+    return block[1].split("\n").map((l) => l.replace(/^\s+- /, "").trim()).filter(Boolean);
+  };
+  return {
+    name: getField("name"),
+    description: getField("description"),
+    tags: getList("tags"),
+    category: getField("category"),
+    file_pattern: getField("file_pattern"),
+    version: parseInt(getField("version", "1"), 10) || 1,
+    confidence: parseInt(getField("confidence", "70"), 10) || 70,
+    occurrence_count: parseInt(getField("occurrence_count", "3"), 10) || 3,
+    trigger_conditions: getList("trigger_conditions"),
+    created_at: getField("created_at", (/* @__PURE__ */ new Date()).toISOString().split("T")[0]),
+    updated_at: getField("updated_at", (/* @__PURE__ */ new Date()).toISOString().split("T")[0])
+  };
+}
 function autoGenerateSkills(memoryContent, workspace) {
   if (!memoryContent) return [];
   const patternRe = /^[-*]\s+\[[^\]]+\]\s+(\S+):(\d+)\s+—\s+(\w+)/gm;
@@ -58821,13 +58970,54 @@ function autoGenerateSkills(memoryContent, workspace) {
     const basename7 = path3.basename(v.file, path3.extname(v.file));
     const skillName = `${v.category}-${basename7}`;
     const skillPath = path3.join(skillsDir, `${skillName}.md`);
-    const body = `When reviewing ${v.file}, pay attention to ${v.category} issues.`;
+    const procedure = CATEGORY_PROCEDURES[v.category] ?? DEFAULT_PROCEDURE;
+    const now2 = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    let version2 = 1;
+    let occurrenceCount = v.count;
+    let createdAt = now2;
+    if (fs4.existsSync(skillPath)) {
+      const existingRaw = fs4.readFileSync(skillPath, "utf-8");
+      const existingFm = parseSkillFrontmatter(existingRaw);
+      if (existingFm) {
+        version2 = existingFm.version + 1;
+        occurrenceCount = existingFm.occurrence_count + v.count;
+        createdAt = existingFm.created_at;
+      }
+    }
+    const triggerConditions = [
+      `File matches ${v.file} or similar path patterns`,
+      `${v.category} category review is active`,
+      `PR changes files in ${path3.dirname(v.file)} directory`
+    ];
+    const confidence = Math.min(95, 70 + Math.floor(occurrenceCount / 3) * 5);
+    const tags = [v.category, v.file.includes("test") ? "testing" : "production", `v${version2}`];
     const content = `---
 name: ${skillName}
-description: ${v.category} patterns for ${v.file}
+description: Recurring ${v.category} patterns for ${v.file} \u2014 auto-generated from ${occurrenceCount} review observations
+tags:
+${tags.map((t) => `  - ${t}`).join("\n")}
+category: ${v.category}
 file_pattern: "${v.file}"
+version: ${version2}
+confidence: ${confidence}
+occurrence_count: ${occurrenceCount}
+trigger_conditions:
+${triggerConditions.map((c) => `  - "${c}"`).join("\n")}
+created_at: "${createdAt}"
+updated_at: "${now2}"
 ---
-${body}
+
+## When to Use
+Apply this skill when reviewing changes to \`${v.file}\` or similar files in the \`${path3.dirname(v.file)}\` directory, especially when ${v.category} concerns are relevant.
+
+## Procedure
+${procedure.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+## Pitfalls
+${procedure.pitfalls.map((p) => `- ${p}`).join("\n")}
+
+## Verification Checklist
+${procedure.verification.map((c) => `- [ ] ${c}`).join("\n")}
 `;
     fs4.writeFileSync(skillPath, content, "utf-8");
     generated.push(skillPath);
@@ -58839,16 +59029,30 @@ function loadSkills(workspace, changedFiles) {
   if (!fs4.existsSync(skillsDir)) return { names: [], loaded: "" };
   const allFiles = fs4.readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
   const names = allFiles.map((f) => f.replace(/\.md$/, ""));
-  const fmRe = /^---\n[\s\S]*?file_pattern:\s*"([^"]+)"[\s\S]*?---\n([\s\S]*)$/;
   let loaded = "";
   let skillCount = 0;
   for (const f of allFiles) {
     if (skillCount >= 5) break;
     const raw = fs4.readFileSync(path3.join(skillsDir, f), "utf-8");
-    const fm = raw.match(fmRe);
-    if (!fm || !changedFiles.some((cf) => cf === fm[1] || cf.endsWith(fm[1]))) continue;
+    const fm = parseSkillFrontmatter(raw);
+    let matches = false;
+    if (fm) {
+      const fileMatch = changedFiles.some(
+        (cf) => cf === fm.file_pattern || cf.endsWith(fm.file_pattern) || fm.file_pattern.endsWith(path3.basename(cf))
+      );
+      const tagMatch = fm.tags.some((tag) => changedFiles.some((cf) => path3.basename(cf).includes(tag)));
+      matches = fileMatch || tagMatch;
+    } else {
+      const legacyMatch = raw.match(/file_pattern:\s*"([^"]+)"/);
+      if (legacyMatch) {
+        matches = changedFiles.some((cf) => cf === legacyMatch[1] || cf.endsWith(legacyMatch[1]));
+      }
+    }
+    if (!matches) continue;
+    const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+    const body = bodyMatch ? bodyMatch[1].trim() : raw.trim();
     loaded += `
-${fm[2].trim()}
+${body}
 `;
     skillCount++;
     if (loaded.length > 2e3) {
@@ -106592,7 +106796,9 @@ var ReviewComment = external_exports.object({
   category: external_exports.enum(["bug", "security", "performance", "style", "architecture", "compliance"]),
   message: external_exports.string().describe("Clear explanation of the issue"),
   suggestion: external_exports.string().optional().describe("Code fix suggestion if applicable"),
-  confidence: external_exports.number().min(0).max(100).describe("Confidence score 0-100")
+  confidence: external_exports.number().min(0).max(100).describe("Confidence score 0-100"),
+  validationStatus: external_exports.enum(["pending", "passed", "failed", "none"]).optional().describe("CI validation status of the suggested fix"),
+  validationUrl: external_exports.string().optional().describe("URL to view validation results")
 });
 var ReviewResponse = external_exports.object({
   summary: external_exports.string().describe("Overall PR summary and verdict"),
@@ -115721,10 +115927,12 @@ function formatNumber(n) {
   const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return n < 0 ? `-${abs}` : abs;
 }
+var runCounter = 0;
 function generateRunId() {
   const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${ts}-${rand}`;
+  const seq = (runCounter++).toString(36).padStart(3, "0");
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${ts}-${seq}-${rand}`;
 }
 function sanitizeConfig(config2) {
   const sanitized = {};
@@ -116016,7 +116224,7 @@ function findRunsForPR(workspace, owner, repo, prNumber) {
       results.push(trailToReplay(trail));
     }
   }
-  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.runId.localeCompare(b.runId));
 }
 function formatReplayTimeline(runs) {
   if (runs.length === 0) return "*No review history for this PR.*";
@@ -116055,6 +116263,506 @@ function trailToReplay(trail) {
     findings: trail.findings,
     llmCalls: trail.llmCalls,
     configSnapshot: trail.configSnapshot
+  };
+}
+
+// src/concurrency.ts
+var SHARED_STATE_PATTERNS = [
+  { pattern: /\b(const|let|var)\s+(\w+)\s*=\s*new\s+(Map|Set|WeakMap|WeakSet)\b/, confidence: 85 },
+  { pattern: /\b(const|let|var)\s+(\w+)\s*=\s*\[\]/, confidence: 60 },
+  { pattern: /\b(const|let|var)\s+(\w+)\s*=\s*\{.*\}/, confidence: 40 },
+  { pattern: /\b(let|var)\s+(\w+)\s*=\s*\d+/, confidence: 35 },
+  { pattern: /^(\w+)\s*=\s*\{.*\}/, confidence: 50 },
+  { pattern: /^(\w+)\s*=\s*\[.*\]/, confidence: 55 },
+  { pattern: /\bvar\s+(\w+)\s*=\s*make\s*\(\s*map/, confidence: 75 },
+  { pattern: /\bvar\s+(\w+)\s+map\b/, confidence: 75 },
+  { pattern: /\bstatic\s+mut\s+(\w+)\s*:/, confidence: 80 },
+  { pattern: /\bprivate\s+static\s+\w+(?:<[^>]+>\s*)?\s+(\w+)\s*=\s*new\s+\w+/, confidence: 70 }
+];
+var MUTATION_PATTERNS = [
+  { pattern: /\b(\w+)\.(push|pop|shift|unshift|splice|sort|reverse)\s*\(/, confidence: 70, desc: "Array mutation" },
+  { pattern: /\b(\w+)\.(set|delete|clear)\s*\(/, confidence: 75, desc: "Map/Set mutation" },
+  { pattern: /\b(\w+)\s*(\+\+|\-\-|\+=|-=)/, confidence: 65, desc: "Counter mutation" }
+];
+var BLOCKING_PATTERNS = [
+  { pattern: /\bfs\.(readFileSync|writeFileSync|appendFileSync|copyFileSync|readdirSync|statSync|existsSync|mkdirSync|rmSync|unlinkSync|accessSync|chmodSync|chownSync)\s*\(/, confidence: 90, desc: "Synchronous filesystem call in async context" },
+  { pattern: /\brequire\s*\(/, confidence: 30, desc: "Synchronous require() in async context" },
+  { pattern: /\bexecSync|spawnSync|execFileSync\b/, confidence: 85, desc: "Synchronous child process in async context" },
+  { pattern: /\bcrypto\.(pbkdf2Sync|scryptSync|generateKeyPairSync)\s*\(/, confidence: 80, desc: "Synchronous crypto in async context" },
+  { pattern: /\bzlib\.(deflateSync|inflateSync|gunzipSync|gzipSync)\s*\(/, confidence: 80, desc: "Synchronous zlib in async context" }
+];
+var ERROR_SWALLOW_INLINE = [
+  { pattern: /\.catch\(\s*\(\s*\)\s*=>\s*\{?\s*\}?\s*\)/, confidence: 90, desc: "Empty .catch() handler" },
+  { pattern: /\.catch\(\s*\(\s*\)\s*=>\s*null\s*\)/, confidence: 85, desc: ".catch(() => null) swallows error" },
+  { pattern: /\.catch\(\s*\(\s*\)\s*=>\s*undefined\s*\)/, confidence: 85, desc: ".catch(() => undefined) swallows error" },
+  { pattern: /catch\s*\(\s*\w+\s*\)\s*\{\s*\/\/\s*ignor/i, confidence: 70, desc: "Catch block with only 'ignore' comment" }
+];
+var LOCK_ACQUIRE = /\b(await\s+)?(\w+)\.(acquire|lock|wait|enter|take)\s*\(/;
+var LOCK_MUTEX = /\bmutex\.(lock|acquire)\s*\(/;
+var LOCK_SEMAPHORE = /\bsemaphore\.(acquire|wait)\s*\(/;
+var LOCK_WITH = /\bwithLock\s*\(/;
+var LOCK_RELEASE = /\.(release|unlock)\s*\(/;
+var CODE_EXTENSIONS = /* @__PURE__ */ new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".kt",
+  ".scala",
+  ".c",
+  ".cpp",
+  ".h",
+  ".hpp",
+  ".cs"
+]);
+function analyzeConcurrency(files) {
+  const hazards = [];
+  let hunkCount = 0;
+  for (const file2 of files) {
+    if (!isCodeFile(file2.path)) continue;
+    const allLines = file2.hunks.flatMap(
+      (h) => h.changes.map((c) => ({ type: c.type, content: c.content, targetLine: c.line }))
+    );
+    const added = allLines.filter((l) => l.type === "add");
+    hunkCount += file2.hunks.length;
+    const globalVars = /* @__PURE__ */ new Set();
+    for (const line of added) {
+      for (const pat of SHARED_STATE_PATTERNS) {
+        const m = pat.pattern.exec(line.content);
+        if (m) {
+          const varName = m[2] || m[1];
+          const collType = m[3] || "collection";
+          if (varName) {
+            globalVars.add(varName);
+            if (pat.confidence >= 50) {
+              hazards.push({
+                kind: "shared-mutable-state",
+                file: file2.path,
+                line: line.targetLine ?? 0,
+                variable: varName,
+                message: `Declares module-level mutable state: \`${varName}\` (${collType}). In concurrent environments, this creates shared mutable state without synchronization.`,
+                confidence: pat.confidence,
+                evidence: line.content.trim()
+              });
+            }
+          }
+        }
+      }
+    }
+    const asyncLines = /* @__PURE__ */ new Set();
+    let inAsync = false;
+    let depth = 0;
+    for (const line of added) {
+      const ln = line.targetLine ?? 0;
+      if (/async\s+(function|\(|[a-z])/.test(line.content) || /=>\s*async/.test(line.content)) {
+        inAsync = true;
+        depth = 0;
+      }
+      depth += (line.content.match(/\{/g) || []).length;
+      depth -= (line.content.match(/\}/g) || []).length;
+      if (inAsync) asyncLines.add(ln);
+      if (inAsync && depth <= 0 && /\}/.test(line.content)) inAsync = false;
+    }
+    for (let idx = 0; idx < added.length; idx++) {
+      const line = added[idx];
+      const ln = line.targetLine ?? 0;
+      const isAsync2 = asyncLines.has(ln);
+      for (const pat of MUTATION_PATTERNS) {
+        const m = pat.pattern.exec(line.content);
+        if (m) {
+          const varName = m[1];
+          if (globalVars.has(varName) || isAsync2 && isLikelyShared(varName, added)) {
+            hazards.push({
+              kind: "shared-mutable-state",
+              file: file2.path,
+              line: ln,
+              variable: varName,
+              message: `${pat.desc} on \`${varName}\` in ${isAsync2 ? "async" : "synchronous"} context. ${globalVars.has(varName) ? "Module-level state is inherently shared." : "Variable may be shared across concurrent operations."}`,
+              confidence: globalVars.has(varName) ? 80 : pat.confidence - 10,
+              evidence: line.content.trim()
+            });
+          }
+        }
+      }
+      if (isAsync2) {
+        const ifMatch = /\bif\s*\(\s*!(\w+)\s*\)/.exec(line.content) || /\bif\s*\(\s*!?(\w+)\.(has|includes|contains|exists)\s*\(/.exec(line.content) || /\bif\s*\(\s*(\w+)(?:\.(length|size))?\s*[<>!=]+\s*\d+\s*\)/.exec(line.content);
+        if (ifMatch) {
+          const varName = ifMatch[1];
+          const window2 = added.slice(idx + 1, idx + 6).map((l) => l.content).join(" ");
+          if (varName && window2.includes(varName)) {
+            hazards.push({
+              kind: "check-then-act",
+              file: file2.path,
+              line: ln,
+              message: "TOCTOU race: condition check followed by action in async code. The condition can change between check and action.",
+              confidence: 80,
+              evidence: line.content.trim()
+            });
+          }
+        }
+      }
+      if (isAsync2) {
+        for (const pat of BLOCKING_PATTERNS) {
+          if (pat.pattern.test(line.content)) {
+            hazards.push({
+              kind: "event-loop-block",
+              file: file2.path,
+              line: ln,
+              message: pat.desc + ". This blocks the event loop and starves other async operations.",
+              confidence: pat.confidence,
+              evidence: line.content.trim()
+            });
+          }
+        }
+      }
+      for (const pat of ERROR_SWALLOW_INLINE) {
+        if (pat.pattern.test(line.content)) {
+          hazards.push({
+            kind: "error-swallowed",
+            file: file2.path,
+            line: ln,
+            message: pat.desc + ". Swallowed errors hide concurrency failures (deadlock, timeout, race).",
+            confidence: pat.confidence,
+            evidence: line.content.trim()
+          });
+        }
+      }
+      if (/\bcatch\s*\(\s*\w*\s*\)\s*\{/.test(line.content)) {
+        if (/catch\s*\(\s*\w*\s*\)\s*\{\s*\}/.test(line.content)) {
+          hazards.push({
+            kind: "error-swallowed",
+            file: file2.path,
+            line: ln,
+            message: "Empty catch block. Swallowed errors hide concurrency failures (deadlock, timeout, race).",
+            confidence: 85,
+            evidence: line.content.trim()
+          });
+        } else {
+          const afterCatch = line.content.replace(/^.*catch\s*\(\s*\w*\s*\)\s*\{/, "").trim();
+          const next = added.slice(idx + 1, idx + 3);
+          const blockContent = [afterCatch, ...next.map((l) => l.content.trim())].filter((c) => c && !/^\}\s*;?\s*$/.test(c));
+          const hasClose = afterCatch.includes("}") || next.some((l) => /^\s*\}\s*;?\s*$/.test(l.content));
+          if (hasClose && blockContent.length === 0) {
+            hazards.push({
+              kind: "error-swallowed",
+              file: file2.path,
+              line: ln,
+              message: "Empty catch block. Swallowed errors hide concurrency failures (deadlock, timeout, race).",
+              confidence: 85,
+              evidence: line.content.trim()
+            });
+          }
+          const windowContent = [afterCatch, ...next.map((l) => l.content.trim())].filter((c) => c && !/^\s*\}\s*;?\s*$/.test(c));
+          const onlyIgnore = windowContent.length === 1 && /\/\/\s*ignor/i.test(windowContent[0]);
+          if (onlyIgnore) {
+            hazards.push({
+              kind: "error-swallowed",
+              file: file2.path,
+              line: ln,
+              message: "Catch block with only 'ignore' comment. Swallowed errors hide concurrency failures.",
+              confidence: 70,
+              evidence: line.content.trim()
+            });
+          }
+        }
+      }
+    }
+    const sequences = extractLockSequences(added);
+    if (sequences.length >= 2) {
+      hazards.push(...detectLockOrdering(sequences, file2.path));
+    }
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const unique = hazards.filter((h) => {
+    const key = `${h.kind}:${h.file}:${h.line}:${h.variable || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  info(`Concurrency analysis: ${unique.length} hazards across ${files.length} files (${hunkCount} hunks)`);
+  return {
+    hazards: unique.sort((a, b) => b.confidence - a.confidence),
+    fileCount: files.length,
+    hunkCount
+  };
+}
+function buildConcurrencyContext(result) {
+  if (result.hazards.length === 0) return "";
+  const high = result.hazards.filter((h) => h.confidence >= 70);
+  if (high.length === 0) return "";
+  let ctx = "### Concurrency Hazards Detected\n\n";
+  ctx += "The following potential concurrency issues were found in this diff. Verify whether these are actual race conditions:\n\n";
+  for (const h of high.slice(0, 10)) {
+    ctx += `- **[${h.kind}]** ${h.file}:${h.line} \u2014 ${h.message} (confidence: ${h.confidence}%)
+`;
+    ctx += `  \`${h.evidence}\`
+`;
+  }
+  if (high.length > 10) ctx += `
+...and ${high.length - 10} more.
+`;
+  return ctx;
+}
+function isCodeFile(filePath) {
+  const dot = filePath.lastIndexOf(".");
+  if (dot === -1) return false;
+  return CODE_EXTENSIONS.has(filePath.slice(dot));
+}
+function isLikelyShared(varName, lines) {
+  const usages = lines.filter((l) => l.content.includes(varName));
+  const hasConcurrent = usages.some((l) => /\bawait\b/.test(l.content)) || usages.some((l) => /\.then\s*\(/.test(l.content));
+  return usages.length >= 2 && hasConcurrent;
+}
+function extractLockSequences(lines) {
+  const sequences = [];
+  let current = [];
+  let curLine = 0;
+  for (const line of lines) {
+    const ln = line.targetLine ?? 0;
+    for (const pat of [LOCK_ACQUIRE, LOCK_MUTEX, LOCK_SEMAPHORE, LOCK_WITH]) {
+      const m = pat.exec(line.content);
+      if (m) {
+        const name21 = m[2] || m[0].replace(/\(.*$/, "");
+        if (current.length === 0) curLine = ln;
+        current.push(name21);
+      }
+    }
+    if (LOCK_RELEASE.test(line.content) && current.length > 0) {
+      if (current.length >= 2) sequences.push({ locks: [...current], line: curLine });
+      current = current.slice(0, -1);
+    }
+  }
+  if (current.length >= 2) sequences.push({ locks: [...current], line: curLine });
+  return sequences;
+}
+function detectLockOrdering(seqs, filePath) {
+  const results = [];
+  for (let i = 0; i < seqs.length; i++) {
+    for (let j = i + 1; j < seqs.length; j++) {
+      const common = seqs[i].locks.filter((l) => seqs[j].locks.includes(l));
+      if (common.length >= 2) {
+        for (let k = 0; k < common.length - 1; k++) {
+          const a = seqs[i].locks.indexOf(common[k]) < seqs[i].locks.indexOf(common[k + 1]);
+          const b = seqs[j].locks.indexOf(common[k]) < seqs[j].locks.indexOf(common[k + 1]);
+          if (a !== b) {
+            results.push({
+              kind: "lock-ordering",
+              file: filePath,
+              line: seqs[j].line,
+              variable: `${common[k]},${common[k + 1]}`,
+              message: `Lock ordering violation: \`${common[k]}\` and \`${common[k + 1]}\` acquired in different order. This can cause deadlock.`,
+              confidence: 75,
+              evidence: `Path A: ${seqs[i].locks.join(" \u2192 ")} | Path B: ${seqs[j].locks.join(" \u2192 ")}`
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+  return results;
+}
+
+// src/crosspr-conflict.ts
+function detectFileCollisions(currentFiles, otherPR) {
+  const conflicts = [];
+  for (const file2 of otherPR.files) {
+    if (currentFiles.has(file2)) {
+      conflicts.push({
+        kind: "file-collision",
+        currentFile: file2,
+        otherPR: otherPR.number,
+        otherFile: file2,
+        description: `Both this PR and PR #${otherPR.number} modify \`${file2}\` \u2014 likely merge conflict`,
+        severity: "high"
+      });
+    }
+  }
+  return conflicts;
+}
+function stripExtension(p) {
+  const dot = p.lastIndexOf(".");
+  const slash = p.lastIndexOf("/");
+  if (dot > slash && dot > 0) return p.slice(0, dot);
+  return p;
+}
+function detectExportConflicts(currentEdges, currentFiles, otherPR) {
+  const conflicts = [];
+  const otherFilesNoExt = new Set(otherPR.files.map(stripExtension));
+  const currentFilesNoExt = new Set([...currentFiles].map(stripExtension));
+  for (const edge of currentEdges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (otherFilesNoExt.has(edgeTarget) && !currentFilesNoExt.has(edgeTarget)) {
+      conflicts.push({
+        kind: "export-change",
+        currentFile: edge.from,
+        otherPR: otherPR.number,
+        otherFile: edge.to,
+        description: `This PR imports from \`${edge.to}\` (${edge.kind}) which PR #${otherPR.number} also modifies \u2014 signature may change`,
+        severity: "medium"
+      });
+    }
+  }
+  for (const edge of otherPR.edges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (currentFilesNoExt.has(edgeTarget) && !otherFilesNoExt.has(edgeTarget)) {
+      conflicts.push({
+        kind: "export-change",
+        currentFile: edge.to,
+        otherPR: otherPR.number,
+        otherFile: edge.from,
+        description: `PR #${otherPR.number} imports from \`${edge.to}\` which this PR modifies \u2014 their code may break`,
+        severity: "medium"
+      });
+    }
+  }
+  return conflicts;
+}
+function detectDeleteUseConflicts(currentEdges, _currentFiles, currentDeleted, otherPR) {
+  const conflicts = [];
+  const otherDeletedNoExt = new Set(otherPR.deletedFiles.map(stripExtension));
+  for (const edge of currentEdges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (otherDeletedNoExt.has(edgeTarget)) {
+      const deletedFile = otherPR.deletedFiles.find((d) => stripExtension(d) === edgeTarget) || edgeTarget;
+      conflicts.push({
+        kind: "delete-use",
+        currentFile: edge.from,
+        otherPR: otherPR.number,
+        otherFile: deletedFile,
+        description: `This PR imports \`${deletedFile}\` but PR #${otherPR.number} deletes it`,
+        severity: "critical"
+      });
+    }
+  }
+  for (const deletedFile of currentDeleted) {
+    const deletedNoExt = stripExtension(deletedFile);
+    for (const edge of otherPR.edges) {
+      const edgeTarget = stripExtension(edge.to);
+      if (edgeTarget === deletedNoExt) {
+        conflicts.push({
+          kind: "delete-use",
+          currentFile: deletedFile,
+          otherPR: otherPR.number,
+          otherFile: edge.from,
+          description: `This PR deletes \`${deletedFile}\` but PR #${otherPR.number} still imports it`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return conflicts;
+}
+function dedupConflicts(conflicts) {
+  const seen = /* @__PURE__ */ new Set();
+  return conflicts.filter((c) => {
+    const key = `${c.kind}:${c.currentFile}:${c.otherPR}:${c.otherFile}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildConflictContext(result) {
+  const critical = result.conflicts.filter((c) => c.severity === "critical");
+  const high = result.conflicts.filter((c) => c.severity === "high");
+  const medium = result.conflicts.filter((c) => c.severity === "medium");
+  if (critical.length === 0 && high.length === 0 && medium.length === 0) return "";
+  let ctx = `## Cross-PR Conflicts (${result.conflicts.length})
+`;
+  ctx += "This PR may conflict with other open PRs. Coordinate with authors before merging:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const c of critical.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (high.length > 0) {
+    ctx += "### High\n";
+    for (const c of high.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (medium.length > 0) {
+    ctx += "### Medium\n";
+    for (const c of medium.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildConflictBodySummary(result) {
+  if (result.conflicts.length === 0) return "";
+  let body = `<details><summary><strong>Cross-PR Conflicts</strong> \u2014 ${result.conflicts.length} detected</summary>
+
+`;
+  body += "| Type | File | Other PR | Severity |\n";
+  body += "|------|------|----------|----------|\n";
+  for (const c of result.conflicts.slice(0, 15)) {
+    const typeLabel = c.kind === "file-collision" ? "collision" : c.kind === "export-change" ? "export" : "delete-use";
+    body += `| ${typeLabel} | \`${c.currentFile}\` | #${c.otherPR} | ${c.severity} |
+`;
+  }
+  if (result.conflicts.length > 15) {
+    body += `| ... | | | ${result.conflicts.length - 15} more |
+`;
+  }
+  body += `
+*Analyzed against ${result.otherPRs.length} other open PRs.*
+</details>
+`;
+  return body;
+}
+function detectCrossPRConflicts(currentFiles, otherPRs) {
+  const currentFilePaths = new Set(currentFiles.map((f) => f.path));
+  const currentEdges = extractImportEdges(currentFiles);
+  const currentDeleted = currentFiles.filter((f) => f.status === "deleted").map((f) => f.path);
+  const allConflicts = [];
+  for (const otherPR of otherPRs) {
+    const fileCollisions = detectFileCollisions(currentFilePaths, otherPR);
+    const exportConflicts = detectExportConflicts(currentEdges, currentFilePaths, otherPR);
+    const deleteUseConflicts = detectDeleteUseConflicts(currentEdges, currentFilePaths, currentDeleted, otherPR);
+    allConflicts.push(...fileCollisions, ...exportConflicts, ...deleteUseConflicts);
+  }
+  const conflicts = dedupConflicts(allConflicts);
+  const severityOrder2 = { critical: 0, high: 1, medium: 2 };
+  conflicts.sort((a, b) => {
+    const sv = (severityOrder2[a.severity] ?? 3) - (severityOrder2[b.severity] ?? 3);
+    if (sv !== 0) return sv;
+    return a.currentFile.localeCompare(b.currentFile);
+  });
+  const result = {
+    conflicts,
+    currentFiles: [...currentFilePaths].sort(),
+    otherPRs,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildConflictContext(result);
+  result.bodySummary = buildConflictBodySummary(result);
+  if (conflicts.length > 0) {
+    info(`Cross-PR conflicts: ${conflicts.length} detected against ${otherPRs.length} open PRs`);
+  }
+  return result;
+}
+function buildOpenPRSummary(prNumber, title, files) {
+  const edges = extractImportEdges(files);
+  const deletedFiles = files.filter((f) => f.status === "deleted").map((f) => f.path);
+  return {
+    number: prNumber,
+    title,
+    files: files.map((f) => f.path),
+    edges,
+    deletedFiles
   };
 }
 
@@ -116313,6 +117021,45 @@ async function run() {
         taintResult = runTaintAnalysis(diff.files);
       } catch (e) {
         warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let concurrencyResult = null;
+    if (config2.concurrencyAnalysis) {
+      try {
+        concurrencyResult = analyzeConcurrency(diff.files);
+        if (concurrencyResult.hazards.length > 0) {
+          info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
+        }
+      } catch (e) {
+        warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let crossPRConflictResult = null;
+    if (config2.crossprConflictDetection) {
+      try {
+        const openPRs = await octokit.rest.pulls.list({ owner, repo, state: "open", per_page: 100 });
+        const otherPRSummaries = [];
+        for (const pr of openPRs.data) {
+          if (pr.number === prNumber) continue;
+          try {
+            const prDiff = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: pr.number });
+            const prFiles = prDiff.data.map((f) => ({
+              path: f.filename,
+              status: f.status === "removed" ? "deleted" : f.status === "renamed" ? "modified" : f.status || "modified",
+              additions: f.additions || 0,
+              deletions: f.deletions || 0,
+              hunks: []
+            }));
+            otherPRSummaries.push(buildOpenPRSummary(pr.number, pr.title, prFiles));
+          } catch {
+          }
+        }
+        crossPRConflictResult = detectCrossPRConflicts(diff.files, otherPRSummaries);
+        if (crossPRConflictResult.conflicts.length > 0) {
+          info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
+        }
+      } catch (e) {
+        warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let learningResult = null;
@@ -116601,6 +117348,15 @@ ${adrContextStr}`;
 
 ${taintContextStr}`;
       }
+    }
+    if (concurrencyResult && concurrencyResult.hazards.length > 0) {
+      const concurrencyCtx = buildConcurrencyContext(concurrencyResult);
+      if (concurrencyCtx) {
+        context4.rulesContent += "\n\n" + concurrencyCtx;
+      }
+    }
+    if (crossPRConflictResult && crossPRConflictResult.contextText) {
+      context4.rulesContent += "\n\n" + crossPRConflictResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -117271,6 +118027,18 @@ ${digest}
         warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: crossPRConflictResult.bodySummary
+        });
+      } catch (e) {
+        warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     if (crossPRResult && crossPRResult.bodySummary) {
       try {
         await octokit.rest.issues.createComment({
@@ -117377,6 +118145,8 @@ ${digest}
         if (config2.ruleEngine) auditBuilder.logStage("rule-engine", 0, true);
         if (config2.linterScan) auditBuilder.logStage("linter", 0, true);
         if (config2.taintAnalysis) auditBuilder.logStage("taint", 0, true);
+        if (config2.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
+        if (config2.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
