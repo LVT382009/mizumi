@@ -107,6 +107,50 @@ describe("analyzeConcurrency — shared mutable state", () => {
     const result = analyzeConcurrency(files);
     expect(result.hazards).toHaveLength(0);
   });
+
+  it("detects module-level WeakMap declaration", () => {
+    const files = [makeDiffFile("src/weakcache.ts", [
+      "const weakRefs = new WeakMap<object, string>();",
+    ])];
+    const result = analyzeConcurrency(files);
+    const shared = result.hazards.filter((h) => h.kind === "shared-mutable-state" && h.variable === "weakRefs");
+    expect(shared.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects module-level WeakSet declaration", () => {
+    const files = [makeDiffFile("src/tracking.ts", [
+      "const activeHandles = new WeakSet();",
+    ])];
+    const result = analyzeConcurrency(files);
+    const shared = result.hazards.filter((h) => h.kind === "shared-mutable-state" && h.variable === "activeHandles");
+    expect(shared.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects counter mutation on shared variable", () => {
+    const files = [makeDiffFile("src/counter.ts", [
+      "let requestCount = 0;",
+      "",
+      "async function handleRequest() {",
+      " requestCount++;",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const counters = result.hazards.filter((h) => h.kind === "shared-mutable-state" && h.variable === "requestCount");
+    expect(counters.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Map.delete mutation on shared state", () => {
+    const files = [makeDiffFile("src/registry.ts", [
+      "const registry = new Map();",
+      "",
+      "async function cleanup(key) {",
+      " registry.delete(key);",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const mutations = result.hazards.filter((h) => h.kind === "shared-mutable-state" && h.variable === "registry");
+    expect(mutations.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -339,6 +383,37 @@ describe("analyzeConcurrency — general", () => {
     const result = analyzeConcurrency(files);
     expect(result.hazards.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("analyzes Rust files", () => {
+    const files = [makeDiffFile("src/main.rs", [
+      "static mut CACHE: Option<Map> = None;",
+    ])];
+    const result = analyzeConcurrency(files);
+    expect(result.hazards.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("analyzes Java files", () => {
+    const files = [makeDiffFile("src/Service.java", [
+      "private static Map<String, String> cache = new HashMap<>();",
+    ])];
+    const result = analyzeConcurrency(files);
+    expect(result.hazards.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips .lock files", () => {
+    const files = [makeDiffFile("package-lock.json", [
+      "const cache = new Map();",
+    ])];
+    const result = analyzeConcurrency(files);
+    expect(result.hazards).toHaveLength(0);
+  });
+
+  it("handles empty diff gracefully", () => {
+    const result = analyzeConcurrency([]);
+    expect(result.hazards).toHaveLength(0);
+    expect(result.fileCount).toBe(0);
+    expect(result.hunkCount).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -480,5 +555,168 @@ describe("formatConcurrencySummary", () => {
     };
     const text = formatConcurrencySummary(result);
     expect(text).not.toContain("High-Confidence");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional edge case tests
+// ---------------------------------------------------------------------------
+
+describe("analyzeConcurrency — additional edge cases", () => {
+  it("detects zlib blocking in async function", () => {
+    const files = [makeDiffFile("src/compress.ts", [
+      "async function compress(data) {",
+      " return zlib.gzipSync(data);",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const blocking = result.hazards.filter((h) => h.kind === "event-loop-block");
+    expect(blocking.length).toBeGreaterThanOrEqual(1);
+    expect(blocking[0].evidence).toContain("gzipSync");
+  });
+
+  it("detects spawnSync in async function", () => {
+    const files = [makeDiffFile("src/runner.ts", [
+      "async function build() {",
+      " const result = child_process.spawnSync('npm', ['run', 'build']);",
+      " return result.status;",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const blocking = result.hazards.filter((h) => h.kind === "event-loop-block");
+    expect(blocking.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects writeFileSync in async function", () => {
+    const files = [makeDiffFile("src/writer.ts", [
+      "async function saveOutput(data) {",
+      " fs.writeFileSync('/tmp/output.json', data);",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const blocking = result.hazards.filter((h) => h.kind === "event-loop-block");
+    expect(blocking.length).toBeGreaterThanOrEqual(1);
+    expect(blocking[0].evidence).toContain("writeFileSync");
+  });
+
+  it("detects catch block with ignore comment", () => {
+    const files = [makeDiffFile("src/handler.ts", [
+      "try {",
+      " await risky();",
+      "} catch (err) {",
+      " // ignore",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const swallowed = result.hazards.filter((h) => h.kind === "error-swallowed");
+    expect(swallowed.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects .catch(() => undefined)", () => {
+    const files = [makeDiffFile("src/api.ts", [
+      "fetch(url).then(r => r.json()).catch(() => undefined);",
+    ])];
+    const result = analyzeConcurrency(files);
+    const swallowed = result.hazards.filter((h) => h.kind === "error-swallowed");
+    expect(swallowed.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects mutex lock pattern", () => {
+    const files = [makeDiffFile("src/transfer.ts", [
+      "async function transferA() {",
+      " await mutex.lock();",
+      " await resourceLock.acquire();",
+      " doWork();",
+      " resourceLock.release();",
+      " mutex.unlock();",
+      "}",
+      "",
+      "async function transferB() {",
+      " await resourceLock.acquire();",
+      " await mutex.lock();",
+      " doWork();",
+      " mutex.unlock();",
+      " resourceLock.release();",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const lockViolations = result.hazards.filter((h) => h.kind === "lock-ordering");
+    expect(lockViolations.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects semaphore lock pattern", () => {
+    const files = [makeDiffFile("src/resource.ts", [
+      "async function pathA() {",
+      " await semaphore.acquire();",
+      " await dbLock.acquire();",
+      " doWork();",
+      " dbLock.release();",
+      " semaphore.release();",
+      "}",
+      "",
+      "async function pathB() {",
+      " await dbLock.acquire();",
+      " await semaphore.acquire();",
+      " doWork();",
+      " semaphore.release();",
+      " dbLock.release();",
+      "}",
+    ])];
+    const result = analyzeConcurrency(files);
+    const lockViolations = result.hazards.filter((h) => h.kind === "lock-ordering");
+    expect(lockViolations.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles multi-hunk files", () => {
+    const files: DiffFile[] = [{
+      path: "src/multi.ts",
+      status: "modified" as const,
+      additions: 2,
+      deletions: 0,
+      hunks: [
+        {
+          oldStart: 1, oldLines: 0, newStart: 1, newLines: 1, content: "",
+          changes: [{ type: "add" as const, line: 1, oldLine: 0, content: "const cache = new Map();" }],
+        },
+        {
+          oldStart: 5, oldLines: 0, newStart: 5, newLines: 1, content: "",
+          changes: [{ type: "add" as const, line: 5, oldLine: 0, content: "cache.set('key', 'value');" }],
+        },
+      ],
+    }];
+    const result = analyzeConcurrency(files);
+    expect(result.hunkCount).toBe(2);
+    const shared = result.hazards.filter((h) => h.kind === "shared-mutable-state");
+    expect(shared.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects async arrow function as async context", () => {
+    const files = [makeDiffFile("src/handler.ts", [
+      "const handler = async (req) => {",
+      " const data = fs.readFileSync(req.path, 'utf8');",
+      " return data;",
+      "};",
+    ])];
+    const result = analyzeConcurrency(files);
+    const blocking = result.hazards.filter((h) => h.kind === "event-loop-block");
+    expect(blocking.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("includes file path in hazard output", () => {
+    const files = [makeDiffFile("src/specific-path.ts", [
+      "const cache = new Map();",
+    ])];
+    const result = analyzeConcurrency(files);
+    expect(result.hazards.length).toBeGreaterThanOrEqual(1);
+    expect(result.hazards[0].file).toBe("src/specific-path.ts");
+  });
+
+  it("includes evidence in hazard output", () => {
+    const files = [makeDiffFile("src/evidence.ts", [
+      "const cache = new Map();",
+    ])];
+    const result = analyzeConcurrency(files);
+    expect(result.hazards.length).toBeGreaterThanOrEqual(1);
+    expect(result.hazards[0].evidence).toContain("new Map");
   });
 });

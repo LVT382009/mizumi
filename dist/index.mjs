@@ -90619,7 +90619,9 @@ var SHARED_STATE_PATTERNS = [
   { pattern: /^(\w+)\s*=\s*\{.*\}/, confidence: 50 },
   { pattern: /^(\w+)\s*=\s*\[.*\]/, confidence: 55 },
   { pattern: /\bvar\s+(\w+)\s*=\s*make\s*\(\s*map/, confidence: 75 },
-  { pattern: /\bvar\s+(\w+)\s+map\b/, confidence: 75 }
+  { pattern: /\bvar\s+(\w+)\s+map\b/, confidence: 75 },
+  { pattern: /\bstatic\s+mut\s+(\w+)\s*:/, confidence: 80 },
+  { pattern: /\bprivate\s+static\s+\w+(?:<[^>]+>\s*)?\s+(\w+)\s*=\s*new\s+\w+/, confidence: 70 }
 ];
 var MUTATION_PATTERNS = [
   { pattern: /\b(\w+)\.(push|pop|shift|unshift|splice|sort|reverse)\s*\(/, confidence: 70, desc: "Array mutation" },
@@ -90798,6 +90800,18 @@ function analyzeConcurrency(files) {
               line: ln,
               message: "Empty catch block. Swallowed errors hide concurrency failures (deadlock, timeout, race).",
               confidence: 85,
+              evidence: line.content.trim()
+            });
+          }
+          const windowContent = [afterCatch, ...next.map((l) => l.content.trim())].filter((c) => c && !/^\s*\}\s*;?\s*$/.test(c));
+          const onlyIgnore = windowContent.length === 1 && /\/\/\s*ignor/i.test(windowContent[0]);
+          if (onlyIgnore) {
+            hazards.push({
+              kind: "error-swallowed",
+              file: file2.path,
+              line: ln,
+              message: "Catch block with only 'ignore' comment. Swallowed errors hide concurrency failures.",
+              confidence: 70,
               evidence: line.content.trim()
             });
           }

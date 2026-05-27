@@ -424,3 +424,218 @@ describe("writeDashboard", () => {
     expect(content).toBe("second");
   });
 });
+
+// ---------------------------------------------------------------------------
+// expanded collectDashboardMetrics tests
+// ---------------------------------------------------------------------------
+
+describe("collectDashboardMetrics — expanded", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-dash2-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("computes average risk score from spend data", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    fs.writeFileSync(path.join(mizDir, "spend.jsonl"), [
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 1, riskScore: 4, timestamp: "2026-05-20T10:00:00Z" }),
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 1, riskScore: 2, timestamp: "2026-05-21T10:00:00Z" }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.avgRiskScore).toBe(3);
+  });
+
+  it("computes weekly volume correctly", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    fs.writeFileSync(path.join(mizDir, "spend.jsonl"), [
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 2, riskScore: 3, timestamp: "2026-05-12T10:00:00Z" }),
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 1, riskScore: 2, timestamp: "2026-05-19T10:00:00Z" }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.weeklyVolume.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("computes risk trend with averages", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    fs.writeFileSync(path.join(mizDir, "spend.jsonl"), [
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 1, riskScore: 5, timestamp: "2026-05-20T10:00:00Z" }),
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 1, riskScore: 3, timestamp: "2026-05-20T12:00:00Z" }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.riskTrend.length).toBeGreaterThanOrEqual(1);
+    const trendItem = metrics.riskTrend[0];
+    expect(trendItem.avgRisk).toBe(4);
+  });
+
+  it("handles spend log with missing fields gracefully", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    fs.writeFileSync(path.join(mizDir, "spend.jsonl"), [
+      JSON.stringify({ provider: "unknown" }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.totalReviews).toBe(1);
+    expect(metrics.totalFindings).toBe(0);
+    expect(metrics.providerUsage.unknown.inputTokens).toBe(0);
+  });
+
+  it("handles malformed suppression lines gracefully", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    fs.writeFileSync(path.join(mizDir, "suppressions.jsonl"), [
+      "not valid json",
+      JSON.stringify({ category: "bug", messagePattern: "Null check*", suppressCount: 2 }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.topSuppressed.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("limits top categories to 10 entries", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    const categories: Record<string, number> = {};
+    for (let i = 0; i < 15; i++) {
+      categories[`cat${i}`] = i + 1;
+    }
+    fs.writeFileSync(path.join(mizDir, "spend.jsonl"), [
+      JSON.stringify({ provider: "openai", inputTokens: 100, outputTokens: 50, cost: 0, findingCount: 15, riskScore: 3, timestamp: "2026-05-20T10:00:00Z", categories }),
+    ].join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.topCategories.length).toBeLessThanOrEqual(10);
+  });
+
+  it("limits top suppressed to 10 entries", () => {
+    const mizDir = path.join(tmpDir, ".mizumi");
+    fs.mkdirSync(mizDir, { recursive: true });
+    const lines = [];
+    for (let i = 0; i < 15; i++) {
+      lines.push(JSON.stringify({ category: `cat${i}`, messagePattern: `pattern${i}`, suppressCount: i + 1 }));
+    }
+    fs.writeFileSync(path.join(mizDir, "suppressions.jsonl"), lines.join("\n"));
+
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    expect(metrics.topSuppressed.length).toBeLessThanOrEqual(10);
+  });
+
+  it("uses default weeks=4 when not specified", () => {
+    const metrics = collectDashboardMetrics({ workspace: tmpDir, repoId: "test/repo" });
+    // No data files exist, so weeks parameter doesn't matter, but this tests the path
+    expect(metrics.weeklyVolume).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// expanded generateDashboardHTML tests
+// ---------------------------------------------------------------------------
+
+describe("generateDashboardHTML — expanded", () => {
+  const emptyMetrics: DashboardMetrics = {
+    totalReviews: 0,
+    totalFindings: 0,
+    avgRiskScore: 0,
+    acceptanceByCategory: {},
+    topSuppressed: [],
+    severityDistribution: {},
+    weeklyVolume: [],
+    riskTrend: [],
+    providerUsage: {},
+    topCategories: [],
+  };
+
+  it("includes risk score trend data", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      riskTrend: [
+        { week: "2026-W18", avgRisk: 5.2 },
+        { week: "2026-W19", avgRisk: 3.1 },
+      ],
+    };
+    const html = generateDashboardHTML(metrics, "test/repo");
+    expect(html).toContain("2026-W18");
+    expect(html).toContain("5.2");
+    expect(html).toContain("3.1");
+  });
+
+  it("escapes quotes in user content", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      acceptanceByCategory: {
+        'test"cat': { accepted: 1, total: 1, rate: 100 },
+      },
+    };
+    const html = generateDashboardHTML(metrics, 'repo"with"quotes');
+    expect(html).toContain("&quot;");
+  });
+
+  it("includes nitpick severity class", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      severityDistribution: { nitpick: 10 },
+    };
+    const html = generateDashboardHTML(metrics, "test/repo");
+    expect(html).toContain("sev-label nitpick");
+    expect(html).toContain("10");
+  });
+
+  it("formats 999 tokens without suffix", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      providerUsage: {
+        local: { inputTokens: 999, outputTokens: 0, cost: 0 },
+      },
+    };
+    const html = generateDashboardHTML(metrics, "test/repo");
+    expect(html).toContain(">999<");
+  });
+
+  it("formats 1000 tokens as 1.0K", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      providerUsage: {
+        local: { inputTokens: 1000, outputTokens: 0, cost: 0 },
+      },
+    };
+    const html = generateDashboardHTML(metrics, "test/repo");
+    expect(html).toContain("1.0K");
+  });
+
+  it("formats 1000000 tokens as 1.0M", () => {
+    const metrics: DashboardMetrics = {
+      ...emptyMetrics,
+      providerUsage: {
+        local: { inputTokens: 1000000, outputTokens: 0, cost: 0 },
+      },
+    };
+    const html = generateDashboardHTML(metrics, "test/repo");
+    expect(html).toContain("1.0M");
+  });
+
+  it("includes footer", () => {
+    const html = generateDashboardHTML(emptyMetrics, "test/repo");
+    expect(html).toContain("Generated by Mizumi");
+  });
+
+  it("includes viewport meta tag", () => {
+    const html = generateDashboardHTML(emptyMetrics, "test/repo");
+    expect(html).toContain("viewport");
+  });
+
+  it("shows No suppressions when empty", () => {
+    const html = generateDashboardHTML(emptyMetrics, "test/repo");
+    expect(html).toContain("No suppressions");
+  });
+});

@@ -462,3 +462,116 @@ describe("pruneUnusedMemories edge cases", () => {
     expect(getSuppressionMemories(tmpDir, "org/repo2")).toHaveLength(1);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional suppression edge cases
+// ---------------------------------------------------------------------------
+
+describe("shouldSuppress — expanded", () => {
+  it("matches short message pattern via file+category fallback", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/health.ts", "security", "SQL", "auth-free");
+    const memory = shouldSuppress(tmpDir, "org/repo", "src/api/health.ts", "security", "completely unrelated message");
+    expect(memory).not.toBeNull();
+  });
+
+  it("does not match when message pattern is long and diverges", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/health.ts", "security", "SQL injection vulnerability detected", "by design");
+    const memory = shouldSuppress(tmpDir, "org/repo", "src/api/health.ts", "security", "XSS attack detected here");
+    expect(memory).toBeNull();
+  });
+});
+
+describe("applySuppressionMemories — expanded", () => {
+  it("returns matched memories with correct fields", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/health.ts", "security", "SQL injection", "auth-free");
+    const findings = [makeFinding({ file: "src/api/health.ts", category: "security", message: "SQL injection in health" })];
+    const { matchedMemories } = applySuppressionMemories(tmpDir, "org/repo", findings);
+    expect(matchedMemories).toHaveLength(1);
+    expect(matchedMemories[0].filePattern).toContain("health*");
+    expect(matchedMemories[0].category).toBe("security");
+    expect(matchedMemories[0].reason).toBe("auth-free");
+  });
+
+  it("increments hit count by 1 per suppression", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/health.ts", "security", "", "all OK");
+    const findings = [
+      makeFinding({ file: "src/api/health.ts", category: "security", message: "finding A" }),
+      makeFinding({ file: "src/api/health.ts", category: "security", message: "finding B" }),
+    ];
+    applySuppressionMemories(tmpDir, "org/repo", findings);
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories[0].hitCount).toBe(2);
+  });
+
+  it("preserves unsuppressed findings unchanged", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/api/health.ts", "bug", "null ref", "intentional");
+    const findings = [
+      makeFinding({ file: "src/api/users.ts", category: "security", message: "SQL injection" }),
+    ];
+    const { filtered } = applySuppressionMemories(tmpDir, "org/repo", findings);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].confidence).toBe(90);
+  });
+});
+
+describe("buildSuppressionContext — expanded", () => {
+  it("includes file pattern in context", () => {
+    const result: SuppressionResult = {
+      matchedMemories: [{
+        id: 1, repo: "org/repo", filePattern: "src/api/health*.ts",
+        category: "security", messagePattern: "SQL", reason: "auth-free",
+        hitCount: 5, createdAt: "2026-01-01", lastHitAt: "2026-05-26",
+      }],
+      suppressedCount: 3,
+      contextText: "",
+    };
+    const ctx = buildSuppressionContext(result);
+    expect(ctx).toContain("src/api/health*.ts");
+  });
+
+  it("includes multiple memories in context", () => {
+    const result: SuppressionResult = {
+      matchedMemories: [
+        { id: 1, repo: "org/repo", filePattern: "src/a.ts", category: "security", messagePattern: "", reason: "OK1", hitCount: 1, createdAt: "", lastHitAt: "" },
+        { id: 2, repo: "org/repo", filePattern: "src/b.ts", category: "bug", messagePattern: "", reason: "OK2", hitCount: 2, createdAt: "", lastHitAt: "" },
+      ],
+      suppressedCount: 2,
+      contextText: "",
+    };
+    const ctx = buildSuppressionContext(result);
+    expect(ctx).toContain("OK1");
+    expect(ctx).toContain("OK2");
+    expect(ctx).toContain("hit 1x");
+    expect(ctx).toContain("hit 2x");
+  });
+});
+
+describe("deleteSuppressionMemory — expanded", () => {
+  it("only deletes specified ID, not others", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/a.ts", "bug", "err1", "reason A");
+    recordSuppressionMemory(tmpDir, "org/repo", "src/b.ts", "bug", "err2", "reason B");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories).toHaveLength(2);
+    const deleted = deleteSuppressionMemory(tmpDir, memories[0].id);
+    expect(deleted).toBe(true);
+    const remaining = getSuppressionMemories(tmpDir, "org/repo");
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].reason).toBe("reason B");
+  });
+});
+
+describe("recordSuppressionMemory — expanded", () => {
+  it("trims whitespace from reason", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/a.ts", "bug", "err", "  intentional  ");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories).toHaveLength(1);
+    expect(memories[0].reason).toBe("intentional");
+  });
+
+  it("stores message pattern correctly", () => {
+    recordSuppressionMemory(tmpDir, "org/repo", "src/a.ts", "security", "SQL injection pattern", "auth-free");
+    const memories = getSuppressionMemories(tmpDir, "org/repo");
+    expect(memories[0].messagePattern).toBe("SQL injection pattern");
+  });
+});
