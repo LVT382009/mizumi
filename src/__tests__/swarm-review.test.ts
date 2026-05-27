@@ -296,6 +296,7 @@ describe("runSwarmReview", () => {
 breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
+    typeSafetyErosion: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

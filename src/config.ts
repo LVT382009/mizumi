@@ -79,6 +79,7 @@ export interface MizumiConfig {
 breakingChangeRadar: boolean;
 importCycleDetector: boolean;
 deadCodeDetector: boolean;
+  typeSafetyErosion: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -181,6 +182,7 @@ const testAssertionAudit = core.getInput("test_assertion_audit") !== "false"; //
 const breakingChangeRadar = core.getInput("breaking_change_radar") !== "false"; // default true
 const importCycleDetector = core.getInput("import_cycle_detector") !== "false"; // default true
 const deadCodeDetector = core.getInput("dead_code_detector") !== "false"; // default true
+const typeSafetyErosion = core.getInput("type_safety_erosion") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -302,6 +304,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
 breakingChangeRadar,
 importCycleDetector,
 deadCodeDetector,
+    typeSafetyErosion,
   };
 }
 

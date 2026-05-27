@@ -130,6 +130,7 @@ const testConfig = {
 breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
+    typeSafetyErosion: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

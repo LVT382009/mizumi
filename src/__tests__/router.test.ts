@@ -76,6 +76,7 @@ const baseConfig: MizumiConfig = {
 breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
+    typeSafetyErosion: true,
 };
 
 describe("classifyDiff", () => {

@@ -172,6 +172,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
 breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
+    typeSafetyErosion: true,
     ...overrides,
   };
 }

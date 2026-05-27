@@ -340,7 +340,12 @@ dead_code_detector:
   default: "true"
 
 
-  jira_base_url:
+  type_safety_erosion:
+  description: "Enable type safety erosion detector — flags type assertions (as), any types, @ts-ignore/@ts-nocheck directives, and eslint-disable suppressions that silently erode type safety. Zero LLM cost. No AI code reviewer detects type safety erosion."
+  required: false
+  default: "true"
+
+jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
   jira_api_token:

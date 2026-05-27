@@ -170,6 +170,7 @@ vi.mock("../config.js", () => ({
 breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
+    typeSafetyErosion: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

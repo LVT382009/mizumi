@@ -85,6 +85,7 @@ import { auditTestAssertions } from "./test-assertion-audit.js";
 import { detectBreakingChanges } from "./breaking-change-radar.js";
 import { detectImportCycles } from "./import-cycle-detector.js";
 import { detectDeadCode } from "./dead-code-detector.js";
+import { detectTypeSafetyErosion } from "./type-safety-erosion.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -477,6 +478,19 @@ if (config.deadCodeDetector) {
  core.warning("Dead code detection failed: " + (e instanceof Error ? e.message : String(e)));
  }
 }
+// 4a3i. Type safety erosion detector — detect type assertions, any types, ts directives, lint suppressions
+let typeErosionResult: import("./type-safety-erosion.js").TypeErosionResult | null = null;
+if (config.typeSafetyErosion) {
+  try {
+    typeErosionResult = detectTypeSafetyErosion(diff.files);
+    if (typeErosionResult.issues.length > 0) {
+      core.info("Type safety erosion: " + typeErosionResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Type safety erosion detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -839,6 +853,11 @@ if (importCycleResult && importCycleResult.contextText) {
 if (deadCodeResult && deadCodeResult.contextText) {
   context.rulesContent += "\n\n" + deadCodeResult.contextText;
 }
+// 5c2i. Type safety erosion detector context injection
+if (typeErosionResult && typeErosionResult.contextText) {
+  context.rulesContent += "\n\n" + typeErosionResult.contextText;
+}
+
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
   const learningContextStr = buildLearningContext(learningResult);
@@ -1601,6 +1620,17 @@ if (deadCodeResult && deadCodeResult.bodySummary) {
  }
 }
 
+// Post type safety erosion summary as a separate comment
+if (typeErosionResult && typeErosionResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: typeErosionResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Type safety erosion comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1748,6 +1778,7 @@ if (config.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, 
 if (config.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0, true);
 if (config.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
 if (config.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
+if (config.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
