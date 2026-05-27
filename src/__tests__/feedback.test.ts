@@ -413,3 +413,485 @@ describe("pollReactions", () => {
     expect(result.unhelpful).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// hashMessage — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("hashMessage (edge cases)", () => {
+  it("returns consistent hash for empty string", () => {
+    expect(hashMessage("")).toBe(hashMessage(""));
+  });
+
+  it("returns different hash for empty vs non-empty", () => {
+    expect(hashMessage("")).not.toBe(hashMessage("a"));
+  });
+
+  it("handles Unicode characters", () => {
+    const h = hashMessage("SQLインジェクション");
+    expect(typeof h).toBe("string");
+    expect(h.length).toBeGreaterThan(0);
+  });
+
+  it("returns consistent hash for Unicode message", () => {
+    expect(hashMessage("SQLインジェクション")).toBe(hashMessage("SQLインジェクション"));
+  });
+
+  it("handles very long message", () => {
+    const longMsg = "a".repeat(10_000);
+    const h = hashMessage(longMsg);
+    expect(typeof h).toBe("string");
+    expect(h.length).toBeGreaterThan(0);
+  });
+
+  it("returns numeric base-36 string", () => {
+    const h = hashMessage("test message");
+    expect(h).toMatch(/^[0-9a-z]+$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyReaction — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("classifyReaction (edge cases)", () => {
+  it("classifies laugh as pending", () => {
+    expect(classifyReaction("laugh")).toBe("pending");
+  });
+
+  it("classifies confused as pending", () => {
+    expect(classifyReaction("confused")).toBe("pending");
+  });
+
+  it("classifies hooray as pending", () => {
+    expect(classifyReaction("hooray")).toBe("pending");
+  });
+
+  it("classifies empty string as pending", () => {
+    expect(classifyReaction("")).toBe("pending");
+  });
+
+  it("classifies rocket as pending (not helpful)", () => {
+    expect(classifyReaction("rocket")).toBe("pending");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readFeedbackStore — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("readFeedbackStore (edge cases)", () => {
+  it("returns empty store for corrupt JSON", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-feedback.json"), "not valid json{{{{");
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries).toEqual([]);
+  });
+
+  it("returns empty store for empty file", () => {
+    const dir = path.join(tmpDir, ".github");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "mizumi-feedback.json"), "");
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// writeFeedbackStore — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("writeFeedbackStore (edge cases)", () => {
+  it("creates .github directory if missing", () => {
+    const freshTmp = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-feedback-fresh-"));
+    try {
+      writeFeedbackStore(freshTmp, { entries: [{ repo: "o/r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "low", messageHash: "abc", outcome: "pending", createdAt: "2026-01-01" }] });
+      const dirExists = fs.existsSync(path.join(freshTmp, ".github"));
+      expect(dirExists).toBe(true);
+      const fileExists = fs.existsSync(path.join(freshTmp, ".github", "mizumi-feedback.json"));
+      expect(fileExists).toBe(true);
+    } finally {
+      fs.rmSync(freshTmp, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps most recent entries when capping", () => {
+    const entries = Array.from({ length: 250 }, (_, i) => ({
+      repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i, category: "bug", severity: "low",
+      messageHash: `h${i}`, outcome: "pending" as const, createdAt: `2026-01-${String(i % 28 + 1).padStart(2, "0")}`,
+    }));
+    writeFeedbackStore(tmpDir, { entries });
+    const read = readFeedbackStore(tmpDir);
+    // Should keep last 200 entries (220-249 index range)
+    expect(read.entries[0].pr).toBe(50);
+    expect(read.entries[read.entries.length - 1].pr).toBe(249);
+  });
+
+  it("preserves entry data through write-read cycle", () => {
+    const store = {
+      entries: [
+        { repo: "my/repo", pr: 99, commentId: 777, file: "deep/path/file.ts", line: 42, category: "security", severity: "critical", messageHash: "xyz789", outcome: "helpful" as const, createdAt: "2026-05-27T00:00:00Z" },
+      ],
+    };
+    writeFeedbackStore(tmpDir, store);
+    const read = readFeedbackStore(tmpDir);
+    expect(read.entries[0]).toEqual(store.entries[0]);
+  });
+
+  it("does not cap entries below MAX", () => {
+    const store = {
+      entries: Array.from({ length: 100 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i, category: "bug", severity: "low",
+        messageHash: `h${i}`, outcome: "pending" as const, createdAt: "2026-01-01",
+      })),
+    };
+    writeFeedbackStore(tmpDir, store);
+    const read = readFeedbackStore(tmpDir);
+    expect(read.entries).toHaveLength(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// recordFindings — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("recordFindings (edge cases)", () => {
+  it("records multiple findings at once", () => {
+    recordFindings(tmpDir, "owner/repo", 10, [
+      { file: "a.ts", line: 1, category: "security", severity: "high", message: "xss risk" },
+      { file: "b.ts", line: 2, category: "style", severity: "low", message: "bad indent" },
+      { file: "c.ts", line: 3, category: "bug", severity: "medium", message: "null deref" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries).toHaveLength(3);
+    expect(store.entries[0].category).toBe("security");
+    expect(store.entries[1].category).toBe("style");
+    expect(store.entries[2].category).toBe("bug");
+  });
+
+  it("defaults commentId to 0 when not provided", () => {
+    recordFindings(tmpDir, "owner/repo", 5, [
+      { file: "a.ts", line: 1, category: "bug", severity: "low", message: "issue" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries[0].commentId).toBe(0);
+  });
+
+  it("uses provided commentId", () => {
+    recordFindings(tmpDir, "owner/repo", 5, [
+      { commentId: 999, file: "a.ts", line: 1, category: "bug", severity: "low", message: "issue" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries[0].commentId).toBe(999);
+  });
+
+  it("appends to existing store entries", () => {
+    recordFindings(tmpDir, "owner/repo", 1, [
+      { file: "a.ts", line: 1, category: "security", severity: "high", message: "first" },
+    ]);
+    recordFindings(tmpDir, "owner/repo", 2, [
+      { file: "b.ts", line: 2, category: "bug", severity: "medium", message: "second" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries).toHaveLength(2);
+    expect(store.entries[0].pr).toBe(1);
+    expect(store.entries[1].pr).toBe(2);
+  });
+
+  it("computes messageHash from message content", () => {
+    recordFindings(tmpDir, "owner/repo", 1, [
+      { file: "a.ts", line: 1, category: "bug", severity: "low", message: "exact message" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries[0].messageHash).toBe(hashMessage("exact message"));
+  });
+
+  it("sets outcome to pending for new entries", () => {
+    recordFindings(tmpDir, "owner/repo", 1, [
+      { file: "a.ts", line: 1, category: "bug", severity: "low", message: "test" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    expect(store.entries[0].outcome).toBe("pending");
+  });
+
+  it("sets createdAt to a valid ISO date", () => {
+    recordFindings(tmpDir, "owner/repo", 1, [
+      { file: "a.ts", line: 1, category: "bug", severity: "low", message: "test" },
+    ]);
+    const store = readFeedbackStore(tmpDir);
+    const date = new Date(store.entries[0].createdAt);
+    expect(date.getTime()).not.toBeNaN();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// categoryAcceptanceRates — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("categoryAcceptanceRates (edge cases)", () => {
+  it("computes 100% rate for all-helpful entries", () => {
+    const store = {
+      entries: Array.from({ length: 5 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i, category: "security", severity: "high",
+        messageHash: `h${i}`, outcome: "helpful" as const, createdAt: "2026-01-01",
+      })),
+    };
+    const rates = categoryAcceptanceRates(store);
+    expect(rates.security.rate).toBe(1);
+    expect(rates.security.helpful).toBe(5);
+    expect(rates.security.unhelpful).toBe(0);
+  });
+
+  it("computes 0% rate for all-unhelpful entries", () => {
+    const store = {
+      entries: Array.from({ length: 5 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i, category: "style", severity: "low",
+        messageHash: `h${i}`, outcome: "unhelpful" as const, createdAt: "2026-01-01",
+      })),
+    };
+    const rates = categoryAcceptanceRates(store);
+    expect(rates.style.rate).toBe(0);
+    expect(rates.style.helpful).toBe(0);
+    expect(rates.style.unhelpful).toBe(5);
+  });
+
+  it("returns 0.5 rate for single helpful and single unhelpful", () => {
+    const store = {
+      entries: [
+        { repo: "o/r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "medium", messageHash: "a", outcome: "helpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 2, commentId: 2, file: "b.ts", line: 2, category: "bug", severity: "medium", messageHash: "b", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+      ],
+    };
+    const rates = categoryAcceptanceRates(store);
+    expect(rates.bug.rate).toBe(0.5);
+  });
+
+  it("computes rates independently per category", () => {
+    const store = {
+      entries: [
+        { repo: "o/r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "security", severity: "high", messageHash: "a", outcome: "helpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 2, commentId: 2, file: "b.ts", line: 2, category: "security", severity: "high", messageHash: "b", outcome: "helpful" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 3, commentId: 3, file: "c.ts", line: 3, category: "style", severity: "low", messageHash: "c", outcome: "unhelpful" as const, createdAt: "2026-01-01" },
+      ],
+    };
+    const rates = categoryAcceptanceRates(store);
+    expect(rates.security.rate).toBe(1);
+    expect(rates.style.rate).toBe(0);
+  });
+
+  it("skips pending entries from all categories", () => {
+    const store = {
+      entries: [
+        { repo: "o/r", pr: 1, commentId: 1, file: "a.ts", line: 1, category: "bug", severity: "medium", messageHash: "a", outcome: "pending" as const, createdAt: "2026-01-01" },
+        { repo: "o/r", pr: 2, commentId: 2, file: "b.ts", line: 2, category: "style", severity: "low", messageHash: "b", outcome: "pending" as const, createdAt: "2026-01-01" },
+      ],
+    };
+    const rates = categoryAcceptanceRates(store);
+    expect(Object.keys(rates)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeSuppressedPatterns — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("computeSuppressedPatterns (edge cases)", () => {
+  it("does not suppress at exactly 30% acceptance (boundary)", () => {
+    // 3 helpful, 7 unhelpful = 30% acceptance, not < 30%
+    const store = {
+      entries: [
+        ...Array.from({ length: 3 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `h${i}`,
+          outcome: "helpful" as const, createdAt: "2026-01-01",
+        })),
+        ...Array.from({ length: 7 }, (_, i) => ({
+          repo: "o/r", pr: i + 10, commentId: i + 10, file: "b.ts", line: i,
+          category: "style", severity: "low", messageHash: `u${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(false); // 30% NOT < 30%
+  });
+
+  it("suppresses at 29% acceptance (below boundary)", () => {
+    // 2 helpful, 5 unhelpful = ~28.6% acceptance
+    const store = {
+      entries: [
+        ...Array.from({ length: 2 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `h${i}`,
+          outcome: "helpful" as const, createdAt: "2026-01-01",
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i + 10, commentId: i + 10, file: "b.ts", line: i,
+          category: "style", severity: "low", messageHash: `u${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(true);
+  });
+
+  it("does not suppress exactly 4 total responses", () => {
+    const store = {
+      entries: Array.from({ length: 4 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+        category: "style", severity: "low", messageHash: `h${i}`,
+        outcome: "unhelpful" as const, createdAt: "2026-01-01",
+      })),
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.size).toBe(0); // 4 < 5
+  });
+
+  it("suppresses at exactly 5 total responses with all unhelpful", () => {
+    const store = {
+      entries: Array.from({ length: 5 }, (_, i) => ({
+        repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+        category: "bug", severity: "medium", messageHash: `h${i}`,
+        outcome: "unhelpful" as const, createdAt: "2026-01-01",
+      })),
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("bug:medium")).toBe(true); // 0% acceptance with 5+ responses
+  });
+
+  it("handles mixed pending and resolved entries", () => {
+    const store = {
+      entries: [
+        // 5 pending — should be ignored
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `p${i}`,
+          outcome: "pending" as const, createdAt: "2026-01-01",
+        })),
+        // 5 unhelpful — 0% acceptance, should suppress
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i + 10, commentId: i + 10, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `u${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(true);
+  });
+
+  it("groups by category:severity combination not category alone", () => {
+    const store = {
+      entries: [
+        // style:low — 0% acceptance, 5 samples → suppressed
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i, commentId: i, file: "a.ts", line: i,
+          category: "style", severity: "low", messageHash: `sl${i}`,
+          outcome: "unhelpful" as const, createdAt: "2026-01-01",
+        })),
+        // style:high — 100% acceptance, 5 samples → not suppressed
+        ...Array.from({ length: 5 }, (_, i) => ({
+          repo: "o/r", pr: i + 10, commentId: i + 10, file: "b.ts", line: i,
+          category: "style", severity: "high", messageHash: `sh${i}`,
+          outcome: "helpful" as const, createdAt: "2026-01-01",
+        })),
+      ],
+    };
+    const suppressed = computeSuppressedPatterns(store);
+    expect(suppressed.has("style:low")).toBe(true);
+    expect(suppressed.has("style:high")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyNoiseReduction — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("applyNoiseReduction (edge cases)", () => {
+  it("does not reduce findings with confidence exactly at 50", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 50, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(50);
+  });
+
+  it("does not reduce findings with confidence below 50", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 40, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(40);
+  });
+
+  it("reduces confidence at boundary 51 to exactly 50 (floor)", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 51, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(50);
+  });
+
+  it("reduces confidence by exactly 25 from 75", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 75, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(50);
+  });
+
+  it("handles multiple findings with mixed suppressed patterns", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 90, file: "a.ts", line: 1, message: "x" },
+      { category: "bug", severity: "medium", confidence: 80, file: "b.ts", line: 2, message: "y" },
+      { category: "security", severity: "high", confidence: 85, file: "c.ts", line: 3, message: "z" },
+    ];
+    const suppressed = new Set(["style:low", "bug:medium"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(65); // 90 - 25
+    expect(result[1].confidence).toBe(55); // 80 - 25
+    expect(result[2].confidence).toBe(85); // unchanged
+  });
+
+  it("does not mutate original findings array", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 90, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(findings[0].confidence).toBe(90); // original unchanged
+    expect(result[0].confidence).toBe(65); // result reduced
+  });
+
+  it("preserves extra properties on findings", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 80, file: "a.ts", line: 1, message: "x", customProp: "hello" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect((result[0] as any).customProp).toBe("hello");
+  });
+
+  it("handles high confidence near 100 with suppression", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 100, file: "a.ts", line: 1, message: "x" },
+    ];
+    const suppressed = new Set(["style:low"]);
+    const result = applyNoiseReduction(findings, suppressed);
+    expect(result[0].confidence).toBe(75); // 100 - 25
+  });
+
+  it("returns same reference to findings when suppressed set is empty", () => {
+    const findings = [
+      { category: "style", severity: "low", confidence: 80, file: "a.ts", line: 1, message: "x" },
+    ];
+    const result = applyNoiseReduction(findings, new Set());
+    expect(result).toBe(findings); // same reference, not copied
+  });
+})

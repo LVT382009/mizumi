@@ -1075,6 +1075,20 @@ if (config.suppressionMemories) {
 }
 const mergedReview = { ...filtered, comments: mergedComments };
 
+// 9-dedup. Finding dedup — merge overlapping findings from multiple sources
+if (mergedReview.comments.length > 1) {
+  try {
+    const { dedupFindings: dedup, formatDedupStats: fmtDedup } = await import("./finding-dedup.js");
+    const dedupResult = dedup([{ name: "merged", findings: mergedReview.comments }]);
+    if (dedupResult.stats.duplicatesRemoved > 0 || dedupResult.stats.proximityMerges > 0) {
+      core.info(fmtDedup(dedupResult.stats));
+      mergedReview.comments = dedupResult.findings as typeof mergedReview.comments;
+    }
+  } catch (e) {
+    core.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 9-sup-ctx. Log suppression context for observability
 if (suppressionResult && suppressionResult.contextText) {
   core.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
