@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills, ghostWarnings, buildLearningPrompt } from "../memory.js";
+import { readMemory, writeMemory, readRules, autoGenerateSkills, loadSkills, ghostWarnings, buildLearningPrompt, parseSkillFrontmatter } from "../memory.js";
 
 describe("readMemory", () => {
   it("returns empty string when memory file does not exist", () => {
@@ -317,7 +317,11 @@ describe("autoGenerateSkills", () => {
       const skillContent = fs.readFileSync(generated[0], "utf-8");
       expect(skillContent).toContain("name: security-auth");
       expect(skillContent).toContain('file_pattern: "src/auth.ts"');
-      expect(skillContent).toContain("pay attention to security issues");
+      expect(skillContent).toContain("When to Use");
+      expect(skillContent).toContain("Procedure");
+      expect(skillContent).toContain("Pitfalls");
+      expect(skillContent).toContain("Verification Checklist");
+      expect(skillContent).toContain("security");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -456,6 +460,463 @@ describe("loadSkills", () => {
     try {
       const result = loadSkills(tmpDir, ["src/unrelated.ts"]);
       expect(result.loaded).toBe("");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseSkillFrontmatter
+// ---------------------------------------------------------------------------
+
+describe("parseSkillFrontmatter", () => {
+  it("parses full agentskills.io frontmatter", () => {
+    const raw = `---
+name: security-auth
+description: Recurring security patterns for src/auth.ts
+tags:
+  - security
+  - production
+  - v1
+category: security
+file_pattern: "src/auth.ts"
+version: 2
+confidence: 80
+occurrence_count: 6
+trigger_conditions:
+  - "File matches src/auth.ts"
+  - "security category review is active"
+created_at: "2026-05-20"
+updated_at: "2026-05-27"
+---
+
+## When to Use
+Some content.
+`;
+    const fm = parseSkillFrontmatter(raw);
+    expect(fm).not.toBeNull();
+    expect(fm!.name).toBe("security-auth");
+    expect(fm!.category).toBe("security");
+    expect(fm!.version).toBe(2);
+    expect(fm!.confidence).toBe(80);
+    expect(fm!.occurrence_count).toBe(6);
+    expect(fm!.tags).toEqual(["security", "production", "v1"]);
+    expect(fm!.trigger_conditions).toHaveLength(2);
+    expect(fm!.created_at).toBe("2026-05-20");
+    expect(fm!.updated_at).toBe("2026-05-27");
+  });
+
+  it("returns null for content without frontmatter", () => {
+    expect(parseSkillFrontmatter("Just some content\nNo frontmatter")).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(parseSkillFrontmatter("")).toBeNull();
+  });
+
+  it("uses defaults for missing fields", () => {
+    const raw = `---
+name: minimal-skill
+description: A minimal skill
+---
+Content here.
+`;
+    const fm = parseSkillFrontmatter(raw);
+    expect(fm).not.toBeNull();
+    expect(fm!.name).toBe("minimal-skill");
+    expect(fm!.version).toBe(1);
+    expect(fm!.confidence).toBe(70);
+    expect(fm!.occurrence_count).toBe(3);
+    expect(fm!.tags).toEqual([]);
+    expect(fm!.category).toBe("");
+    expect(fm!.file_pattern).toBe("");
+  });
+
+  it("parses quoted string values correctly", () => {
+    const raw = `---
+name: skill-name
+description: "A quoted description"
+file_pattern: "src/file.ts"
+category: bug
+---
+Body.
+`;
+    const fm = parseSkillFrontmatter(raw);
+    expect(fm!.description).toBe("A quoted description");
+    expect(fm!.file_pattern).toBe("src/file.ts");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// autoGenerateSkills — agentskills.io enhanced tests
+// ---------------------------------------------------------------------------
+
+describe("autoGenerateSkills — enhanced format", () => {
+  it("generates skill with structured procedure for known category", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:10 — security: sql injection",
+      "- [critical] src/auth.ts:22 — security: missing validation",
+      "- [high] src/auth.ts:35 — security: hardcoded secret",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      expect(generated).toHaveLength(1);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("## When to Use");
+      expect(skill).toContain("## Procedure");
+      expect(skill).toContain("1. Check for input validation");
+      expect(skill).toContain("## Pitfalls");
+      expect(skill).toContain("Assuming client-side validation");
+      expect(skill).toContain("## Verification Checklist");
+      expect(skill).toContain("- [ ]");
+      expect(skill).toContain("category: security");
+      expect(skill).toContain("version: 1");
+      expect(skill).toContain('trigger_conditions:');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates skill with default procedure for unknown category", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/app.ts:10 — accessibility: missing alt",
+      "- [high] src/app.ts:20 — accessibility: no aria labels",
+      "- [high] src/app.ts:30 — accessibility: wrong role",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      expect(generated).toHaveLength(1);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("Review code for common issues");
+      expect(skill).toContain("category: accessibility");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("bumps version and increments occurrence_count when skill already exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:10 — security: sql injection",
+      "- [critical] src/auth.ts:22 — security: missing validation",
+      "- [high] src/auth.ts:35 — security: hardcoded secret",
+    ].join("\n");
+    try {
+      // First generation
+      autoGenerateSkills(memory, tmpDir);
+      const skillPath = path.join(tmpDir, ".github", "mizumi-skills", "security-auth.md");
+      const v1 = fs.readFileSync(skillPath, "utf-8");
+      expect(v1).toContain("version: 1");
+
+      // Second generation (self-improve)
+      autoGenerateSkills(memory, tmpDir);
+      const v2 = fs.readFileSync(skillPath, "utf-8");
+      expect(v2).toContain("version: 2");
+      expect(v2).toContain("occurrence_count: 6"); // 3 + 3
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("increments confidence based on occurrence_count", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:10 — security: issue1",
+      "- [high] src/auth.ts:22 — security: issue2",
+      "- [high] src/auth.ts:35 — security: issue3",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      // Initial: 70 + floor(3/3) * 5 = 75
+      expect(skill).toContain("confidence: 75");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("caps confidence at 95", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const lines: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      lines.push(`- [high] src/auth.ts:${i} — security: issue${i}`);
+    }
+    try {
+      // First gen creates skill with high occurrence
+      autoGenerateSkills(lines.join("\n"), tmpDir);
+      const skillPath = path.join(tmpDir, ".github", "mizumi-skills", "security-auth.md");
+      // Second gen bumps version and adds 20 more occurrences = 40 total
+      autoGenerateSkills(lines.join("\n"), tmpDir);
+      const skill = fs.readFileSync(skillPath, "utf-8");
+      // 70 + floor(40/3)*5 is huge but capped at 95
+      const fm = parseSkillFrontmatter(skill);
+      expect(fm!.confidence).toBeLessThanOrEqual(95);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates tags including category and version", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:1 — bug: null ref",
+      "- [high] src/auth.ts:2 — bug: null ref",
+      "- [high] src/auth.ts:3 — bug: null ref",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("  - bug");
+      expect(skill).toContain("  - production");
+      expect(skill).toContain("  - v1");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("tags test files with 'testing' tag", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.test.ts:1 — bug: test bug",
+      "- [high] src/auth.test.ts:2 — bug: test bug",
+      "- [high] src/auth.test.ts:3 — bug: test bug",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("  - testing");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates bug category procedure", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/api.ts:1 — bug: null ref",
+      "- [high] src/api.ts:2 — bug: null ref",
+      "- [high] src/api.ts:3 — bug: null ref",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("Verify null/undefined checks");
+      expect(skill).toContain("Check error handling completeness");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates performance category procedure", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [medium] src/db.ts:1 — performance: N+1 query",
+      "- [medium] src/db.ts:2 — performance: N+1 query",
+      "- [medium] src/db.ts:3 — performance: N+1 query",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("N+1 query patterns");
+      expect(skill).toContain("O(n^2)");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates compliance category procedure", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [critical] src/data.ts:1 — compliance: missing audit",
+      "- [critical] src/data.ts:2 — compliance: missing audit",
+      "- [critical] src/data.ts:3 — compliance: missing audit",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("PII handling");
+      expect(skill).toContain("audit logging");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("preserves created_at on subsequent generations", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/auth.ts:1 — security: issue1",
+      "- [high] src/auth.ts:2 — security: issue2",
+      "- [high] src/auth.ts:3 — security: issue3",
+    ].join("\n");
+    try {
+      autoGenerateSkills(memory, tmpDir);
+      const v1 = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-skills", "security-auth.md"), "utf-8");
+      const fm1 = parseSkillFrontmatter(v1);
+      const originalCreatedAt = fm1!.created_at;
+
+      autoGenerateSkills(memory, tmpDir);
+      const v2 = fs.readFileSync(path.join(tmpDir, ".github", "mizumi-skills", "security-auth.md"), "utf-8");
+      const fm2 = parseSkillFrontmatter(v2);
+      expect(fm2!.created_at).toBe(originalCreatedAt);
+      expect(fm2!.version).toBe(2);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("generates trigger_conditions with dynamic file path", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const memory = [
+      "- [high] src/utils/helpers.ts:1 — bug: off-by-one",
+      "- [high] src/utils/helpers.ts:2 — bug: off-by-one",
+      "- [high] src/utils/helpers.ts:3 — bug: off-by-one",
+    ].join("\n");
+    try {
+      const generated = autoGenerateSkills(memory, tmpDir);
+      const skill = fs.readFileSync(generated[0], "utf-8");
+      expect(skill).toContain("src/utils/helpers.ts");
+      expect(skill).toContain("src/utils");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadSkills — agentskills.io enhanced tests
+// ---------------------------------------------------------------------------
+
+describe("loadSkills — enhanced format", () => {
+  it("loads agentskills.io formatted skill matching on file_pattern", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = `---
+name: security-auth
+description: Security patterns for auth
+tags:
+  - security
+  - production
+category: security
+file_pattern: "src/auth.ts"
+version: 1
+confidence: 80
+occurrence_count: 6
+trigger_conditions:
+  - "File matches src/auth.ts"
+created_at: "2026-05-20"
+updated_at: "2026-05-27"
+---
+
+## When to Use
+Apply for auth file reviews.
+
+## Procedure
+1. Check input validation
+2. Verify auth checks
+
+## Pitfalls
+- Missing rate limiting
+
+## Verification Checklist
+- [ ] All inputs sanitized
+`;
+    fs.writeFileSync(path.join(skillsDir, "security-auth.md"), skillContent, "utf-8");
+    try {
+      const result = loadSkills(tmpDir, ["src/auth.ts"]);
+      expect(result.names).toContain("security-auth");
+      expect(result.loaded).toContain("When to Use");
+      expect(result.loaded).toContain("Procedure");
+      expect(result.loaded).toContain("Pitfalls");
+      expect(result.loaded).toContain("Verification Checklist");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("matches skills by tag when file_pattern doesn't match directly", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = `---
+name: security-review
+description: General security review
+tags:
+  - security
+category: security
+file_pattern: "src/legacy.ts"
+version: 1
+confidence: 75
+occurrence_count: 5
+trigger_conditions:
+  - "Security category review"
+created_at: "2026-05-20"
+updated_at: "2026-05-27"
+---
+
+## Procedure
+1. Check for injection vectors
+`;
+    fs.writeFileSync(path.join(skillsDir, "security-review.md"), skillContent, "utf-8");
+    try {
+      // Tag "security" appears in basename of changed file
+      const result = loadSkills(tmpDir, ["src/security-utils.ts"]);
+      expect(result.loaded).toContain("injection vectors");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("still loads legacy skills with simple frontmatter", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const legacySkill = `---
+name: old-skill
+description: An old skill
+file_pattern: "src/app.ts"
+---
+Old skill body content.
+`;
+    fs.writeFileSync(path.join(skillsDir, "old-skill.md"), legacySkill, "utf-8");
+    try {
+      const result = loadSkills(tmpDir, ["src/app.ts"]);
+      expect(result.loaded).toContain("Old skill body content");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("loads skills where file_pattern matches basename of changed file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mizumi-skill-"));
+    const skillsDir = path.join(tmpDir, ".github", "mizumi-skills");
+    fs.mkdirSync(skillsDir, { recursive: true });
+    const skillContent = `---
+name: bug-handler
+description: Bug patterns for handler
+tags:
+  - bug
+category: bug
+file_pattern: "handler.ts"
+version: 1
+confidence: 80
+occurrence_count: 4
+trigger_conditions: []
+created_at: "2026-05-20"
+updated_at: "2026-05-27"
+---
+
+## Procedure
+1. Check null refs
+`;
+    fs.writeFileSync(path.join(skillsDir, "bug-handler.md"), skillContent, "utf-8");
+    try {
+      // Changed file ends with handler.ts basename, which matches
+      const result = loadSkills(tmpDir, ["src/api/handler.ts"]);
+      expect(result.loaded).toContain("null refs");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }

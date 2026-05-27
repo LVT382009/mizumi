@@ -1,6 +1,7 @@
 /**
  * Memory — MEMORY.md reader/writer (Hermes-style, ~2KB bounded).
  * Repo-specific knowledge that persists across reviews.
+ * Skill generation follows agentskills.io open standard.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -129,9 +130,183 @@ export function ghostWarnings(memoryContent: string, changedFiles: string[]): st
   return warnings.slice(0, 5); // Cap at 5 to save tokens
 }
 
+// ---------------------------------------------------------------------------
+// Skill types (agentskills.io-compatible)
+// ---------------------------------------------------------------------------
+
+export interface SkillFrontmatter {
+  name: string;
+  description: string;
+  tags: string[];
+  category: string;
+  file_pattern: string;
+  version: number;
+  confidence: number;
+  occurrence_count: number;
+  trigger_conditions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Category→procedure mapping for auto-generated review skills. */
+const CATEGORY_PROCEDURES: Record<string, { steps: string[]; pitfalls: string[]; verification: string[] }> = {
+  security: {
+    steps: [
+      "Check for input validation on all external boundaries",
+      "Verify authentication/authorization on sensitive operations",
+      "Look for injection vectors (SQL, XSS, command)",
+      "Check for hardcoded secrets or credentials",
+      "Verify secure defaults (fail-closed, deny-by-default)",
+    ],
+    pitfalls: [
+      "Assuming client-side validation is sufficient",
+      "Missing rate limiting on auth endpoints",
+      "Using string concatenation for queries",
+    ],
+    verification: [
+      "All untrusted inputs are sanitized before use",
+      "Auth checks are not bypassable by parameter tampering",
+      "No secrets in source or config files",
+    ],
+  },
+  bug: {
+    steps: [
+      "Verify null/undefined checks before property access",
+      "Check error handling completeness (all error paths)",
+      "Validate boundary conditions and off-by-one errors",
+      "Verify type assumptions match actual runtime types",
+      "Check for race conditions in async code",
+    ],
+    pitfalls: [
+      "Assuming optional fields are always present",
+      "Ignoring error return values",
+      "Mutating shared state without synchronization",
+    ],
+    verification: [
+      "All nullable access paths are guarded",
+      "Error paths have appropriate logging/handling",
+      "Edge cases (empty arrays, zero values) are handled",
+    ],
+  },
+  performance: {
+    steps: [
+      "Check for N+1 query patterns in loops",
+      "Verify O(n^2) or worse algorithms have small n bounds",
+      "Look for unnecessary re-computations of deterministic values",
+      "Check for synchronous operations that should be async",
+      "Verify memory usage patterns (leaks, large allocations)",
+    ],
+    pitfalls: [
+      "Premature optimization without measurement",
+      "Caching without invalidation strategy",
+      "Over-fetching data from APIs/databases",
+    ],
+    verification: [
+      "No obvious O(n^2) loops over large collections",
+      "Expensive computations are memoized where appropriate",
+      "Database queries are batched, not per-loop-iteration",
+    ],
+  },
+  style: {
+    steps: [
+      "Check naming consistency with project conventions",
+      "Verify function/method length reasonableness",
+      "Look for dead code or unreachable branches",
+      "Check for consistent error handling patterns",
+    ],
+    pitfalls: [
+      "Enforcing personal preferences over project conventions",
+      "Suggesting changes that touch too many lines at once",
+    ],
+    verification: [
+      "Naming follows the dominant pattern in the codebase",
+      "No obvious dead code paths",
+    ],
+  },
+  architecture: {
+    steps: [
+      "Verify separation of concerns (no business logic in handlers)",
+      "Check dependency direction (no circular imports)",
+      "Verify interface boundaries are clean and minimal",
+      "Look for leaky abstractions across module boundaries",
+    ],
+    pitfalls: [
+      "Over-engineering simple features",
+      "Suggesting patterns the team isn't using",
+    ],
+    verification: [
+      "Layer boundaries are respected",
+      "No god objects or megaclasses",
+    ],
+  },
+  compliance: {
+    steps: [
+      "Verify PII handling follows data retention policies",
+      "Check for required audit logging on sensitive operations",
+      "Verify access control matches compliance requirements",
+    ],
+    pitfalls: [
+      "Assuming GDPR only applies to EU users",
+      "Missing consent tracking for data collection",
+    ],
+    verification: [
+      "PII fields are explicitly marked/encrypted",
+      "Audit trails exist for sensitive data mutations",
+    ],
+  },
+};
+
+/** Default procedure for categories not in the map. */
+const DEFAULT_PROCEDURE = {
+  steps: [
+    "Review code for common issues in this category",
+    "Check for inconsistencies with project conventions",
+  ],
+  pitfalls: [
+    "Flagging issues without clear remediation",
+  ],
+  verification: [
+    "Finding is actionable and specific",
+  ],
+};
+
+/** Parse YAML frontmatter from a skill file. Returns null if no valid frontmatter. */
+export function parseSkillFrontmatter(raw: string): SkillFrontmatter | null {
+  const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!fmMatch) return null;
+
+  const fm = fmMatch[1];
+  const getField = (key: string, fallback: string = ""): string => {
+    const m = fm.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
+    return m ? m[1].trim().replace(/^["']|["']$/g, "") : fallback;
+  };
+  const getList = (key: string): string[] => {
+    const block = fm.match(new RegExp(`^${key}:\\n((?:\\s+- .+\\n?)+)`, "m"));
+    if (!block) return [];
+    return block[1].split("\n").map((l: string) => l.replace(/^\s+- /, "").trim()).filter(Boolean);
+  };
+
+  return {
+    name: getField("name"),
+    description: getField("description"),
+    tags: getList("tags"),
+    category: getField("category"),
+    file_pattern: getField("file_pattern"),
+    version: parseInt(getField("version", "1"), 10) || 1,
+    confidence: parseInt(getField("confidence", "70"), 10) || 70,
+    occurrence_count: parseInt(getField("occurrence_count", "3"), 10) || 3,
+    trigger_conditions: getList("trigger_conditions"),
+    created_at: getField("created_at", new Date().toISOString().split("T")[0]),
+    updated_at: getField("updated_at", new Date().toISOString().split("T")[0]),
+  };
+}
+
 /**
- * Auto Skill Generation — when a file+category combo appears 3+ times in
- * memory, create a SKILL.md under .github/mizumi-skills/.
+ * Auto Skill Generation — agentskills.io-compliant.
+ * When a file+category combo appears 3+ times in memory, create a
+ * structured SKILL.md with procedure steps, pitfalls, and verification.
+ * Existing skills are refined (version bump + occurrence increment) rather
+ * than overwritten.
  */
 export function autoGenerateSkills(memoryContent: string, workspace: string): string[] {
   if (!memoryContent) return [];
@@ -147,14 +322,71 @@ export function autoGenerateSkills(memoryContent: string, workspace: string): st
 
   const skillsDir = path.join(workspace, ".github", "mizumi-skills");
   const generated: string[] = [];
+
   for (const [, v] of counts) {
     if (v.count < 3) continue;
     if (!fs.existsSync(skillsDir)) fs.mkdirSync(skillsDir, { recursive: true });
+
     const basename = path.basename(v.file, path.extname(v.file));
     const skillName = `${v.category}-${basename}`;
     const skillPath = path.join(skillsDir, `${skillName}.md`);
-    const body = `When reviewing ${v.file}, pay attention to ${v.category} issues.`;
-    const content = `---\nname: ${skillName}\ndescription: ${v.category} patterns for ${v.file}\nfile_pattern: "${v.file}"\n---\n${body}\n`;
+
+    const procedure = CATEGORY_PROCEDURES[v.category] ?? DEFAULT_PROCEDURE;
+    const now = new Date().toISOString().split("T")[0];
+
+    // If skill already exists, refine it (self-improve)
+    let version = 1;
+    let occurrenceCount = v.count;
+    let createdAt = now;
+
+    if (fs.existsSync(skillPath)) {
+      const existingRaw = fs.readFileSync(skillPath, "utf-8");
+      const existingFm = parseSkillFrontmatter(existingRaw);
+      if (existingFm) {
+        version = existingFm.version + 1;
+        occurrenceCount = existingFm.occurrence_count + v.count;
+        createdAt = existingFm.created_at;
+      }
+    }
+
+    const triggerConditions = [
+      `File matches ${v.file} or similar path patterns`,
+      `${v.category} category review is active`,
+      `PR changes files in ${path.dirname(v.file)} directory`,
+    ];
+
+    const confidence = Math.min(95, 70 + Math.floor(occurrenceCount / 3) * 5);
+    const tags = [v.category, v.file.includes("test") ? "testing" : "production", `v${version}`];
+
+    const content = `---
+name: ${skillName}
+description: Recurring ${v.category} patterns for ${v.file} — auto-generated from ${occurrenceCount} review observations
+tags:
+${tags.map((t) => `  - ${t}`).join("\n")}
+category: ${v.category}
+file_pattern: "${v.file}"
+version: ${version}
+confidence: ${confidence}
+occurrence_count: ${occurrenceCount}
+trigger_conditions:
+${triggerConditions.map((c) => `  - "${c}"`).join("\n")}
+created_at: "${createdAt}"
+updated_at: "${now}"
+---
+
+## When to Use
+Apply this skill when reviewing changes to \`${v.file}\` or similar files in the \`${path.dirname(v.file)}\` directory, especially when ${v.category} concerns are relevant.
+
+## Procedure
+${procedure.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+## Pitfalls
+${procedure.pitfalls.map((p) => `- ${p}`).join("\n")}
+
+## Verification Checklist
+${procedure.verification.map((c) => `- [ ] ${c}`).join("\n")}
+`;
+
     fs.writeFileSync(skillPath, content, "utf-8");
     generated.push(skillPath);
   }
@@ -162,8 +394,10 @@ export function autoGenerateSkills(memoryContent: string, workspace: string): st
 }
 
 /**
- * Progressive Skill Loading — scan skill names first, then lazy-load
- * only those matching changed files. Returns names + loaded content.
+ * Progressive Skill Loading — agentskills.io-compatible.
+ * Matches on file_pattern, tags, and category. Returns loaded content
+ * with procedure/pitfalls/verification for LLM context injection.
+ * Backward-compatible with old format (file_pattern only).
  */
 export function loadSkills(workspace: string, changedFiles: string[]): { names: string[]; loaded: string } {
   const skillsDir = path.join(workspace, ".github", "mizumi-skills");
@@ -171,16 +405,38 @@ export function loadSkills(workspace: string, changedFiles: string[]): { names: 
 
   const allFiles = fs.readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
   const names = allFiles.map((f) => f.replace(/\.md$/, ""));
-  const fmRe = /^---\n[\s\S]*?file_pattern:\s*"([^"]+)"[\s\S]*?---\n([\s\S]*)$/;
 
   let loaded = "";
   let skillCount = 0;
+
   for (const f of allFiles) {
     if (skillCount >= 5) break;
     const raw = fs.readFileSync(path.join(skillsDir, f), "utf-8");
-    const fm = raw.match(fmRe);
-    if (!fm || !changedFiles.some((cf) => cf === fm[1] || cf.endsWith(fm[1]))) continue;
-    loaded += `\n${fm[2].trim()}\n`;
+    const fm = parseSkillFrontmatter(raw);
+
+    let matches = false;
+    if (fm) {
+      // New format: match on file_pattern + tags
+      const fileMatch = changedFiles.some(
+        (cf) => cf === fm.file_pattern || cf.endsWith(fm.file_pattern) || fm.file_pattern.endsWith(path.basename(cf)),
+      );
+      const tagMatch = fm.tags.some((tag) => changedFiles.some((cf) => path.basename(cf).includes(tag)));
+      matches = fileMatch || tagMatch;
+    } else {
+      // Legacy format: parse file_pattern from simple frontmatter
+      const legacyMatch = raw.match(/file_pattern:\s*"([^"]+)"/);
+      if (legacyMatch) {
+        matches = changedFiles.some((cf) => cf === legacyMatch[1] || cf.endsWith(legacyMatch[1]));
+      }
+    }
+
+    if (!matches) continue;
+
+    // Extract body content (after frontmatter)
+    const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+    const body = bodyMatch ? bodyMatch[1].trim() : raw.trim();
+
+    loaded += `\n${body}\n`;
     skillCount++;
     if (loaded.length > 2000) { loaded = loaded.slice(0, 2000); break; }
   }

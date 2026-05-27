@@ -90,7 +90,7 @@ export function findRunsForPR(workspace: string, owner: string, repo: string, pr
       results.push(trailToReplay(trail));
     }
   }
-  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.runId.localeCompare(b.runId));
 }
 
 /**
