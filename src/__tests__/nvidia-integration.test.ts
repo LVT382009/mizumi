@@ -96,6 +96,7 @@ importCycleDetector: true,
 deadCodeDetector: true,
     typeSafetyErosion: true,
     todoDebtDetector: true,
+    magicNumberDetector: true,
   ...overrides,
 });
 

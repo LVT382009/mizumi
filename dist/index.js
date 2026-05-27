@@ -56527,6 +56527,7 @@ function loadConfig() {
   const deadCodeDetector = getInput("dead_code_detector") !== "false";
   const typeSafetyErosion = getInput("type_safety_erosion") !== "false";
   const todoDebtDetector = getInput("todo_debt_detector") !== "false";
+  const magicNumberDetector = getInput("magic_number_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56647,7 +56648,8 @@ function loadConfig() {
     importCycleDetector,
     deadCodeDetector,
     typeSafetyErosion,
-    todoDebtDetector
+    todoDebtDetector,
+    magicNumberDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -118241,6 +118243,170 @@ function detectTechDebt(diffFiles) {
   return result;
 }
 
+// src/magic-number-detector.ts
+var NUMERIC_LITERAL_RE = /(?:[=<>!+\-*/|&?]\s*)(\d{2,})\b/;
+var SAFE_NUMBERS = /* @__PURE__ */ new Set(["0", "1", "-1", "10", "100", "1000", "2", "4", "8", "16", "32", "64", "128", "256", "512", "1024"]);
+var STRING_LITERAL_RE = /===?\s*['"][^'"]{3,}['"]|=\s*['"][^'"]{3,}['"]/;
+var TIMEOUT_RE = /\b(timeout|delay|interval|duration|wait|sleep|retry|backoff|ttl|expire)\w*\s*[=:]\s*\d{2,}/i;
+var SKIP_LINE_RE = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectNumericLiterals(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (/^\+\s*\d+\s*$/.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(NUMERIC_LITERAL_RE);
+      if (!match2) continue;
+      const number4 = match2[1];
+      if (SAFE_NUMBERS.has(number4)) continue;
+      if (/^(19|20)\d{2}$/.test(number4)) continue;
+      if (/version|Version|VERSION/.test(content)) continue;
+      issues.push({
+        category: "numeric-literal",
+        file: file2.path,
+        line: change.line,
+        value: number4,
+        description: `Magic number \`${number4}\` in \`${file2.path}:${change.line}\` \u2014 consider extracting to a named constant`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectStringLiterals(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (/console\.\w+\(|^\+\s*['"]/.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(STRING_LITERAL_RE);
+      if (!match2) continue;
+      const strMatch = match2[0].match(/['"]([^'"]+)['"]/);
+      if (!strMatch) continue;
+      const strVal = strMatch[1];
+      issues.push({
+        category: "string-literal",
+        file: file2.path,
+        line: change.line,
+        value: `"${strVal.length > 30 ? strVal.slice(0, 27) + "..." : strVal}"`,
+        description: `Hardcoded string \`${strVal.length > 30 ? strVal.slice(0, 27) + "..." : strVal}\` in \`${file2.path}:${change.line}\` \u2014 consider extracting to a named constant`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectTimeoutDurations(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(TIMEOUT_RE);
+      if (!match2) continue;
+      const numMatch = match2[0].match(/(\d{2,})/);
+      const numVal = numMatch ? numMatch[1] : "unknown";
+      issues.push({
+        category: "timeout-duration",
+        file: file2.path,
+        line: change.line,
+        value: numVal,
+        description: `Hardcoded timeout/duration \`${numVal}\` in \`${file2.path}:${change.line}\` \u2014 extract to a config constant for maintainability`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues5(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}:${issue3.value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildMagicNumberContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Magic Number Detection (${result.issues.length})
+`;
+  ctx += "This PR introduces magic numbers:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildMagicNumberBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Magic Number Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | Value | File | Line | Severity |\n";
+  body += "|----------|-------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.value}\` | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Magic numbers reduce readability and make code harder to maintain. Extract values to named constants.*
+</details>
+`;
+  return body;
+}
+function detectMagicNumbers(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectNumericLiterals(file2));
+    allIssues.push(...detectStringLiterals(file2));
+    allIssues.push(...detectTimeoutDurations(file2));
+  }
+  const issues = dedupIssues5(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildMagicNumberContext(result);
+  result.bodySummary = buildMagicNumberBodySummary(result);
+  if (issues.length > 0) {
+    info(`Magic number detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -118617,6 +118783,17 @@ async function run() {
         warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let magicNumberResult = null;
+    if (config2.magicNumberDetector) {
+      try {
+        magicNumberResult = detectMagicNumbers(diff.files);
+        if (magicNumberResult.issues.length > 0) {
+          info("Magic number detection: " + magicNumberResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -118933,6 +119110,9 @@ ${taintContextStr}`;
     }
     if (techDebtResult && techDebtResult.contextText) {
       context4.rulesContent += "\n\n" + techDebtResult.contextText;
+    }
+    if (magicNumberResult && magicNumberResult.contextText) {
+      context4.rulesContent += "\n\n" + magicNumberResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -119675,6 +119855,18 @@ ${digest}
         warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    if (magicNumberResult && magicNumberResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: magicNumberResult.bodySummary
+        });
+      } catch (e) {
+        warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     if (driftResult && driftResult.bodySummary) {
       try {
         await octokit.rest.issues.createComment({
@@ -119814,6 +120006,7 @@ ${digest}
         if (config2.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
         if (config2.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
         if (config2.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
+        if (config2.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

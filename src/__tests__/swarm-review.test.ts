@@ -298,6 +298,7 @@ importCycleDetector: true,
 deadCodeDetector: true,
     typeSafetyErosion: true,
     todoDebtDetector: true,
+    magicNumberDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

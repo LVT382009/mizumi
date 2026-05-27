@@ -87,6 +87,7 @@ import { detectImportCycles } from "./import-cycle-detector.js";
 import { detectDeadCode } from "./dead-code-detector.js";
 import { detectTypeSafetyErosion } from "./type-safety-erosion.js";
 import { detectTechDebt } from "./todo-debt-detector.js";
+import { detectMagicNumbers } from "./magic-number-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -505,6 +506,19 @@ if (config.todoDebtDetector) {
   }
 }
 
+// 4a3k. Magic number detector — detect hardcoded numbers, strings, timeout values
+let magicNumberResult: import("./magic-number-detector.js").MagicNumberResult | null = null;
+if (config.magicNumberDetector) {
+  try {
+    magicNumberResult = detectMagicNumbers(diff.files);
+    if (magicNumberResult.issues.length > 0) {
+      core.info("Magic number detection: " + magicNumberResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -875,6 +889,11 @@ if (typeErosionResult && typeErosionResult.contextText) {
 // 5c2j. Tech debt detector context injection
 if (techDebtResult && techDebtResult.contextText) {
   context.rulesContent += "\n\n" + techDebtResult.contextText;
+}
+
+// 5c2k. Magic number detector context injection
+if (magicNumberResult && magicNumberResult.contextText) {
+  context.rulesContent += "\n\n" + magicNumberResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1661,6 +1680,17 @@ if (techDebtResult && techDebtResult.bodySummary) {
   }
 }
 
+// Post magic number detection summary as a separate comment
+if (magicNumberResult && magicNumberResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: magicNumberResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1810,6 +1840,7 @@ if (config.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0
 if (config.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
 if (config.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
 if (config.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
+if (config.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

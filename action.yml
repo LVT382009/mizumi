@@ -350,6 +350,11 @@ todo_debt_detector:
   required: false
   default: "true"
 
+magic_number_detector:
+  description: "Enable magic number detector — flags hardcoded numbers, string literals, and timeout/duration values that should be named constants. Zero LLM cost. No AI code reviewer detects magic numbers at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
