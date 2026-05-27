@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 4418 Tests)
+### Build Stats (Current — 4450 Tests)
 
-- **4418 tests** passing (86 test files)
+- **4450 tests** passing (87 test files)
 - **9,900+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -543,6 +543,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Audit trail**: full provenance chain for every review run — pipeline stages, finding provenance (source + modifications), LLM call logs, config snapshots with automatic secret redaction, run comparison, config fingerprinting. No AI code reviewer provides an audit trail.
 - **Review replay**: reconstruct any past review run from audit trail — finding-level diff, config change detection, PR review history timeline. No AI code reviewer offers replay.
 - **Finding dedup engine**: 3-phase dedup (exact fingerprint + proximity merge + fuzzy Levenshtein), keeps highest severity + confidence. No competitor does intelligent cross-source finding dedup.
+- **Concurrency/race condition analysis**: deterministic pre-scan for 5 classes of concurrency hazards — shared mutable state, TOCTOU check-then-act, event loop blocking, error swallowing, lock ordering violations. Zero LLM cost. No AI code reviewer detects concurrency issues.
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
