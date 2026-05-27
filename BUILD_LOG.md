@@ -557,3 +557,18 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Test expansions**: memory 44→65 (+21), audit-trail 35→52 (+17), chunk-review 35→46 (+11)
 - **49 new tests** across 3 modules
 - **4545 tests** passing, 0 TS errors, bundle rebuilt
+
+## 2026-05-27 — Cross-PR Conflict Detection
+
+- **New module**: `src/crosspr-conflict.ts` — detects 3 conflict types between open PRs:
+  1. **File collision**: both PRs modify the same file (high severity)
+  2. **Export/signature conflict**: one PR imports from a file another PR modifies (medium severity)
+  3. **Delete-use conflict**: one PR deletes a file another PR imports (critical severity)
+- **Path normalization**: `stripExtension()` for import-resolution matching (resolved imports lack `.ts` extension)
+- **Context generation**: severity-grouped context text for LLM prompt + markdown table body summary
+- **Pipeline integration**: main.ts fetches open PRs via GitHub API, runs conflict detection, injects context into review, posts summary comment
+- **Config propagation**: `crosspr_conflict_detection` added to MizumiConfig, loadConfig, action.yml, all 8 test config stubs
+- **Audit trail**: `crosspr-conflict` stage logged in audit trail builder
+- **26 tests** in `src/__tests__/crosspr-conflict.test.ts`
+- **4571 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer (CodeRabbit, Copilot, CodeGuru, Sourcery) analyzes cross-PR interactions
