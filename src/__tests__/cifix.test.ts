@@ -116,6 +116,7 @@ const testConfig = {
     defenseFramework: true,
     checksApi: true,
     repoHealth: true,
+    chunkReview: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

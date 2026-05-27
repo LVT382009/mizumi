@@ -80,6 +80,7 @@ const makeNvidiaConfig = (overrides?: Partial<MizumiConfig>): MizumiConfig => ({
   defenseFramework: true,
   checksApi: true,
   repoHealth: true,
+    chunkReview: true,
   ...overrides,
 });
 
@@ -138,6 +139,7 @@ const makeConfig = (provider: string, model: string, overrides?: Partial<MizumiC
   defenseFramework: true,
   checksApi: true,
   repoHealth: true,
+    chunkReview: true,
   ...overrides,
 });
 
@@ -333,6 +335,7 @@ describe("NVIDIA NIM provider configuration", () => {
       defenseFramework: true,
       checksApi: true,
       repoHealth: true,
+    chunkReview: true,
     };
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
     try {
@@ -1317,6 +1320,7 @@ skipIfNoKey("NVIDIA NIM live integration", () => {
     defenseFramework: true,
     checksApi: true,
     repoHealth: true,
+    chunkReview: true,
   };
 
   it("calls NVIDIA NIM and returns structured review output", async () => {

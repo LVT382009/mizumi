@@ -128,6 +128,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     defenseFramework: true,
     checksApi: true,
     repoHealth: true,
+    chunkReview: true,
     ...overrides,
   };
 }

@@ -85,6 +85,7 @@ vi.mock("../config.js", () => ({
     defenseFramework: true,
     checksApi: true,
     repoHealth: true,
+    chunkReview: true,
   })),
 }));
 

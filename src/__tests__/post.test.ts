@@ -82,6 +82,7 @@ function makeConfig(overrides?: Partial<MizumiConfig>): MizumiConfig {
     defenseFramework: true,
     checksApi: true,
     repoHealth: true,
+    chunkReview: true,
     ...overrides,
   };
 }

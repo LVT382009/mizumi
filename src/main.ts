@@ -73,6 +73,7 @@ import { defendInput, defendOutput, validateReviewOutput } from "./defense.js";
 import { createCheckRun } from "./checks.js";
 import { buildProjectIndex, type ProjectIndex } from "./project-index.js";
 import { computeRepoHealth } from "./repo-health.js";
+import { planChunkedReview, type ChunkPlan } from "./chunk-review.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -620,7 +621,10 @@ const context = await buildContext(octokit, owner, repo, prNumber, diff, workspa
 // 5b. Progressive skill loading â€” inject matching skills into rules context
 const skills = loadSkills(workspace, diff.files.map((f) => f.path));
 if (manualInstructions) {
-    context.rulesContent += `\n\n## Manual Review Instructions\n${manualInstructions}`;
+    context.rulesContent += `
+
+## Manual Review Instructions
+${manualInstructions}`;
   }
   
 // 5b2. Project structure index - zero-LLM ad-hoc workspace scan (competitive gap #3.1)
@@ -647,6 +651,22 @@ try {
 } catch (e) {
   core.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
 }
+
+
+
+  // 5b4. Chunked review planning — split large PRs into logical chunks (competitive gap)
+  let chunkPlan: ChunkPlan | undefined;
+  try {
+    if (config.chunkReview) {
+      chunkPlan = planChunkedReview(diff.files);
+      if (chunkPlan.contextText) {
+          context.rulesContent += "\n\n" + chunkPlan.contextText;
+        core.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
+      }
+    }
+  } catch (e) {
+    core.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
 // 5c. ADR context injection - inject ADR context into review
 const adrContextStr = buildADRContext(adrs);
