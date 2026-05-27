@@ -620,3 +620,12 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **24 tests** in `src/__tests__/import-cycle-detector.test.ts`
 - **4689 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects import cycles. Only standalone tools (madge, dependency-cruiser) exist.
+
+### Dead Code Detector (2026-05-28)
+- **New file**: `src/dead-code-detector.ts` — detect dead code in PR diffs
+- **3 detection categories**: unreachable-code (after return/throw/break/continue), unused-variable (declared but never referenced, excluding exports and underscore-prefixed), empty-catch (silently swallowed errors)
+- **Pipeline integration**: main.ts runs detection on diff files, injects context, posts summary comment
+- **Config propagation**: `dead_code_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **26 tests** in `src/__tests__/dead-code-detector.test.ts`
+- **4715 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer flags dead code at the diff level. Only linters (ESLint, TypeScript) catch it in CI, but not in PR review context.
