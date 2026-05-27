@@ -1,0 +1,8 @@
+# Custom rules for Mizumi
+# Rules are evaluated in order of specificity:
+# 1. Built-in deterministic rules (highest priority)
+# 2. Custom user rules
+# 3. Auto-discovered historical patterns (lowest priority, decay over time)
+
+version: 1
+rules: []

@@ -22,6 +22,8 @@ export const ReviewComment = z.object({
   message: z.string().describe("Clear explanation of the issue"),
   suggestion: z.string().optional().describe("Code fix suggestion if applicable"),
   confidence: z.number().min(0).max(100).describe("Confidence score 0-100"),
+  validationStatus: z.enum(["pending", "passed", "failed", "none"]).optional().describe("CI validation status of the suggested fix"),
+  validationUrl: z.string().optional().describe("URL to view validation results"),
 });
 
 export const ReviewResponse = z.object({

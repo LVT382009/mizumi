@@ -1,0 +1,70 @@
+name: CI-Validated Fix Loop
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      suggestion_id:
+        description: 'ID of the suggestion to validate'
+        required: true
+
+jobs:
+  validate-fix:
+    if: >
+      github.event_name == 'issue_comment' &&
+      (contains(github.event.comment.body, '/validate-fix') || contains(github.event.comment.body, '/auto-fix')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    steps:
+      - name: Extract suggestion info
+        id: extract
+        run: |
+        # Extract suggestion details from comment or dispatch input
+        echo "EXTRACTING_SUGGESTION_INFO"
+
+      - name: Create validation branch
+        id: create_branch
+        run: |
+          git config user.name "Mizumi Bot"
+          git config user.email "mizumi@users.noreply.github.com"
+          SUGGESTION_SHA=$(echo ${{ github.event.pull_request.head.sha }})
+          BRANCH_NAME="fix-validation-${{ github.event.issue.number }}-${SUGGESTION_SHA:0:8}"
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+          git checkout -b $BRANCH_NAME FETCH_HEAD
+          git push origin $BRANCH_NAME
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Apply suggested changes
+        run: |
+          # Apply the suggested code changes to validate
+          echo "APPLYING_SUGGESTED_CHANGES"
+
+      - name: Push changes for CI
+        run: |
+          git add .
+          git commit -m "Apply suggested fix for validation"
+          git push origin $(echo "${{ steps.create_branch.outputs.branch_name }}")
+
+      - name: Wait for CI completion
+        uses: dorny/wait-for-check-action@v2
+        with:
+          repo: ${{ github.repository }}
+          ref: ${{ steps.create_branch.outputs.branch_name }}
+          check: "CI"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeout: 300
+
+      - name: Report validation results
+        run: |
+          # Check CI status and report back to PR
+          echo "REPORTING_VALIDATION_RESULTS"
+
+      - name: Clean up validation branch
+        if: always()
+        run: |
+          git push origin --delete $(echo "${{ steps.create_branch.outputs.branch_name }}") || true
