@@ -171,6 +171,7 @@ breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
     typeSafetyErosion: true,
+    todoDebtDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

@@ -95,6 +95,7 @@ breakingChangeRadar: true,
 importCycleDetector: true,
 deadCodeDetector: true,
     typeSafetyErosion: true,
+    todoDebtDetector: true,
   ...overrides,
 });
 

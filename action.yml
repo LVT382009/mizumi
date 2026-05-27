@@ -345,6 +345,11 @@ dead_code_detector:
   required: false
   default: "true"
 
+todo_debt_detector:
+  description: "Enable TODO/FIXME tech debt detector — flags TODO, FIXME, HACK, XXX, and WORKAROUND markers added in PRs. Zero LLM cost. No AI code reviewer flags tech debt markers at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

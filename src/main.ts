@@ -86,6 +86,7 @@ import { detectBreakingChanges } from "./breaking-change-radar.js";
 import { detectImportCycles } from "./import-cycle-detector.js";
 import { detectDeadCode } from "./dead-code-detector.js";
 import { detectTypeSafetyErosion } from "./type-safety-erosion.js";
+import { detectTechDebt } from "./todo-debt-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -491,6 +492,19 @@ if (config.typeSafetyErosion) {
   }
 }
 
+// 4a3j. Tech debt detector — detect TODO, FIXME, HACK, XXX, WORKAROUND markers
+let techDebtResult: import("./todo-debt-detector.js").TechDebtResult | null = null;
+if (config.todoDebtDetector) {
+  try {
+    techDebtResult = detectTechDebt(diff.files);
+    if (techDebtResult.issues.length > 0) {
+      core.info("Tech debt detection: " + techDebtResult.issues.length + " marker(s) detected");
+    }
+  } catch (e) {
+    core.warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -856,6 +870,11 @@ if (deadCodeResult && deadCodeResult.contextText) {
 // 5c2i. Type safety erosion detector context injection
 if (typeErosionResult && typeErosionResult.contextText) {
   context.rulesContent += "\n\n" + typeErosionResult.contextText;
+}
+
+// 5c2j. Tech debt detector context injection
+if (techDebtResult && techDebtResult.contextText) {
+  context.rulesContent += "\n\n" + techDebtResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1631,6 +1650,17 @@ if (typeErosionResult && typeErosionResult.bodySummary) {
   }
 }
 
+// Post tech debt detection summary as a separate comment
+if (techDebtResult && techDebtResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: techDebtResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1779,6 +1809,7 @@ if (config.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0
 if (config.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
 if (config.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
 if (config.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
+if (config.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

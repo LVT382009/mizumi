@@ -56526,6 +56526,7 @@ function loadConfig() {
   const importCycleDetector = getInput("import_cycle_detector") !== "false";
   const deadCodeDetector = getInput("dead_code_detector") !== "false";
   const typeSafetyErosion = getInput("type_safety_erosion") !== "false";
+  const todoDebtDetector = getInput("todo_debt_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56645,7 +56646,8 @@ function loadConfig() {
     breakingChangeRadar,
     importCycleDetector,
     deadCodeDetector,
-    typeSafetyErosion
+    typeSafetyErosion,
+    todoDebtDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -118123,6 +118125,122 @@ function detectTypeSafetyErosion(diffFiles) {
   return result;
 }
 
+// src/todo-debt-detector.ts
+var DEBT_PATTERNS = [
+  { category: "fixme", pattern: /\bFIXME\b/, severity: "critical" },
+  { category: "hack", pattern: /\bHACK\b/, severity: "critical" },
+  { category: "xxx", pattern: /\bXXX\b/, severity: "critical" },
+  { category: "todo", pattern: /\bTODO\b/, severity: "warning" },
+  { category: "workaround", pattern: /\bWORKAROUND\b/, severity: "warning" }
+];
+function detectTechDebtInFile(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (!trimmed || trimmed === "}") continue;
+      for (const { category, pattern, severity } of DEBT_PATTERNS) {
+        if (!pattern.test(content)) continue;
+        const match2 = trimmed.match(pattern);
+        if (!match2) continue;
+        const afterMarker = trimmed.slice(trimmed.indexOf(match2[0]) + match2[0].length).trim();
+        const cleanDesc = afterMarker.replace(/^[:\-]\s*/, "").trim();
+        const displayDesc = cleanDesc.length > 80 ? cleanDesc.slice(0, 77) + "..." : cleanDesc;
+        issues.push({
+          category,
+          file: file2.path,
+          line: change.line,
+          marker: match2[0],
+          description: displayDesc || "(no description)",
+          summary: `\`${match2[0]}\` added in \`${file2.path}:${change.line}\`${displayDesc ? " \u2014 " + displayDesc : ""}`,
+          severity
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues4(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildTechDebtContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Tech Debt Detection (${result.issues.length})
+`;
+  ctx += "This PR adds tech debt markers:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.summary}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.summary}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildTechDebtBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Tech Debt Detection</strong> \u2014 ${result.issues.length} marker(s) added</summary>
+
+`;
+  body += "| Marker | File | Line | Description | Severity |\n";
+  body += "|--------|------|------|-------------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const desc = i.description.length > 40 ? i.description.slice(0, 37) + "..." : i.description;
+    body += `| \`${i.marker}\` | \`${i.file}\` | ${i.line} | ${desc} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Tech debt markers accumulate silently. FIXME/HACK/XXX signal known bugs or workarounds that should be tracked.*
+</details>
+`;
+  return body;
+}
+function detectTechDebt(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectTechDebtInFile(file2));
+  }
+  const issues = dedupIssues4(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildTechDebtContext(result);
+  result.bodySummary = buildTechDebtBodySummary(result);
+  if (issues.length > 0) {
+    info(`Tech debt detection: ${issues.length} marker(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -118488,6 +118606,17 @@ async function run() {
         warning("Type safety erosion detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    let techDebtResult = null;
+    if (config2.todoDebtDetector) {
+      try {
+        techDebtResult = detectTechDebt(diff.files);
+        if (techDebtResult.issues.length > 0) {
+          info("Tech debt detection: " + techDebtResult.issues.length + " marker(s) detected");
+        }
+      } catch (e) {
+        warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -118801,6 +118930,9 @@ ${taintContextStr}`;
     }
     if (typeErosionResult && typeErosionResult.contextText) {
       context4.rulesContent += "\n\n" + typeErosionResult.contextText;
+    }
+    if (techDebtResult && techDebtResult.contextText) {
+      context4.rulesContent += "\n\n" + techDebtResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -119531,6 +119663,18 @@ ${digest}
         warning("Type safety erosion comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
+    if (techDebtResult && techDebtResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: techDebtResult.bodySummary
+        });
+      } catch (e) {
+        warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
     if (driftResult && driftResult.bodySummary) {
       try {
         await octokit.rest.issues.createComment({
@@ -119669,6 +119813,7 @@ ${digest}
         if (config2.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
         if (config2.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
         if (config2.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
+        if (config2.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
