@@ -247,10 +247,12 @@ export function formatNumber(n: number): string {
   return n < 0 ? `-${abs}` : abs;
 }
 
+let runCounter = 0;
 function generateRunId(): string {
   const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${ts}-${rand}`;
+  const seq = (runCounter++).toString(36).padStart(3, "0");
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${ts}-${seq}-${rand}`;
 }
 
 function sanitizeConfig(config: Record<string, unknown>): Record<string, unknown> {
