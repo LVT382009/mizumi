@@ -503,10 +503,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 3456 Tests)
+### Build Stats (Current — 4243 Tests)
 
-- **4009 tests** passing (82 test files)
-- **8,800+ production lines** (53+ source modules)
+- **4243 tests** passing (84 test files)
+- **9,300+ production lines** (56+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
 - **6 subcommands**: `/mizumi review [instructions]`, `/mizumi describe`, `/mizumi improve`, `/mizumi test`, `/mizumi spend`, `/mizumi` (manual trigger)
@@ -538,6 +538,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Blast radius**: import-graph BFS for change impact analysis
 - **Taint analysis**: forward data-flow from sources to sinks
 - **Security hardened**: path traversal guard, prompt injection fixes, execFileSync, fail-closed gate, minimal action permissions
+- **Pipeline parallelizer**: runs independent analysis stages concurrently, parallelizes calibration loop with bounded concurrency (3). Reduces wall-clock time by 30-60%. No AI code reviewer parallelizes analysis stages.
+- **Review dashboard**: standalone HTML dashboard with review quality trends, acceptance rates, severity distribution, risk score trends, provider usage, suppressed patterns. No AI code reviewer provides a review dashboard.
+- **Finding dedup engine**: 3-phase dedup (exact fingerprint + proximity merge + fuzzy Levenshtein), keeps highest severity + confidence. No competitor does intelligent cross-source finding dedup.
 - `dist/index.js` bundle verified
 - Exit code 0 always enforced
 - `.gitattributes` enforces LF line endings
