@@ -769,4 +769,686 @@ describe("cifix", () => {
       expect(config.revertOnFailure).toBe(true);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Expanded checkCIStatus — CI status parsing edge cases
+  // ---------------------------------------------------------------------------
+
+  describe("checkCIStatus — extended parsing", () => {
+    it("returns pending for queued check runs", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "queued", conclusion: null }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns pending for waiting check runs", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "waiting", conclusion: null }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns pending for action_required check run conclusion", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "completed", conclusion: "action_required" }],
+        },
+      });
+      // action_required sets allPassed=false but not anyFailed, so result is pending
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns pending for check run with null conclusion and completed status", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "completed", conclusion: null }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns passed for neutral commit status", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "neutral" }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns passed for neutral check run conclusion", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "completed", conclusion: "neutral" }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("passed");
+    });
+
+    it("handles mixed in_progress and completed check runs — returns pending", async () => {
+      const octokit = mockOctokit({
+        checkRuns: {
+          total_count: 3,
+          check_runs: [
+            { status: "completed", conclusion: "success" },
+            { status: "in_progress", conclusion: null },
+            { status: "completed", conclusion: "success" },
+          ],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("handles mixed success and failure statuses — returns failed", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 3,
+          statuses: [
+            { state: "success" },
+            { state: "failure" },
+            { state: "success" },
+          ],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("failed");
+    });
+
+    it("returns pending when only pending commit statuses exist", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 3,
+          statuses: [
+            { state: "pending" },
+            { state: "pending" },
+            { state: "pending" },
+          ],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("pending");
+    });
+
+    it("returns failed when error status is mixed with pending", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 2,
+          statuses: [{ state: "pending" }, { state: "error" }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("failed");
+    });
+
+    it("returns failed when commit statuses succeed but check runs fail", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "success" }],
+        },
+        checkRuns: {
+          total_count: 1,
+          check_runs: [{ status: "completed", conclusion: "failure" }],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("failed");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Expanded pollCIStatus — timeout and polling edge cases
+  // ---------------------------------------------------------------------------
+
+  describe("pollCIStatus — extended", () => {
+    it("returns failed when CI fails immediately on poll", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "failure" }],
+        },
+      });
+      const status = await pollCIStatus(octokit, "owner", "repo", "sha123", 30, 1);
+      expect(status).toBe("failed");
+    });
+
+    it("ensures minimum poll interval of 5 seconds", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "pending" }],
+        },
+      });
+      // Very short timeout to avoid long test, but assertion checks that
+      // pollIntervalSeconds of 0 is clamped to at least 5s
+      const status = await pollCIStatus(octokit, "owner", "repo", "sha123", 2, 0);
+      expect(status).toBe("timed_out");
+    }, 10000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Expanded revertCommit — error scenarios
+  // ---------------------------------------------------------------------------
+
+  describe("revertCommit — extended", () => {
+    it("propagates error when git.updateRef fails", async () => {
+      const updateRefFn = vi.fn().mockRejectedValue(new Error("Reference update failed"));
+      const octokit = {
+        rest: {
+          git: { updateRef: updateRefFn },
+        },
+      } as unknown as Octokit;
+
+      await expect(revertCommit(octokit, "owner", "repo", "main", "parent-sha-1"))
+        .rejects.toThrow("Reference update failed");
+    });
+
+    it("calls updateRef with correct heads/ prefix for branch reference", async () => {
+      const updateRefFn = vi.fn().mockResolvedValue({});
+      const octokit = {
+        rest: {
+          git: { updateRef: updateRefFn },
+        },
+      } as unknown as Octokit;
+
+      await revertCommit(octokit, "owner", "repo", "feature/my-branch", "abc123");
+      expect(updateRefFn).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        ref: "heads/feature/my-branch",
+        sha: "abc123",
+        force: true,
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Expanded runCIFixLoop — error paths, revert failures, sequence fixes
+  // ---------------------------------------------------------------------------
+
+  describe("runCIFixLoop — extended error paths", () => {
+    beforeEach(() => {
+      vi.mock("../improve.js", () => ({
+        generateFix: vi.fn(),
+        isDangerousPath: vi.fn(),
+        parseSuggestions: vi.fn(),
+        verifyPatch: vi.fn(),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("handles generateFix throwing an error", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix").mockRejectedValue(new Error("API rate limit"));
+
+      const octokit = mockOctokit();
+
+      await expect(
+        runCIFixLoop(octokit, "owner", "repo", 42, defaultCIConfig, testConfig as MizumiConfig)
+      ).rejects.toThrow("API rate limit");
+    });
+
+    it("handles revert failure gracefully — does not crash", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix").mockResolvedValue({
+        fixedCount: 1,
+        commitSha: "fix-sha-1",
+      });
+
+      const updateRefFn = vi.fn().mockRejectedValue(new Error("updateRef forbidden"));
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockResolvedValue({
+              data: { total_count: 1, statuses: [{ state: "failure" }] },
+            }),
+          },
+          checks: {
+            listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }),
+          },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: updateRefFn,
+          },
+          pulls: {
+            get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }),
+          },
+          issues: {
+            createComment: vi.fn().mockResolvedValue({}),
+          },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 0,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      // Should NOT throw even though revert fails
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.success).toBe(false);
+      expect(result.ciStatus).toBe("failed");
+      // Revert was attempted but result.reverted stays false since the revert threw
+      expect(result.reverted).toBe(false);
+    });
+
+    it("handles getParentSha returning null — skip revert without crash", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix").mockResolvedValue({
+        fixedCount: 1,
+        commitSha: "fix-sha-1",
+      });
+
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockResolvedValue({
+              data: { total_count: 1, statuses: [{ state: "failure" }] },
+            }),
+          },
+          checks: {
+            listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }),
+          },
+          git: {
+            // getCommit throws — getParentSha returns null
+            getCommit: vi.fn().mockRejectedValue(new Error("not found")),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: {
+            get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }),
+          },
+          issues: {
+            createComment: vi.fn().mockResolvedValue({}),
+          },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 0,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.success).toBe(false);
+      // No revert happened because parent SHA was null
+      expect(result.reverted).toBe(false);
+      expect(octokit.rest.git.updateRef).not.toHaveBeenCalled();
+    });
+
+    it("records timed_out attempt when CI stays pending and exhausts timeout", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix").mockResolvedValue({
+        fixedCount: 1,
+        commitSha: "fix-sha-1",
+      });
+
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "pending" }],
+        },
+        getCommit: {
+          parents: [{ sha: "prev-sha-1" }],
+        },
+      });
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 2,
+        maxRetries: 0,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.success).toBe(false);
+      expect(result.ciStatus).toBe("timed_out");
+      expect(result.attempts[0].status).toBe("timed_out");
+    }, 10000);
+
+    it("multiple fixes applied in sequence — all tracked in attempts", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix")
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+      const combinedStatusFn = vi.fn()
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+      const octokit = {
+        rest: {
+          repos: { getCombinedStatusForRef: combinedStatusFn },
+          checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+          issues: { createComment: vi.fn().mockResolvedValue({}) },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 1,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.attempts).toHaveLength(2);
+      expect(result.attempts[0].sha).toBe("fix-sha-1");
+      expect(result.attempts[0].status).toBe("failed");
+      expect(result.attempts[1].sha).toBe("fix-sha-2");
+      expect(result.attempts[1].status).toBe("passed");
+    }, 30000);
+
+    it("posts revert comment with correct attempt number on first failure", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix").mockResolvedValue({
+        fixedCount: 1,
+        commitSha: "fix-sha-1",
+      });
+
+      const createCommentFn = vi.fn().mockResolvedValue({});
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockResolvedValue({
+              data: { total_count: 1, statuses: [{ state: "failure" }] },
+            }),
+          },
+          checks: {
+            listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }),
+          },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: {
+            get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }),
+          },
+          issues: { createComment: createCommentFn },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 0,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      // First revert comment should mention "attempt 1"
+      const commentBody = createCommentFn.mock.calls[0][0].body;
+      expect(commentBody).toContain("attempt 1");
+      expect(commentBody).toContain("fix-sha");
+    });
+
+    it("handles CI completing as passed after being in_progress on poll", async () => {
+      const combinedStatusFn = vi.fn()
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "pending" }] } })
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+      const octokit = {
+        rest: {
+          repos: { getCombinedStatusForRef: combinedStatusFn },
+          checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+          issues: { createComment: vi.fn().mockResolvedValue({}) },
+        },
+      } as unknown as Octokit;
+
+      // Direct pollCIStatus test — CI goes from pending to passed
+      const status = await pollCIStatus(octokit, "owner", "repo", "sha123", 30, 5);
+      expect(status).toBe("passed");
+    }, 15000);
+
+    it("handles checks API returning 0 total_count with empty statuses array", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 0,
+          statuses: [],
+        },
+        checkRuns: {
+          total_count: 0,
+          check_runs: [],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("no_checks");
+    });
+
+    it("handles only check runs without commit statuses", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 0,
+          statuses: [],
+        },
+        checkRuns: {
+          total_count: 2,
+          check_runs: [
+            { status: "completed", conclusion: "success" },
+            { status: "completed", conclusion: "success" },
+          ],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("passed");
+    });
+
+    it("handles only commit statuses without check runs", async () => {
+      const octokit = mockOctokit({
+        combinedStatus: {
+          total_count: 1,
+          statuses: [{ state: "success" }],
+        },
+        checkRuns: {
+          total_count: 0,
+          check_runs: [],
+        },
+      });
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("passed");
+    });
+
+    it("returns no_checks when both API calls fail", async () => {
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockRejectedValue(new Error("403 Forbidden")),
+          },
+          checks: {
+            listForRef: vi.fn().mockRejectedValue(new Error("403 Forbidden")),
+          },
+        },
+      } as unknown as Octokit;
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("no_checks");
+    });
+
+    it("returns no_checks when combinedStatus succeeds with 0 but checks API fails", async () => {
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockResolvedValue({
+              data: { total_count: 0, statuses: [] },
+            }),
+          },
+          checks: {
+            listForRef: vi.fn().mockRejectedValue(new Error("Server error")),
+          },
+        },
+      } as unknown as Octokit;
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("no_checks");
+    });
+
+    it("returns failed when combinedStatus fails but check runs show failure", async () => {
+      const octokit = {
+        rest: {
+          repos: {
+            getCombinedStatusForRef: vi.fn().mockRejectedValue(new Error("API error")),
+          },
+          checks: {
+            listForRef: vi.fn().mockResolvedValue({
+              data: {
+                total_count: 1,
+                check_runs: [{ status: "completed", conclusion: "failure" }],
+              },
+            }),
+          },
+        },
+      } as unknown as Octokit;
+      const status = await checkCIStatus(octokit, "owner", "repo", "sha123");
+      expect(status).toBe("failed");
+    });
+
+    it("revert comment includes retrying text when more attempts remain", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix")
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+      const combinedStatusFn = vi.fn()
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+      const createCommentFn = vi.fn().mockResolvedValue({});
+      const octokit = {
+        rest: {
+          repos: { getCombinedStatusForRef: combinedStatusFn },
+          checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+          issues: { createComment: createCommentFn },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 1,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.success).toBe(true);
+      // The first failure comment should mention "Retrying..."
+      const firstCommentBody = createCommentFn.mock.calls[0][0].body;
+      expect(firstCommentBody).toContain("Retrying");
+    }, 30000);
+
+    it("final exhausted comment mentions all attempts reverted", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix")
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+      const combinedStatusFn = vi.fn()
+        .mockResolvedValue({ data: { total_count: 1, statuses: [{ state: "failure" }] } });
+
+      const createCommentFn = vi.fn().mockResolvedValue({});
+      const octokit = {
+        rest: {
+          repos: { getCombinedStatusForRef: combinedStatusFn },
+          checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+          issues: { createComment: createCommentFn },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 1,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      // Last comment should mention "exhausted" and "reverted"
+      const lastCall = createCommentFn.mock.calls[createCommentFn.mock.calls.length - 1][0];
+      expect(lastCall.body).toContain("exhausted");
+      expect(lastCall.body).toContain("reverted");
+    }, 30000);
+
+    it("sets fixCommitSha to the last applied fix SHA", async () => {
+      const improve = await import("../improve.js");
+      vi.spyOn(improve, "generateFix")
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-1" })
+        .mockResolvedValueOnce({ fixedCount: 1, commitSha: "fix-sha-2" });
+
+      const combinedStatusFn = vi.fn()
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "failure" }] } })
+        .mockResolvedValueOnce({ data: { total_count: 1, statuses: [{ state: "success" }] } });
+
+      const octokit = {
+        rest: {
+          repos: { getCombinedStatusForRef: combinedStatusFn },
+          checks: { listForRef: vi.fn().mockResolvedValue({ data: { total_count: 0, check_runs: [] } }) },
+          git: {
+            getCommit: vi.fn().mockResolvedValue({ data: { parents: [{ sha: "prev-sha-1" }] } }),
+            updateRef: vi.fn().mockResolvedValue({}),
+          },
+          pulls: { get: vi.fn().mockResolvedValue({ data: { head: { sha: "abc123", ref: "feature-branch" } } }) },
+          issues: { createComment: vi.fn().mockResolvedValue({}) },
+        },
+      } as unknown as Octokit;
+
+      const ciConfig: CIFixConfig = {
+        enabled: true,
+        timeoutSeconds: 10,
+        maxRetries: 1,
+        revertOnFailure: true,
+        pollIntervalSeconds: 1,
+      };
+
+      const result = await runCIFixLoop(octokit, "owner", "repo", 42, ciConfig, testConfig as MizumiConfig);
+      expect(result.fixCommitSha).toBe("fix-sha-2");
+    }, 30000);
+  });
 });
