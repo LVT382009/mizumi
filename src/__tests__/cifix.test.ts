@@ -123,6 +123,7 @@ const testConfig = {
     reviewDashboard: true,
       auditTrail: true,
       reviewReplay: true,
+      concurrencyAnalysis: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

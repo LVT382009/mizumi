@@ -87,6 +87,7 @@ const makeNvidiaConfig = (overrides?: Partial<MizumiConfig>): MizumiConfig => ({
     reviewDashboard: true,
       auditTrail: true,
       reviewReplay: true,
+      concurrencyAnalysis: true,
   ...overrides,
 });
 

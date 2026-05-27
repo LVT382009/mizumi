@@ -72,6 +72,7 @@ export interface MizumiConfig {
   reviewDashboard: boolean;
   auditTrail: boolean;
   reviewReplay: boolean;
+  concurrencyAnalysis: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -167,6 +168,7 @@ const pipelineParallel = core.getInput("pipeline_parallel") !== "false"; // defa
 const reviewDashboard = core.getInput("review_dashboard") !== "false"; // default true
 const auditTrail = core.getInput("audit_trail") !== "false"; // default true
 const reviewReplay = core.getInput("review_replay") !== "false"; // default true
+const concurrencyAnalysis = core.getInput("concurrency_analysis") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -281,6 +283,7 @@ let securityPaths = [...DEFAULT_SECURITY_PATHS];
   reviewDashboard,
   auditTrail,
   reviewReplay,
+  concurrencyAnalysis,
   };
 }
 

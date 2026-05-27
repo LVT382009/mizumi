@@ -78,6 +78,7 @@ import { planFileReviews, cacheReviewResults, formatCacheStats } from "./review-
 import { AuditTrailBuilder, writeAuditTrail, computeConfigHash } from "./audit-trail.js";
 import { collectDashboardMetrics, generateDashboardHTML, writeDashboard } from "./review-dashboard.js";
 import { findRunsForPR, formatReplayTimeline } from "./review-replay.js";
+import { analyzeConcurrency, buildConcurrencyContext } from "./concurrency.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -360,6 +361,19 @@ if (config.astContractAnalysis) {
    taintResult = runTaintAnalysis(diff.files);
  } catch (e) {
    core.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+ }
+ }
+
+ // 4a3b. Concurrency & race condition analysis
+ let concurrencyResult: import("./concurrency.js").ConcurrencyAnalysisResult | null = null;
+ if (config.concurrencyAnalysis) {
+ try {
+ concurrencyResult = analyzeConcurrency(diff.files);
+ if (concurrencyResult.hazards.length > 0) {
+ core.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
+ }
+ } catch (e) {
+ core.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
  }
  }
 
@@ -690,6 +704,14 @@ ${taintContextStr}`;
   }
 }
 
+
+// 5c2b. Concurrency context injection - inject race condition signals into review
+if (concurrencyResult && concurrencyResult.hazards.length > 0) {
+  const concurrencyCtx = buildConcurrencyContext(concurrencyResult);
+  if (concurrencyCtx) {
+      context.rulesContent += "\n\n" + concurrencyCtx;
+}
+  }
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
   const learningContextStr = buildLearningContext(learningResult);
@@ -1527,6 +1549,7 @@ if (config.auditTrail) {
     if (config.ruleEngine) auditBuilder.logStage("rule-engine", 0, true);
     if (config.linterScan) auditBuilder.logStage("linter", 0, true);
     if (config.taintAnalysis) auditBuilder.logStage("taint", 0, true);
+if (config.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

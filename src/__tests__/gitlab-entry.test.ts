@@ -92,6 +92,7 @@ vi.mock("../config.js", () => ({
     reviewDashboard: true,
       auditTrail: true,
       reviewReplay: true,
+      concurrencyAnalysis: true,
   })),
 }));
 

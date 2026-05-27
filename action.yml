@@ -302,6 +302,11 @@ defense_framework:
   required: false
   default: "true"
 
+  concurrency_analysis:
+  description: "Enable concurrency & race condition analysis — detects shared mutable state, TOCTOU races, event loop blocking, error swallowing, and lock ordering violations. No AI code reviewer detects concurrency issues."
+  required: false
+  default: "true"
+
   jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

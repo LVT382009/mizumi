@@ -165,6 +165,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
     reviewDashboard: true,
       auditTrail: true,
       reviewReplay: true,
+      concurrencyAnalysis: true,
     ...overrides,
   };
 }
