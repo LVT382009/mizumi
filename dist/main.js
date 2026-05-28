@@ -56547,6 +56547,7 @@ function loadConfig() {
   const hallucinatedDependencyDetector = getInput("hallucinated_dependency_detector") !== "false";
   const tautologicalTestDetector = getInput("tautological_test_detector") !== "false";
   const contextAmplificationDetector = getInput("context_amplification_detector") !== "false";
+  const cargoCultArchitectureDetector = getInput("cargo_cult_architecture_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56686,7 +56687,8 @@ function loadConfig() {
     staleClosureDetector,
     hallucinatedDependencyDetector,
     tautologicalTestDetector,
-    contextAmplificationDetector
+    contextAmplificationDetector,
+    cargoCultArchitectureDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -123258,6 +123260,330 @@ function detectContextAmplification(diffFiles) {
   return result;
 }
 
+// src/cargo-cult-architecture-detector.ts
+function stripPrefix5(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges5(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var CLASS_DECL_RE = /\b(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/;
+var INTERFACE_DECL_RE = /\b(?:export\s+)?interface\s+(\w+)/;
+var EXTENDS_RE = /\bclass\s+\w+\s+extends\s+(\w+)/;
+var IMPLEMENTS_RE = /\bclass\s+\w+\s+implements\s+(\w+(?:\s*,\s*\w+)*)/;
+var SINGLETON_PRIVATE_CTOR_RE = /private\s+(?:constructor|new)\s*\(/;
+var SINGLETON_INSTANCE_RE = /(?:static\s+)?(?:get\s+)?instance\s*[:(]/;
+var SINGLETON_GET_INSTANCE_RE = /getInstance\s*\(\s*\)/;
+var DECORATOR_RE = /@(\w+)(?:\s*\([^)]*\))?\s*$/;
+var DELEGATION_RE = /(?:return\s+)?(?:this\.\w+|super\.\w+|_\w+)\.\w+\s*\([^)]*\)\s*;?\s*\}?\s*$/;
+var SKIP_LINE_RE18 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function detectEnterpriseFacade(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let inClass = false;
+  let className = "";
+  let classStartLine = 0;
+  let methodCount = 0;
+  let delegationCount = 0;
+  let fieldCount = 0;
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const classMatch = trimmed.match(CLASS_DECL_RE);
+    if (classMatch) {
+      if (inClass && methodCount <= 3 && delegationCount >= methodCount - 1 && methodCount >= 2) {
+        issues.push({
+          category: "enterprise-facade",
+          file: file2.path,
+          line: classStartLine,
+          code: `class ${className}`,
+          description: `Class \`${className}\` in \`${file2.path}:${classStartLine}\` is a facade with ${methodCount} method(s), ${delegationCount} delegation(s) \u2014 LLMs generate manager/service classes that simply delegate to other objects; remove the indirection layer and call the underlying methods directly`,
+          severity: "warning"
+        });
+      }
+      inClass = true;
+      className = classMatch[1];
+      classStartLine = change.line;
+      methodCount = 0;
+      delegationCount = 0;
+      fieldCount = 0;
+      continue;
+    }
+    if (inClass) {
+      if (/^\s*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?(?:static\s+)?(\w+)\s*\(/.test(trimmed) && !/^\s*(?:if|for|while|switch|catch|constructor)\b/.test(trimmed)) {
+        methodCount++;
+        if (DELEGATION_RE.test(trimmed)) {
+          delegationCount++;
+        }
+      }
+      if (/^\s*(?:private|protected|public)\s+(?:readonly\s+)?\w+\s*:\s*\w+/.test(trimmed)) {
+        fieldCount++;
+      }
+      if (trimmed.startsWith("}")) {
+        if (methodCount <= 3 && delegationCount >= methodCount - 1 && methodCount >= 2) {
+          issues.push({
+            category: "enterprise-facade",
+            file: file2.path,
+            line: classStartLine,
+            code: `class ${className}`,
+            description: `Class \`${className}\` in \`${file2.path}:${classStartLine}\` is a facade with ${methodCount} method(s), ${delegationCount} delegation(s) \u2014 LLMs generate manager/service classes that simply delegate to other objects; remove the indirection layer and call the underlying methods directly`,
+            severity: "warning"
+          });
+        }
+        inClass = false;
+      }
+    }
+  }
+  return issues;
+}
+function detectInterfaceForSingleImpl(diffFiles) {
+  const issues = [];
+  const interfaceNames = /* @__PURE__ */ new Map();
+  const implementsMap = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges5(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE18.test(change.content)) continue;
+      const trimmed = stripPrefix5(change.content);
+      const ifaceMatch = trimmed.match(INTERFACE_DECL_RE);
+      if (ifaceMatch) {
+        interfaceNames.set(ifaceMatch[1], { file: file2.path, line: change.line, code: trimmed });
+      }
+      const implMatch = trimmed.match(IMPLEMENTS_RE);
+      if (implMatch) {
+        const classMatch = trimmed.match(CLASS_DECL_RE);
+        const className = classMatch?.[1] || "unknown";
+        const ifaceNames = implMatch[1].split(",").map((s) => s.trim());
+        for (const iface of ifaceNames) {
+          if (!implementsMap.has(iface)) {
+            implementsMap.set(iface, []);
+          }
+          implementsMap.get(iface).push({ file: file2.path, line: change.line, code: trimmed, className });
+        }
+      }
+    }
+  }
+  const SKIP_IFACE_NAMES = /* @__PURE__ */ new Set(["Error", "Event", "Options", "Config", "Props", "State", "Result"]);
+  for (const [ifaceName, ifaceInfo] of interfaceNames) {
+    if (SKIP_IFACE_NAMES.has(ifaceName)) continue;
+    const impls = implementsMap.get(ifaceName);
+    if (impls && impls.length === 1) {
+      issues.push({
+        category: "interface-for-single-impl",
+        file: ifaceInfo.file,
+        line: ifaceInfo.line,
+        code: ifaceInfo.code,
+        description: `Interface \`${ifaceName}\` in \`${ifaceInfo.file}:${ifaceInfo.line}\` has exactly one implementation (\`${impls[0].className}\` in \`${impls[0].file}:${impls[0].line}\`) \u2014 LLMs generate interface-implementation pairs from training data patterns even when there is no polymorphic need; remove the interface and use the concrete class directly unless a second implementation is planned`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectDeepInheritance(diffFiles) {
+  const issues = [];
+  const extendsMap = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges5(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE18.test(change.content)) continue;
+      const trimmed = stripPrefix5(change.content);
+      const classMatch = trimmed.match(CLASS_DECL_RE);
+      const extendsMatch = trimmed.match(EXTENDS_RE);
+      if (classMatch && extendsMatch) {
+        extendsMap.set(classMatch[1], { parent: extendsMatch[1], file: file2.path, line: change.line, code: trimmed });
+      }
+    }
+  }
+  for (const [className, info2] of extendsMap) {
+    let depth = 2;
+    let current = info2.parent;
+    const visited = /* @__PURE__ */ new Set([className]);
+    while (extendsMap.has(current) && !visited.has(current)) {
+      visited.add(current);
+      depth++;
+      current = extendsMap.get(current).parent;
+    }
+    if (depth >= 3) {
+      issues.push({
+        category: "deep-inheritance",
+        file: info2.file,
+        line: info2.line,
+        code: info2.code,
+        description: `Class \`${className}\` in \`${info2.file}:${info2.line}\` sits in a ${depth}-level inheritance chain \u2014 LLMs generate deep class hierarchies from OOP training data; modern patterns favor composition over inheritance; flatten the chain using mixins, composition, or utility functions`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectSingletonMisuse(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let hasPrivateCtor = false;
+  let hasInstancePattern = false;
+  let classLine = 0;
+  let className = "";
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const classMatch = trimmed.match(CLASS_DECL_RE);
+    if (classMatch) {
+      if (hasPrivateCtor && hasInstancePattern && className) {
+        issues.push({
+          category: "singleton-misuse",
+          file: file2.path,
+          line: classLine,
+          code: `class ${className}`,
+          description: `Class \`${className}\` in \`${file2.path}:${classLine}\` uses singleton pattern \u2014 LLMs apply singleton to stateless services where dependency injection is more appropriate; singletons make testing harder and create hidden global state; use dependency injection instead`,
+          severity: "warning"
+        });
+      }
+      className = classMatch[1];
+      classLine = change.line;
+      hasPrivateCtor = false;
+      hasInstancePattern = false;
+    }
+    if (SINGLETON_PRIVATE_CTOR_RE.test(trimmed)) {
+      hasPrivateCtor = true;
+    }
+    if (SINGLETON_INSTANCE_RE.test(trimmed) || SINGLETON_GET_INSTANCE_RE.test(trimmed)) {
+      hasInstancePattern = true;
+    }
+  }
+  if (hasPrivateCtor && hasInstancePattern && className) {
+    issues.push({
+      category: "singleton-misuse",
+      file: file2.path,
+      line: classLine,
+      code: `class ${className}`,
+      description: `Class \`${className}\` in \`${file2.path}:${classLine}\` uses singleton pattern \u2014 LLMs apply singleton to stateless services where dependency injection is more appropriate; singletons make testing harder and create hidden global state; use dependency injection instead`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function detectDecoratorStack(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let consecutiveDecorators = [];
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const decMatch = trimmed.match(DECORATOR_RE);
+    if (decMatch) {
+      consecutiveDecorators.push({ name: decMatch[1], line: change.line, code: trimmed });
+    } else {
+      if (consecutiveDecorators.length >= 3) {
+        issues.push({
+          category: "decorator-stack",
+          file: file2.path,
+          line: consecutiveDecorators[0].line,
+          code: consecutiveDecorators.map((d) => `@${d.name}`).join(" "),
+          description: `${consecutiveDecorators.length} decorators stacked in \`${file2.path}:${consecutiveDecorators[0].line}\` (${consecutiveDecorators.map((d) => `@${d.name}`).join(", ")}) \u2014 LLMs stack decorators from framework training data; evaluate whether each decorator adds domain value or is cargo-cult pattern matching; prefer explicit function calls for complex behavior composition`,
+          severity: "warning"
+        });
+      }
+      consecutiveDecorators = [];
+    }
+  }
+  if (consecutiveDecorators.length >= 3) {
+    issues.push({
+      category: "decorator-stack",
+      file: file2.path,
+      line: consecutiveDecorators[0].line,
+      code: consecutiveDecorators.map((d) => `@${d.name}`).join(" "),
+      description: `${consecutiveDecorators.length} decorators stacked in \`${file2.path}:${consecutiveDecorators[0].line}\` (${consecutiveDecorators.map((d) => `@${d.name}`).join(", ")}) \u2014 LLMs stack decorators from framework training data; evaluate whether each decorator adds domain value or is cargo-cult pattern matching; prefer explicit function calls for complex behavior composition`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function dedupIssues24(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildCargoCultContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Cargo-Cult Architecture Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain boilerplate patterns from LLM training data rather than domain requirements:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCargoCultBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Cargo-Cult Architecture Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate code, they reproduce patterns from training data \u2014 unnecessary abstraction layers, interfaces with single implementations, deep inheritance chains, and decorator stacks. These add structural complexity without domain value.*
+</details>
+`;
+  return body;
+}
+function detectCargoCultArchitecture(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectEnterpriseFacade(file2));
+    allIssues.push(...detectSingletonMisuse(file2));
+    allIssues.push(...detectDecoratorStack(file2));
+  }
+  allIssues.push(...detectInterfaceForSingleImpl(diffFiles));
+  allIssues.push(...detectDeepInheritance(diffFiles));
+  const issues = dedupIssues24(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCargoCultContext(result);
+  result.bodySummary = buildCargoCultBodySummary(result);
+  if (issues.length > 0) {
+    info(`Cargo-cult architecture detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -123827,6 +124153,13 @@ async function run() {
         info("Context amplification detection: " + contextAmplificationResult.issues.length + " issue(s)");
       }
     }
+    let cargoCultResult = null;
+    if (config2.cargoCultArchitectureDetector) {
+      cargoCultResult = detectCargoCultArchitecture(diff.files);
+      if (cargoCultResult.issues.length > 0) {
+        info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -124200,6 +124533,9 @@ ${taintContextStr}`;
     }
     if (contextAmplificationResult && contextAmplificationResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + contextAmplificationResult.contextText;
+    }
+    if (cargoCultResult && cargoCultResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + cargoCultResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -125167,6 +125503,18 @@ ${digest}
               warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
+          if (cargoCultResult && cargoCultResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: cargoCultResult.bodySummary
+              });
+            } catch (e) {
+              warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
         }
       }
     }
@@ -125328,6 +125676,7 @@ ${digest}
         if (config2.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
         if (config2.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
         if (config2.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
+        if (config2.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

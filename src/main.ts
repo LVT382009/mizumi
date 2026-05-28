@@ -106,6 +106,7 @@ import { detectStaleClosures } from "./stale-closure-detector.js";
 import { detectHallucinatedDeps } from "./hallucinated-dependency-detector.js";
 import { detectTautologicalTests } from "./tautological-test-detector.js";
 import { detectContextAmplification } from "./context-amplification-detector.js";
+import { detectCargoCultArchitecture } from "./cargo-cult-architecture-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -758,6 +759,15 @@ if (config.contextAmplificationDetector) {
   }
 }
 
+// 4a3zd. Cargo-cult architecture detector — detect LLM-generated boilerplate: enterprise-facade, interface-for-single-impl, deep-inheritance, singleton-misuse, decorator-stack
+let cargoCultResult: import("./cargo-cult-architecture-detector.js").CargoCultResult | null = null;
+if (config.cargoCultArchitectureDetector) {
+  cargoCultResult = detectCargoCultArchitecture(diff.files);
+  if (cargoCultResult.issues.length > 0) {
+    core.info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1206,6 +1216,9 @@ if (tautologicalTestResult && tautologicalTestResult.contextText) {
 }
 if (contextAmplificationResult && contextAmplificationResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + contextAmplificationResult.contextText;
+}
+if (cargoCultResult && cargoCultResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + cargoCultResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2197,6 +2210,17 @@ if (contextAmplificationResult && contextAmplificationResult.bodySummary) {
     core.warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post cargo-cult architecture detection summary as a separate comment
+if (cargoCultResult && cargoCultResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: cargoCultResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
 }
  }
@@ -2368,6 +2392,7 @@ if (config.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0
 if (config.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
 if (config.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
 if (config.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
+if (config.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

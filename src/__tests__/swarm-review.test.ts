@@ -317,6 +317,7 @@ nullGuardDetector: true,
       hallucinatedDependencyDetector: true,
       tautologicalTestDetector: true,
         contextAmplificationDetector: true,
+        cargoCultArchitectureDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

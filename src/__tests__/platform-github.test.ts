@@ -191,6 +191,7 @@ nullGuardDetector: true,
       hallucinatedDependencyDetector: true,
       tautologicalTestDetector: true,
         contextAmplificationDetector: true,
+        cargoCultArchitectureDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

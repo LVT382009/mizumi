@@ -193,6 +193,7 @@ nullGuardDetector: true,
       hallucinatedDependencyDetector: true,
       tautologicalTestDetector: true,
         contextAmplificationDetector: true,
+        cargoCultArchitectureDetector: true,
     ...overrides,
   };
 }

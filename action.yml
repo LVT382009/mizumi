@@ -427,45 +427,49 @@ callback_misuse_detector:
     description: 'Enable tautological test detection (tautological-assertion, fixture-mirror-constant, happy-path-only, private-helper-in-test)'
     required: false
     default: 'true'
-debug_artifact_detector:
-  context_amplification_detector:
-    description: 'Enable context amplification detection (duplicate-implementation, naming-inconsistency, divergent-utility, import-divergence)'
-    required: false
-    default: 'true'
+  debug_artifact_detector:
   description: "Enable debug artifact detector — flags leftover debugger statements, console.log in production code, it.only/describe.only test isolation breaks, and debug/verbose flags left enabled. Zero LLM cost. No AI code reviewer detects debug artifacts as a category."
   required: false
   default: "true"
+context_amplification_detector:
+  description: 'Enable context amplification detection (duplicate-implementation, naming-inconsistency, divergent-utility, import-divergence)'
+  required: false
+  default: 'true'
+cargo_cult_architecture_detector:
+  description: 'Enable cargo-cult architecture detection (enterprise-facade, interface-for-single-impl, deep-inheritance, singleton-misuse, decorator-stack)'
+  required: false
+  default: 'true'
 
 jira_base_url:
-    description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
-    required: false
-  jira_api_token:
-    description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
-    required: false
-  jira_project_prefix:
-    description: "Jira project key prefix for matching (e.g. PAY for PAY-1234). Also set via MIZUMI_JIRA_PROJECT_PREFIX env var."
-    required: false
-  linear_api_token:
-    description: "Linear API token for authentication. Also set via MIZUMI_LINEAR_API_TOKEN env var."
-    required: false
+  description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
+  required: false
+jira_api_token:
+  description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
+  required: false
+jira_project_prefix:
+  description: "Jira project key prefix for matching (e.g. PAY for PAY-1234). Also set via MIZUMI_JIRA_PROJECT_PREFIX env var."
+  required: false
+linear_api_token:
+  description: "Linear API token for authentication. Also set via MIZUMI_LINEAR_API_TOKEN env var."
+  required: false
 outputs:
-  review_id:
-    description: "ID of the posted PR review"
-  finding_count:
-    description: "Number of findings posted"
-  risk_score:
-    description: "Risk score 1-5"
-  compliance:
-    description: "Ticket-to-code compliance level (fully/partially/not/none)"
-  auto_fixed:
-    description: "Number of suggestions auto-applied via thumbs-up reaction approval"
+review_id:
+  description: "ID of the posted PR review"
+finding_count:
+  description: "Number of findings posted"
+risk_score:
+  description: "Risk score 1-5"
+compliance:
+  description: "Ticket-to-code compliance level (fully/partially/not/none)"
+auto_fixed:
+  description: "Number of suggestions auto-applied via thumbs-up reaction approval"
 runs:
-  using: node24
-  main: dist/index.js
+using: node24
+main: dist/index.js
 
 permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-  statuses: write
-  checks: write
+contents: read
+pull-requests: write
+issues: write
+statuses: write
+checks: write
