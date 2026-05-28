@@ -56549,6 +56549,7 @@ function loadConfig() {
   const contextAmplificationDetector = getInput("context_amplification_detector") !== "false";
   const cargoCultArchitectureDetector = getInput("cargo_cult_architecture_detector") !== "false";
   const confabulatedAPIDetector = getInput("confabulated_api_detector") !== "false";
+  const partialSecurityControlDetector = getInput("partial_security_control_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56690,7 +56691,8 @@ function loadConfig() {
     tautologicalTestDetector,
     contextAmplificationDetector,
     cargoCultArchitectureDetector,
-    confabulatedAPIDetector
+    confabulatedAPIDetector,
+    partialSecurityControlDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -123860,6 +123862,293 @@ function detectConfabulatedAPI(diffFiles) {
   return result;
 }
 
+// src/partial-security-control-detector.ts
+function stripPrefix7(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges7(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE20 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var AUTH_PATTERNS = [
+  /\b(?:authenticate|verifyToken|verify_token|checkAuth|check_auth|isAuthenticated|is_authenticated|login|signIn|sign_in)\b/i,
+  /\bverify\s*\(\s*(?:token|jwt|credential|session)\s*\)/i,
+  /\b(?:jwt|token)\s*\.\s*verify\s*\(/i
+];
+var AUTHZ_PATTERNS = [
+  /\b(?:authorize|checkRole|check_role|hasRole|has_role|hasPermission|has_permission|checkPermission|check_permission|requireRole|require_role|requirePermission|require_permission|isAuthorized|is_authorized)\b/i,
+  /\b(?:role|permission|scope|privilege)\s*(?:===|!==|includes|check|verify)\b/i
+];
+var ENCRYPT_PATTERNS = [
+  /\b(?:encrypt|cipher|sign|hmac)\s*\(/i,
+  /\bcrypto\s*\.\s*(?:createCipher|createSign|createHmac|publicEncrypt|privateEncrypt)\s*\(/i,
+  /\bcrypto\s*\.\s*(?:createCipheriv|createDecipheriv)\s*\(/i,
+  /\bhash\s*\(\s*(?:password|secret|key|credential)\s*\)/i
+];
+var KDF_PATTERNS = [
+  /\b(?:deriveKey|derive_key|keyDerive|key_derive|pbkdf|scrypt|argon|bcrypt|salt|deriveBits|derive_bits)\b/i,
+  /\bcrypto\s*\.\s*(?:pbkdf2|scrypt|generateKeyPair|createSecretKey)\s*\(/i
+];
+var VALIDATE_PATTERNS = [
+  /\b(?:validate|check|verify|assert|ensure)\s*(?:Input|Form|Data|Field|Param|Request|Payload|Body|Query)\s*\(/i,
+  /\bvalidate\s*\(\s*(?:input|data|payload|body|param|request|form|field)\s*\)/i,
+  /\bjoi\s*\.\s*(?:object|string|number|array)\s*\(\s*\)/i,
+  /\bzod\s*\.\s*(?:object|string|number|array)\s*\(\s*\)/i,
+  /\bschema\s*\.\s*validate\s*\(/i
+];
+var SANITIZE_PATTERNS = [
+  /\b(?:sanitize|escape|encode|purify|strip|clean|filter|scrub|normalize|defang|xss|htmlEscape|html_escape)\b/i,
+  /\bDOMPurify\s*\.\s*sanitize\s*\(/i,
+  /\b(?:encoder|sanitizer|purifier)\s*\.\s*(?:encode|sanitize|escape|purify)\s*\(/i
+];
+var RATE_COUNT_PATTERNS = [
+  /\b(?:rateLimiter|rate_limiter|RateLimiter|throttleQueue|requestCounter|request_counter)\b/i,
+  /\b(?:requestCount|request_count|hitCount|hit_count|callCount|call_count)\s*(?:\+\+|\+=|==|>=)/i,
+  /\b(?:increment|incr)\s*\(\s*(?:count|counter|hits|requests)\s*\)/i,
+  /\b(?:window|bucket|token)\s*(?:Count|_count|Size|_size)\b/i
+];
+var RATE_ENFORCE_PATTERNS = [
+  /\b(?:reject|throttle|block|deny|drop|rejectWith|reject_with|limit|rateLimit|rate_limit|slowDown|slow_down|pause|queue)\b/i,
+  /\b(?:429|too.?many|rate.?limit|rate.?exceeded)\b/i,
+  /\b(?:throw|return)\s+.*(?:429|TooManyRequests|RateLimitError|RateLimitExceeded)\b/i
+];
+function collectSignals(file2) {
+  const signals = {
+    authFound: [],
+    authzFound: [],
+    encryptFound: [],
+    kdfFound: [],
+    validateFound: [],
+    sanitizeFound: [],
+    rateCountFound: [],
+    rateEnforceFound: []
+  };
+  const added = getAddedChanges7(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE20.test(change.content)) continue;
+    const trimmed = stripPrefix7(change.content);
+    for (const re2 of AUTH_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.authFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of AUTHZ_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.authzFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of ENCRYPT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.encryptFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of KDF_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.kdfFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of VALIDATE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.validateFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of SANITIZE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.sanitizeFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of RATE_COUNT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.rateCountFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of RATE_ENFORCE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.rateEnforceFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+  }
+  return signals;
+}
+function aggregateSignals(diffFiles) {
+  const agg = {
+    authFiles: /* @__PURE__ */ new Map(),
+    authzFiles: /* @__PURE__ */ new Map(),
+    encryptFiles: /* @__PURE__ */ new Map(),
+    kdfFiles: /* @__PURE__ */ new Map(),
+    validateFiles: /* @__PURE__ */ new Map(),
+    sanitizeFiles: /* @__PURE__ */ new Map(),
+    rateCountFiles: /* @__PURE__ */ new Map(),
+    rateEnforceFiles: /* @__PURE__ */ new Map()
+  };
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const signals = collectSignals(file2);
+    if (signals.authFound.length > 0) agg.authFiles.set(file2.path, signals.authFound);
+    if (signals.authzFound.length > 0) agg.authzFiles.set(file2.path, signals.authzFound);
+    if (signals.encryptFound.length > 0) agg.encryptFiles.set(file2.path, signals.encryptFound);
+    if (signals.kdfFound.length > 0) agg.kdfFiles.set(file2.path, signals.kdfFound);
+    if (signals.validateFound.length > 0) agg.validateFiles.set(file2.path, signals.validateFound);
+    if (signals.sanitizeFound.length > 0) agg.sanitizeFiles.set(file2.path, signals.sanitizeFound);
+    if (signals.rateCountFound.length > 0) agg.rateCountFiles.set(file2.path, signals.rateCountFound);
+    if (signals.rateEnforceFound.length > 0) agg.rateEnforceFiles.set(file2.path, signals.rateEnforceFound);
+  }
+  return agg;
+}
+function checkSecurityPair(category, firstLabel, secondLabel, firstFiles, secondFiles) {
+  const issues = [];
+  if (firstFiles.size > 0 && secondFiles.size === 0) {
+    for (const [filePath, entries] of firstFiles) {
+      for (const entry of entries.slice(0, 2)) {
+        issues.push({
+          category,
+          file: filePath,
+          line: entry.line,
+          code: entry.code,
+          description: `${firstLabel} detected (\`${entry.match}\`) in \`${filePath}:${entry.line}\` but no ${secondLabel} found anywhere in the PR \u2014 LLMs implement partial security controls: they add authentication without authorization, creating privilege escalation paths; the CSA 2026 reports 322% surge in such paths from AI-generated code; add the corresponding ${secondLabel}`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  for (const [filePath, entries] of firstFiles) {
+    if (!secondFiles.has(filePath)) {
+      for (const entry of entries.slice(0, 1)) {
+        if (secondFiles.size > 0) {
+          issues.push({
+            category,
+            file: filePath,
+            line: entry.line,
+            code: entry.code,
+            description: `${firstLabel} detected (\`${entry.match}\`) in \`${filePath}:${entry.line}\` but ${secondLabel} is in a different file \u2014 LLMs implement security controls in separate scopes; ensure authorization is checked at the same call site as authentication`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues26(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildPartialSecurityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Partial Security Control Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain incomplete security control pairs \u2014 LLMs implement partial controls:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildPartialSecurityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Partial Security Control Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate security code, they implement partial controls \u2014 authentication without authorization, encryption without key derivation, validation without sanitization. The CSA 2026 reports a 322% surge in privilege escalation paths from AI-generated code. Ensure security control pairs are always implemented together.*
+</details>
+`;
+  return body;
+}
+function detectPartialSecurityControls(diffFiles) {
+  const agg = aggregateSignals(diffFiles);
+  const allIssues = [];
+  allIssues.push(...checkSecurityPair(
+    "auth-without-authz",
+    "Authentication",
+    "authorization",
+    agg.authFiles,
+    agg.authzFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "encrypt-without-kdf",
+    "Encryption/hashing",
+    "key derivation/salting",
+    agg.encryptFiles,
+    agg.kdfFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "validate-without-sanitize",
+    "Input validation",
+    "sanitization/escaping",
+    agg.validateFiles,
+    agg.sanitizeFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "rate-count-without-enforce",
+    "Rate counting",
+    "rate enforcement/rejection",
+    agg.rateCountFiles,
+    agg.rateEnforceFiles
+  ));
+  const issues = dedupIssues26(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildPartialSecurityContext(result);
+  result.bodySummary = buildPartialSecurityBodySummary(result);
+  if (issues.length > 0) {
+    info(`Partial security control detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -124443,6 +124732,13 @@ async function run() {
         info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
       }
     }
+    let partialSecurityResult = null;
+    if (config2.partialSecurityControlDetector) {
+      partialSecurityResult = detectPartialSecurityControls(diff.files);
+      if (partialSecurityResult.issues.length > 0) {
+        info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -124822,6 +125118,9 @@ ${taintContextStr}`;
     }
     if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + confabulatedAPIResult.contextText;
+    }
+    if (partialSecurityResult && partialSecurityResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + partialSecurityResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -125813,6 +126112,18 @@ ${digest}
               warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
+          if (partialSecurityResult && partialSecurityResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: partialSecurityResult.bodySummary
+              });
+            } catch (e) {
+              warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
         }
       }
     }
@@ -125976,6 +126287,7 @@ ${digest}
         if (config2.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
         if (config2.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
         if (config2.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
+        if (config2.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

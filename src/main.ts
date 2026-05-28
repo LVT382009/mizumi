@@ -108,6 +108,7 @@ import { detectTautologicalTests } from "./tautological-test-detector.js";
 import { detectContextAmplification } from "./context-amplification-detector.js";
 import { detectCargoCultArchitecture } from "./cargo-cult-architecture-detector.js";
 import { detectConfabulatedAPI } from "./confabulated-api-detector.js";
+import { detectPartialSecurityControls } from "./partial-security-control-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -778,6 +779,15 @@ if (config.confabulatedAPIDetector) {
   }
 }
 
+// 4a3zf. Partial security control detector — detect incomplete security control pairs: auth-without-authz, encrypt-without-kdf, validate-without-sanitize, rate-count-without-enforce
+let partialSecurityResult: import("./partial-security-control-detector.js").PartialSecurityResult | null = null;
+if (config.partialSecurityControlDetector) {
+  partialSecurityResult = detectPartialSecurityControls(diff.files);
+  if (partialSecurityResult.issues.length > 0) {
+    core.info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1232,6 +1242,9 @@ if (cargoCultResult && cargoCultResult.contextText) {
 }
 if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + confabulatedAPIResult.contextText;
+}
+if (partialSecurityResult && partialSecurityResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + partialSecurityResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2245,6 +2258,17 @@ if (confabulatedAPIResult && confabulatedAPIResult.bodySummary) {
     core.warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post partial security control detection summary as a separate comment
+if (partialSecurityResult && partialSecurityResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: partialSecurityResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
 }
  }
@@ -2418,6 +2442,7 @@ if (config.tautologicalTestDetector) auditBuilder.logStage("tautological-test-de
 if (config.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
 if (config.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
 if (config.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
+if (config.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

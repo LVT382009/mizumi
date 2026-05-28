@@ -445,6 +445,10 @@ description: 'Enable confabulated API surface detection (non-existent-method, wr
 required: false
 default: 'true'
 jira_base_url:
+partial_security_control_detector:
+description: 'Enable partial security control detection (auth-without-authz, encrypt-without-kdf, validate-without-sanitize, rate-count-without-enforce)'
+required: false
+default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:
