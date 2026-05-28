@@ -806,3 +806,22 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **+49 tests** in `src/__tests__/callback-misuse-detector.test.ts`
 - **5843 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects callback/Promise mixing as a category. ESLint `callback-return` and `prefer-promise-reject-errors` exist but are opt-in and miss `new Promise()` wrappers around callback APIs, unhandled error-first callbacks, and deprecated `fs.*` callback usage when `fs.promises.*` exists.
+
+### Stale Closure Detector + Test Expansion (2026-05-28)
+- **+35 tests** in `src/__tests__/stale-closure-detector.test.ts`
+- **+126 tests** expanded across 5 undertested modules:
+  - checks: 37→69 (+32)
+  - dead-code-detector: 37→63 (+26)
+  - describe: 37→59 (+22)
+  - delta: 37→59 (+22)
+  - crosspr-persist: 37→61 (+24)
+- **6004 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects stale closures as a category. ESLint `no-loop-func` is opt-in with many false positives, only covers loop-scoped functions, and misses async timing races and setTimeout/setInterval stale captures.
+
+### Next Gap Research (2026-05-28)
+Research identified 5 highest-impact remaining detector gaps:
+1. **Hallucinated Dependency / Slopsquatting Vector** — ~20% of AI code references non-existent packages; slopsquatting up 340% in Q1 2026
+2. **Test-Code Proxy Mirroring (Tautological AI Tests)** — tests share same flawed mental model as AI-generated implementation
+3. **Context-Amplification Artifact (Parallel Implementation)** — duplicate functionality from context window resets
+4. **Cargo-Cult Architecture (Over-Engineering Signals)** — LLMs apply design patterns based on statistical frequency, not contextual appropriateness
+5. **Confabulated API Surface (Phantom Method/Type Usage)** — calling methods on real classes that don't exist on that type
