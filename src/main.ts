@@ -99,6 +99,7 @@ import { detectDataFlowBoundaryViolations } from "./data-flow-boundary-detector.
 import { detectNullGuardGaps } from "./null-guard-detector.js";
 import { detectAICodePathologies } from "./ai-code-pathology-detector.js";
 import { detectUngatedCriticalReturns } from "./ungated-critical-return-detector.js";
+import { detectHardcodedConfig } from "./hardcoded-config-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -676,6 +677,19 @@ if (config.ungatedCriticalReturnDetector) {
   }
 }
 
+// 4a3w. Hardcoded configuration detector — detect LLM-specific config embedding: URLs, ports, limits, toggles
+let hardcodedConfigResult: import("./hardcoded-config-detector.js").HardcodedConfigResult | null = null;
+if (config.hardcodedConfigDetector) {
+  try {
+    hardcodedConfigResult = detectHardcodedConfig(diff.files);
+    if (hardcodedConfigResult.issues.length > 0) {
+      core.info("Hardcoded config detection: " + hardcodedConfigResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Hardcoded config detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1096,6 +1110,10 @@ if (aiPathologyResult && aiPathologyResult.contextText) {
 // 5c2v. Ungated critical return detector context injection
 if (ungatedReturnResult && ungatedReturnResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + ungatedReturnResult.contextText;
+}
+// 5c2w. Hardcoded configuration detector context injection
+if (hardcodedConfigResult && hardcodedConfigResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + hardcodedConfigResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -2019,6 +2037,17 @@ if (ungatedReturnResult && ungatedReturnResult.bodySummary) {
     core.warning("Ungated critical return comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post hardcoded configuration detection summary as a separate comment
+if (hardcodedConfigResult && hardcodedConfigResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: hardcodedConfigResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Hardcoded config comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2180,6 +2209,7 @@ if (config.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-d
 if (config.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, true);
 if (config.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-detector", 0, true);
 if (config.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critical-return-detector", 0, true);
+if (config.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

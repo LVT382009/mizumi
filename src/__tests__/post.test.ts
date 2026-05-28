@@ -110,6 +110,7 @@ dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
       aiCodePathologyDetector: true,
       ungatedCriticalReturnDetector: true,
+      hardcodedConfigDetector: true,
     ...overrides,
   };
 }

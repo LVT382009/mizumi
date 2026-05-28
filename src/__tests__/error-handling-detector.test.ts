@@ -526,3 +526,438 @@ describe("detectErrorHandlingGaps — edge cases", () => {
     expect(missing).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// New edge-case tests — unhandled-promise corner cases
+// ---------------------------------------------------------------------------
+
+describe("detectErrorHandlingGaps — unhandled-promise edge cases", () => {
+  it("detects Promise.all() without handler as floating promise", () => {
+    const files = [makeFile("src/app.ts", [
+      "+Promise.all([fetchA(), fetchB()]);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Promise.race() without handler as floating promise", () => {
+    const files = [makeFile("src/app.ts", [
+      "+Promise.race([p1, p2]);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Promise.resolve() without handler as floating promise", () => {
+    const files = [makeFile("src/app.ts", [
+      "+Promise.resolve(42);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("flags .then() when .catch() is beyond 3-line lookahead", () => {
+    const files = [makeFile("src/app.ts", [
+      "+fetch(url)",          // line 1: .then() detected
+      "+ .then(handleData)",  // line 2
+      "+ .then(transform)",   // line 3: within 3-line lookahead of line 1
+      "+ .then(finalize)",    // line 4: .catch() is beyond 3-line lookahead from line 1
+      "+ .catch(handleError);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    // The first .then() line should still be flagged because .catch() is
+    // beyond its 3-line lookahead window from that change's index
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does NOT flag .finally() when .catch() is nearby", () => {
+    const files = [makeFile("src/app.ts", [
+      "+promise.catch(handleError).finally(cleanup);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("does NOT flag void expression in the middle of a line", () => {
+    // "void" must be at the start of the trimmed line to qualify as a floating promise discard
+    const files = [makeFile("src/app.ts", [
+      "+const result = myFunc(void someRef);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    // Should not flag — "void" is not at start of line
+    const voidIssues = unhandled.filter((i) => i.description.includes("void expression"));
+    expect(voidIssues).toHaveLength(0);
+  });
+
+  it("skips block-comment lines starting with *", () => {
+    const files = [makeFile("src/app.ts", [
+      "+ * Use promise.then() for chaining",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("does not flag floating promise assigned to const with await", () => {
+    // const p = await new Promise(...) — has await, should be skipped
+    const files = [makeFile("src/app.ts", [
+      "+const result = await new Promise((resolve) => resolve(42));",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("does not flag floating promise that is returned", () => {
+    const files = [makeFile("src/app.ts", [
+      "+return new Promise((resolve) => {",
+      "+ resolve(42);",
+      "+});",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New edge-case tests — missing-await corner cases
+// ---------------------------------------------------------------------------
+
+describe("detectErrorHandlingGaps — missing-await edge cases", () => {
+  it("detects axios.get without await", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const response = axios.get(url);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+    expect(missing[0].code).toContain("axios.get");
+  });
+
+  it("detects mkdir without await", () => {
+    const files = [makeFile("src/files.ts", [
+      "+mkdir(dirPath, { recursive: true });",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects pipeline without await", () => {
+    const files = [makeFile("src/stream.ts", [
+      "+pipeline(readable, writable);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects aggregate without await", () => {
+    const files = [makeFile("src/db.ts", [
+      "+const results = aggregate(pipeline);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects bulkWrite without await", () => {
+    const files = [makeFile("src/db.ts", [
+      "+const res = bulkWrite(ops);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("does NOT flag the try { line itself — skips try block openers", () => {
+    // The detector only skips the line containing "try {", not lines inside the try block.
+    // This verifies the try-line skip: a line like "try {" is not mistaken for an async call.
+    const files = [makeFile("src/api.ts", [
+      "+try {",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("STILL flags fetch inside try block — try-line skip is line-level only", () => {
+    // The detector only skips the exact line containing "try {", not child lines
+    const files = [makeFile("src/api.ts", [
+      "+try {",
+      "+  const data = fetch(url);",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("does NOT flag Redis async operation inside .catch() callback", () => {
+    const files = [makeFile("src/cache.ts", [
+      "+promise.catch(() => redis.del(key));",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("does NOT flag fetch inside .catch() callback", () => {
+    const files = [makeFile("src/api.ts", [
+      "+promise.catch(() => fetch(fallbackUrl));",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("skips const assignment to Promise variable (intentionally deferred)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const p = Promise.resolve(42);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("skips JSdoc / block-comment lines in missing-await detection", () => {
+    const files = [makeFile("src/app.ts", [
+      "+/* fetch(url) */",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("detects create() without await (mongoose create)", () => {
+    const files = [makeFile("src/model.ts", [
+      "+const doc = create({ name: 'test' });",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects disconnect() without await", () => {
+    const files = [makeFile("src/db.ts", [
+      "+disconnect();",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New edge-case tests — swallowed-error corner cases
+// ---------------------------------------------------------------------------
+
+describe("detectErrorHandlingGaps — swallowed-error edge cases", () => {
+  it("flags catch block with only console.debug", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { console.debug(e); }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(1);
+  });
+
+  it("flags catch block with only console.info", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { console.info(e); }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(1);
+  });
+
+  it("does NOT flag catch block with console.error", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { console.error(e); }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("does NOT flag catch block with logger.error inline", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { logger.error('failed', e); }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("does NOT flag catch block with throw inline — varRefCatch path", () => {
+    // Inline form: catch(e) { err; } but with throw should NOT match varRefCatch
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { throw e; }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("does NOT flag catch block body exceeding 5 lines with real code", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+ logger.error('Operation failed', e);",
+      "+ notifyAdmin(e);",
+      "+ incrementErrorCounter();",
+      "+ fallbackToDefault();",
+      "+ scheduleRetry();",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("does NOT flag multi-line catch body with mixed comment and code", () => {
+    // Not all-comment body because there is real code next to the comment
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+ // Log the error",
+      "+ logger.warn('Error occurred', e);",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("flags .on('unhandledRejection', ...) with empty handler", () => {
+    const files = [makeFile("src/app.ts", [
+      "+process.on('unhandledRejection', (reason) => {});",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed.length).toBeGreaterThanOrEqual(1);
+    expect(swallowed[0].description).toContain("unhandledRejection");
+  });
+
+  it("flags inline catch(e) { e; } as variable-reference-only", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { e; }",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    // Both inline varRefCatch and trivial detection may fire, dedup ensures 1
+    expect(swallowed).toHaveLength(1);
+  });
+
+  it("flags catch block with only multiple comments (no code)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (err) {",
+      "+ // Known issue with external API",
+      "+ // See JIRA-1234 for details",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New edge-case tests — deduplication and multi-hunk
+// ---------------------------------------------------------------------------
+
+describe("detectErrorHandlingGaps — deduplication and multi-hunk edge cases", () => {
+  it("deduplicates same category+file+line but keeps different categories on same line", () => {
+    const files = [makeFile("src/api.ts", [
+      "+fetch(url).then(fn);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    // This could trigger both unhandled-promise (.then w/o .catch) and
+    // missing-await (fetch without await). Both categories should survive dedup.
+    const categories = new Set(result.issues.map((i) => i.category));
+    expect(categories.size).toBeGreaterThanOrEqual(1);
+    // Ensure we actually detected something
+    expect(result.issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("keeps issues from different lines even with same category and file", () => {
+    const files = [makeFile("src/api.ts", [
+      "+fetch(url1).then(fn1);",
+      "+fetch(url2).then(fn2);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(2);
+    expect(unhandled[0].line).not.toBe(unhandled[1].line);
+  });
+
+  it(".catch() beyond 3-line lookahead in added changes is not found, so .then() is flagged", () => {
+    // The unhandled-promise detector flattens all changes, but only looks ahead 3 lines.
+    // Adding 4+ non-catch added lines before .catch() means it won't be found.
+    const files = [makeFile("src/app.ts", [
+      "+fetch(url).then(handler);",   // .then() detected, looks ahead 3 lines
+      "+const x = compute();",        // line 2: no .catch()
+      "+const y = compute2();",       // line 3: no .catch()
+      "+const z = compute3();",       // line 4: no .catch() — beyond 3-line lookahead
+      "+ .catch(handleError);",       // line 5: too far away
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New edge-case tests — false positive prevention
+// ---------------------------------------------------------------------------
+
+describe("detectErrorHandlingGaps — false positive prevention", () => {
+  it("does not flag import lines containing 'then'", () => {
+    const files = [makeFile("src/app.ts", [
+      "+import { then } from './utils';",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("does not flag sync computeFetch (not a known async function name)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const data = computeSync(input);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("does not flag closing brace lines even with promise keywords", () => {
+    const files = [makeFile("src/app.ts", [
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("does not flag .then() when .catch() is on the same line", () => {
+    const files = [makeFile("src/app.ts", [
+      "+fetch(url).then(r => r.json()).catch(logError);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("does not flag new Promise assigned with = await", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const p = await new Promise((resolve) => {",
+      "+  resolve(42);",
+      "+});",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+});

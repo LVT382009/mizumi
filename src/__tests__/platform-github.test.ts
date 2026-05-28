@@ -184,6 +184,7 @@ dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
       aiCodePathologyDetector: true,
       ungatedCriticalReturnDetector: true,
+      hardcodedConfigDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));
