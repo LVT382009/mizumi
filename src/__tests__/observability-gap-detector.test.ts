@@ -416,3 +416,127 @@ describe("detectObservabilityGaps — edge cases", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("detectObservabilityGaps — additional edge cases", () => {
+  // 1. catch with console.warn (should NOT flag — warn is sufficient)
+  it("does not flag catch with console.warn", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { console.warn('Degraded', e); }",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const silent = result.issues.filter((i) => i.category === "silent-catch");
+    expect(silent).toHaveLength(0);
+  });
+
+  // 2. catch with Sentry capture (should NOT flag — strong observability)
+  it("does not flag catch with Sentry.captureException", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+ Sentry.captureException(e);",
+      "+}",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const silent = result.issues.filter((i) => i.category === "silent-catch");
+    expect(silent).toHaveLength(0);
+  });
+
+  // 3. catch with Datadog increment (should NOT flag — metrics)
+  it("does not flag catch with Datadog increment", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+ datadog.increment('api.errors');",
+      "+}",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const silent = result.issues.filter((i) => i.category === "silent-catch");
+    expect(silent).toHaveLength(0);
+  });
+
+  // 4. throw with logger.info before (should still flag — info is not strong enough)
+  it("flags throw with prior logger.info (info is not strong enough)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+logger.info('About to validate');",
+      "+throw new Error('Validation failed');",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const unlogged = result.issues.filter((i) => i.category === "throw-without-log");
+    expect(unlogged).toHaveLength(1);
+  });
+
+  // 5. Route handler with inline middleware logging call
+  it("does not flag route handler when logging middleware call is in the handler body", () => {
+    const files = [makeFile("src/server.ts", [
+      "+app.get('/api/users', (req, res) => {",
+      "+ req.log.info('Serving users');",
+      "+ res.json(users);",
+      "+});",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const getUnlogged = result.issues.filter(
+      (i) => i.category === "unlogged-route" && i.code.includes("app.get"),
+    );
+    expect(getUnlogged).toHaveLength(0);
+  });
+
+  // 6. Unlogged route with Fastify-style handler
+  it("detects fastify.get handler without logging", () => {
+    const files = [makeFile("src/server.ts", [
+      "+fastify.get('/api/items', async (req, reply) => {",
+      "+ return items;",
+      "+});",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const unlogged = result.issues.filter((i) => i.category === "unlogged-route");
+    expect(unlogged).toHaveLength(1);
+  });
+
+  // 7. Missing error metadata with structured logger.error({ err }, "msg") — should NOT flag
+  it("does not flag logger.error with structured context object", () => {
+    const files = [makeFile("src/app.ts", [
+      '+logger.error({ err }, "Operation failed");',
+    ])];
+    const result = detectObservabilityGaps(files);
+    const metadata = result.issues.filter((i) => i.category === "missing-error-metadata");
+    expect(metadata).toHaveLength(0);
+  });
+
+  // 8. Missing error metadata with log.fatal("msg") — should flag
+  it("flags log.fatal with only string argument", () => {
+    const files = [makeFile("src/app.ts", [
+      '+log.fatal("Unrecoverable error");',
+    ])];
+    const result = detectObservabilityGaps(files);
+    const metadata = result.issues.filter((i) => i.category === "missing-error-metadata");
+    expect(metadata).toHaveLength(1);
+  });
+
+  // 9. Multiple silent catches in same file
+  it("detects multiple silent catches in the same file", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) { console.log(e); }",
+      "+const x = 42;",
+      "+} catch (err) { console.debug('err', err); }",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const silent = result.issues.filter((i) => i.category === "silent-catch");
+    expect(silent).toHaveLength(2);
+    expect(silent[0].line).not.toBe(silent[1].line);
+  });
+
+  // 10. catch with both console.log AND console.error — should NOT flag
+  it("does not flag catch with console.log alongside console.error", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+ console.log('details', e);",
+      "+ console.error('Fetch failed', e);",
+      "+}",
+    ])];
+    const result = detectObservabilityGaps(files);
+    const silent = result.issues.filter((i) => i.category === "silent-catch");
+    expect(silent).toHaveLength(0);
+  });
+});

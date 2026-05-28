@@ -304,6 +304,7 @@ deadCodeDetector: true,
 resourceLifecycleDetector: true,
 observabilityGapDetector: true,
     concurrencyHazardDetector: true,
+    lifecycleProtocolDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

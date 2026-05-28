@@ -404,3 +404,147 @@ describe("auditTestAssertions — multiple files", () => {
     expect(weak.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases
+// ---------------------------------------------------------------------------
+
+describe("auditTestAssertions — edge cases", () => {
+  // 1. Multiple weak assertions on the same line — dedup collapses them
+  //    since category:file:line:code key is identical (trimmed line = same code)
+  it("detects at least one weak assertion when toBeDefined + toBeTruthy share a line", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('works', () => {",
+      "+ expect(x).toBeDefined(); expect(y).toBeTruthy();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion" && i.line === 2);
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // 2. Tautological with variable names — expect(isValid).toBe(true) is NOT
+  //    tautological in our regex model (only literal matches flagged)
+  it("does not flag expect(isValid).toBe(true) as tautological", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('checks valid', () => {",
+      "+ expect(isValid).toBe(true);",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const taut = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(taut).toHaveLength(0);
+  });
+
+  // 3. Files with it() blocks that only have console.log, no expect()
+  it("detects it() blocks with console.log but no expect()", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('debug output', () => {",
+      "+ console.log('value:', result);",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const free = result.issues.filter((i) => i.category === "assertion-free-test");
+    expect(free.length).toBeGreaterThanOrEqual(1);
+    expect(free[0].description).toContain("debug output");
+  });
+
+  // 4. Mixed file: some valid and some weak assertions
+  it("reports weak assertions alongside valid ones in the same file", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('add', () => {",
+      "+ expect(add(1, 2)).toBe(3);",
+      "+});",
+      "+it('exists', () => {",
+      "+ expect(thing).toBeDefined();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion");
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+    const free = result.issues.filter((i) => i.category === "assertion-free-test");
+    expect(free).toHaveLength(0);
+  });
+
+  // 5. .spec.ts file detection
+  it("audits .spec.ts files for weak assertions", () => {
+    const files = [makeFile("src/utils.spec.ts", [
+      "+it('works', () => {",
+      "+ expect(result).toBeTruthy();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion");
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+    expect(weak[0].file).toContain(".spec.ts");
+  });
+
+  // 6. test/ directory file detection
+  it("audits files in test/ directory", () => {
+    const files = [makeFile("test/helpers.ts", [
+      "+it('works', () => {",
+      "+ expect(x).toBeDefined();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion");
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // 7. Nested describe blocks with assertions
+  it("detects weak assertions inside nested describe blocks", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+describe('outer', () => {",
+      "+ describe('inner', () => {",
+      "+  it('works', () => {",
+      "+   expect(x).toBeDefined();",
+      "+  });",
+      "+ });",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion");
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // 8. toBeNull as weak assertion
+  it("detects toBeNull as a weak assertion with correct description", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('has no error', () => {",
+      "+ expect(error).toBeNull();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter(
+      (i) => i.category === "weak-assertion" && i.description.includes("toBeNull"),
+    );
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+    expect(weak[0].severity).toBe("medium");
+  });
+
+  // 9. toBe(undefined) as weak assertion
+  it("detects toBe(undefined) as a weak assertion", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('is undefined', () => {",
+      "+ expect(x).toBe(undefined);",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter(
+      (i) => i.category === "weak-assertion" && i.description.includes("toBe"),
+    );
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // 10. Multiple expect() on same line — dedup collapses to one issue per line
+  it("detects at least one weak assertion when two expect calls share a line", () => {
+    const files = [makeFile("src/app.test.ts", [
+      "+it('multi', () => {",
+      "+ expect(a).toBeDefined(); expect(b).toBeFalsy();",
+      "+});",
+    ])];
+    const result = auditTestAssertions(files);
+    const weak = result.issues.filter((i) => i.category === "weak-assertion" && i.line === 2);
+    expect(weak.length).toBeGreaterThanOrEqual(1);
+  });
+});

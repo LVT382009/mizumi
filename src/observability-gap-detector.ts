@@ -61,6 +61,7 @@ export interface ObservabilityGapResult {
 // Observability-producing patterns (legitimate error handling)
 const LOG_ERROR_RE = /\.(?:error|fatal|critical|alert|emergency)\s*\(/;
 const LOG_WARN_RE = /\.warn\s*\(/;
+const SENTRY_RE = /Sentry\.\s*(?:captureException|captureMessage|captureEvent|withScope|addBreadcrumb)\s*\(/;
 const METRICS_RE = /\.(?:increment|decrement|gauge|histogram|timing|counter|meter)\s*\(/;
 const TRACE_RE = /\.span|\.trace|\.recordException|\.setAttribute|\.addEvent\s*\(/;
 
@@ -106,7 +107,7 @@ function detectSilentCatches(file: DiffFile): ObservabilityGapIssue[] {
         const inner = innerMatch[1].trim();
         if (!inner) continue; // empty catch is handled by dead-code-detector
         // Check if inner content has only weak observability
-        const hasStrong = LOG_ERROR_RE.test(inner) || LOG_WARN_RE.test(inner) || METRICS_RE.test(inner) || TRACE_RE.test(inner);
+        const hasStrong = LOG_ERROR_RE.test(inner) || LOG_WARN_RE.test(inner) || METRICS_RE.test(inner) || TRACE_RE.test(inner) || SENTRY_RE.test(inner);
         const hasWeak = CONSOLE_LOG_RE.test(inner) || CONSOLE_INSPECT_RE.test(inner) || CONSOLE_DEBUG_RE.test(inner) || CONSOLE_INFO_RE.test(inner);
         if (hasWeak && !hasStrong) {
           const trimmed = content.replace(/^\+/, "").trim();
@@ -137,7 +138,7 @@ function detectSilentCatches(file: DiffFile): ObservabilityGapIssue[] {
 
         blockLines.push(nextContent);
 
-        if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content)) {
+        if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content) || SENTRY_RE.test(next.content)) {
           hasStrong = true;
         }
         if (CONSOLE_LOG_RE.test(next.content) || CONSOLE_DEBUG_RE.test(next.content) || CONSOLE_INFO_RE.test(next.content)) {
@@ -176,7 +177,7 @@ function detectThrowWithoutLog(file: DiffFile): ObservabilityGapIssue[] {
     let hasPriorLog = false;
     for (let j = Math.max(0, i - 5); j < i; j++) {
       const prev = addedChanges[j];
-      if (LOG_ERROR_RE.test(prev.content) || LOG_WARN_RE.test(prev.content) || METRICS_RE.test(prev.content) || TRACE_RE.test(prev.content)) {
+      if (LOG_ERROR_RE.test(prev.content) || LOG_WARN_RE.test(prev.content) || METRICS_RE.test(prev.content) || TRACE_RE.test(prev.content) || SENTRY_RE.test(prev.content)) {
         hasPriorLog = true;
         break;
       }
@@ -212,7 +213,7 @@ function detectUnloggedRoutes(file: DiffFile): ObservabilityGapIssue[] {
     let hasObservability = false;
     for (let j = i + 1; j < Math.min(i + 20, addedChanges.length); j++) {
       const next = addedChanges[j];
-      if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || LOG_ERROR_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content) || CONSOLE_LOG_RE.test(next.content) || CONSOLE_INFO_RE.test(next.content)) {
+      if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || LOG_ERROR_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content) || SENTRY_RE.test(next.content) || CONSOLE_LOG_RE.test(next.content) || CONSOLE_INFO_RE.test(next.content)) {
         hasObservability = true;
         break;
       }
@@ -247,7 +248,7 @@ function detectMissingErrorMetadata(file: DiffFile): ObservabilityGapIssue[] {
     // Pattern: logger.error("message") without error object or context
     // Matches: logger.error("some message")  or  log.error("message")
     // Does NOT match: logger.error("msg", err) or logger.error({ err }, "msg")
-    const weakLogMatch = change.content.match(/(?:logger|log|Logger)\.\s*(?:error|warn)\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+    const weakLogMatch = change.content.match(/(?:logger|log|Logger)\.\s*(?:error|warn|fatal|critical|alert|emergency)\s*\(\s*['"]([^'"]+)['"]\s*\)/);
     if (weakLogMatch) {
       const trimmed = change.content.replace(/^\+/, "").trim();
       issues.push({

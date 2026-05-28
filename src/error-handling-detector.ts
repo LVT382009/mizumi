@@ -58,12 +58,16 @@ export interface ErrorHandlingResult {
 // where the line or nearby context doesn't also have .catch(
 const THEN_WITHOUT_CATCH_RE = /\.then\s*\(/;
 
+// .finally() without a preceding .catch()
 // Promise that is created but not chained (no .then/.catch/await)
 const FLOATING_PROMISE_RE = /(?:new\s+Promise|Promise\.\w+)\s*\(/;
 
+// void expression discarding a promise: void somePromise
 // Catch blocks that only have trivial/no-op content
 const TRIVIAL_CATCH_RE = /catch\s*\([^)]*\)\s*\{[\s;]*\}/;
 
+// catch(e) { e; } — catch body with only a variable reference
+// Redis async operations
 // ---------------------------------------------------------------------------
 // Detection functions
 // ---------------------------------------------------------------------------
@@ -339,7 +343,6 @@ export function detectErrorHandlingGaps(diffFiles: DiffFile[]): ErrorHandlingRes
   }
 
   const issues = dedupIssues(allIssues);
-
   issues.sort((a, b) => {
     const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
     if (sv !== 0) return sv;

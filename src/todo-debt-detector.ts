@@ -65,11 +65,11 @@ const DEBT_PATTERNS: Array<{
   pattern: RegExp;
   severity: "critical" | "warning";
 }> = [
-  { category: "fixme", pattern: /\bFIXME\b/, severity: "critical" },
-  { category: "hack", pattern: /\bHACK\b/, severity: "critical" },
-  { category: "xxx", pattern: /\bXXX\b/, severity: "critical" },
-  { category: "todo", pattern: /\bTODO\b/, severity: "warning" },
-  { category: "workaround", pattern: /\bWORKAROUND\b/, severity: "warning" },
+  { category: "fixme", pattern: /\bFIXME\b/i, severity: "critical" },
+  { category: "hack", pattern: /\bHACK\b/i, severity: "critical" },
+  { category: "xxx", pattern: /\bXXX\b/i, severity: "critical" },
+  { category: "todo", pattern: /\bTODO\b/i, severity: "warning" },
+  { category: "workaround", pattern: /\bWORKAROUND\b/i, severity: "warning" },
 ];
 
 // ---------------------------------------------------------------------------

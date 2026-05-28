@@ -93,6 +93,7 @@ import { detectPerformanceAntiPatterns } from "./performance-antipattern-detecto
 import { detectResourceLifecycleViolations } from "./resource-lifecycle-detector.js";
 import { detectObservabilityGaps } from "./observability-gap-detector.js";
 import { detectConcurrencyHazards } from "./async-concurrency-hazard-detector.js";
+import { detectLifecycleProtocolViolations } from "./lifecycle-protocol-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -592,6 +593,19 @@ if (config.concurrencyHazardDetector) {
   }
 }
 
+// 4a3q. Lifecycle protocol detector — detect invalid transitions, missing initial state, unreachable states, missing error state
+let lifecycleProtocolResult: import("./lifecycle-protocol-detector.js").LifecycleProtocolResult | null = null;
+if (config.lifecycleProtocolDetector) {
+  try {
+    lifecycleProtocolResult = detectLifecycleProtocolViolations(diff.files);
+    if (lifecycleProtocolResult.issues.length > 0) {
+      core.info("Lifecycle protocol detection: " + lifecycleProtocolResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Lifecycle protocol detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -989,6 +1003,10 @@ if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
 
 // 5c2o. Observability gap detector context injection
 // 5c2p. Async concurrency hazard detector context injection
+// 5c2q. Lifecycle protocol detector context injection
+if (lifecycleProtocolResult && lifecycleProtocolResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lifecycleProtocolResult.contextText;
+}
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
 }
@@ -1844,6 +1862,18 @@ if (concurrencyHazardResult && concurrencyHazardResult.bodySummary) {
     core.warning("Concurrency hazard comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+
+// Post lifecycle protocol detection summary as a separate comment
+if (lifecycleProtocolResult && lifecycleProtocolResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: lifecycleProtocolResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Lifecycle protocol comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1999,6 +2029,7 @@ if (config.performanceAntipatternDetector) auditBuilder.logStage("performance-an
 if (config.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-detector", 0, true);
 if (config.observabilityGapDetector) auditBuilder.logStage("observability-gap-detector", 0, true);
 if (config.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-detector", 0, true);
+if (config.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

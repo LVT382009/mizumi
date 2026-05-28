@@ -180,6 +180,7 @@ deadCodeDetector: true,
 resourceLifecycleDetector: true,
 observabilityGapDetector: true,
     concurrencyHazardDetector: true,
+    lifecycleProtocolDetector: true,
     ...overrides,
   };
 }

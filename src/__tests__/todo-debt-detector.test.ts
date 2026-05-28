@@ -209,7 +209,7 @@ describe("detectTechDebt — multiple markers", () => {
     const files = [makeFile("src/app.ts", [
       "+// TODO: add test",
       "+// FIXME: broken",
-      "+// HACK: workaround",
+      "+// HACK: temp bypass",
       "+// XXX: dangerous",
       "+// WORKAROUND: temp fix",
     ])];
@@ -409,5 +409,127 @@ describe("detectTechDebt — edge cases", () => {
     const result = detectTechDebt(files);
     const fixmes = result.issues.filter((i) => i.category === "fixme");
     expect(fixmes).toHaveLength(3);
+  });
+
+  it("detects multiple markers on the same line (FIXME + HACK)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// FIXME: broken and HACK: temp bypass",
+    ])];
+    const result = detectTechDebt(files);
+    expect(result.issues).toHaveLength(2);
+    const categories = result.issues.map((i) => i.category);
+    expect(categories).toContain("fixme");
+    expect(categories).toContain("hack");
+  });
+
+  it("detects case-insensitive markers — lowercase fixme", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// fixme: this crashes on null input",
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+    expect(fixmes[0].marker).toBe("fixme");
+  });
+
+  it("detects case-insensitive markers — mixed case FixMe", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// FixMe: partial fix",
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+    expect(fixmes[0].marker).toBe("FixMe");
+  });
+
+  it("detects TODO with ticket reference — TODO(JIRA-123)", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// TODO(JIRA-123): implement auth flow",
+    ])];
+    const result = detectTechDebt(files);
+    const todos = result.issues.filter((i) => i.category === "todo");
+    expect(todos).toHaveLength(1);
+    expect(todos[0].marker).toBe("TODO");
+    expect(todos[0].description).toContain("JIRA-123");
+  });
+
+  it("detects XXX marker in code", () => {
+    const files = [makeFile("src/danger.ts", [
+      "+// XXX: uninitialized variable used here",
+    ])];
+    const result = detectTechDebt(files);
+    const xxxs = result.issues.filter((i) => i.category === "xxx");
+    expect(xxxs).toHaveLength(1);
+    expect(xxxs[0].severity).toBe("critical");
+    expect(xxxs[0].description).toContain("uninitialized variable");
+  });
+
+  it("detects WORKAROUND marker in code", () => {
+    const files = [makeFile("src/api.ts", [
+      "+// WORKAROUND: server returns 500 intermittently",
+    ])];
+    const result = detectTechDebt(files);
+    const was = result.issues.filter((i) => i.category === "workaround");
+    expect(was).toHaveLength(1);
+    expect(was[0].severity).toBe("warning");
+    expect(was[0].description).toContain("server returns 500");
+  });
+
+  it("detects inline marker without colon — FIXME crash on null", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// FIXME crash on null input",
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+    expect(fixmes[0].description).toContain("crash on null input");
+  });
+
+  it("ignores deleted lines with markers", () => {
+    const files = [makeFile("src/app.ts", [
+      "-// TODO: old task that was completed",
+      "-// FIXME: old bug that was fixed",
+      "+const result = compute();",
+    ])];
+    const result = detectTechDebt(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("detects markers across multiple files with different types", () => {
+    const files = [
+      makeFile("src/a.ts", ["+// TODO: add validation"]),
+      makeFile("src/b.ts", ["+// FIXME: null pointer"]),
+      makeFile("src/c.ts", ["+// HACK: skip auth"]),
+      makeFile("src/d.ts", ["+// XXX: race condition"]),
+      makeFile("src/e.ts", ["+// WORKAROUND: timeout issue"]),
+    ];
+    const result = detectTechDebt(files);
+    expect(result.issues).toHaveLength(5);
+    const categories = result.issues.map((i) => i.category);
+    expect(categories).toContain("todo");
+    expect(categories).toContain("fixme");
+    expect(categories).toContain("hack");
+    expect(categories).toContain("xxx");
+    expect(categories).toContain("workaround");
+  });
+
+  it("detects FIXME inside block comment /* ... */", () => {
+    const files = [makeFile("src/app.ts", [
+      "+/* FIXME: this function leaks memory */",
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+    expect(fixmes[0].description).toContain("this function leaks memory");
+  });
+
+  it("detects marker inside string literal (new code being added)", () => {
+    const files = [makeFile("src/app.ts", [
+      '+const msg = "FIXME: handle timeout gracefully";',
+    ])];
+    const result = detectTechDebt(files);
+    const fixmes = result.issues.filter((i) => i.category === "fixme");
+    expect(fixmes).toHaveLength(1);
+    expect(fixmes[0].description).toContain("handle timeout gracefully");
   });
 });

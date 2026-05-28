@@ -713,3 +713,14 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **33 tests** in `src/__tests__/observability-gap-detector.test.ts`
 - **5016 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer flags observability gaps at PR review time. SonarQube S108 detects empty catch blocks but not "logged at info instead of error" or "no metrics for this failure path." CodeRabbit occasionally comments on missing logging via AI (non-deterministic), but no tool has a dedicated detector.
+
+### Async Concurrency Hazard Detector (2026-05-28)
+- **New file**: `src/async-concurrency-hazard-detector.ts` — detect race conditions and concurrency bugs in PR diffs
+- **4 detection categories**: toctou (synchronous check then async use — critical), shared-mutable-state (module-level let/var read+written in async — warning), race-on-flag (boolean flag check-then-set before async work — critical), unbounded-promise-all (Promise.all on dynamic arrays — warning)
+- **Pattern analysis**: CHECK_EXISTS_RE for exists/has/includes checks, MODULE_LEVEL_MUTABLE_RE for let/var declarations, COMMON_FLAG_NAMES for boolean guard patterns (is/has/can/should/processing/locked/running etc), DYNAMIC_ARRAY_RE for Promise.all with .map/.filter/.reduce/.flatMap/.slice/.concat
+- **Pipeline integration**: main.ts detection block (4a3p), context injection (5c2p), body summary comment, audit trail
+- **Config propagation**: `concurrency_hazard_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **Retroactive fix**: Added missing `resource_lifecycle_detector` and `observability_gap_detector` action.yml inputs
+- **48 tests** in `src/__tests__/async-concurrency-hazard-detector.test.ts`
+- **5064 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects concurrency hazards at PR review time. ESLint `require-atomic-updates` exists but is disabled by default and has severe false-positive problems. No linter detects TOCTOU, flag-flip races, or unbounded Promise.all.

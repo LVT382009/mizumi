@@ -380,6 +380,11 @@ concurrency_hazard_detector:
   required: false
   default: "true"
 
+lifecycle_protocol_detector:
+  description: "Enable state machine / lifecycle protocol detector — flags invalid transitions, missing initial states, unreachable states, and missing error states. Zero LLM cost. No AI code reviewer detects state machine violations at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
