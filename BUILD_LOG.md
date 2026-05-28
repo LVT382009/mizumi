@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 5364 Tests)
+### Build Stats (Current — 5424 Tests)
 
-- **5364 tests** passing (106 test files)
+- **5424 tests** passing (107 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -766,7 +766,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **+47 tests** in `src/__tests__/ai-code-pathology-detector.test.ts`
 - **+23 tests** from AI pathology config propagation (8 test stubs + existing config stubs)
 - **5364 tests** passing, 0 TS errors, bundle rebuilt
+- **+60 tests** in `src/__tests__/ungated-critical-return-detector.test.ts`
+- **5424 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects LLM-specific code pathologies. Human reviewers trust "code that compiles" but LLM code often compiles while being semantically wrong — hallucinated imports, sycophantic stubs returning trivial defaults, confident-wrong API calls (Set.includes, Array.has), unnecessary boilerplate expansion.
+- **Competitive gap**: No AI code reviewer detects ungated critical returns — LLMs call validate/check/auth functions without guarding on the result, causing silent auth bypass. The #1 pattern behind LLM-caused auth bypass and data corruption.
 - **Competitive gap**: No AI code reviewer detects null guard gaps at PR review time. TypeScript strictNullChecks helps but many codebases don't enable it, and even with it, optional chaining gaps and non-null assertions create runtime crash risks.
 - **Competitive gap**: No AI code reviewer detects data flow boundary violations. SAST tools find hardcoded secrets but miss when PII flows from trusted layers (DB/auth) to untrusted layers (HTTP response, log, client bundle, third-party API) without sanitization.
 - **Competitive gap**: No AI code reviewer detects semantic type confusion. TypeScript catches structural incompatibility but not semantic mismatch (userId vs orderId, priceCents vs priceDollars).
