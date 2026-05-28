@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 5556 Tests)
 
-- **5794 tests** passing (109 test files)
+- **5843 tests** passing (110 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -801,3 +801,8 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
   - breaking-change-radar: 36→71 (+35)
 - **5794 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects debug artifacts as a category. ESLint `no-debugger` and `no-console` exist but are opt-in (most projects don't enable them), not integrated into PR review context, and miss debug flags and test isolation breaks (it.only, describe.only, fit, xit).
+
+### Callback Misuse Detector (2026-05-28)
+- **+49 tests** in `src/__tests__/callback-misuse-detector.test.ts`
+- **5843 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects callback/Promise mixing as a category. ESLint `callback-return` and `prefer-promise-reject-errors` exist but are opt-in and miss `new Promise()` wrappers around callback APIs, unhandled error-first callbacks, and deprecated `fs.*` callback usage when `fs.promises.*` exists.
