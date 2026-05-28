@@ -838,3 +838,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **6063 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects tautological tests. Qodo detects untested paths but not tests that are structurally present but logically vacuous. No tool validates whether a test asserts anything the implementation could actually fail.
 - **4 detection categories**: tautological-assertion (arithmetic in expect, self-referencing expected), fixture-mirror-constant (verbatim copied impl constants), happy-path-only (3+ tests with 0 error/edge-case coverage), private-helper-in-test (imports from internal modules, underscore-prefixed calls)
+
+### Context Amplification Detector (2026-05-28)
+- **+21 tests** in `src/__tests__/context-amplification-detector.test.ts`
+- **6084 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects parallel implementations from context resets. When LLM context windows fill/reset, the model forgets existing implementations and creates duplicate versions with different naming. Both copies may be actively called but only one gets updated, causing subtle drift.
+- **4 detection categories**: duplicate-implementation (same verb+noun in different files via verb/noun normalization), naming-inconsistency (synonymous domain concepts across files), divergent-utility (same utility function in multiple files, displayName preservation), import-divergence (same symbol imported from different paths)
+- **Key features**: verb normalization (create/build → create, fetch/get → get), noun normalization (message/alert → notification, store/dao → repository), capped output for naming-inconsistency and import-divergence (max 5 each)
