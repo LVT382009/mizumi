@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 5132 Tests)
 
-- **5222 tests** passing (104 test files)
+- **5294 tests** passing (105 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -753,6 +753,17 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **Config propagation**: `data_flow_boundary_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
 - **44 tests** in `src/__tests__/data-flow-boundary-detector.test.ts`
 - **5222 tests** passing, 0 TS errors, bundle rebuilt
+
+### Null Guard / Defensive Access Detector (2026-05-28)
+- **New file**: `src/null-guard-detector.ts` — detect missing null/undefined checks before property access
+- **4 categories**: deep-access-without-guard (critical), array-index-without-check (warning), optional-chain-coverage-gap (warning), assertive-access-on-optional (critical)
+- **Pattern analysis**: DEEP_ACCESS_RE for a.b.c chains, PARTIAL_OPTIONAL_CHAIN_RE for a?.b.c gaps, ASSERTION_ACCESS_RE for value!.prop, ARRAY_INDEX_ACCESS_RE for arr[0].prop, NULLABLE_SOURCE_RE for 30+ known nullable variable names
+- **Pipeline integration**: main.ts detection block (4a3t), context injection (5c2t), body summary comment, audit trail
+- **Config propagation**: `null_guard_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **38 tests** in `src/__tests__/null-guard-detector.test.ts`
+- **+34 test expansion** across data-flow-boundary (+17) and semantic-type-confusion (+17) detectors
+- **5294 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects null guard gaps at PR review time. TypeScript strictNullChecks helps but many codebases don't enable it, and even with it, optional chaining gaps and non-null assertions create runtime crash risks.
 - **Competitive gap**: No AI code reviewer detects data flow boundary violations. SAST tools find hardcoded secrets but miss when PII flows from trusted layers (DB/auth) to untrusted layers (HTTP response, log, client bundle, third-party API) without sanitization.
 - **Competitive gap**: No AI code reviewer detects semantic type confusion. TypeScript catches structural incompatibility but not semantic mismatch (userId vs orderId, priceCents vs priceDollars).
 
