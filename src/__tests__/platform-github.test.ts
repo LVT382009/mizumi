@@ -190,6 +190,7 @@ nullGuardDetector: true,
       staleClosureDetector: true,
       hallucinatedDependencyDetector: true,
       tautologicalTestDetector: true,
+        contextAmplificationDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

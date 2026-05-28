@@ -114,6 +114,7 @@ nullGuardDetector: true,
       staleClosureDetector: true,
       hallucinatedDependencyDetector: true,
       tautologicalTestDetector: true,
+        contextAmplificationDetector: true,
   ...overrides,
 });
 

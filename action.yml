@@ -428,6 +428,10 @@ callback_misuse_detector:
     required: false
     default: 'true'
 debug_artifact_detector:
+  context_amplification_detector:
+    description: 'Enable context amplification detection (duplicate-implementation, naming-inconsistency, divergent-utility, import-divergence)'
+    required: false
+    default: 'true'
   description: "Enable debug artifact detector — flags leftover debugger statements, console.log in production code, it.only/describe.only test isolation breaks, and debug/verbose flags left enabled. Zero LLM cost. No AI code reviewer detects debug artifacts as a category."
   required: false
   default: "true"

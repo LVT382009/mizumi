@@ -105,6 +105,7 @@ import { detectCallbackMisuse } from "./callback-misuse-detector.js";
 import { detectStaleClosures } from "./stale-closure-detector.js";
 import { detectHallucinatedDeps } from "./hallucinated-dependency-detector.js";
 import { detectTautologicalTests } from "./tautological-test-detector.js";
+import { detectContextAmplification } from "./context-amplification-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -748,6 +749,15 @@ if (config.callbackMisuseDetector) {
           }
         }
 
+// 4a3zc. Context amplification detector — detect parallel implementations from context resets: duplicate-implementation, naming-inconsistency, divergent-utility, import-divergence
+let contextAmplificationResult: import("./context-amplification-detector.js").ContextAmplificationResult | null = null;
+if (config.contextAmplificationDetector) {
+  contextAmplificationResult = detectContextAmplification(diff.files);
+  if (contextAmplificationResult.issues.length > 0) {
+    core.info("Context amplification detection: " + contextAmplificationResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1193,6 +1203,9 @@ if (hallucinatedDepResult && hallucinatedDepResult.contextText) {
 }
 if (tautologicalTestResult && tautologicalTestResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + tautologicalTestResult.contextText;
+}
+if (contextAmplificationResult && contextAmplificationResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + contextAmplificationResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2173,6 +2186,17 @@ if (tautologicalTestResult && tautologicalTestResult.bodySummary) {
     core.warning("Tautological test comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post context amplification detection summary as a separate comment
+if (contextAmplificationResult && contextAmplificationResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: contextAmplificationResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
 }
  }
@@ -2343,6 +2367,7 @@ if (config.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detect
 if (config.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0, true);
 if (config.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
 if (config.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
+if (config.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
