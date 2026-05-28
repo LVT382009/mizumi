@@ -825,3 +825,10 @@ Research identified 5 highest-impact remaining detector gaps:
 3. **Context-Amplification Artifact (Parallel Implementation)** — duplicate functionality from context window resets
 4. **Cargo-Cult Architecture (Over-Engineering Signals)** — LLMs apply design patterns based on statistical frequency, not contextual appropriateness
 5. **Confabulated API Surface (Phantom Method/Type Usage)** — calling methods on real classes that don't exist on that type
+
+### Hallucinated Dependency Detector (2026-05-28)
+- **+35 tests** in `src/__tests__/hallucinated-dependency-detector.test.ts`
+- **6039 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects hallucinated packages as a category. SCA tools check for CVEs in real packages but have no concept of a package that shouldn't exist. Slopsquatting attacks increased 340% in Q1 2026. ~20% of AI-generated code references non-existent packages.
+- **4 detection categories**: unknown-import (not in lockfile/package.json), slopsquatting-signal (LLM confabulation naming patterns like `fast-X-parser`, `X-lite`), phantom-scoped-import (unknown @scoped packages), version-mismatch (`.v2+` API access)
+- **Cross-references**: package-lock.json, yarn.lock, pnpm-lock.yaml, package.json
