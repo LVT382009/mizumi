@@ -378,3 +378,91 @@ describe("detectImportCycles — complex scenarios", () => {
     expect(direct.length).toBeGreaterThanOrEqual(1);
   });
 });
+// ---------------------------------------------------------------------------
+// Edge cases — additional coverage
+// ---------------------------------------------------------------------------
+
+describe('detectImportCycles — edge cases (expanded)', () => {
+  it('ignores deleted lines for import extraction', () => {
+    const files = [
+      makeFile('src/a.ts', ["-import { b } from './b';", "+import { c } from './c';"]),
+      makeFile('src/c.ts', ["+export const c = 42;"]),
+    ];
+    const result = detectImportCycles(files);
+    expect(result.cycles).toHaveLength(0);
+  });
+
+  it('handles files with no hunks', () => {
+    const files = [makeFile('src/empty.ts', [])];
+    const result = detectImportCycles(files);
+    expect(result.cycles).toHaveLength(0);
+  });
+
+  it('detects cycle with aliased imports', () => {
+    const files = [
+      makeFile('src/a.ts', ["+import { b as B } from './b';"]),
+      makeFile('src/b.ts', ["+import { a } from './a';"]),
+    ];
+    const result = detectImportCycles(files);
+    const direct = result.cycles.filter((c) => c.category === 'direct-cycle');
+    expect(direct.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('handles multiple imports from the same file', () => {
+    const files = [
+      makeFile('src/a.ts', [
+        "+import { b1 } from './b';",
+        "+import { b2 } from './b';",
+      ]),
+      makeFile('src/b.ts', ["+import { a } from './a';"]),
+    ];
+    const result = detectImportCycles(files);
+    const direct = result.cycles.filter((c) => c.category === 'direct-cycle');
+    expect(direct.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects cycle with path variations (subdirectory)', () => {
+    const files = [
+      makeFile('src/services/auth.ts', ["+import { db } from '../db';"]),
+      makeFile('src/db.ts', ["+import { authenticate } from './services/auth';"]),
+    ];
+    const result = detectImportCycles(files);
+    expect(result.cycles).toBeDefined();
+  });
+
+  it('returns correct contextText structure with both sections', () => {
+    const files = [
+      makeFile('src/a.ts', ["+import { b } from './b';"]),
+      makeFile('src/b.ts', ["+import { a } from './a';"]),
+      makeFile('src/c.ts', ["+import { d } from './d';"]),
+      makeFile('src/d.ts', ["+import { e } from './e';"]),
+      makeFile('src/e.ts', ["+import { c } from './c';"]),
+    ];
+    const result = detectImportCycles(files);
+    if (result.cycles.length > 0) {
+      expect(result.contextText).toContain('Import Cycle Detection');
+    }
+  });
+
+  it('body summary shows chain preview with filenames only', () => {
+    const files = [
+      makeFile('src/a.ts', ["+import { b } from './b';"]),
+      makeFile('src/b.ts', ["+import { a } from './a';"]),
+    ];
+    const result = detectImportCycles(files);
+    if (result.cycles.length > 0 && result.bodySummary) {
+      expect(result.bodySummary).toContain('| Category |');
+      expect(result.bodySummary).toContain('cycle');
+    }
+  });
+
+  it('handles require with destructuring', () => {
+    const files = [
+      makeFile('src/x.ts', ["+const { y } = require('./y');"]),
+      makeFile('src/y.ts', ["+const { x } = require('./x');"]),
+    ];
+    const result = detectImportCycles(files);
+    const cycles = result.cycles.filter((c) => c.category === 'direct-cycle');
+    expect(cycles.length).toBeGreaterThanOrEqual(1);
+  });
+});

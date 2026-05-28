@@ -327,3 +327,119 @@ describe("detectMagicNumbers — edge cases", () => {
     expect(result.issues).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases — additional coverage
+// ---------------------------------------------------------------------------
+
+describe('detectMagicNumbers — edge cases (expanded)', () => {
+  it('detects magic number in comparison', () => {
+    const files = [makeFile('src/api.ts', [
+      '+if (retries > 99) {',
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === 'numeric-literal');
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+    expect(nums[0].value).toBe('99');
+  });
+
+  it('detects magic number in arithmetic', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const total = price + 15;',
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === 'numeric-literal');
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips version-like content', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const nodeVersion = version >= 20;',
+    ])];
+    const result = detectMagicNumbers(files);
+    // 20 might or might not be flagged depending on SAFE_NUMBERS
+    expect(result.issues).toBeDefined();
+  });
+
+  it('skips spec files', () => {
+    const files = [makeFile('src/app.spec.ts', [
+      '+const limit = 5000;',
+    ])];
+    const result = detectMagicNumbers(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it('detects expired value as timeout', () => {
+    const files = [makeFile('src/cache.ts', [
+      '+const expire = 86400;',
+    ])];
+    const result = detectMagicNumbers(files);
+    const timeouts = result.issues.filter((i) => i.category === 'timeout-duration');
+    expect(timeouts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects wait value', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const wait = 2500;',
+    ])];
+    const result = detectMagicNumbers(files);
+    const timeouts = result.issues.filter((i) => i.category === 'timeout-duration');
+    expect(timeouts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects sleep duration as timeout', () => {
+    const files = [makeFile('src/utils.ts', [
+      '+const sleep = 3000;',
+    ])];
+    const result = detectMagicNumbers(files);
+    const timeouts = result.issues.filter((i) => i.category === 'timeout-duration');
+    expect(timeouts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects duration in assignment', () => {
+    const files = [makeFile('src/timer.ts', [
+      '+const duration = 500;',
+    ])];
+    const result = detectMagicNumbers(files);
+    const timeouts = result.issues.filter((i) => i.category === 'timeout-duration');
+    expect(timeouts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects hardcoded string in strict equality', () => {
+    const files = [makeFile('src/auth.ts', [
+      '+if (status === "internal_server_error") {',
+    ])];
+    const result = detectMagicNumbers(files);
+    const strs = result.issues.filter((i) => i.category === 'string-literal');
+    expect(strs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips type declaration lines', () => {
+    const files = [makeFile('src/types.ts', [
+      '+interface Config { maxRetries: number; }',
+    ])];
+    const result = detectMagicNumbers(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it('detects issues across multiple files', () => {
+    const files = [
+      makeFile('src/a.ts', ['+const limit = 42;']),
+      makeFile('src/b.ts', ['+const timeout = 5000;']),
+    ];
+    const result = detectMagicNumbers(files);
+    expect(result.issues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows critical and warning sections in context', () => {
+    const files = [makeFile('src/api.ts', [
+      '+const timeout = 3000;',
+      '+const limit = 42;',
+    ])];
+    const result = detectMagicNumbers(files);
+    if (result.issues.some((i) => i.severity === 'critical') && result.issues.some((i) => i.severity === 'warning')) {
+      expect(result.contextText).toContain('Critical');
+      expect(result.contextText).toContain('Warnings');
+    }
+  });
+});

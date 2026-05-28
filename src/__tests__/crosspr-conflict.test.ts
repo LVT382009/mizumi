@@ -427,3 +427,116 @@ describe("detectCrossPRConflicts — result metadata", () => {
     expect(result.otherPRs[0].number).toBe(42);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases — additional coverage
+// ---------------------------------------------------------------------------
+
+describe('detectCrossPRConflicts — edge cases (expanded)', () => {
+  it('returns no conflicts when no other PRs exist', () => {
+    const current = [makeFile('src/auth.ts')];
+    const result = detectCrossPRConflicts(current, []);
+    expect(result.conflicts).toHaveLength(0);
+  });
+
+  it('handles current PR with deleted files', () => {
+    const current = [makeFile('src/old.ts', [], 'deleted')];
+    const otherPR: OpenPRSummary = {
+      number: 10,
+      title: 'Edit old',
+      files: ['src/old.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    // Deleted files in current PR can still conflict
+    expect(result.conflicts).toBeDefined();
+  });
+
+  it('handles multiple other PRs modifying same file', () => {
+    const current = [makeFile('src/shared.ts')];
+    const pr1: OpenPRSummary = {
+      number: 1,
+      title: 'PR1',
+      files: ['src/shared.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const pr2: OpenPRSummary = {
+      number: 2,
+      title: 'PR2',
+      files: ['src/shared.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [pr1, pr2]);
+    // Should detect conflicts with both PRs
+    expect(result.conflicts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns no conflicts when files are completely different', () => {
+    const current = [makeFile('src/a.ts')];
+    const otherPR: OpenPRSummary = {
+      number: 99,
+      title: 'Other',
+      files: ['src/b.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    expect(result.conflicts).toHaveLength(0);
+  });
+
+  it('detectCrossPRConflicts with multiple file overlaps', () => {
+    const current = [makeFile('src/a.ts'), makeFile('src/b.ts')];
+    const otherPR: OpenPRSummary = {
+      number: 10,
+      title: 'Touch both',
+      files: ['src/a.ts', 'src/b.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    expect(result.conflicts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('contextText is empty when no conflicts', () => {
+    const current = [makeFile('src/a.ts')];
+    const otherPR: OpenPRSummary = {
+      number: 10,
+      title: 'No overlap',
+      files: ['src/b.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    expect(result.contextText).toBe('');
+  });
+
+  it('bodySummary is empty when no conflicts', () => {
+    const current = [makeFile('src/a.ts')];
+    const otherPR: OpenPRSummary = {
+      number: 10,
+      title: 'No overlap',
+      files: ['src/b.ts'],
+      edges: [],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    expect(result.bodySummary).toBe('');
+  });
+
+  it('detects semantic overlap via dependency edges', () => {
+    const current = [makeFile('src/api.ts', ['+import { db } from "./db"'])];
+    const otherPR: OpenPRSummary = {
+      number: 5,
+      title: 'DB refactor',
+      files: ['src/db.ts'],
+      edges: [{ from: 'src/db.ts', to: 'src/connection.ts', kind: 'import' }],
+      deletedFiles: [],
+    };
+    const result = detectCrossPRConflicts(current, [otherPR]);
+    // api.ts imports db.ts which the other PR modifies
+    expect(result.conflicts.length).toBeGreaterThanOrEqual(1);
+  });
+});

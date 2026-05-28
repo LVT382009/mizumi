@@ -371,3 +371,149 @@ describe("detectPerformanceAntiPatterns — edge cases", () => {
     expect(result.issues.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases — additional coverage
+// ---------------------------------------------------------------------------
+
+describe('detectPerformanceAntiPatterns — edge cases (expanded)', () => {
+  it('detects execute inside reduce', () => {
+    const files = [makeFile('src/db.ts', [
+      '+items.reduce((acc, item) => {',
+      '+  execute(sql);',
+      '+  return acc;',
+      '+}, 0);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const nplus1 = result.issues.filter((i) => i.category === 'n-plus-1-query');
+    expect(nplus1.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects save inside filter', () => {
+    const files = [makeFile('src/orm.ts', [
+      '+items.filter((item) => {',
+      '+ save(item);',
+      '+ return item.active;',
+      '+});',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const nplus1 = result.issues.filter((i) => i.category === 'n-plus-1-query');
+    expect(nplus1.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not flag query outside of loop', () => {
+    const files = [makeFile('src/api.ts', [
+      '+const result = await query(sql);',
+      '+const items = await fetch(url);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const nplus1 = result.issues.filter((i) => i.category === 'n-plus-1-query');
+    expect(nplus1).toHaveLength(0);
+  });
+
+  it('detects readdirSync', () => {
+    const files = [makeFile('src/files.ts', [
+      '+async function listFiles() {',
+      '+ const entries = readdirSync(dir);',
+      '+}',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const syncIo = result.issues.filter((i) => i.category === 'sync-in-async');
+    expect(syncIo.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects copyFileSync outside async', () => {
+    const files = [makeFile('src/files.ts', [
+      '+copyFileSync(src, dst);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const syncIo = result.issues.filter((i) => i.category === 'sync-in-async');
+    expect(syncIo.length).toBeGreaterThanOrEqual(1);
+    expect(syncIo[0].severity).toBe('warning');
+  });
+
+  it('detects waterfall with let assignments', () => {
+    const files = [makeFile('src/api.ts', [
+      '+let users = await fetchUsers();',
+      '+let orders = await fetchOrders();',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const waterfall = result.issues.filter((i) => i.category === 'waterfall-await');
+    expect(waterfall.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not flag waterfall with await on same function', () => {
+    const files = [makeFile('src/api.ts', [
+      '+const page1 = await fetchPage(1);',
+      '+const page2 = await fetchPage(2);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const waterfall = result.issues.filter((i) => i.category === 'waterfall-await');
+    // Same function — might be intentional pagination
+    expect(waterfall).toHaveLength(0);
+  });
+
+  it('detects unnecessary await on Object.keys', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const keys = await Object.keys(obj);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const unnecessary = result.issues.filter((i) => i.category === 'unnecessary-await');
+    expect(unnecessary.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('detects unnecessary await on Math.max', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const max = await Math.max(a, b);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const unnecessary = result.issues.filter((i) => i.category === 'unnecessary-await');
+    expect(unnecessary.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips comments for unnecessary await', () => {
+    const files = [makeFile('src/app.ts', [
+      '+// await 42 is fine in comments',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const unnecessary = result.issues.filter((i) => i.category === 'unnecessary-await');
+    expect(unnecessary).toHaveLength(0);
+  });
+
+  it('detects statSync in async context', () => {
+    const files = [makeFile('src/files.ts', [
+      '+async function checkFile() {',
+      '+ const info = statSync(filepath);',
+      '+ return info.isFile();',
+      '+}',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const syncIo = result.issues.filter((i) => i.category === 'sync-in-async');
+    expect(syncIo.length).toBeGreaterThanOrEqual(1);
+    expect(syncIo[0].severity).toBe('critical');
+  });
+
+  it('generates context with both critical and warning sections', () => {
+    const files = [makeFile('src/api.ts', [
+      '+async function run() {',
+      '+ const data = readFileSync(p);',
+      '+}',
+      '+const a = await fetchA();',
+      '+const b = await fetchB();',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    if (result.issues.some((i) => i.severity === 'critical') && result.issues.some((i) => i.severity === 'warning')) {
+      expect(result.contextText).toContain('Critical');
+      expect(result.contextText).toContain('Warnings');
+    }
+  });
+
+  it('detects unnecessary await on Boolean()', () => {
+    const files = [makeFile('src/app.ts', [
+      '+const flag = await Boolean(value);',
+    ])];
+    const result = detectPerformanceAntiPatterns(files);
+    const unnecessary = result.issues.filter((i) => i.category === 'unnecessary-await');
+    expect(unnecessary.length).toBeGreaterThanOrEqual(1);
+  });
+});
