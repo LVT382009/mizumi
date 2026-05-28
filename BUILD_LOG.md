@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 5132 Tests)
 
-- **5132 tests** passing (102 test files)
+- **5178 tests** passing (103 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -727,13 +727,24 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### State Machine / Lifecycle Protocol Detector (2026-05-28)
 - **New file**: `src/lifecycle-protocol-detector.ts` — detect state machine / lifecycle protocol violations in PR diffs
-- **4 detection categories**: invalid-transition (setState to state not in transition table — critical), missing-initial-state (state machine without initial/default state — critical), unreachable-state (state defined but no transition targets it — warning), missing-error-state (state machine without error/failure/rejected state — warning)
-- **Pattern analysis**: STATE_MACHINE_RE for createMachine/Machine/FSM/useStateMachine pattern matching, SET_STATUS_RE for setStatus/setState/goTo/proceed/transition calls, TRANSITION_RE for transition target definitions, INITIAL_STATE_RE for initial state declarations, ERROR_STATE_RE for error/failed/rejected/cancelled states (both quoted and bare object keys)
+- **4 categories**: invalid-transition (critical), missing-initial-state (critical), unreachable-state (warning), missing-error-state (warning)
+- **Pattern analysis**: STATE_MACHINE_RE for createMachine/Machine/FSM, SET_STATUS_RE for setState/setStatus/transition, TRANSITION_RE for target/next/to, ERROR_STATE_RE for error/failed/rejected states
 - **Pipeline integration**: main.ts detection block (4a3q), context injection (5c2q), body summary comment, audit trail
 - **Config propagation**: `lifecycle_protocol_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
 - **27 tests** in `src/__tests__/lifecycle-protocol-detector.test.ts`
 - **5132 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects state machine violations at PR review time. XState validates at runtime but not in PR review. Invalid transitions, missing initial states, and unreachable states cause non-deterministic bugs (orders shipped before payment, deploys rolled back before starting).
+
+### Semantic Type Confusion Detector (2026-05-28)
+- **New file**: `src/semantic-type-confusion-detector.ts` — detect semantic type misuse that TypeScript structural types cannot catch
+- **4 categories**: unit-mismatch (warning), id-confusion (critical), timestamp-duration-swap (critical for setTimeout, warning otherwise), string-subtype-confusion (warning)
+- **Pattern analysis**: UNIT_SUFFIXES for Cents/Dollars/Millis/Seconds/Kb/Mb, ID_TYPE_RE for 27 entity ID types, TIMESTAMP_AS_DURATION_RE for createdAt+arithmetic, string subtype patterns for email/phone/url/path
+- **Pipeline integration**: main.ts detection block (4a3r), context injection (5c2r), body summary comment, audit trail
+- **Config propagation**: `semantic_type_confusion_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **33 tests** in `src/__tests__/semantic-type-confusion-detector.test.ts`
+- **Also expanded error-handling-detector**: wired FINALLY_WITHOUT_CATCH_RE, VOID_PROMISE_RE, VAR_REF_ONLY_RE, REDIS_ASYNC_RE into detection functions (+13 tests = 46 total)
+- **5178 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects semantic type confusion. TypeScript catches structural incompatibility but not semantic mismatch (userId vs orderId, priceCents vs priceDollars).
 
 ### Test Coverage Expansion 2 (2026-05-28)
 - Added 10 edge case tests to test-assertion-audit (29→39): toBeNull, toBeUndefined, .spec.ts detection, test/ dir detection, nested describe, multiple expect on same line
