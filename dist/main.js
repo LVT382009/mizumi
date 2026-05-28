@@ -56551,6 +56551,7 @@ function loadConfig() {
   const partialSecurityControlDetector = getInput("partial_security_control_detector") !== "false";
   const paradigmClashDetector = getInput("paradigm_clash_detector") !== "false";
   const velocityRiskDetector = getInput("velocity_risk_detector") !== "false";
+  const rulesFileIntegrityDetector = getInput("rules_file_integrity_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56695,7 +56696,8 @@ function loadConfig() {
     confabulatedAPIDetector,
     partialSecurityControlDetector,
     paradigmClashDetector,
-    velocityRiskDetector
+    velocityRiskDetector,
+    rulesFileIntegrityDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -124764,6 +124766,228 @@ function detectVelocityRisks(diffFiles) {
   return result;
 }
 
+// src/rules-file-integrity-detector.ts
+function stripPrefix10(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes);
+}
+var RULES_FILES = [
+  "CLAUDE.md",
+  "REVIEW.md",
+  ".github/mizumi.yml",
+  ".github/mizumi.yaml",
+  ".eslintrc",
+  ".eslintrc.js",
+  ".eslintrc.json",
+  ".eslintrc.yml",
+  "eslint.config.js",
+  "eslint.config.mjs",
+  ".prettierrc",
+  ".prettierrc.js",
+  ".prettierrc.json",
+  "tsconfig.json",
+  "biome.json",
+  ".rubocop.yml",
+  "pyproject.toml"
+];
+function isRulesFile(path27) {
+  return RULES_FILES.some((rf) => path27.endsWith(rf) || path27 === rf);
+}
+var DISABLE_PATTERNS = [
+  { re: /\b(?:self_critique|compliance_check|linter_scan|auto_labels|rule_engine):\s+false/i, label: "disabling a core review feature" },
+  { re: /\b(?:taint_analysis|blast_radius|spec_compliance|auth_boundary):\s+false/i, label: "disabling a security detector" },
+  { re: /\b(?:secret_entropy|safety_score|fatigue_dashboard|org_memory):\s+false/i, label: "disabling a safety feature" },
+  { re: /\b(?:swarm_review|review_learning|delta_review|chunk_review):\s+false/i, label: "disabling a review optimization" },
+  { re: /\b(?:ast_contract_analysis|behavioral_summary|ownership_routing):\s+false/i, label: "disabling an analysis feature" },
+  { re: /\bprofile:\s*chill/i, label: "changing review profile to chill (least assertive)" },
+  { re: /\bno.review\b|\bdisable.review\b|\bskip.review\b/i, label: "disabling review" }
+];
+var SECURITY_EXCLUSION_PATTERNS = [
+  { re: /(?:^|-)\s*(?:\*\*\/auth|\*\*\/crypto|\*\*\/sql|\*\*\/secret|\*\*\/password)/, label: "removing a security path from monitoring" },
+  { re: /security_paths:\s*\[\s*\]/, label: "emptying security paths array" },
+  { re: /(?:^|-)\s*(?:src\/\*\*|\*\*\/\*\*|\/)/, label: "adding overly broad path to security exclusions" }
+];
+var THRESHOLD_PATTERNS = [
+  { re: /\bconfidence_threshold:\s*(?:[0-7]\d?|[1-7])\b/, label: "lowering confidence threshold below 80" },
+  { re: /\bmax_comments:\s*(?:[0-9]|1[0-4])\b/, label: "reducing max comments below 15" },
+  { re: /\bgate_threshold:\s*none/i, label: "disabling merge gate" },
+  { re: /\bspend_threshold:\s*0\b/, label: "disabling spend limit" },
+  { re: /\bauto_pause_after:\s*(?:[6-9]\d|[1-9]\d{2,})/, label: "increasing auto-pause threshold significantly" }
+];
+var EXCLUDE_PATTERNS = [
+  { re: /-\s+'?\*\*\/\*'?|-\s+'?\*$|-\s+'?src\/\*\*'?|-\s+\.\.\//, label: "adding wildcard exclusion that hides entire directories" },
+  { re: /-\s+'?\*\*\/(?:test|spec|__tests__)/, label: "excluding test directories from review" },
+  { re: /-\s+'?\*\*\/(?:secret|key|credential|auth)/, label: "excluding security-sensitive directories from review" }
+];
+var SECURITY_PATH_REMOVE = [
+  { re: /\*\*\/auth\/\*\*/, label: "removing auth directory from security monitoring" },
+  { re: /\*\*\/crypto\/\*\*/, label: "removing crypto directory from security monitoring" },
+  { re: /\*\*\/sql\/\*\*/, label: "removing SQL directory from security monitoring" },
+  { re: /\*\*\/secret\*/, label: "removing secret paths from security monitoring" },
+  { re: /\*\*\/password\*/, label: "removing password paths from security monitoring" }
+];
+function analyzeRulesFile(file2) {
+  const issues = [];
+  const changes = getChanges(file2);
+  for (const change of changes) {
+    const trimmed = stripPrefix10(change.content);
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const isAdded = change.type === "add";
+    const isRemoved = change.type === "delete";
+    if (isAdded) {
+      for (const { re: re2, label } of DISABLE_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "rule-softening",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Rule softening in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs may modify review rules to silence their own findings; lowering review rigor weakens the entire review pipeline; this change should be reviewed by a human with security context`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of THRESHOLD_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "threshold-manipulation",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Threshold manipulation in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs may lower review thresholds to make their own code pass review more easily; reduced thresholds mean fewer findings reach reviewers; keep thresholds at project defaults unless explicitly approved`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of EXCLUDE_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "exclude-expansion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Exclude expansion in \`${file2.path}:${change.line}\`: ${label} \u2014 Broad exclusions hide files from review, including security-sensitive code; LLMs add exclusions to prevent their mistakes from being caught; only project owners should modify exclusion patterns`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of SECURITY_EXCLUSION_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "security-exclusion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Security exclusion in \`${file2.path}:${change.line}\`: ${label} \u2014 Removing security paths from monitoring creates blind spots; LLMs may exclude security directories to prevent their own security mistakes from being flagged; never remove security path monitoring without security team approval`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+    if (isRemoved) {
+      for (const { re: re2, label } of SECURITY_PATH_REMOVE) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "security-exclusion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Security path removal in \`${file2.path}:${change.line}\`: ${label} \u2014 Removing security monitoring paths is the AI equivalent of disabling the alarm before a break-in; this change should require security team review`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues29(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildRulesIntegrityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Rules File Integrity Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies code review rules or configuration \u2014 LLMs may alter review settings to silence their own findings:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildRulesIntegrityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Rules File Integrity Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs may modify review rules to silence their own findings \u2014 disabling detectors, lowering thresholds, excluding security paths, and expanding exclusion patterns. These changes weaken the review pipeline. Any modification to review configuration should require human approval.*
+</details>
+`;
+  return body;
+}
+function detectRulesFileIntegrity(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!isRulesFile(file2.path)) continue;
+    allIssues.push(...analyzeRulesFile(file2));
+  }
+  const issues = dedupIssues29(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildRulesIntegrityContext(result);
+  result.bodySummary = buildRulesIntegrityBodySummary(result);
+  if (issues.length > 0) {
+    info(`Rules file integrity detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -125368,6 +125592,13 @@ async function run() {
         info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
       }
     }
+    let rulesIntegrityResult = null;
+    if (config2.rulesFileIntegrityDetector) {
+      rulesIntegrityResult = detectRulesFileIntegrity(diff.files);
+      if (rulesIntegrityResult.issues.length > 0) {
+        info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -125756,6 +125987,9 @@ ${taintContextStr}`;
     }
     if (velocityRiskResult && velocityRiskResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + velocityRiskResult.contextText;
+    }
+    if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + rulesIntegrityResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -126779,6 +127013,18 @@ ${digest}
                   warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (rulesIntegrityResult && rulesIntegrityResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: rulesIntegrityResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
             } catch (e) {
               warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
@@ -126949,6 +127195,7 @@ ${digest}
         if (config2.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
         if (config2.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
         if (config2.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
+        if (config2.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

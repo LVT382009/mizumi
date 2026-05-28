@@ -111,6 +111,7 @@ import { detectConfabulatedAPI } from "./confabulated-api-detector.js";
 import { detectPartialSecurityControls } from "./partial-security-control-detector.js";
 import { detectParadigmClashes } from "./paradigm-clash-detector.js";
 import { detectVelocityRisks } from "./velocity-risk-detector.js";
+import { detectRulesFileIntegrity } from "./rules-file-integrity-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -808,6 +809,15 @@ if (config.velocityRiskDetector) {
     core.info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zi. Rules file integrity detector — detect suspicious changes to code review rules and configuration
+let rulesIntegrityResult: import("./rules-file-integrity-detector.js").RulesIntegrityResult | null = null;
+if (config.rulesFileIntegrityDetector) {
+  rulesIntegrityResult = detectRulesFileIntegrity(diff.files);
+  if (rulesIntegrityResult.issues.length > 0) {
+    core.info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1271,6 +1281,9 @@ if (paradigmClashResult && paradigmClashResult.contextText) {
 }
 if (velocityRiskResult && velocityRiskResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + velocityRiskResult.contextText;
+}
+if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + rulesIntegrityResult.contextText;
 }
 
 
@@ -2317,6 +2330,18 @@ if (velocityRiskResult && velocityRiskResult.bodySummary) {
     core.warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (rulesIntegrityResult && rulesIntegrityResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: rulesIntegrityResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2497,6 +2522,7 @@ if (config.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-dete
 if (config.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
 if (config.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
 if (config.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
+if (config.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

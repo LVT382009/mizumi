@@ -459,6 +459,11 @@ default: 'true'
     description: 'Detect risky patterns from high-velocity AI-generated PRs'
     required: false
     default: 'true'
+
+  rules_file_integrity_detector:
+    description: 'Detect suspicious changes to code review rules and configuration'
+    required: false
+    default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:
