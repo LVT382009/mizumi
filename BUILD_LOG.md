@@ -832,3 +832,9 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects hallucinated packages as a category. SCA tools check for CVEs in real packages but have no concept of a package that shouldn't exist. Slopsquatting attacks increased 340% in Q1 2026. ~20% of AI-generated code references non-existent packages.
 - **4 detection categories**: unknown-import (not in lockfile/package.json), slopsquatting-signal (LLM confabulation naming patterns like `fast-X-parser`, `X-lite`), phantom-scoped-import (unknown @scoped packages), version-mismatch (`.v2+` API access)
 - **Cross-references**: package-lock.json, yarn.lock, pnpm-lock.yaml, package.json
+
+### Tautological Test Detector (2026-05-28)
+- **+24 tests** in `src/__tests__/tautological-test-detector.test.ts`
+- **6063 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects tautological tests. Qodo detects untested paths but not tests that are structurally present but logically vacuous. No tool validates whether a test asserts anything the implementation could actually fail.
+- **4 detection categories**: tautological-assertion (arithmetic in expect, self-referencing expected), fixture-mirror-constant (verbatim copied impl constants), happy-path-only (3+ tests with 0 error/edge-case coverage), private-helper-in-test (imports from internal modules, underscore-prefixed calls)
