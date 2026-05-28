@@ -92,6 +92,7 @@ observabilityGapDetector: boolean;
   dataFlowBoundaryDetector: boolean;
   nullGuardDetector: boolean;
   aiCodePathologyDetector: boolean;
+  ungatedCriticalReturnDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -207,6 +208,7 @@ const semanticTypeConfusionDetector = core.getInput("semantic_type_confusion_det
 const dataFlowBoundaryDetector = core.getInput("data_flow_boundary_detector") !== "false"; // default true
 const nullGuardDetector = core.getInput("null_guard_detector") !== "false"; // default true
 const aiCodePathologyDetector = core.getInput("ai_code_pathology_detector") !== "false"; // default true
+const ungatedCriticalReturnDetector = core.getInput("ungated_critical_return_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -341,6 +343,7 @@ observabilityGapDetector,
     dataFlowBoundaryDetector,
     nullGuardDetector,
     aiCodePathologyDetector,
+    ungatedCriticalReturnDetector,
   };
 }
 

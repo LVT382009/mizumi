@@ -98,6 +98,7 @@ import { detectSemanticTypeConfusion } from "./semantic-type-confusion-detector.
 import { detectDataFlowBoundaryViolations } from "./data-flow-boundary-detector.js";
 import { detectNullGuardGaps } from "./null-guard-detector.js";
 import { detectAICodePathologies } from "./ai-code-pathology-detector.js";
+import { detectUngatedCriticalReturns } from "./ungated-critical-return-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -662,6 +663,19 @@ if (config.aiCodePathologyDetector) {
   }
 }
 
+// 4a3v. Ungated critical return detector — detect discarded validation/auth returns, unguarded write paths
+let ungatedReturnResult: import("./ungated-critical-return-detector.js").UngatedCriticalReturnResult | null = null;
+if (config.ungatedCriticalReturnDetector) {
+  try {
+    ungatedReturnResult = detectUngatedCriticalReturns(diff.files);
+    if (ungatedReturnResult.issues.length > 0) {
+      core.info("Ungated critical return detection: " + ungatedReturnResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Ungated critical return detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1078,6 +1092,10 @@ if (nullGuardResult && nullGuardResult.contextText) {
 // 5c2u. AI code pathology detector context injection
 if (aiPathologyResult && aiPathologyResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiPathologyResult.contextText;
+}
+// 5c2v. Ungated critical return detector context injection
+if (ungatedReturnResult && ungatedReturnResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + ungatedReturnResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -1990,6 +2008,17 @@ if (aiPathologyResult && aiPathologyResult.bodySummary) {
     core.warning("AI code pathology comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post ungated critical return detection summary as a separate comment
+if (ungatedReturnResult && ungatedReturnResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: ungatedReturnResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Ungated critical return comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2150,6 +2179,7 @@ if (config.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-c
 if (config.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-detector", 0, true);
 if (config.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, true);
 if (config.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-detector", 0, true);
+if (config.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critical-return-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

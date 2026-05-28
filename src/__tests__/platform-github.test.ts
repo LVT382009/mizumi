@@ -183,6 +183,7 @@ semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
       aiCodePathologyDetector: true,
+      ungatedCriticalReturnDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

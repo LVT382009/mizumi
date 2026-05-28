@@ -109,6 +109,7 @@ semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
       aiCodePathologyDetector: true,
+      ungatedCriticalReturnDetector: true,
     ...overrides,
   };
 }

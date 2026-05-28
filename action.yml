@@ -403,6 +403,10 @@ ai_code_pathology_detector:
   description: "Enable AI code pathology detector — flags LLM-specific code mistakes: hallucinated imports, sycophantic stubs, confident-wrong API calls, boilerplate expansion. Zero LLM cost. No AI code reviewer detects LLM-specific pathologies at PR review time."
   required: false
   default: "true"
+ungated_critical_return_detector:
+  description: "Enable ungated critical return detector — flags discarded validation/auth returns where LLMs call check functions without guarding on the result, causing silent auth bypass. Zero LLM cost. No AI code reviewer detects ungated critical returns at PR review time."
+  required: false
+  default: "true"
 
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
