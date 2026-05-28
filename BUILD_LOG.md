@@ -880,3 +880,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects velocity risk patterns. LLMs generate 500+ lines in seconds but tests lag behind. Large new files without tests (3x defect density), boilerplate proliferation, sweep refactors without type safety (2.5x regression rate), and copy-paste duplication are unique AI coding signatures.
 - **4 detection categories**: large-new-file (100+ lines added with no test coverage), boilerplate-proliferation (same function/class name in 3+ files), sweep-no-safety (60%+ removals with <10% type/test coverage on additions), copy-paste-pattern (4-word n-gram appearing in 3+ files)
 - **Key features**: cross-file pattern aggregation, test coverage detection for related modules, type annotation counting for safety ratio, n-gram normalization for variable/string agnostic matching
+
+### Rules File Integrity Detector (2026-05-29)
+- **+33 tests** in `src/__tests__/rules-file-integrity-detector.test.ts`
+- **6297 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer protects its own configuration from tampering. LLMs may modify review rules to silence their own findings — disabling detectors, lowering thresholds, removing security paths, expanding exclusions. This is the AI equivalent of a criminal altering the alarm system before a break-in.
+- **4 detection categories**: rule-softening (disabling core review features, changing profile to chill), security-exclusion (emptying security_paths, removing auth/crypto/sql paths), threshold-manipulation (lowering confidence below 80, max_comments below 15, disabling gate), exclude-expansion (wildcard exclusions, excluding test/security dirs)
+- **Key features**: 15 rules file types monitored, removed-line analysis for security path removal, removed-line detection for auth/crypto/sql path deletion
