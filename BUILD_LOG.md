@@ -703,3 +703,13 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - architecture-drift: 29->38 tests (+9)
 - crosspr-conflict: 26->34 tests (+8)
 - **4941 tests** passing after expansion
+
+### Observability Gap Detector (2026-05-28)
+- **New file**: `src/observability-gap-detector.ts` — detect missing logging/metrics/tracing in error paths and significant code paths in PR diffs
+- **4 detection categories**: silent-catch (catch with only console.log/debug/info — warning), throw-without-log (throw new Error without prior logger.error/warn/metrics — critical), unlogged-route (API route handler without logging/metrics — warning), missing-error-metadata (logger.error/warn with only string, no error object or context — warning)
+- **Pattern analysis**: LOG_ERROR_RE for strong observability (error/fatal/critical/alert/emergency), CONSOLE_LOG_RE/DEBUG/INFO for weak observability, THROW_NEW_RE for throw patterns, ROUTE_HANDLER_RE for Express/Fastify/Koa/Hapi/NestJS routes, weakLogMatch regex for logger.error("msg") without context
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `observability_gap_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **33 tests** in `src/__tests__/observability-gap-detector.test.ts`
+- **5016 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer flags observability gaps at PR review time. SonarQube S108 detects empty catch blocks but not "logged at info instead of error" or "no metrics for this failure path." CodeRabbit occasionally comments on missing logging via AI (non-deterministic), but no tool has a dedicated detector.
