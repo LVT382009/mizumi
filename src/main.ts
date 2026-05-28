@@ -92,6 +92,7 @@ import { detectErrorHandlingGaps } from "./error-handling-detector.js";
 import { detectPerformanceAntiPatterns } from "./performance-antipattern-detector.js";
 import { detectResourceLifecycleViolations } from "./resource-lifecycle-detector.js";
 import { detectObservabilityGaps } from "./observability-gap-detector.js";
+import { detectConcurrencyHazards } from "./async-concurrency-hazard-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -578,6 +579,19 @@ if (config.observabilityGapDetector) {
   }
 }
 
+// 4a3p. Async concurrency hazard detector — detect TOCTOU, shared mutable state, flag races, unbounded Promise.all
+let concurrencyHazardResult: import("./async-concurrency-hazard-detector.js").ConcurrencyHazardResult | null = null;
+if (config.concurrencyHazardDetector) {
+  try {
+    concurrencyHazardResult = detectConcurrencyHazards(diff.files);
+    if (concurrencyHazardResult.issues.length > 0) {
+      core.info("Concurrency hazard detection: " + concurrencyHazardResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Concurrency hazard detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -974,6 +988,10 @@ if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
 
 
 // 5c2o. Observability gap detector context injection
+// 5c2p. Async concurrency hazard detector context injection
+if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
+}
 if (observabilityGapResult && observabilityGapResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + observabilityGapResult.contextText;
 }
@@ -1814,6 +1832,18 @@ if (observabilityGapResult && observabilityGapResult.bodySummary) {
     core.warning("Observability gap comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+
+// Post async concurrency hazard detection summary as a separate comment
+if (concurrencyHazardResult && concurrencyHazardResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: concurrencyHazardResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Concurrency hazard comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1968,6 +1998,7 @@ if (config.errorHandlingDetector) auditBuilder.logStage("error-handling-detector
 if (config.performanceAntipatternDetector) auditBuilder.logStage("performance-antipattern-detector", 0, true);
 if (config.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-detector", 0, true);
 if (config.observabilityGapDetector) auditBuilder.logStage("observability-gap-detector", 0, true);
+if (config.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

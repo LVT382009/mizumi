@@ -365,6 +365,21 @@ performance_antipattern_detector:
   required: false
   default: "true"
 
+resource_lifecycle_detector:
+  description: "Enable resource lifecycle violation detector — flags unclosed resources, unreleased connections, unsubscribed listeners, missing finally cleanup, and React missing cleanup. Zero LLM cost. No AI code reviewer detects resource lifecycle violations at PR review time."
+  required: false
+  default: "true"
+
+observability_gap_detector:
+  description: "Enable observability gap detector — flags silent catches, throw without log, unlogged routes, and missing error metadata. Zero LLM cost. No AI code reviewer flags observability gaps at PR review time."
+  required: false
+  default: "true"
+
+concurrency_hazard_detector:
+  description: "Enable async concurrency hazard detector — flags TOCTOU races, shared mutable state in async, flag-flip races, and unbounded Promise.all. Zero LLM cost. No AI code reviewer detects concurrency hazards at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

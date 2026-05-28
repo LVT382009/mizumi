@@ -106,6 +106,7 @@ deadCodeDetector: true,
     performanceAntipatternDetector: true,
 resourceLifecycleDetector: true,
 observabilityGapDetector: true,
+    concurrencyHazardDetector: true,
   })),
 }));
 
