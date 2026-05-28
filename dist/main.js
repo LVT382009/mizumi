@@ -1,4 +1,3 @@
-import{createRequire}from"module";const require=createRequire(import.meta.url);
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -56550,6 +56549,7 @@ function loadConfig() {
   const cargoCultArchitectureDetector = getInput("cargo_cult_architecture_detector") !== "false";
   const confabulatedAPIDetector = getInput("confabulated_api_detector") !== "false";
   const partialSecurityControlDetector = getInput("partial_security_control_detector") !== "false";
+  const paradigmClashDetector = getInput("paradigm_clash_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56692,7 +56692,8 @@ function loadConfig() {
     contextAmplificationDetector,
     cargoCultArchitectureDetector,
     confabulatedAPIDetector,
-    partialSecurityControlDetector
+    partialSecurityControlDetector,
+    paradigmClashDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -124149,6 +124150,363 @@ function detectPartialSecurityControls(diffFiles) {
   return result;
 }
 
+// src/paradigm-clash-detector.ts
+function stripPrefix8(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges8(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE21 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var REACT_CLASS_PATTERNS = [
+  /\bclass\s+\w+\s+extends\s+(?:React\.Component|Component|PureComponent|React\.PureComponent)\b/,
+  /\bcomponentDidMount\s*\(/,
+  /\bcomponentDidUpdate\s*\(/,
+  /\bcomponentWillUnmount\s*\(/,
+  /\bshouldComponentUpdate\s*\(/,
+  /\bgetSnapshotBeforeUpdate\s*\(/,
+  /\bgetDerivedStateFromProps\s*\(/,
+  /\bsetState\s*\(/,
+  /\bthis\.state\b/,
+  /\bthis\.props\b/,
+  /\bthis\.setState\b/
+];
+var REACT_HOOKS_PATTERNS = [
+  /\buse[A-Z]\w*\s*\(/,
+  // useState, useEffect, useRef, useMemo, useCallback, etc.
+  /\bReact\.use[A-Z]\w*\s*\(/,
+  /\buseContext\s*\(/,
+  /\buseReducer\s*\(/,
+  /\buseRef\s*\(/,
+  /\buseMemo\s*\(/,
+  /\buseCallback\s*\(/,
+  /\buseEffect\s*\(/,
+  /\buseState\s*\(/
+];
+var CALLBACK_PATTERNS = [
+  /\b(?:callback|cb|done|next)\s*\)?\s*(?:=>|\(|\{)/,
+  /\(err(?:,\s*\w+)*\)\s*=>/,
+  /\(error(?:,\s*\w+)*\)\s*=>/,
+  /\bfunction\s*\(\s*(?:err|error)\s*(?:,\s*\w+)*\s*\)\s*\{/,
+  /\.then\s*\(/,
+  /\.catch\s*\(/,
+  /\.finally\s*\(/,
+  /(?:,\s*(?:callback|cb|done)\s*)\)?\s*(?:=>|\(|\{|\n)/,
+  /\bcallback\s*\(/
+];
+var ASYNC_AWAIT_PATTERNS = [
+  /\basync\s+function\s+\w+\s*\(/,
+  /\basync\s+\w+\s*=>/,
+  /\basync\s+\(/,
+  /\bawait\s+/,
+  /\breturn\s+await\s+/
+];
+var OOP_PATTERNS = [
+  /\bclass\s+\w+/,
+  /\bextends\s+/,
+  /\bimplements\s+/,
+  /\bnew\s+\w+\s*\(/,
+  /\bthis\.\w+\s*=/,
+  /\bsuper\s*\(/,
+  /\bprivate\s+\w+/,
+  /\bprotected\s+\w+/,
+  /\bpublic\s+\w+/,
+  /#\w+\s*(?:=|\(|\.)/
+  // JS private fields
+];
+var FUNCTIONAL_PATTERNS = [
+  /\.map\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.filter\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.reduce\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.flatMap\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.pipe\s*\(/,
+  /\bcompose\s*\(/,
+  /\.compose\s*\(/,
+  /\bR\.\w+\s*\(/,
+  // Ramda
+  /\bfp\.\w+\s*\(/,
+  // lodash/fp
+  /(?:const|let)\s+\w+\s*=\s*(?:\w+\.)?pipe\s*\(/
+];
+var FRAMEWORK_PAIRS = [
+  // jQuery + React
+  {
+    first: [/\$\s*\(/, /\$\s*\.\s*ajax/, /\$\s*\.\s*get/, /\$\s*\.\s*post/, /jQuery/],
+    second: [/\bReact\b/, /\bReactDOM\b/, /from\s+['"]react['"]/, /from\s+['"]react-dom['"]/],
+    label: "jQuery + React"
+  },
+  // Angular + Vue
+  {
+    first: [/@angular/, /@NgModule/, /@Component.*selector/, /\bNgZone\b/, /\bInjectable\b/],
+    second: [/\bVue\b/, /Vue\.\s*createApp/, /from\s+['"]vue['"]/, /\bcreateApp\b/, /\bdefineComponent\b/, /\bv-if\b/, /\bv-for\b/],
+    label: "Angular + Vue"
+  },
+  // Angular + React
+  {
+    first: [/@angular/, /@NgModule/, /@Component.*selector/],
+    second: [/\bReact\b/, /from\s+['"]react['"]/, /\buseState\b/, /\buseEffect\b/],
+    label: "Angular + React"
+  },
+  // Express + Koa
+  {
+    first: [/\bexpress\s*\(\)/, /from\s+['"]express['"]/, /\bapp\.\s*(?:get|post|put|delete|use)\s*\(/, /\bRouter\s*\(/],
+    second: [/\bKoa\b/, /from\s+['"]koa['"]/, /\bctx\.\w+/, /\bnext\s*\)?\s*(?:=>|\{)/, /\bapp\.use\s*\(/],
+    label: "Express + Koa"
+  },
+  // React + Vue
+  {
+    first: [/\bReact\b/, /from\s+['"]react['"]/, /\buseState\b/],
+    second: [/\bVue\b/, /Vue\.\s*createApp/, /from\s+['"]vue['"]/, /\bcreateApp\b/, /\bv-if\b/, /\bv-for\b/],
+    label: "React + Vue (SFC)"
+  },
+  // Mocha + Jest
+  {
+    first: [/from\s+['"]mocha['"]/, /\bdescribe\s*\(/, /\bit\s*\(/, /\bbeforeEach\b/],
+    second: [/\bjest\s*\./, /\bexpect\s*\(.*\)\.to(?:Be|Equal|Contain|Match|Throw)/, /\btest\s*\(/],
+    label: "Mocha + Jest"
+  }
+];
+function collectSignals2(file2) {
+  const signals = {
+    reactClass: [],
+    reactHooks: [],
+    callback: [],
+    asyncAwait: [],
+    oop: [],
+    functional: [],
+    frameworks: /* @__PURE__ */ new Map()
+  };
+  const added = getAddedChanges8(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE21.test(change.content)) continue;
+    const trimmed = stripPrefix8(change.content);
+    for (const re2 of REACT_CLASS_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.reactClass.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of REACT_HOOKS_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.reactHooks.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of CALLBACK_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.callback.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of ASYNC_AWAIT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.asyncAwait.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of OOP_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.oop.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of FUNCTIONAL_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.functional.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const pair of FRAMEWORK_PAIRS) {
+      for (const re2 of pair.first) {
+        const m = trimmed.match(re2);
+        if (m) {
+          const key = `${pair.label}:first`;
+          if (!signals.frameworks.has(key)) signals.frameworks.set(key, []);
+          signals.frameworks.get(key).push({ line: change.line, code: trimmed, match: m[0] });
+          break;
+        }
+      }
+      for (const re2 of pair.second) {
+        const m = trimmed.match(re2);
+        if (m) {
+          const key = `${pair.label}:second`;
+          if (!signals.frameworks.has(key)) signals.frameworks.set(key, []);
+          signals.frameworks.get(key).push({ line: change.line, code: trimmed, match: m[0] });
+          break;
+        }
+      }
+    }
+  }
+  return signals;
+}
+function checkReactClash(signals, filePath) {
+  const issues = [];
+  if (signals.reactClass.length > 0 && signals.reactHooks.length > 0) {
+    for (const hook2 of signals.reactHooks.slice(0, 2)) {
+      issues.push({
+        category: "react-class-and-hooks",
+        file: filePath,
+        line: hook2.line,
+        code: hook2.code,
+        description: `React hook \`${hook2.match}\` detected in a class component file \`${filePath}:${hook2.line}\` \u2014 LLMs mix class components and hooks, but hooks cannot be used inside class components; convert to a functional component or use a HOC/render prop pattern instead`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function checkCallbackAsyncClash(signals, filePath) {
+  const issues = [];
+  if (signals.callback.length > 0 && signals.asyncAwait.length > 0) {
+    for (const cb of signals.callback.slice(0, 2)) {
+      issues.push({
+        category: "callback-and-async-await",
+        file: filePath,
+        line: cb.line,
+        code: cb.code,
+        description: `Callback pattern \`${cb.match}\` mixed with async/await in \`${filePath}:${cb.line}\` \u2014 LLMs produce "paradigm soup" by mixing error-first callbacks and async/await in the same file; standardize on one asynchronous pattern per module to avoid unhandled rejections and callback-promise interaction bugs`,
+        severity: "warning"
+      });
+    }
+    for (const aw of signals.asyncAwait.slice(0, 1)) {
+      issues.push({
+        category: "callback-and-async-await",
+        file: filePath,
+        line: aw.line,
+        code: aw.code,
+        description: `async/await pattern \`${aw.match}\` mixed with callbacks in \`${filePath}:${aw.line}\` \u2014 LLMs mix async styles, creating code where promise rejections go unhandled because some code paths use callbacks and others throw; pick one async paradigm per module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function checkOopFunctionalClash(signals, filePath) {
+  const issues = [];
+  if (signals.oop.length > 0 && signals.functional.length > 0) {
+    for (const oop of signals.oop.slice(0, 2)) {
+      issues.push({
+        category: "oop-and-functional-mix",
+        file: filePath,
+        line: oop.line,
+        code: oop.code,
+        description: `OOP pattern \`${oop.match}\` mixed with functional pipeline style in \`${filePath}:${oop.line}\` \u2014 LLMs blend paradigms: class hierarchies with .map/.filter/.reduce pipelines create confusion about where state lives and how data flows; consolidate on one paradigm per module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function checkFrameworkClash(signals, filePath) {
+  const issues = [];
+  for (const pair of FRAMEWORK_PAIRS) {
+    const firstKey = `${pair.label}:first`;
+    const secondKey = `${pair.label}:second`;
+    const firstEntries = signals.frameworks.get(firstKey);
+    const secondEntries = signals.frameworks.get(secondKey);
+    if (firstEntries && firstEntries.length > 0 && secondEntries && secondEntries.length > 0) {
+      const entry = firstEntries[0];
+      issues.push({
+        category: "framework-clash",
+        file: filePath,
+        line: entry.line,
+        code: entry.code,
+        description: `Framework clash: ${pair.label} detected in \`${filePath}:${entry.line}\` \u2014 LLMs mix frameworks from their training data; using ${pair.label.split(" + ")[0]} and ${pair.label.split(" + ")[1]} in the same file creates conflicting lifecycle management, state models, and rendering pipelines; split into separate modules or choose one framework`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues27(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildParadigmClashContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Paradigm Clash Detection (${result.issues.length})
+`;
+  ctx += 'This PR mixes incompatible programming paradigms \u2014 LLMs produce "paradigm soup":\n\n';
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildParadigmClashBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Paradigm Clash Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs trained on diverse codebases produce paradigm soup \u2014 mixing React class components with hooks, callbacks with async/await, OOP with functional pipelines, and competing frameworks in the same file. These clashes create maintenance nightmares and subtle bugs from paradigm interaction effects. Standardize on one paradigm per module.*
+</details>
+`;
+  return body;
+}
+function detectParadigmClashes(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const signals = collectSignals2(file2);
+    allIssues.push(...checkReactClash(signals, file2.path));
+    allIssues.push(...checkCallbackAsyncClash(signals, file2.path));
+    allIssues.push(...checkOopFunctionalClash(signals, file2.path));
+    allIssues.push(...checkFrameworkClash(signals, file2.path));
+  }
+  const issues = dedupIssues27(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildParadigmClashContext(result);
+  result.bodySummary = buildParadigmClashBodySummary(result);
+  if (issues.length > 0) {
+    info(`Paradigm clash detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -124739,6 +125097,13 @@ async function run() {
         info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
       }
     }
+    let paradigmClashResult = null;
+    if (config2.paradigmClashDetector) {
+      paradigmClashResult = detectParadigmClashes(diff.files);
+      if (paradigmClashResult.issues.length > 0) {
+        info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -125121,6 +125486,9 @@ ${taintContextStr}`;
     }
     if (partialSecurityResult && partialSecurityResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + partialSecurityResult.contextText;
+    }
+    if (paradigmClashResult && paradigmClashResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + paradigmClashResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -126120,6 +126488,18 @@ ${digest}
                 issue_number: prNumber,
                 body: partialSecurityResult.bodySummary
               });
+              if (paradigmClashResult && paradigmClashResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: paradigmClashResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
             } catch (e) {
               warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
@@ -126288,6 +126668,7 @@ ${digest}
         if (config2.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
         if (config2.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
         if (config2.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
+        if (config2.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

@@ -109,6 +109,7 @@ import { detectContextAmplification } from "./context-amplification-detector.js"
 import { detectCargoCultArchitecture } from "./cargo-cult-architecture-detector.js";
 import { detectConfabulatedAPI } from "./confabulated-api-detector.js";
 import { detectPartialSecurityControls } from "./partial-security-control-detector.js";
+import { detectParadigmClashes } from "./paradigm-clash-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -788,6 +789,15 @@ if (config.partialSecurityControlDetector) {
   }
 }
 
+
+// 4a3zg. Paradigm clash detector — detect incompatible programming paradigms mixed in same scope by AI-generated code
+let paradigmClashResult: import("./paradigm-clash-detector.js").ParadigmClashResult | null = null;
+if (config.paradigmClashDetector) {
+  paradigmClashResult = detectParadigmClashes(diff.files);
+  if (paradigmClashResult.issues.length > 0) {
+    core.info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1246,6 +1256,10 @@ if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
 if (partialSecurityResult && partialSecurityResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + partialSecurityResult.contextText;
 }
+if (paradigmClashResult && paradigmClashResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + paradigmClashResult.contextText;
+}
+
 
 // 5c3. Learning context injection
 if (learningResult && learningResult.newRules.length > 0) {
@@ -2265,6 +2279,19 @@ if (partialSecurityResult && partialSecurityResult.bodySummary) {
       owner, repo, issue_number: prNumber,
       body: partialSecurityResult.bodySummary,
     });
+
+if (paradigmClashResult && paradigmClashResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: paradigmClashResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2443,6 +2470,7 @@ if (config.contextAmplificationDetector) auditBuilder.logStage("context-amplific
 if (config.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
 if (config.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
 if (config.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
+if (config.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
