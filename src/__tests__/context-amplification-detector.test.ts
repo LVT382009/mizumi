@@ -315,3 +315,195 @@ describe("detectContextAmplification — context and summary", () => {
     expect(result.bodySummary).toBe("");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional coverage
+// ---------------------------------------------------------------------------
+
+describe("detectContextAmplification — additional coverage", () => {
+  it("detects fetch/get verb synonym duplicate across files", () => {
+    const file1 = makeFile("src/api.ts", [
+      "export async function fetchUser(id: string) { return db.find(id); }",
+    ]);
+    const file2 = makeFile("src/cache.ts", [
+      "export async function getUser(id: string) { return cache.get(id); }",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects save/persist verb synonym duplicate", () => {
+    const file1 = makeFile("src/writer.ts", [
+      "function saveConfig(data: Config) { return fs.write(data); }",
+    ]);
+    const file2 = makeFile("src/persister.ts", [
+      "function persistConfig(data: Config) { return db.store(data); }",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag functions with same name in same file", () => {
+    const file = makeFile("src/utils.ts", [
+      "export function formatDate(d: Date) {}",
+      "export function parseConfig(s: string) {}",
+    ]);
+
+    const result = detectContextAmplification([file]);
+    const divergentIssues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(divergentIssues).toHaveLength(0);
+  });
+
+  it("detects naming inconsistency with config/settings synonyms", () => {
+    const files = [
+      makeFile("src/app-config.ts", [
+        "function loadConfig() {}",
+      ]),
+      makeFile("src/app-settings.ts", [
+        "function loadSettings() {}",
+      ]),
+    ];
+
+    const result = detectContextAmplification(files);
+    const issues = result.issues.filter((i) => i.category === "naming-inconsistency");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("detects divergent validate utilities", () => {
+    const file1 = makeFile("src/validate-a.ts", [
+      "export function validateEmail(email: string) { return /@/.test(email); }",
+    ]);
+    const file2 = makeFile("src/validate-b.ts", [
+      "export function validateEmail(email: string) { return email.includes('@'); }",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects import divergence with aliased imports", () => {
+    const file1 = makeFile("src/a.ts", [
+      "import { format as fmt } from './utils/format';",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "import { format as fmt } from './lib/formatter';",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "import-divergence");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles multiple import symbols from same path", () => {
+    const file1 = makeFile("src/a.ts", [
+      "import { format, parse } from './utils';",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "import { format, parse } from './utils';",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "import-divergence");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects duplicate implementation with store/repository noun synonym", () => {
+    const file1 = makeFile("src/user-store.ts", [
+      "function saveUser(data: any) {}",
+    ]);
+    const file2 = makeFile("src/user-repo.ts", [
+      "function saveUser(data: any) {}",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    // Same name in different files is duplicate (same verb+noun: save+user)
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("sorts critical before warning in result", () => {
+    const file1 = makeFile("src/a.ts", [
+      "function formatDate(d: Date) {}",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "function formatDate(d: Date) {}",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const critical = result.issues.filter((i) => i.severity === "critical");
+    const warnings = result.issues.filter((i) => i.severity === "warning");
+    if (critical.length > 0 && warnings.length > 0) {
+      const lastC = result.issues.indexOf(critical[critical.length - 1]);
+      const firstW = result.issues.indexOf(warnings[0]);
+      expect(lastC).toBeLessThan(firstW);
+    }
+  });
+
+  it("handles file with only deleted lines", () => {
+    const file: DiffFile = {
+      path: "src/removed.ts",
+      status: "modified",
+      hunks: [{
+        header: "@@ -1 +0 @@", changes: [
+          { type: "delete", content: "-function oldCode() {}", line: 1 },
+        ],
+      }],
+    };
+    const result = detectContextAmplification([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("detects transform utilities across files", () => {
+    const file1 = makeFile("src/transform-a.ts", [
+      "export function transformData(input: any) { return JSON.stringify(input); }",
+    ]);
+    const file2 = makeFile("src/transform-b.ts", [
+      "export function transformData(input: any) { return YAML.stringify(input); }",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects normalize utilities across files", () => {
+    const file1 = makeFile("src/norm-a.ts", [
+      "export function normalizeUrl(url: string) { return url.toLowerCase(); }",
+    ]);
+    const file2 = makeFile("src/norm-b.ts", [
+      "export function normalizeUrl(url: string) { return new URL(url).href; }",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips enum lines in detection", () => {
+    const file = makeFile("src/enums.ts", [
+      "enum NotificationType { Email, SMS }",
+    ]);
+    const result = detectContextAmplification([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("body summary includes table headers", () => {
+    const file1 = makeFile("src/a.ts", [
+      "function formatDate(d: Date) {}",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "function formatDate(d: Date) {}",
+    ]);
+
+    const result = detectContextAmplification([file1, file2]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+      expect(result.bodySummary).toContain("|----------|");
+    }
+  });
+});

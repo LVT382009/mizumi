@@ -79,7 +79,7 @@ const SINGLETON_GET_INSTANCE_RE = /getInstance\s*\(\s*\)/;
 const DECORATOR_RE = /@(\w+)(?:\s*\([^)]*\))?\s*$/;
 
 // Method delegation pattern — method body just calls another method
-const DELEGATION_RE = /(?:return\s+)?(?:this\.\w+|super\.\w+|_\w+)\.\w+\s*\([^)]*\)\s*;?\s*\}?\s*$/;
+const DELEGATION_RE = /(?:return\s+)?(?:(?:this|super)\.\w+(?:\.\w+)?|_\w+)\s*\([^)]*\)\s*;?\s*\}?\s*$/;
 
 // Skip patterns
 const SKIP_LINE_RE = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;

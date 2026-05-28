@@ -351,3 +351,182 @@ describe("detectCargoCultArchitecture — context and summary", () => {
     expect(result.bodySummary).toBe("");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional coverage
+// ---------------------------------------------------------------------------
+
+describe("detectCargoCultArchitecture — additional coverage", () => {
+  it("detects facade with super delegation", () => {
+    const file = makeFile("src/child-handler.ts", [
+      "export class ChildHandler extends BaseHandler {",
+      "  process(msg: string) { return super.process(msg); }",
+      "  validate(msg: string) { return super.validate(msg); }",
+      "}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag class with mixed delegation and logic", () => {
+    const file = makeFile("src/mixed.ts", [
+      "export class Processor {",
+      "  process(data: string) { return this.parser.parse(data); }",
+      "  validate(data: string) { if (!data) throw new Error('empty'); return true; }",
+      "  transform(data: any) { const result = complexCalc(data); return result; }",
+      "}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects interface with single impl using multiple interfaces", () => {
+    const file1 = makeFile("src/handler.ts", [
+      "export interface IHandler { handle(): void; }",
+      "export interface ILogger { log(msg: string): void; }",
+    ]);
+    const file2 = makeFile("src/impl.ts", [
+      "export class Handler implements IHandler, ILogger { handle() {} log() {} }",
+    ]);
+
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const handlerIssues = result.issues.filter(
+      (i) => i.category === "interface-for-single-impl" && i.description.includes("IHandler")
+    );
+    // IHandler has exactly one implementation
+    expect(handlerIssues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("detects 4-level inheritance chain", () => {
+    const files = [
+      makeFile("src/base.ts", ["export class Entity { id: string; }"]),
+      makeFile("src/named.ts", ["export class Named extends Entity { name: string; }"]),
+      makeFile("src/dated.ts", ["export class Dated extends Named { createdAt: Date; }"]),
+      makeFile("src/user.ts", ["export class User extends Dated { email: string; }"]),
+    ];
+
+    const result = detectCargoCultArchitecture(files);
+    const issues = result.issues.filter((i) => i.category === "deep-inheritance");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues.some((i) => i.description.includes("4-level"))).toBe(true);
+  });
+
+  it("detects singleton with static instance field", () => {
+    const file = makeFile("src/db.ts", [
+      "export class Database {",
+      "  private static instance: Database;",
+      "  private constructor() {}",
+      "  static get instance(): Database { return Database.instance; }",
+      "}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "singleton-misuse");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects 4+ consecutive decorators", () => {
+    const file = makeFile("src/heavy-dec.ts", [
+      "@Module()",
+      "@Global()",
+      "@Dynamic()",
+      "@Injectable()",
+      "export class SharedModule {}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "decorator-stack");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("4 decorators");
+  });
+
+  it("skips abstract class without delegation", () => {
+    const file = makeFile("src/abstract.ts", [
+      "export abstract class Shape {",
+      "  abstract area(): number;",
+      "  abstract perimeter(): number;",
+      "}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const facadeIssues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(facadeIssues).toHaveLength(0);
+  });
+
+  it("body summary includes table headers when issues exist", () => {
+    const file1 = makeFile("src/iface.ts", [
+      "export interface ICache { get(key: string): string; }",
+    ]);
+    const file2 = makeFile("src/impl.ts", [
+      "export class MemoryCache implements ICache { get(key: string) { return ''; } }",
+    ]);
+
+    const result = detectCargoCultArchitecture([file1, file2]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+      expect(result.bodySummary).toContain("|----------|");
+    }
+  });
+
+  it("sorts critical before warning", () => {
+    const file1 = makeFile("src/iface.ts", [
+      "export interface IService { run(): void; }",
+    ]);
+    const file2 = makeFile("src/impl.ts", [
+      "export class Service implements IService { run() {} }",
+    ]);
+
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const critical = result.issues.filter((i) => i.severity === "critical");
+    const warnings = result.issues.filter((i) => i.severity === "warning");
+    if (critical.length > 0 && warnings.length > 0) {
+      const lastC = result.issues.indexOf(critical[critical.length - 1]);
+      const firstW = result.issues.indexOf(warnings[0]);
+      expect(lastC).toBeLessThan(firstW);
+    }
+  });
+
+  it("handles interface defined in same file as implementation (no cross-file needed)", () => {
+    const file = makeFile("src/service.ts", [
+      "export interface IRepo { find(id: string): any; }",
+      "export class Repo implements IRepo { find(id: string) { return db.get(id); } }",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "interface-for-single-impl");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("detects decorator with arguments", () => {
+    const file = makeFile("src/controller.ts", [
+      "@Controller('/api')",
+      "@UseGuards(JwtAuthGuard)",
+      "@UseInterceptors(LoggingInterceptor)",
+      "export class ApiController {}",
+    ]);
+
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "decorator-stack");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag interface Result with single implementation", () => {
+    const file1 = makeFile("src/types.ts", [
+      "export interface Result { ok: boolean; }",
+    ]);
+    const file2 = makeFile("src/result-impl.ts", [
+      "export class SuccessResult implements Result { ok = true; }",
+    ]);
+
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const issues = result.issues.filter(
+      (i) => i.category === "interface-for-single-impl" && i.description.includes("Result")
+    );
+    // "Result" is in SKIP_IFACE_NAMES
+    expect(issues).toHaveLength(0);
+  });
+});

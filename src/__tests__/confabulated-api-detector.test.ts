@@ -299,3 +299,168 @@ describe("detectConfabulatedAPI — context and summary", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional coverage
+// ---------------------------------------------------------------------------
+
+describe("detectConfabulatedAPI — additional coverage", () => {
+  it("detects .isEmpty() which doesn't exist on JS strings", () => {
+    const file = makeFile("src/check.ts", [
+      "if (name.isEmpty()) { return; }",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain(".length === 0");
+  });
+
+  it("detects .flatten() which doesn't exist on JS arrays", () => {
+    const file = makeFile("src/array.ts", [
+      "const flat = nested.flatten();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain(".flat()");
+  });
+
+  it("detects .collect() which is Ruby for .map()", () => {
+    const file = makeFile("src/ruby.ts", [
+      "const results = items.collect(x => x * 2);",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain(".map()");
+  });
+
+  it("detects .size() with parens which is Java style", () => {
+    const file = makeFile("src/java.ts", [
+      "const len = items.size();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects .ceil() on number (should be Math.ceil)", () => {
+    const file = makeFile("src/round.ts", [
+      "const rounded = value.ceil();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("Math.ceil()");
+  });
+
+  it("detects Object.keys with no arguments", () => {
+    const file = makeFile("src/obj.ts", [
+      "const keys = Object.keys();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("Object.keys");
+  });
+
+  it("detects Math.pow called with 1 argument", () => {
+    const file = makeFile("src/math.ts", [
+      "const result = Math.pow(base);",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag Math.max with spread args (variadic)", () => {
+    const file = makeFile("src/math.ts", [
+      "const max = Math.max(...values);",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects optional chaining on boolean literal", () => {
+    const file = makeFile("src/bool.ts", [
+      "const str = true?.toString();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "fantasy-optional-chain");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects optional chaining on null literal", () => {
+    const file = makeFile("src/null.ts", [
+      "const val = null?.valueOf();",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "fantasy-optional-chain");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects fetch imported from 'fs' module", () => {
+    const file = makeFile("src/fs-fetch.ts", [
+      "import { fetch } from 'fs';",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "confabulated-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("critical");
+  });
+
+  it("does not flag valid node:crypto import", () => {
+    const file = makeFile("src/crypto.ts", [
+      "import { createHash } from 'node:crypto';",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "confabulated-import");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("body summary includes table when issues exist", () => {
+    const file = makeFile("src/bad.ts", [
+      "const has = text.contains('x');",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+      expect(result.bodySummary).toContain("|----------|");
+    }
+  });
+
+  it("handles .hasKey() which is Java Map style", () => {
+    const file = makeFile("src/map.ts", [
+      "if (obj.hasKey('name')) { return obj.name; }",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain(".has()");
+  });
+
+  it("does not flag method definitions (only calls)", () => {
+    const file = makeFile("src/def.ts", [
+      "export function contains(str: string) { return str.includes(this); }",
+    ]);
+
+    const result = detectConfabulatedAPI([file]);
+    // The .includes() is valid JS; the function name "contains" is just a definition, not a call
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues).toHaveLength(0);
+  });
+});

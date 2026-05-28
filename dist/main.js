@@ -123277,7 +123277,7 @@ var SINGLETON_PRIVATE_CTOR_RE = /private\s+(?:constructor|new)\s*\(/;
 var SINGLETON_INSTANCE_RE = /(?:static\s+)?(?:get\s+)?instance\s*[:(]/;
 var SINGLETON_GET_INSTANCE_RE = /getInstance\s*\(\s*\)/;
 var DECORATOR_RE = /@(\w+)(?:\s*\([^)]*\))?\s*$/;
-var DELEGATION_RE = /(?:return\s+)?(?:this\.\w+|super\.\w+|_\w+)\.\w+\s*\([^)]*\)\s*;?\s*\}?\s*$/;
+var DELEGATION_RE = /(?:return\s+)?(?:(?:this|super)\.\w+(?:\.\w+)?|_\w+)\s*\([^)]*\)\s*;?\s*\}?\s*$/;
 var SKIP_LINE_RE18 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
 function detectEnterpriseFacade(file2) {
   const issues = [];
@@ -123678,7 +123678,7 @@ function detectNonExistentMethod(file2) {
   for (const change of added) {
     if (SKIP_LINE_RE19.test(change.content)) continue;
     const trimmed = stripPrefix6(change.content);
-    if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed)) continue;
+    if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed) && !/^\s*(?:if|for|while|switch|catch|return|throw|const|let|var)\b/.test(trimmed)) continue;
     if (/^\s*(?:class|interface|type|enum)\b/.test(trimmed)) continue;
     for (const { pattern, language, correctAlternative } of CONFABULATED_METHODS) {
       if (pattern.test(trimmed)) {

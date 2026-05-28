@@ -166,7 +166,8 @@ function detectNonExistentMethod(file: DiffFile): ConfabulatedAPIIssue[] {
     const trimmed = stripPrefix(change.content);
 
     // Skip if this is a method definition (not a call)
-    if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed)) continue;
+      if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed) &&
+          !/^\s*(?:if|for|while|switch|catch|return|throw|const|let|var)\b/.test(trimmed)) continue;
     // Skip if this is inside a class/object definition
     if (/^\s*(?:class|interface|type|enum)\b/.test(trimmed)) continue;
 
