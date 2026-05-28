@@ -873,3 +873,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects paradigm soup — LLMs mixing React class+hooks, callbacks+async/await, OOP+functional, and competing frameworks in the same file. Human reviewers rarely flag this because both paradigms compile individually. The interaction effects (hooks in class components, unhandled rejections from callback-promise mixing, conflicting framework lifecycles) create subtle bugs.
 - **4 detection categories**: react-class-and-hooks (class component using useState/useEffect), callback-and-async-await (err-first cb or .then() mixed with await), oop-and-functional-mix (class/new with .map/.reduce/.pipe/compose/Ramda), framework-clash (jQuery+React, Angular+Vue, Angular+React, Express+Koa, React+Vue, Mocha+Jest)
 - **Key features**: per-file signal collection, framework pair detection with dual-pattern matching, multi-param arrow function support for functional patterns, err-first callback arrow pattern support
+
+### Velocity Risk Detector (2026-05-29)
+- **+27 tests** in `src/__tests__/velocity-risk-detector.test.ts`
+- **6264 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects velocity risk patterns. LLMs generate 500+ lines in seconds but tests lag behind. Large new files without tests (3x defect density), boilerplate proliferation, sweep refactors without type safety (2.5x regression rate), and copy-paste duplication are unique AI coding signatures.
+- **4 detection categories**: large-new-file (100+ lines added with no test coverage), boilerplate-proliferation (same function/class name in 3+ files), sweep-no-safety (60%+ removals with <10% type/test coverage on additions), copy-paste-pattern (4-word n-gram appearing in 3+ files)
+- **Key features**: cross-file pattern aggregation, test coverage detection for related modules, type annotation counting for safety ratio, n-gram normalization for variable/string agnostic matching
