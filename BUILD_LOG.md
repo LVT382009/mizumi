@@ -859,3 +859,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects confabulated API calls. CodeRabbit and others catch type errors post-compile, but don't flag method names that come from LLM training data in other languages (e.g., .contains() from Java, .add() from Java List, .abs() as a Number method).
 - **4 detection categories**: non-existent-method (30 patterns from Java/Ruby/C#/Kotlin/Scala training data with correct JS alternatives), wrong-arity (26 built-in JS functions with known signatures), fantasy-optional-chain (?. on primitive literals — always a coder error), confabulated-import (wrong symbols from well-known Node.js modules)
 - **Key features**: severity="critical" for confabulated-import (code won't run), severity="warning" for other categories. Cross-file detection, capped output per category
+
+### Partial Security Control Detector (2026-05-29)
+- **+28 tests** in `src/__tests__/partial-security-control-detector.test.ts`
+- **6198 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects incomplete security control pairs. CSA 2026 reports 322% privilege escalation surge in AI-generated code. Cogent names this a "new vulnerability class unique to AI-generated code." SonarQube/Codacy flag individual bad calls, never missing pair complements.
+- **4 detection categories**: auth-without-authz (authenticate/login/signIn without authorize/checkRole/hasPermission), encrypt-without-kdf (encrypt/cipher/sign without deriveKey/pbkdf2/scrypt/bcrypt), validate-without-sanitize (validate/joi/zod schema without sanitize/escape/DOMPurify), rate-count-without-enforce (RateLimiter/requestCount without reject/throttle/429)
+- **Key features**: cross-file aggregation, per-file and global checks, critical severity for global absence (no second control anywhere), warning severity for per-file gap (second control in different file)
