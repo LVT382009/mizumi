@@ -866,3 +866,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects incomplete security control pairs. CSA 2026 reports 322% privilege escalation surge in AI-generated code. Cogent names this a "new vulnerability class unique to AI-generated code." SonarQube/Codacy flag individual bad calls, never missing pair complements.
 - **4 detection categories**: auth-without-authz (authenticate/login/signIn without authorize/checkRole/hasPermission), encrypt-without-kdf (encrypt/cipher/sign without deriveKey/pbkdf2/scrypt/bcrypt), validate-without-sanitize (validate/joi/zod schema without sanitize/escape/DOMPurify), rate-count-without-enforce (RateLimiter/requestCount without reject/throttle/429)
 - **Key features**: cross-file aggregation, per-file and global checks, critical severity for global absence (no second control anywhere), warning severity for per-file gap (second control in different file)
+
+### Paradigm Clash Detector (2026-05-29)
+- **+39 tests** in `src/__tests__/paradigm-clash-detector.test.ts`
+- **6237 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects paradigm soup — LLMs mixing React class+hooks, callbacks+async/await, OOP+functional, and competing frameworks in the same file. Human reviewers rarely flag this because both paradigms compile individually. The interaction effects (hooks in class components, unhandled rejections from callback-promise mixing, conflicting framework lifecycles) create subtle bugs.
+- **4 detection categories**: react-class-and-hooks (class component using useState/useEffect), callback-and-async-await (err-first cb or .then() mixed with await), oop-and-functional-mix (class/new with .map/.reduce/.pipe/compose/Ramda), framework-clash (jQuery+React, Angular+Vue, Angular+React, Express+Koa, React+Vue, Mocha+Jest)
+- **Key features**: per-file signal collection, framework pair detection with dual-pattern matching, multi-param arrow function support for functional patterns, err-first callback arrow pattern support
