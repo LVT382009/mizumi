@@ -191,6 +191,7 @@ nullGuardDetector: true,
     callbackMisuseDetector: true,
       staleClosureDetector: true,
       hallucinatedDependencyDetector: true,
+      tautologicalTestDetector: true,
     ...overrides,
   };
 }

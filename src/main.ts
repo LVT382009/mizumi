@@ -104,6 +104,7 @@ import { detectDebugArtifacts } from "./debug-artifact-detector.js";
 import { detectCallbackMisuse } from "./callback-misuse-detector.js";
 import { detectStaleClosures } from "./stale-closure-detector.js";
 import { detectHallucinatedDeps } from "./hallucinated-dependency-detector.js";
+import { detectTautologicalTests } from "./tautological-test-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -738,6 +739,15 @@ if (config.callbackMisuseDetector) {
           }
         }
 
+        // 4a3zb. Tautological test detector — detect tests mirroring implementation: tautological-assertion, fixture-mirror-constant, happy-path-only, private-helper-in-test
+        let tautologicalTestResult: import("./tautological-test-detector.js").TautologicalTestResult | null = null;
+        if (config.tautologicalTestDetector) {
+          tautologicalTestResult = detectTautologicalTests(diff.files);
+          if (tautologicalTestResult.issues.length > 0) {
+            core.info("Tautological test detection: " + tautologicalTestResult.issues.length + " issue(s)");
+          }
+        }
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1180,6 +1190,9 @@ if (staleClosureResult && staleClosureResult.contextText) {
 }
 if (hallucinatedDepResult && hallucinatedDepResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + hallucinatedDepResult.contextText;
+}
+if (tautologicalTestResult && tautologicalTestResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + tautologicalTestResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2149,6 +2162,17 @@ if (hallucinatedDepResult && hallucinatedDepResult.bodySummary) {
   } catch (e) {
     core.warning("Hallucinated dependency comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
+// Post tautological test detection summary as a separate comment
+if (tautologicalTestResult && tautologicalTestResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: tautologicalTestResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Tautological test comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
 }
  }
@@ -2318,6 +2342,7 @@ if (config.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector
 if (config.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detector", 0, true);
 if (config.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0, true);
 if (config.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
+if (config.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

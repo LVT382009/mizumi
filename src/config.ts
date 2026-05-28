@@ -98,6 +98,7 @@ observabilityGapDetector: boolean;
   callbackMisuseDetector: boolean;
   staleClosureDetector: boolean;
   hallucinatedDependencyDetector: boolean;
+  tautologicalTestDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -219,6 +220,7 @@ const debugArtifactDetector = core.getInput("debug_artifact_detector") !== "fals
 const callbackMisuseDetector = core.getInput("callback_misuse_detector") !== "false"; // default true
 const staleClosureDetector = core.getInput("stale_closure_detector") !== "false"; // default true
 const hallucinatedDependencyDetector = core.getInput("hallucinated_dependency_detector") !== "false"; // default true
+const tautologicalTestDetector = core.getInput("tautological_test_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -359,6 +361,7 @@ observabilityGapDetector,
   callbackMisuseDetector,
   staleClosureDetector,
   hallucinatedDependencyDetector,
+  tautologicalTestDetector,
   };
 }
 

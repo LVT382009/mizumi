@@ -423,6 +423,10 @@ callback_misuse_detector:
     description: 'Enable hallucinated dependency detection (unknown-import, slopsquatting-signal, phantom-scoped-import, version-mismatch)'
     required: false
     default: 'true'
+  tautological_test_detector:
+    description: 'Enable tautological test detection (tautological-assertion, fixture-mirror-constant, happy-path-only, private-helper-in-test)'
+    required: false
+    default: 'true'
 debug_artifact_detector:
   description: "Enable debug artifact detector — flags leftover debugger statements, console.log in production code, it.only/describe.only test isolation breaks, and debug/verbose flags left enabled. Zero LLM cost. No AI code reviewer detects debug artifacts as a category."
   required: false
