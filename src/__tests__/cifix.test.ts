@@ -142,6 +142,7 @@ observabilityGapDetector: true,
 semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
+      aiCodePathologyDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

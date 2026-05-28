@@ -88,6 +88,7 @@ observabilityGapDetector: true,
 semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
 nullGuardDetector: true,
+      aiCodePathologyDetector: true,
 };
 
 describe("classifyDiff", () => {

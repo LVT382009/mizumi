@@ -399,6 +399,10 @@ null_guard_detector:
   description: "Enable null guard detector — flags deep property access without optional chaining, array index access without length checks, partial optional chains, and non-null assertions on optional values. Zero LLM cost. No AI code reviewer detects null guard gaps at PR review time."
   required: false
   default: "true"
+ai_code_pathology_detector:
+  description: "Enable AI code pathology detector — flags LLM-specific code mistakes: hallucinated imports, sycophantic stubs, confident-wrong API calls, boilerplate expansion. Zero LLM cost. No AI code reviewer detects LLM-specific pathologies at PR review time."
+  required: false
+  default: "true"
 
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."

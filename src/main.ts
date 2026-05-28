@@ -97,6 +97,7 @@ import { detectLifecycleProtocolViolations } from "./lifecycle-protocol-detector
 import { detectSemanticTypeConfusion } from "./semantic-type-confusion-detector.js";
 import { detectDataFlowBoundaryViolations } from "./data-flow-boundary-detector.js";
 import { detectNullGuardGaps } from "./null-guard-detector.js";
+import { detectAICodePathologies } from "./ai-code-pathology-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -648,6 +649,19 @@ if (config.nullGuardDetector) {
   }
 }
 
+// 4a3u. AI code pathology detector — detect LLM-specific code mistakes: hallucinated imports, sycophantic stubs, wrong API calls, boilerplate expansion
+let aiPathologyResult: import("./ai-code-pathology-detector.js").AICodePathologyResult | null = null;
+if (config.aiCodePathologyDetector) {
+  try {
+    aiPathologyResult = detectAICodePathologies(diff.files);
+    if (aiPathologyResult.issues.length > 0) {
+      core.info("AI code pathology detection: " + aiPathologyResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("AI code pathology detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1060,6 +1074,10 @@ if (dataFlowBoundaryResult && dataFlowBoundaryResult.contextText) {
 // 5c2t. Null guard detector context injection
 if (nullGuardResult && nullGuardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + nullGuardResult.contextText;
+}
+// 5c2u. AI code pathology detector context injection
+if (aiPathologyResult && aiPathologyResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiPathologyResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -1961,6 +1979,17 @@ if (nullGuardResult && nullGuardResult.bodySummary) {
     core.warning("Null guard comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post AI code pathology detection summary as a separate comment
+if (aiPathologyResult && aiPathologyResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: aiPathologyResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("AI code pathology comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2120,6 +2149,7 @@ if (config.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-
 if (config.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-confusion-detector", 0, true);
 if (config.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-detector", 0, true);
 if (config.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, true);
+if (config.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
