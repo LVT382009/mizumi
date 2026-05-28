@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 5556 Tests)
 
-- **5556 tests** passing (108 test files)
+- **5794 tests** passing (109 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -790,3 +790,14 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **+38 tests** expanded in `src/__tests__/resource-lifecycle-detector.test.ts` (33→71)
 - **5556 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects hardcoded configuration as a category. LLMs optimize for "working example" over deployable code, embedding URLs, ports, timeouts, and feature flags directly instead of using config management.
+
+### Debug Artifact Detector (2026-05-28)
+- **+86 tests** in `src/__tests__/debug-artifact-detector.test.ts`
+- **+152 tests** expanded across 5 undertested modules:
+  - crosspr-conflict: 34→64 (+30)
+  - platform-github: 34→56 (+22)
+  - gitlab-entry: 35→67 (+32)
+  - review-priority: 35→68 (+33)
+  - breaking-change-radar: 36→71 (+35)
+- **5794 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects debug artifacts as a category. ESLint `no-debugger` and `no-console` exist but are opt-in (most projects don't enable them), not integrated into PR review context, and miss debug flags and test isolation breaks (it.only, describe.only, fit, xit).
