@@ -96,6 +96,7 @@ import { detectConcurrencyHazards } from "./async-concurrency-hazard-detector.js
 import { detectLifecycleProtocolViolations } from "./lifecycle-protocol-detector.js";
 import { detectSemanticTypeConfusion } from "./semantic-type-confusion-detector.js";
 import { detectDataFlowBoundaryViolations } from "./data-flow-boundary-detector.js";
+import { detectNullGuardGaps } from "./null-guard-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -634,6 +635,19 @@ if (config.dataFlowBoundaryDetector) {
   }
 }
 
+// 4a3t. Null guard detector — detect deep access without guard, array index without check, optional chain gaps, assertive access on optional
+let nullGuardResult: import("./null-guard-detector.js").NullGuardResult | null = null;
+if (config.nullGuardDetector) {
+  try {
+    nullGuardResult = detectNullGuardGaps(diff.files);
+    if (nullGuardResult.issues.length > 0) {
+      core.info("Null guard detection: " + nullGuardResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Null guard detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1042,6 +1056,10 @@ if (semanticConfusionResult && semanticConfusionResult.contextText) {
 // 5c2s. Data flow boundary detector context injection
 if (dataFlowBoundaryResult && dataFlowBoundaryResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dataFlowBoundaryResult.contextText;
+}
+// 5c2t. Null guard detector context injection
+if (nullGuardResult && nullGuardResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + nullGuardResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -1932,6 +1950,17 @@ if (dataFlowBoundaryResult && dataFlowBoundaryResult.bodySummary) {
     core.warning("Data flow boundary comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post null guard detection summary as a separate comment
+if (nullGuardResult && nullGuardResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: nullGuardResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Null guard comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2090,6 +2119,7 @@ if (config.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-
 if (config.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-detector", 0, true);
 if (config.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-confusion-detector", 0, true);
 if (config.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-detector", 0, true);
+if (config.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

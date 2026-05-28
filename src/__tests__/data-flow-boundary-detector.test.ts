@@ -493,3 +493,200 @@ describe("detectDataFlowBoundaryViolations — edge cases", () => {
     expect(trust.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional edge cases — unprotected PII in response variants
+// ---------------------------------------------------------------------------
+
+describe("detectDataFlowBoundaryViolations — unprotected PII edge cases", () => {
+  it("detects biometric in HttpResponse", () => {
+    const files = [makeFile("src/biometric.ts", [
+      "+HttpResponse({ biometric: user.biometric });",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const pii = result.issues.filter((i) => i.category === "unprotected-pii-in-response");
+    expect(pii).toHaveLength(1);
+    expect(pii[0].description).toContain("biometric");
+    expect(pii[0].severity).toBe("warning");
+  });
+
+  it("detects ethnicity in sendResponse", () => {
+    const files = [makeFile("src/profile.ts", [
+      "+sendResponse({ ethnicity: profile.ethnicity });",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const pii = result.issues.filter((i) => i.category === "unprotected-pii-in-response");
+    expect(pii).toHaveLength(1);
+    expect(pii[0].description).toContain("ethnicity");
+  });
+
+  it("detects maidenName in reply.send", () => {
+    const files = [makeFile("src/user.ts", [
+      "+reply.send({ maidenName: profile.maidenName });",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const pii = result.issues.filter((i) => i.category === "unprotected-pii-in-response");
+    expect(pii).toHaveLength(1);
+    expect(pii[0].description).toContain("maidenName");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional edge cases — sensitive data in log variants
+// ---------------------------------------------------------------------------
+
+describe("detectDataFlowBoundaryViolations — sensitive data in log edge cases", () => {
+  it("detects secret in pino logger", () => {
+    const files = [makeFile("src/log.ts", [
+      "+pino.info({ secret: config.secret });",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const logs = result.issues.filter((i) => i.category === "sensitive-data-in-log");
+    expect(logs).toHaveLength(1);
+    expect(logs[0].severity).toBe("critical");
+    expect(logs[0].description).toContain("secret");
+  });
+
+  it("detects creditCard in bunyan logger", () => {
+    const files = [makeFile("src/payment.ts", [
+      "+bunyan.error('Payment failed:', payment.creditCard);",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const logs = result.issues.filter((i) => i.category === "sensitive-data-in-log");
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    expect(logs[0].severity).toBe("critical");
+  });
+
+  it("detects refreshToken in log.error", () => {
+    const files = [makeFile("src/auth.ts", [
+      "+log.error('Token refresh failed:', refreshToken);",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const logs = result.issues.filter((i) => i.category === "sensitive-data-in-log");
+    expect(logs).toHaveLength(1);
+    expect(logs[0].severity).toBe("critical");
+    expect(logs[0].description).toContain("Token");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional edge cases — trust boundary skip variants
+// ---------------------------------------------------------------------------
+
+describe("detectDataFlowBoundaryViolations — trust boundary skip edge cases", () => {
+  it("detects http.post with db.query", () => {
+    const files = [makeFile("src/integration.ts", [
+      "+http.post(apiUrl, db.query(sql));",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const trust = result.issues.filter((i) => i.category === "trust-boundary-skip");
+    expect(trust.length).toBeGreaterThanOrEqual(1);
+    expect(trust[0].severity).toBe("critical");
+  });
+
+  it("detects axios.post with findById", () => {
+    const files = [makeFile("src/sync.ts", [
+      "+axios.post(url, findById(userId));",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const trust = result.issues.filter((i) => i.category === "trust-boundary-skip");
+    expect(trust.length).toBeGreaterThanOrEqual(1);
+    expect(trust[0].severity).toBe("critical");
+  });
+
+  it("detects trackEvent with getUser data", () => {
+    const files = [makeFile("src/analytics.ts", [
+      "+trackEvent('login', getUser(userId));",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const trust = result.issues.filter((i) => i.category === "trust-boundary-skip");
+    expect(trust.length).toBeGreaterThanOrEqual(1);
+    expect(trust[0].severity).toBe("critical");
+  });
+
+  it("does not treat JSON.stringify as sanitization on trust boundary", () => {
+    const files = [makeFile("src/api.ts", [
+      "+http.post(url, JSON.stringify(db.query(sql)));",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const trust = result.issues.filter((i) => i.category === "trust-boundary-skip");
+    expect(trust.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional edge cases — client-side leak variants
+// ---------------------------------------------------------------------------
+
+describe("detectDataFlowBoundaryViolations — client-side leak edge cases", () => {
+  it("detects secret stored via document.cookie in client component", () => {
+    const files = [makeFile("src/components/auth.ts", [
+      "+document.cookie = 'session=' + secret;",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const leak = result.issues.filter((i) => i.category === "client-side-leak");
+    expect(leak.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects process.env.API_SECRET exposed via window", () => {
+    const files = [makeFile("src/config.ts", [
+      "+window.__ENV = process.env.API_SECRET;",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const leak = result.issues.filter((i) => i.category === "client-side-leak");
+    expect(leak.length).toBeGreaterThanOrEqual(1);
+    expect(leak[0].description).toContain("API_SECRET");
+  });
+
+  it("detects localStorage.setItem with auth value", () => {
+    const files = [makeFile("src/session.ts", [
+      "+localStorage.setItem('key', auth);",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const leak = result.issues.filter((i) => i.category === "client-side-leak");
+    expect(leak).toHaveLength(1);
+    expect(leak[0].severity).toBe("critical");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional structural edge cases
+// ---------------------------------------------------------------------------
+
+describe("detectDataFlowBoundaryViolations — structural edge cases", () => {
+  it("detects multiple violations in same line from different categories", () => {
+    const files = [makeFile("src/debug.ts", [
+      "+console.log(res.json({ ssn: user.ssn }));",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const logIssues = result.issues.filter((i) => i.category === "sensitive-data-in-log");
+    const piiIssues = result.issues.filter((i) => i.category === "unprotected-pii-in-response");
+    expect(logIssues.length).toBeGreaterThanOrEqual(1);
+    expect(piiIssues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips import lines with sensitive keywords", () => {
+    const files = [makeFile("src/secrets.ts", [
+      "+import { password, secret } from './credentials';",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("skips type declarations with sensitive keywords", () => {
+    const files = [makeFile("src/types.ts", [
+      "+type UserData = { ssn: string; password: string; };",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("does not flag res.json with encrypted PII as safe", () => {
+    const files = [makeFile("src/api.ts", [
+      "+res.json({ ssn: encrypt(user.ssn) });",
+    ])];
+    const result = detectDataFlowBoundaryViolations(files);
+    const pii = result.issues.filter((i) => i.category === "unprotected-pii-in-response");
+    expect(pii).toHaveLength(0);
+  });
+});

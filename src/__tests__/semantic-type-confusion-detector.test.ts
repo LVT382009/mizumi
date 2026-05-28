@@ -390,3 +390,187 @@ describe("detectSemanticTypeConfusion — edge cases", () => {
     expect(swap).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Unit mismatch — under-tested unit categories
+// ---------------------------------------------------------------------------
+
+describe("detectSemanticTypeConfusion — temperature and frequency units", () => {
+  it("does not flag celsius vs fahrenheit (not in detection groups)", () => {
+    const files = [makeFile("src/temp.ts", [
+      "+const tempCelsius = tempFahrenheit;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const units = result.issues.filter((i) => i.category === "unit-mismatch");
+    expect(units).toHaveLength(0);
+  });
+
+  it("does not flag Hz vs Khz (not in detection groups)", () => {
+    const files = [makeFile("src/signal.ts", [
+      "+const frequencyHz = frequencyKhz;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const units = result.issues.filter((i) => i.category === "unit-mismatch");
+    expect(units).toHaveLength(0);
+  });
+
+  it("does not flag Mhz vs Ghz (not in detection groups)", () => {
+    const files = [makeFile("src/clock.ts", [
+      "+const clockMhz = clockGhz;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const units = result.issues.filter((i) => i.category === "unit-mismatch");
+    expect(units).toHaveLength(0);
+  });
+
+  it("does not flag pixel vs pixel same-unit assignment", () => {
+    const files = [makeFile("src/layout.ts", [
+      "+const widthPixels = heightPixels;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const units = result.issues.filter((i) => i.category === "unit-mismatch");
+    expect(units).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ID confusion — wrong getter ID types
+// ---------------------------------------------------------------------------
+
+describe("detectSemanticTypeConfusion — wrong getter ID types", () => {
+  it("detects getPayment(invoiceId) wrong ID type", () => {
+    const files = [makeFile("src/billing.ts", [
+      "+const payment = getPayment(invoiceId);",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const ids = result.issues.filter((i) => i.category === "id-confusion");
+    expect(ids.length).toBeGreaterThanOrEqual(1);
+    expect(ids[0].severity).toBe("critical");
+  });
+
+  it("detects getCustomer(transactionId) wrong ID type", () => {
+    const files = [makeFile("src/crm.ts", [
+      "+const customer = getCustomer(transactionId);",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const ids = result.issues.filter((i) => i.category === "id-confusion");
+    expect(ids.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects getTransaction(userId) wrong ID type", () => {
+    const files = [makeFile("src/payments.ts", [
+      "+const txn = getTransaction(userId);",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const ids = result.issues.filter((i) => i.category === "id-confusion");
+    expect(ids.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Timestamp/duration — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("detectSemanticTypeConfusion — timestamp/duration edge cases", () => {
+  it("detects startedAt * 3600 timestamp multiplication", () => {
+    const files = [makeFile("src/scheduler.ts", [
+      "+const scaled = startedAt * 3600;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const swap = result.issues.filter((i) => i.category === "timestamp-duration-swap");
+    expect(swap.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects setInterval with startedAt timestamp", () => {
+    const files = [makeFile("src/poller.ts", [
+      "+setInterval(poll, startedAt);",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const swap = result.issues.filter((i) => i.category === "timestamp-duration-swap");
+    expect(swap).toHaveLength(1);
+    expect(swap[0].severity).toBe("critical");
+  });
+
+  it("does not flag expiresAt + startedAt (two timestamps not in digit pattern)", () => {
+    const files = [makeFile("src/auth.ts", [
+      "+const deadline = expiresAt + startedAt;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const swap = result.issues.filter((i) => i.category === "timestamp-duration-swap");
+    expect(swap).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// String subtype — reverse direction and alternate names
+// ---------------------------------------------------------------------------
+
+describe("detectSemanticTypeConfusion — string subtype edge cases", () => {
+  it("does not flag url = filePath (reverse direction not detected)", () => {
+    const files = [makeFile("src/config.ts", [
+      "+const url = filePath;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const subtypes = result.issues.filter((i) => i.category === "string-subtype-confusion");
+    expect(subtypes).toHaveLength(0);
+  });
+
+  it("detects tel = emailAddress assignment", () => {
+    const files = [makeFile("src/contact.ts", [
+      "+const tel = emailAddress;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const subtypes = result.issues.filter((i) => i.category === "string-subtype-confusion");
+    expect(subtypes).toHaveLength(1);
+  });
+
+  it("detects mobileNumber = eMail assignment", () => {
+    const files = [makeFile("src/profile.ts", [
+      "+const mobileNumber = eMail;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    const subtypes = result.issues.filter((i) => i.category === "string-subtype-confusion");
+    expect(subtypes).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases — skip patterns and multi-issue lines
+// ---------------------------------------------------------------------------
+
+describe("detectSemanticTypeConfusion — skip and multi-issue edge cases", () => {
+  it("detects multiple issues on the same line", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const userId = orderId; const priceDollars = priceCents;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    expect(result.issues.length).toBeGreaterThanOrEqual(2);
+    const cats = new Set(result.issues.map((i) => i.category));
+    expect(cats.has("id-confusion")).toBe(true);
+    expect(cats.has("unit-mismatch")).toBe(true);
+  });
+
+  it("skips type declaration lines", () => {
+    const files = [makeFile("src/types.ts", [
+      "+type UserId = OrderId;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("skips enum declaration lines", () => {
+    const files = [makeFile("src/types.ts", [
+      "+enum Ids { userId = orderId }",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("skips export lines", () => {
+    const files = [makeFile("src/api.ts", [
+      "+export const userId = orderId;",
+    ])];
+    const result = detectSemanticTypeConfusion(files);
+    expect(result.issues).toHaveLength(0);
+  });
+});

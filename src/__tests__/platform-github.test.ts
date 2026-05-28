@@ -181,6 +181,7 @@ observabilityGapDetector: true,
     lifecycleProtocolDetector: true,
 semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
+nullGuardDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

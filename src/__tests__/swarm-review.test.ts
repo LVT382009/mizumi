@@ -307,6 +307,7 @@ observabilityGapDetector: true,
     lifecycleProtocolDetector: true,
 semanticTypeConfusionDetector: true,
 dataFlowBoundaryDetector: true,
+nullGuardDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);
