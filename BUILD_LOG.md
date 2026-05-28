@@ -845,3 +845,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects parallel implementations from context resets. When LLM context windows fill/reset, the model forgets existing implementations and creates duplicate versions with different naming. Both copies may be actively called but only one gets updated, causing subtle drift.
 - **4 detection categories**: duplicate-implementation (same verb+noun in different files via verb/noun normalization), naming-inconsistency (synonymous domain concepts across files), divergent-utility (same utility function in multiple files, displayName preservation), import-divergence (same symbol imported from different paths)
 - **Key features**: verb normalization (create/build → create, fetch/get → get), noun normalization (message/alert → notification, store/dao → repository), capped output for naming-inconsistency and import-divergence (max 5 each)
+
+### Cargo-Cult Architecture Detector (2026-05-28)
+- **+22 tests** in `src/__tests__/cargo-cult-architecture-detector.test.ts`
+- **6106 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects cargo-cult boilerplate patterns. Codacy flags complexity metrics but not LLM-specific patterns like facade classes with pure delegation, interfaces for single implementations, or decorator stacks from training data.
+- **5 detection categories**: enterprise-facade (classes with 2-3 methods all delegating to injected dependencies), interface-for-single-impl (cross-file: interface + exactly one implements), deep-inheritance (3+ level extends chains with cycle protection), singleton-misuse (private constructor + getInstance/instance pattern), decorator-stack (3+ consecutive decorators)
+- **Key features**: cross-file interface-impl tracking, cycle-protected inheritance chain walking, SKIP_IFACE_NAMES for common benign interfaces (Error, Event, Options, etc.)
