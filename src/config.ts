@@ -96,6 +96,7 @@ observabilityGapDetector: boolean;
   hardcodedConfigDetector: boolean;
   debugArtifactDetector: boolean;
   callbackMisuseDetector: boolean;
+  staleClosureDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -215,6 +216,7 @@ const ungatedCriticalReturnDetector = core.getInput("ungated_critical_return_det
 const hardcodedConfigDetector = core.getInput("hardcoded_config_detector") !== "false"; // default true
 const debugArtifactDetector = core.getInput("debug_artifact_detector") !== "false"; // default true
 const callbackMisuseDetector = core.getInput("callback_misuse_detector") !== "false"; // default true
+const staleClosureDetector = core.getInput("stale_closure_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -353,6 +355,7 @@ observabilityGapDetector,
     hardcodedConfigDetector,
   debugArtifactDetector,
   callbackMisuseDetector,
+  staleClosureDetector,
   };
 }
 

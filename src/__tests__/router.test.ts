@@ -93,6 +93,7 @@ nullGuardDetector: true,
       hardcodedConfigDetector: true,
     debugArtifactDetector: true,
     callbackMisuseDetector: true,
+      staleClosureDetector: true,
 };
 
 describe("classifyDiff", () => {

@@ -187,6 +187,7 @@ nullGuardDetector: true,
       hardcodedConfigDetector: true,
     debugArtifactDetector: true,
     callbackMisuseDetector: true,
+      staleClosureDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

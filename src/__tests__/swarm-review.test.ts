@@ -313,6 +313,7 @@ nullGuardDetector: true,
       hardcodedConfigDetector: true,
     debugArtifactDetector: true,
     callbackMisuseDetector: true,
+      staleClosureDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

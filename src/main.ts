@@ -102,6 +102,7 @@ import { detectUngatedCriticalReturns } from "./ungated-critical-return-detector
 import { detectHardcodedConfig } from "./hardcoded-config-detector.js";
 import { detectDebugArtifacts } from "./debug-artifact-detector.js";
 import { detectCallbackMisuse } from "./callback-misuse-detector.js";
+import { detectStaleClosures } from "./stale-closure-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -718,6 +719,15 @@ if (config.callbackMisuseDetector) {
   }
 }
 
+        // 4a3z. Stale closure detector — detect closures capturing stale/mutable variables: loop-var-closure, stale-event-handler, async-closure-race, settimeout-stale-capture
+        let staleClosureResult: import("./stale-closure-detector.js").StaleClosureResult | null = null;
+        if (config.staleClosureDetector) {
+          staleClosureResult = detectStaleClosures(diff.files);
+          if (staleClosureResult.issues.length > 0) {
+            core.info("Stale closure detection: " + staleClosureResult.issues.length + " issue(s)");
+          }
+        }
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1148,6 +1158,15 @@ if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
 }
 if (observabilityGapResult && observabilityGapResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + observabilityGapResult.contextText;
+}
+if (debugArtifactResult && debugArtifactResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + debugArtifactResult.contextText;
+}
+if (callbackMisuseResult && callbackMisuseResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + callbackMisuseResult.contextText;
+}
+if (staleClosureResult && staleClosureResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + staleClosureResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2097,6 +2116,17 @@ if (callbackMisuseResult && callbackMisuseResult.bodySummary) {
   } catch (e) {
     core.warning("Callback misuse comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
+// Post stale closure detection summary as a separate comment
+if (staleClosureResult && staleClosureResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: staleClosureResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Stale closure comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
  }
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
@@ -2262,6 +2292,7 @@ if (config.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critica
 if (config.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-detector", 0, true);
 if (config.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector", 0, true);
 if (config.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detector", 0, true);
+if (config.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
