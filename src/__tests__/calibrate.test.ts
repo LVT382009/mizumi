@@ -187,6 +187,7 @@ nullGuardDetector: true,
       aiCodePathologyDetector: true,
       ungatedCriticalReturnDetector: true,
       hardcodedConfigDetector: true,
+    debugArtifactDetector: true,
     ...overrides,
   };
 }

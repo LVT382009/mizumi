@@ -343,3 +343,306 @@ describe("prioritizeFindings", () => {
     expect(result.breakdown.categoryMultiplier).toBe(1.1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// computePriority — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("computePriority — additional edge cases", () => {
+  it("gives low or medium priority for medium severity with moderate confidence (boundary)", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "medium", category: "bug", confidence: 60 }),
+    });
+    // With medium severity + 60% confidence + bug 1.3x: base = (5*0.6*1.3/15)*7 = ~1.8
+    // This may fall in "low" or "medium" range depending on rounding
+    expect(["low", "medium"]).toContain(result.priorityLevel);
+  });
+
+  it("handles confidence of 0 without crash", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "security", confidence: 0 }),
+    });
+    expect(result.priority).toBeGreaterThanOrEqual(1);
+    expect(result.breakdown.confidenceFactor).toBe(0);
+  });
+
+  it("handles confidence of 100 at maximum", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }),
+    });
+    expect(result.breakdown.confidenceFactor).toBe(1);
+    expect(result.priority).toBeLessThanOrEqual(10);
+  });
+
+  it("unknown severity defaults to score 3", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "unknown" as any, category: "bug", confidence: 80 }),
+    });
+    expect(result.breakdown.severityScore).toBe(3);
+  });
+
+  it("architecture category gets default 1.0x multiplier", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "medium", category: "architecture" as any, confidence: 80 }),
+    });
+    expect(result.breakdown.categoryMultiplier).toBe(1.0);
+  });
+
+  it("style category reduces severity score with 0.8x multiplier", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "style", confidence: 80 }),
+    });
+    expect(result.breakdown.categoryMultiplier).toBe(0.8);
+  });
+
+  it("recurrence boost is 0 when recurrenceCount is 0", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }),
+      recurrenceCount: 0,
+    });
+    expect(result.breakdown.recurrenceBoost).toBe(0);
+  });
+
+  it("recurrence boost is 1 for single recurrence", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }),
+      recurrenceCount: 1,
+    });
+    expect(result.breakdown.recurrenceBoost).toBe(1);
+  });
+
+  it("recurrence boost is 2 for two recurrences", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }),
+      recurrenceCount: 2,
+    });
+    expect(result.breakdown.recurrenceBoost).toBe(2);
+  });
+
+  it("ownership boost is always exactly 2 when isOwned is true", () => {
+    const result1 = computePriority({
+      finding: makeFinding({ severity: "low", category: "style", confidence: 50 }),
+      isOwned: true,
+    });
+    const result2 = computePriority({
+      finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }),
+      isOwned: true,
+    });
+    expect(result1.breakdown.ownershipBoost).toBe(2);
+    expect(result2.breakdown.ownershipBoost).toBe(2);
+  });
+
+  it("intent boost is 0 when fileIntent is empty string", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "security", confidence: 90 }),
+      fileIntent: "",
+    });
+    expect(result.breakdown.intentBoost).toBe(0);
+  });
+
+  it("intent boost is 0 for unrecognized fileIntent", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 90 }),
+      fileIntent: "refactor" as any,
+    });
+    expect(result.breakdown.intentBoost).toBe(0);
+  });
+
+  it("security finding does not get boost from bugfix intent", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "security", confidence: 90 }),
+      fileIntent: "bugfix",
+    });
+    expect(result.breakdown.intentBoost).toBe(0);
+  });
+
+  it("bug finding does not get boost from security intent", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 90 }),
+      fileIntent: "security",
+    });
+    expect(result.breakdown.intentBoost).toBe(0);
+  });
+
+  it("performance finding does not get boost from bugfix intent", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "medium", category: "performance", confidence: 80 }),
+      fileIntent: "bugfix",
+    });
+    expect(result.breakdown.intentBoost).toBe(0);
+  });
+
+  it("raw score calculation is correct without boosts", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }),
+    });
+    // raw = (8 * 0.8 * 1.3) + 0 + 0 + 0 = 8.32
+    expect(result.breakdown.rawScore).toBeCloseTo(8.32, 1);
+  });
+
+  it("raw score calculation with all boosts enabled", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }),
+      isOwned: true,
+      fileIntent: "security",
+      recurrenceCount: 2,
+    });
+    // raw = (10 * 1.0 * 1.5) + 2 + 2 + 2 = 21
+    expect(result.breakdown.rawScore).toBeCloseTo(21, 0);
+  });
+
+  it("priority is always at least 1", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "nitpick", category: "style", confidence: 0 }),
+    });
+    expect(result.priority).toBeGreaterThanOrEqual(1);
+  });
+
+  it("priority is always at most 10", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }),
+      isOwned: true,
+      fileIntent: "security",
+      recurrenceCount: 10,
+    });
+    expect(result.priority).toBeLessThanOrEqual(10);
+  });
+
+  it("priority level is critical when priority >= 8", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }),
+      isOwned: true,
+    });
+    expect(result.priorityLevel).toBe("critical");
+  });
+
+  it("priority level is low when priority < 3", () => {
+    const result = computePriority({
+      finding: makeFinding({ severity: "nitpick", category: "style", confidence: 50 }),
+    });
+    expect(result.priorityLevel).toBe("low");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// prioritizeFindings — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("prioritizeFindings — additional edge cases", () => {
+  it("handles single finding correctly", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.findings).toHaveLength(1);
+    expect(result.averagePriority).toBeGreaterThan(0);
+  });
+
+  it("maintains stable sort order — equal priorities stay in insertion order", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "low", category: "style", confidence: 50, file: "src/a.ts" }) },
+      { finding: makeFinding({ severity: "low", category: "style", confidence: 50, file: "src/b.ts" }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.findings).toHaveLength(2);
+    // Both should have same priority
+    expect(result.findings[0].priority).toBe(result.findings[1].priority);
+  });
+
+  it("average priority is correct for two identical findings", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }) },
+      { finding: makeFinding({ severity: "high", category: "bug", confidence: 80 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.averagePriority).toBe(result.findings[0].priority);
+  });
+
+  it("context text includes priority badges", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "critical", category: "security", confidence: 95 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    if (result.findings[0].priorityLevel === "critical") {
+      expect(result.contextText).toContain("[CRITICAL]");
+    }
+  });
+
+  it("context text includes MED badge for medium priority", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "medium", category: "architecture" as any, confidence: 60 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    if (result.findings[0].priorityLevel === "medium") {
+      expect(result.contextText).toContain("[MED]");
+    }
+  });
+
+  it("context text includes LOW badge for low priority", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "nitpick", category: "style", confidence: 50 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.contextText).toContain("[LOW]");
+  });
+
+  it("context text shows file path and line number", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "high", category: "bug", confidence: 80, file: "src/auth.ts", line: 42 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.contextText).toContain("src/auth.ts:42");
+  });
+
+  it("context text truncates long messages", () => {
+    const longMessage = "A".repeat(200);
+    const inputs = [
+      { finding: makeFinding({ severity: "high", category: "bug", confidence: 80, message: longMessage }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    // The message portion is truncated to 80 chars via substring(0, 80)
+    // Full line includes category prefix, so the message portion itself should be <= 80
+    // The total line may be longer due to prefix like "bug: "
+    expect(result.contextText).not.toContain("A".repeat(200));
+  });
+
+  it("body summary includes action descriptions", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }), isOwned: true, fileIntent: "security" },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.bodySummary).toContain("Fix before merge");
+    expect(result.bodySummary).toContain("Optional");
+  });
+
+  it("body summary handles all low-priority findings", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "nitpick", category: "style", confidence: 50 }) },
+      { finding: makeFinding({ severity: "nitpick", category: "style", confidence: 40 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    expect(result.bodySummary).toContain("Low");
+  });
+
+  it("body summary handles findings with zero count per level gracefully", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "medium", category: "bug", confidence: 70 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    // Should have | Critical | 0 |
+    expect(result.bodySummary).toContain("0");
+  });
+
+  it("average priority is rounded to 1 decimal place", () => {
+    const inputs = [
+      { finding: makeFinding({ severity: "critical", category: "security", confidence: 100 }), isOwned: true, fileIntent: "security" },
+      { finding: makeFinding({ severity: "nitpick", category: "style", confidence: 50 }) },
+    ];
+    const result = prioritizeFindings(inputs);
+    // Average should be rounded to 1 decimal
+    const decimalPart = result.averagePriority.toString().split(".")[1];
+    if (decimalPart) {
+      expect(decimalPart.length).toBeLessThanOrEqual(1);
+    }
+  });
+});

@@ -185,6 +185,7 @@ nullGuardDetector: true,
       aiCodePathologyDetector: true,
       ungatedCriticalReturnDetector: true,
       hardcodedConfigDetector: true,
+    debugArtifactDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));
@@ -598,6 +599,284 @@ describe("GitHubPlatformClient", () => {
       "test-repo",
       42,
       opts.config.excludePatterns,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // getCIStatus — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("getCIStatus returns pending when check run is queued", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.checks.listForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 1, check_runs: [{ status: "queued", conclusion: null }] },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const status = await client.getCIStatus("sha1");
+    expect(status).toBe("pending");
+  });
+
+  it("getCIStatus returns pending when check conclusion is unrecognized (e.g. stale)", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.checks.listForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 1, check_runs: [{ status: "completed", conclusion: "stale" }] },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const status = await client.getCIStatus("sha1");
+    // "stale" is not in the explicit failure/success lists, so falls to pending
+    expect(status).toBe("pending");
+  });
+
+  it("getCIStatus returns pending when only statuses are pending", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.repos.getCombinedStatusForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 2, statuses: [{ state: "pending" }, { state: "pending" }] },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const status = await client.getCIStatus("sha1");
+    expect(status).toBe("pending");
+  });
+
+  it("getCIStatus handles mixed statuses and checks — failed check takes priority", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.repos.getCombinedStatusForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 1, statuses: [{ state: "success" }] },
+    });
+    (opts.octokit.rest.checks.listForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 1, check_runs: [{ status: "completed", conclusion: "failure" }] },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const status = await client.getCIStatus("sha1");
+    expect(status).toBe("failed");
+  });
+
+  it("getCIStatus returns pending when check is waiting", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.checks.listForRef as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { total_count: 1, check_runs: [{ status: "waiting", conclusion: null }] },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const status = await client.getCIStatus("sha1");
+    expect(status).toBe("pending");
+  });
+
+  // -------------------------------------------------------------------------
+  // listBotComments — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("listBotComments returns empty array when API returns empty data", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.pulls.listReviewComments as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+    });
+    const client = new GitHubPlatformClient(opts);
+    const comments = await client.listBotComments();
+    expect(comments).toEqual([]);
+  });
+
+  it("listBotComments handles comments with missing path gracefully", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.pulls.listReviewComments as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [
+        { id: 1, body: "<!-- mizumi-review-marker --> no path", path: null, line: null, created_at: "2025-01-01" },
+      ],
+    });
+    const client = new GitHubPlatformClient(opts);
+    const comments = await client.listBotComments();
+    expect(comments).toHaveLength(1);
+    expect(comments[0].path).toBeUndefined();
+    expect(comments[0].line).toBeUndefined();
+  });
+
+  it("listBotComments ignores comments without the marker", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.pulls.listReviewComments as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [
+        { id: 1, body: "Just a regular review comment", path: "src/a.ts", line: 5, created_at: "2025-01-01" },
+        { id: 2, body: "Another user comment", path: "src/b.ts", line: 10, created_at: "2025-01-01" },
+      ],
+    });
+    const client = new GitHubPlatformClient(opts);
+    const comments = await client.listBotComments();
+    expect(comments).toHaveLength(0);
+  });
+
+  it("listBotComments stops pagination when page has fewer than 100 comments", async () => {
+    const opts = makeOpts();
+    const smallPage = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      body: `<!-- mizumi-review-marker --> comment ${i}`,
+      path: "src/a.ts",
+      line: i,
+      created_at: "2025-01-01",
+    }));
+    (opts.octokit.rest.pulls.listReviewComments as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: smallPage,
+    });
+    const client = new GitHubPlatformClient(opts);
+    const comments = await client.listBotComments();
+    // Should only call once since page has < 100 results
+    expect(opts.octokit.rest.pulls.listReviewComments).toHaveBeenCalledTimes(1);
+    expect(comments).toHaveLength(50);
+  });
+
+  // -------------------------------------------------------------------------
+  // createStatus — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("createStatus passes pending state correctly", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.createStatus("sha1", "pending", "Review in progress", "mizumi/review");
+    expect(opts.octokit.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ state: "pending" }),
+    );
+  });
+
+  it("createStatus passes failure state correctly", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.createStatus("sha1", "failure", "Risk too high", "mizumi/gate");
+    expect(opts.octokit.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ state: "failure" }),
+    );
+  });
+
+  it("createStatus uses correct sha in request", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.createStatus("custom-sha-abc", "success", "desc", "ctx");
+    expect(opts.octokit.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ sha: "custom-sha-abc" }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // postComment — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("postComment handles empty string body", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.postComment("");
+    expect(opts.octokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "" }),
+    );
+  });
+
+  it("postComment handles multiline comment body", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    const multiLine = "Line 1\nLine 2\nLine 3";
+    await client.postComment(multiLine);
+    expect(opts.octokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({ body: multiLine }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // deleteComment — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("deleteComment with id 0 does not throw", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.deleteComment(0);
+    expect(opts.octokit.rest.pulls.deleteReviewComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 0 }),
+    );
+  });
+
+  it("deleteComment with large id passes correctly", async () => {
+    const opts = makeOpts();
+    const client = new GitHubPlatformClient(opts);
+    await client.deleteComment(999999999);
+    expect(opts.octokit.rest.pulls.deleteReviewComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 999999999 }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // getMR — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("getMR returns unknown author when user is null", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.pulls.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        number: 42,
+        title: "Test PR",
+        body: null,
+        head: { sha: "head-sha", ref: "feat" },
+        base: { sha: "base-sha", ref: "main" },
+        user: null,
+      },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const mr = await client.getMR();
+    expect(mr.author).toBe("unknown");
+  });
+
+  it("getMR returns empty string body when body is null", async () => {
+    const opts = makeOpts();
+    (opts.octokit.rest.pulls.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        number: 42,
+        title: "No body PR",
+        body: null,
+        head: { sha: "sha", ref: "feat" },
+        base: { sha: "sha2", ref: "main" },
+        user: { login: "dev" },
+      },
+    });
+    const client = new GitHubPlatformClient(opts);
+    const mr = await client.getMR();
+    expect(mr.body).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // getProjectId — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("getProjectId handles owner with hyphens", () => {
+    const client = new GitHubPlatformClient(makeOpts({ owner: "my-org", repo: "my-repo" }));
+    expect(client.getProjectId()).toBe("my-org/my-repo");
+  });
+
+  it("getProjectId handles numeric repo names", () => {
+    const client = new GitHubPlatformClient(makeOpts({ owner: "org", repo: "123repo" }));
+    expect(client.getProjectId()).toBe("org/123repo");
+  });
+
+  // -------------------------------------------------------------------------
+  // fetchDiff — additional edge cases
+  // -------------------------------------------------------------------------
+
+  it("fetchDiff uses correct PR number from options", async () => {
+    const opts = makeOpts({ prNumber: 99 });
+    const client = new GitHubPlatformClient(opts);
+    await client.fetchDiff();
+    const { fetchDiff } = await import("../diff.js");
+    expect(fetchDiff).toHaveBeenCalledWith(
+      opts.octokit,
+      "test-owner",
+      "test-repo",
+      99,
+      opts.config.excludePatterns,
+    );
+  });
+
+  it("fetchDiff uses correct owner from options", async () => {
+    const opts = makeOpts({ owner: "different-owner" });
+    const client = new GitHubPlatformClient(opts);
+    await client.fetchDiff();
+    const { fetchDiff } = await import("../diff.js");
+    expect(fetchDiff).toHaveBeenCalledWith(
+      expect.anything(),
+      "different-owner",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
     );
   });
 });

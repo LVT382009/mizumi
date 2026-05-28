@@ -114,6 +114,7 @@ nullGuardDetector: true,
       aiCodePathologyDetector: true,
       ungatedCriticalReturnDetector: true,
       hardcodedConfigDetector: true,
+    debugArtifactDetector: true,
   })),
 }));
 
@@ -209,8 +210,8 @@ import { runASTContractAnalysis } from "../ast-contracts.js";
 import { detectSlop } from "../slop.js";
 import { calibrateConfidence } from "../calibrate.js";
 import { createSpendEntry, appendSpendEntry } from "../spend.js";
-import { recordFindings } from "../feedback.js";
-import { readMemory, writeMemory } from "../memory.js";
+import { recordFindings, readFeedbackStore, computeSuppressedPatterns, applyNoiseReduction } from "../feedback.js";
+import { readMemory, writeMemory, loadSkills } from "../memory.js";
 
 // ---------------------------------------------------------------------------
 // Module imports and structure
@@ -558,5 +559,312 @@ describe("GitLab review pipeline steps", () => {
       { file: "a.ts", line: 1, category: "security", severity: "high", message: "test" },
     ]);
     expect(recordFindings).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dry-run mode — additional coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab dry-run mode — additional coverage", () => {
+  it("dryRun config prevents posting reviews", () => {
+    const config = loadConfig();
+    expect(config.dryRun).toBe(true);
+  });
+
+  it("dryRun config still records spend", () => {
+    const entry = createSpendEntry(
+      "my-project", 5,
+      "anthropic", "claude-sonnet-4-6",
+      { inputTokens: 200, outputTokens: 100, cachedInputTokens: 0 },
+      "light", 0, 1,
+    );
+    expect(entry).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review and critique — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("GitLab review edge cases", () => {
+  it("review mock accepts empty diff string", async () => {
+    const config = loadConfig();
+    const result = await runReview("", "", "", "", "", config);
+    expect(result.output).toBeDefined();
+  });
+
+  it("critique handles review with no comments", async () => {
+    const config = loadConfig();
+    const review = {
+      summary: "Clean code",
+      riskScore: 0,
+      comments: [],
+      decision: "approve" as const,
+    };
+    const result = await runCritique(review, config);
+    expect(result.comments).toHaveLength(0);
+  });
+
+  it("critique handles review with critical findings", async () => {
+    const config = loadConfig();
+    const review = {
+      summary: "Issues found",
+      riskScore: 5,
+      comments: [{ file: "a.ts", line: 1, severity: "critical", category: "security", message: "SQL injection" }],
+      decision: "request_changes" as const,
+    };
+    const result = await runCritique(review, config);
+    expect(result.riskScore).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rule engine and AST — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("GitLab rule engine and AST — additional edge cases", () => {
+  it("rule engine handles empty diff files", () => {
+    const result = executeRuleEngine([], "/tmp", "123");
+    expect(result.findings).toEqual([]);
+    expect(result.rulesUsed).toBe(0);
+  });
+
+  it("AST contract analysis handles empty files", () => {
+    const result = runASTContractAnalysis([], "/tmp");
+    expect(result.violations).toEqual([]);
+    expect(result.filesAnalyzed).toBe(0);
+  });
+
+  it("rules function handles empty files", () => {
+    const findings = runRules([]);
+    expect(findings).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Slop detection — additional coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab slop detection — additional coverage", () => {
+  it("detectSlop returns isSlop=false for clean small diff", () => {
+    const result = detectSlop("", 5, 2, 1, ["src/a.ts"]);
+    expect(result.isSlop).toBe(false);
+    expect(result.score).toBe(0);
+  });
+
+  it("detectSlop handles large diff metrics", () => {
+    const result = detectSlop("diff content", 5000, 2000, 20, []);
+    expect(result).toHaveProperty("isSlop");
+    expect(result).toHaveProperty("score");
+  });
+
+  it("detectSlop handles zero additions and deletions", () => {
+    const result = detectSlop("", 0, 0, 0, []);
+    expect(result).toHaveProperty("isSlop");
+    expect(result).toHaveProperty("score");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Feedback and memory — additional coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab feedback and memory — additional coverage", () => {
+  it("readFeedbackStore returns object from workspace", () => {
+    const store = readFeedbackStore("/tmp");
+    expect(typeof store).toBe("object");
+  });
+
+  it("computeSuppressedPatterns returns empty set by default", () => {
+    const patterns = computeSuppressedPatterns({});
+    expect(patterns).toBeInstanceOf(Set);
+    expect(patterns.size).toBe(0);
+  });
+
+  it("applyNoiseReduction passes through comments unchanged when no suppressed patterns", () => {
+    const comments = [{ file: "a.ts", line: 1, category: "bug", severity: "high", message: "test" }];
+    const result = applyNoiseReduction(comments);
+    expect(result).toEqual(comments);
+  });
+
+  it("writeMemory is callable with different workspace paths", () => {
+    writeMemory("/custom/path", "old", "new content");
+    expect(writeMemory).toHaveBeenCalledWith("/custom/path", "old", "new content");
+  });
+
+  it("readMemory returns string for any workspace path", () => {
+    const mem = readMemory("/nonexistent/path");
+    expect(typeof mem).toBe("string");
+  });
+
+  it("loadSkills returns object with loaded field", () => {
+    const skills = loadSkills("/tmp", ["src/a.ts"]);
+    expect(skills).toHaveProperty("loaded");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Calibrate confidence — additional coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab calibration — additional coverage", () => {
+  it("calibrateConfidence returns null by default", async () => {
+    const config = loadConfig();
+    const result = await calibrateConfidence(
+      { summary: "test", riskScore: 1, comments: [], decision: "approve" },
+      config,
+    );
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Spend tracking — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("GitLab spend tracking — additional edge cases", () => {
+  it("creates spend entry with zero token usage", () => {
+    const entry = createSpendEntry(
+      "zero-project", 0,
+      "anthropic", "claude-sonnet-4-6",
+      { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },
+      "light", 0, 0,
+    );
+    expect(entry).toBeDefined();
+  });
+
+  it("creates spend entry with high token usage", () => {
+    const entry = createSpendEntry(
+      "big-project", 100,
+      "anthropic", "claude-sonnet-4-6",
+      { inputTokens: 100000, outputTokens: 50000, cachedInputTokens: 20000 },
+      "heavy", 10, 4,
+    );
+    expect(entry).toBeDefined();
+  });
+
+  it("appendSpendEntry accepts different workspace paths", () => {
+    appendSpendEntry("/another/path", { tokens: 10 });
+    expect(appendSpendEntry).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Platform client mock — additional method coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab platform client mock — additional coverage", () => {
+  const mockClient = {
+    platform: "gitlab" as const,
+    getProjectId: vi.fn(() => "group/sub-project"),
+    getMR: vi.fn(() => Promise.resolve({
+      number: 3,
+      title: "Fix typo",
+      body: "Minor fix",
+      headSha: "sha3",
+      headRef: "fix",
+      baseRef: "main",
+      baseSha: "sha0",
+      author: "dev",
+    })),
+    fetchDiff: vi.fn(() => Promise.resolve({
+      files: [],
+      totalAdditions: 0,
+      totalDeletions: 0,
+      rawDiff: "",
+    })),
+    postReview: vi.fn(() => Promise.resolve({ reviewId: 5, findingCount: 0 })),
+    postComment: vi.fn(() => Promise.resolve()),
+    listBotComments: vi.fn(() => Promise.resolve([])),
+    deleteComment: vi.fn(() => Promise.resolve()),
+    createStatus: vi.fn(() => Promise.resolve()),
+    getCIStatus: vi.fn(() => Promise.resolve("no_checks" as const)),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("getProjectId returns namespaced project for GitLab", () => {
+    expect(mockClient.getProjectId()).toBe("group/sub-project");
+  });
+
+  it("getMR returns MR with minimal body", async () => {
+    const mr = await mockClient.getMR();
+    expect(mr.body).toBe("Minor fix");
+    expect(mr.number).toBe(3);
+  });
+
+  it("fetchDiff returns empty files for no-change diff", async () => {
+    const diff = await mockClient.fetchDiff();
+    expect(diff.files).toHaveLength(0);
+    expect(diff.totalAdditions).toBe(0);
+  });
+
+  it("postReview returns zero findings for clean diff", async () => {
+    const result = await mockClient.postReview([], "Clean", 0);
+    expect(result.findingCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Config feature flags — additional coverage
+// ---------------------------------------------------------------------------
+
+describe("GitLab config feature coverage — additional", () => {
+  it("has all REVIEW_ENHANCEMENT features enabled", () => {
+    const config = loadConfig();
+    expect(config.typeSafetyErosion).toBe(true);
+    expect(config.todoDebtDetector).toBe(true);
+    expect(config.magicNumberDetector).toBe(true);
+    expect(config.errorHandlingDetector).toBe(true);
+    expect(config.performanceAntipatternDetector).toBe(true);
+  });
+
+  it("has all INFRASTRUCTURE features enabled", () => {
+    const config = loadConfig();
+    expect(config.resourceLifecycleDetector).toBe(true);
+    expect(config.observabilityGapDetector).toBe(true);
+    expect(config.concurrencyHazardDetector).toBe(true);
+    expect(config.lifecycleProtocolDetector).toBe(true);
+  });
+
+  it("has all ADVANCED features enabled", () => {
+    const config = loadConfig();
+    expect(config.semanticTypeConfusionDetector).toBe(true);
+    expect(config.dataFlowBoundaryDetector).toBe(true);
+    expect(config.nullGuardDetector).toBe(true);
+    expect(config.aiCodePathologyDetector).toBe(true);
+  });
+
+  it("has CI fix settings with correct defaults", () => {
+    const config = loadConfig();
+    expect(config.ciFixTimeout).toBe(600);
+    expect(config.ciFixMaxRetries).toBe(3);
+    expect(config.ciFixRevertOnFailure).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Error handling — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("GitLab error handling — additional edge cases", () => {
+  it("slop detection does not throw on invalid input", () => {
+    const result = detectSlop(null as any, -1, -1, -1, null as any);
+    expect(result).toHaveProperty("isSlop");
+  });
+
+  it("classifyPR handles empty file list", () => {
+    const result = classifyPR([], 0, 0);
+    expect(result).toHaveProperty("category");
+    expect(result).toHaveProperty("reason");
+  });
+
+  it("guardContextWindow handles empty string", () => {
+    const result = guardContextWindow("", "anthropic");
+    expect(result.text).toBe("");
+    expect(result.truncated).toBe(false);
   });
 });

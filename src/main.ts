@@ -100,6 +100,7 @@ import { detectNullGuardGaps } from "./null-guard-detector.js";
 import { detectAICodePathologies } from "./ai-code-pathology-detector.js";
 import { detectUngatedCriticalReturns } from "./ungated-critical-return-detector.js";
 import { detectHardcodedConfig } from "./hardcoded-config-detector.js";
+import { detectDebugArtifacts } from "./debug-artifact-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -687,6 +688,19 @@ if (config.hardcodedConfigDetector) {
     }
   } catch (e) {
     core.warning("Hardcoded config detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 4a3x. Debug artifact detector — detect leftover debugger, console.log, it.only, debug flags
+let debugArtifactResult: import("./debug-artifact-detector.js").DebugArtifactResult | null = null;
+if (config.debugArtifactDetector) {
+  try {
+    debugArtifactResult = detectDebugArtifacts(diff.files);
+    if (debugArtifactResult.issues.length > 0) {
+      core.info("Debug artifact detection: " + debugArtifactResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Debug artifact detection failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 
@@ -2048,6 +2062,17 @@ if (hardcodedConfigResult && hardcodedConfigResult.bodySummary) {
     core.warning("Hardcoded config comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post debug artifact detection summary as a separate comment
+if (debugArtifactResult && debugArtifactResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: debugArtifactResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Debug artifact comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+ }
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2210,6 +2235,7 @@ if (config.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, tr
 if (config.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-detector", 0, true);
 if (config.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critical-return-detector", 0, true);
 if (config.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-detector", 0, true);
+if (config.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

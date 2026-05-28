@@ -411,6 +411,10 @@ hardcoded_config_detector:
   description: "Enable hardcoded configuration detector — flags LLM-specific config embedding: hardcoded URLs, ports, timeout/retry limits, and feature toggles in production code. Zero LLM cost. No AI code reviewer detects hardcoded configuration as a category."
   required: false
   default: "true"
+debug_artifact_detector:
+  description: "Enable debug artifact detector — flags leftover debugger statements, console.log in production code, it.only/describe.only test isolation breaks, and debug/verbose flags left enabled. Zero LLM cost. No AI code reviewer detects debug artifacts as a category."
+  required: false
+  default: "true"
 
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
