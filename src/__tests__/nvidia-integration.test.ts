@@ -116,6 +116,7 @@ nullGuardDetector: true,
       tautologicalTestDetector: true,
         contextAmplificationDetector: true,
         cargoCultArchitectureDetector: true,
+        confabulatedAPIDetector: true,
   ...overrides,
 });
 

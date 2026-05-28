@@ -152,6 +152,7 @@ nullGuardDetector: true,
       tautologicalTestDetector: true,
         contextAmplificationDetector: true,
         cargoCultArchitectureDetector: true,
+        confabulatedAPIDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

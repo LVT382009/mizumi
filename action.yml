@@ -440,6 +440,10 @@ cargo_cult_architecture_detector:
   required: false
   default: 'true'
 
+confabulated_api_detector:
+description: 'Enable confabulated API surface detection (non-existent-method, wrong-arity, fantasy-optional-chain, confabulated-import)'
+required: false
+default: 'true'
 jira_base_url:
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false

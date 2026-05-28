@@ -56548,6 +56548,7 @@ function loadConfig() {
   const tautologicalTestDetector = getInput("tautological_test_detector") !== "false";
   const contextAmplificationDetector = getInput("context_amplification_detector") !== "false";
   const cargoCultArchitectureDetector = getInput("cargo_cult_architecture_detector") !== "false";
+  const confabulatedAPIDetector = getInput("confabulated_api_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56688,7 +56689,8 @@ function loadConfig() {
     hallucinatedDependencyDetector,
     tautologicalTestDetector,
     contextAmplificationDetector,
-    cargoCultArchitectureDetector
+    cargoCultArchitectureDetector,
+    confabulatedAPIDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -123584,6 +123586,280 @@ function detectCargoCultArchitecture(diffFiles) {
   return result;
 }
 
+// src/confabulated-api-detector.ts
+function stripPrefix6(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges6(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var CONFABULATED_METHODS = [
+  // String methods that don't exist in standard JS
+  { pattern: /\.contains\s*\(/, language: "Java/Rust", correctAlternative: "includes()" },
+  { pattern: /\.startsWith\s*\(/, language: "standard", correctAlternative: "valid but check type" },
+  { pattern: /\.isEmpty\s*\(/, language: "Java", correctAlternative: ".length === 0" },
+  { pattern: /\.isBlank\s*\(/, language: "Java", correctAlternative: ".trim().length === 0" },
+  { pattern: /\.size\s*\(\s*\)/, language: "Java/C++", correctAlternative: ".length or .size (without parens for Map/Set)" },
+  { pattern: /\.trimLeft\s*\(/, language: "deprecated", correctAlternative: "trimStart()" },
+  { pattern: /\.trimRight\s*\(/, language: "deprecated", correctAlternative: "trimEnd()" },
+  // Array methods that don't exist or are commonly misused
+  { pattern: /\.add\s*\(/, language: "Java List", correctAlternative: "push()" },
+  { pattern: /\.remove\s*\(\s*\d+\s*\)/, language: "Java List", correctAlternative: "splice()" },
+  { pattern: /\.get\s*\(\s*\d+\s*\)/, language: "Java List", correctAlternative: "bracket notation [index]" },
+  { pattern: /\.first\s*\(\s*\)/, language: "Rails/Lodash", correctAlternative: "[0]" },
+  { pattern: /\.last\s*\(\s*\)/, language: "Rails/Lodash", correctAlternative: ".at(-1) or [arr.length-1]" },
+  { pattern: /\.flatten\s*\(\s*\)/, language: "Ruby/Lodash", correctAlternative: ".flat()" },
+  { pattern: /\.collect\s*\(/, language: "Ruby", correctAlternative: ".map()" },
+  { pattern: /\.select\s*\(/, language: "Ruby", correctAlternative: ".filter()" },
+  { pattern: /\.reject\s*\(/, language: "Ruby", correctAlternative: ".filter() with negation" },
+  // Map/Object methods that don't exist
+  { pattern: /\.hasKey\s*\(/, language: "Java Map", correctAlternative: ".has() (Map) or 'key' in obj" },
+  { pattern: /\.has_value\s*\(/, language: "Ruby Hash", correctAlternative: ".has() (Map) or Object.values().includes()" },
+  { pattern: /\.keys\s*\(\s*\)/, language: "Java Map", correctAlternative: "Object.keys() or Map.keys() (without parens for iterator)" },
+  // Promise/async methods
+  { pattern: /\.await\s*\(/, language: "C#", correctAlternative: "await (keyword, not method)" },
+  { pattern: /\.thenApply\s*\(/, language: "Java CompletableFuture", correctAlternative: ".then()" },
+  { pattern: /\.exceptionally\s*\(/, language: "Java", correctAlternative: ".catch()" },
+  // Number methods
+  { pattern: /\.toInt\s*\(\s*\)/, language: "Kotlin/Scala", correctAlternative: "parseInt() or Number()" },
+  { pattern: /\.toString\s*\(\s*\d+\s*\)/, language: "Java (radix)", correctAlternative: ".toString(radix) is valid JS but check intent" },
+  { pattern: /\.abs\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.abs()" },
+  { pattern: /\.ceil\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.ceil()" },
+  { pattern: /\.floor\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.floor()" },
+  { pattern: /\.round\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.round()" }
+];
+var ARITY_KNOWN = /* @__PURE__ */ new Map([
+  ["parseInt", { min: 1, max: 2, display: "parseInt(string, radix?)" }],
+  ["parseFloat", { min: 1, max: 1, display: "parseFloat(string)" }],
+  ["isNaN", { min: 1, max: 1, display: "isNaN(value)" }],
+  ["isFinite", { min: 1, max: 1, display: "isFinite(value)" }],
+  ["encodeURI", { min: 1, max: 1, display: "encodeURI(string)" }],
+  ["decodeURI", { min: 1, max: 1, display: "decodeURI(string)" }],
+  ["encodeURIComponent", { min: 1, max: 1, display: "encodeURIComponent(string)" }],
+  ["decodeURIComponent", { min: 1, max: 1, display: "decodeURIComponent(string)" }],
+  ["Object.keys", { min: 1, max: 1, display: "Object.keys(obj)" }],
+  ["Object.values", { min: 1, max: 1, display: "Object.values(obj)" }],
+  ["Object.entries", { min: 1, max: 1, display: "Object.entries(obj)" }],
+  ["Object.assign", { min: 2, max: Infinity, display: "Object.assign(target, ...sources)" }],
+  ["Array.isArray", { min: 1, max: 1, display: "Array.isArray(value)" }],
+  ["Array.from", { min: 1, max: 3, display: "Array.from(iterable, mapFn?, thisArg?)" }],
+  ["JSON.parse", { min: 1, max: 2, display: "JSON.parse(text, reviver?)" }],
+  ["JSON.stringify", { min: 1, max: 3, display: "JSON.stringify(value, replacer?, space?)" }],
+  ["Promise.all", { min: 1, max: 1, display: "Promise.all(iterable)" }],
+  ["Promise.race", { min: 1, max: 1, display: "Promise.race(iterable)" }],
+  ["Math.max", { min: 0, max: Infinity, display: "Math.max(...values)" }],
+  ["Math.min", { min: 0, max: Infinity, display: "Math.min(...values)" }],
+  ["Math.abs", { min: 1, max: 1, display: "Math.abs(x)" }],
+  ["Math.ceil", { min: 1, max: 1, display: "Math.ceil(x)" }],
+  ["Math.floor", { min: 1, max: 1, display: "Math.floor(x)" }],
+  ["Math.round", { min: 1, max: 1, display: "Math.round(x)" }],
+  ["Math.sqrt", { min: 1, max: 1, display: "Math.sqrt(x)" }],
+  ["Math.pow", { min: 2, max: 2, display: "Math.pow(base, exp)" }],
+  ["Math.log", { min: 1, max: 1, display: "Math.log(x)" }],
+  ["console.log", { min: 0, max: Infinity, display: "console.log(...data)" }]
+]);
+var PRIMITIVE_LITERAL_RE = /(?:\d+\.?\d*|true|false|null|undefined|['"][^'"]*['"])\s*\?\./;
+var CONFABULATED_IMPORTS = [
+  { modulePattern: /^node:fs$/, wrongExports: ["fetch", "Request", "Response"], correctModule: "node:http / undici" },
+  { modulePattern: /^node:path$/, wrongExports: ["join", "resolve", "dirname"], correctModule: "these ARE valid \u2014 skip" },
+  { modulePattern: /^node:http$/, wrongExports: ["readFile", "writeFile", "createReadStream"], correctModule: "node:fs" },
+  { modulePattern: /^node:crypto$/, wrongExports: ["hash", "encrypt", "decrypt"], correctModule: "node:crypto (check method names)" },
+  { modulePattern: /^fs$/, wrongExports: ["fetch", "Request"], correctModule: "node:http" },
+  { modulePattern: /^path$/, wrongExports: ["fetch"], correctModule: "node:http" },
+  { modulePattern: /^react$/, wrongExports: ["useState", "useEffect", "useCallback", "useMemo", "useRef"], correctModule: "react (these are valid \u2014 skip)" },
+  { modulePattern: /^axios$/, wrongExports: ["get", "post", "put", "delete", "patch"], correctModule: "axios (these are valid \u2014 skip)" },
+  { modulePattern: /^lodash$/, wrongExports: ["chain"], correctModule: "lodash (chain is valid in full lodash)" },
+  { modulePattern: /^express$/, wrongExports: ["Router"], correctModule: "express (Router is valid \u2014 skip)" }
+];
+var SKIP_LINE_RE19 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function detectNonExistentMethod(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed)) continue;
+    if (/^\s*(?:class|interface|type|enum)\b/.test(trimmed)) continue;
+    for (const { pattern, language, correctAlternative } of CONFABULATED_METHODS) {
+      if (pattern.test(trimmed)) {
+        const methodMatch = trimmed.match(/\.(\w+)\s*\(/);
+        const methodName = methodMatch?.[1] || "unknown";
+        issues.push({
+          category: "non-existent-method",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Method \`.${methodName}()\` in \`${file2.path}:${change.line}\` may not exist \u2014 LLMs confabulate methods from ${language} training data; use \`${correctAlternative}\` instead`,
+          severity: "warning"
+        });
+        break;
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectWrongArity(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    for (const [funcName, arity] of ARITY_KNOWN) {
+      const escaped = funcName.replace(".", "\\.");
+      const callRe = new RegExp(`\\b${escaped}\\s*\\(([^)]*)\\)`);
+      const callMatch = trimmed.match(callRe);
+      if (callMatch) {
+        const argsStr = callMatch[1].trim();
+        const argCount = argsStr.length === 0 ? 0 : argsStr.split(",").length;
+        if (argCount < arity.min || argCount > arity.max) {
+          issues.push({
+            category: "wrong-arity",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `\`${funcName}()\` called with ${argCount} argument(s) in \`${file2.path}:${change.line}\` \u2014 expected ${arity.display}; LLMs generate calls with wrong argument counts from training data; check the function signature`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectFantasyOptionalChain(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    if (PRIMITIVE_LITERAL_RE.test(trimmed)) {
+      const chainMatch = trimmed.match(/([\d]+|true|false|null|undefined|['"][^'"]*['"])\s*\?\.\s*(\w+)/);
+      if (chainMatch) {
+        issues.push({
+          category: "fantasy-optional-chain",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Optional chaining \`${chainMatch[1]}?.${chainMatch[2]}\` on primitive in \`${file2.path}:${change.line}\` \u2014 LLMs add \`?.\` defensively on primitives that cannot be null/undefined; remove the \`?\` since the base value is never nullable`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues.slice(0, 3);
+}
+function detectConfabulatedImport(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    const importMatch = trimmed.match(/import\s+(?:{([^}]+)}\s+from\s+)?['"]([^'"]+)['"]/);
+    if (!importMatch) continue;
+    const symbols = importMatch[1] ? importMatch[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0].trim()) : [];
+    const modulePath = importMatch[2];
+    for (const { modulePattern, wrongExports, correctModule } of CONFABULATED_IMPORTS) {
+      if (modulePattern.test(modulePath)) {
+        if (correctModule.includes("skip")) continue;
+        for (const symbol21 of symbols) {
+          if (wrongExports.includes(symbol21)) {
+            issues.push({
+              category: "confabulated-import",
+              file: file2.path,
+              line: change.line,
+              code: trimmed,
+              description: `Symbol \`${symbol21}\` imported from \`${modulePath}\` in \`${file2.path}:${change.line}\` \u2014 this symbol is not exported by \`${modulePath}\`; LLMs confabulate import paths from training data; use \`${correctModule}\` instead`,
+              severity: "critical"
+            });
+          }
+        }
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function dedupIssues25(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildConfabulatedAPIContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Confabulated API Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain API calls that don't exist \u2014 a common LLM hallucination pattern:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildConfabulatedAPIBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Confabulated API Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate code, they invent API methods from training data rather than reading actual library docs. Detected patterns: methods that don't exist on JS types, wrong argument counts, optional chaining on non-nullable values, and imports of symbols not exported by the module.*
+</details>
+`;
+  return body;
+}
+function detectConfabulatedAPI(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectNonExistentMethod(file2));
+    allIssues.push(...detectWrongArity(file2));
+    allIssues.push(...detectFantasyOptionalChain(file2));
+    allIssues.push(...detectConfabulatedImport(file2));
+  }
+  const issues = dedupIssues25(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildConfabulatedAPIContext(result);
+  result.bodySummary = buildConfabulatedAPIBodySummary(result);
+  if (issues.length > 0) {
+    info(`Confabulated API detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -124160,6 +124436,13 @@ async function run() {
         info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
       }
     }
+    let confabulatedAPIResult = null;
+    if (config2.confabulatedAPIDetector) {
+      confabulatedAPIResult = detectConfabulatedAPI(diff.files);
+      if (confabulatedAPIResult.issues.length > 0) {
+        info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -124536,6 +124819,9 @@ ${taintContextStr}`;
     }
     if (cargoCultResult && cargoCultResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + cargoCultResult.contextText;
+    }
+    if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + confabulatedAPIResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -125515,6 +125801,18 @@ ${digest}
               warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
+          if (confabulatedAPIResult && confabulatedAPIResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: confabulatedAPIResult.bodySummary
+              });
+            } catch (e) {
+              warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
         }
       }
     }
@@ -125677,6 +125975,7 @@ ${digest}
         if (config2.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
         if (config2.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
         if (config2.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
+        if (config2.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

@@ -107,6 +107,7 @@ import { detectHallucinatedDeps } from "./hallucinated-dependency-detector.js";
 import { detectTautologicalTests } from "./tautological-test-detector.js";
 import { detectContextAmplification } from "./context-amplification-detector.js";
 import { detectCargoCultArchitecture } from "./cargo-cult-architecture-detector.js";
+import { detectConfabulatedAPI } from "./confabulated-api-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -768,6 +769,15 @@ if (config.cargoCultArchitectureDetector) {
   }
 }
 
+// 4a3ze. Confabulated API detector — detect LLM-hallucinated API calls: non-existent-method, wrong-arity, fantasy-optional-chain, confabulated-import
+let confabulatedAPIResult: import("./confabulated-api-detector.js").ConfabulatedAPIResult | null = null;
+if (config.confabulatedAPIDetector) {
+  confabulatedAPIResult = detectConfabulatedAPI(diff.files);
+  if (confabulatedAPIResult.issues.length > 0) {
+    core.info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1219,6 +1229,9 @@ if (contextAmplificationResult && contextAmplificationResult.contextText) {
 }
 if (cargoCultResult && cargoCultResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + cargoCultResult.contextText;
+}
+if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + confabulatedAPIResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2221,6 +2234,17 @@ if (cargoCultResult && cargoCultResult.bodySummary) {
     core.warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post confabulated API detection summary as a separate comment
+if (confabulatedAPIResult && confabulatedAPIResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: confabulatedAPIResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
 }
  }
@@ -2393,6 +2417,7 @@ if (config.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-d
 if (config.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
 if (config.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
 if (config.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
+if (config.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
