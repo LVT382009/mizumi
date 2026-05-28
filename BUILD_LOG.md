@@ -683,3 +683,23 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **27 tests** in `src/__tests__/performance-antipattern-detector.test.ts`
 - **4880 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer flags performance anti-patterns at PR review time. Amazon CodeGuru has limited N+1 detection for Java only (not in PR diffs). CodeRabbit, Copilot, and Sourcery all miss N+1 queries, sync I/O in async functions, waterfall awaits, and unnecessary awaits.
+
+### Resource Lifecycle Violation Detector (2026-05-28)
+- **New file**: `src/resource-lifecycle-detector.ts` — detect resource lifecycle violations in PR diffs
+- **5 detection categories**: unclosed-resource (open/createReadStream without close — critical), unreleased-connection (connect/createConnection without disconnect/release — critical), unsubscribed-listener (on/addEventListener/subscribe without off/removeEventListener/unsubscribe — critical), missing-finally-cleanup (try with resource acquire but no finally — warning), react-missing-cleanup (useEffect with subscribe/on but no return cleanup — warning)
+- **Pattern analysis**: RESOURCE_ACQUIRE_RE for file handles, CONNECTION_ACQUIRE_RE/STANDALONE_CONNECT_RE for DB/Redis/AMQP clients, LISTENER_SUBSCRIBE_RE for event emitters, USE_EFFECT_RE + RETURN_CLEANUP_RE for React hooks
+- **Pipeline integration**: main.ts detection block, context injection, body summary comment, audit trail
+- **Config propagation**: `resource_lifecycle_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **42 tests** in `src/__tests__/resource-lifecycle-detector.test.ts`
+- **4983 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects resource lifecycle violations at PR review time. SonarQube S1068 covers only Java try-with-resources. CodeGuru (deprecated Nov 2025) detected resource leaks for Java/Python only. CodeRabbit, Copilot, and Sourcery all miss unclosed handles, unreleased connections, unsubscribed listeners, and missing finally blocks.
+
+### Test Coverage Expansion (2026-05-28)
+- Added 61 edge case tests across 6 undertested detector modules
+- import-cycle-detector: 24->32 tests (+8)
+- dead-code-detector: 26->37 tests (+11)
+- magic-number-detector: 26->38 tests (+12)
+- performance-antipattern-detector: 27->40 tests (+13)
+- architecture-drift: 29->38 tests (+9)
+- crosspr-conflict: 26->34 tests (+8)
+- **4941 tests** passing after expansion
