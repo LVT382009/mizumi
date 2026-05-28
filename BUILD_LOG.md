@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 5424 Tests)
+### Build Stats (Current — 5556 Tests)
 
-- **5424 tests** passing (107 test files)
+- **5556 tests** passing (108 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -783,3 +783,10 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added Sentry pattern recognition to observability-gap-detector.ts
 - Extended missing-error-metadata to cover fatal/critical/alert/emergency log levels
 - Removed 4 unused regex patterns from error-handling-detector.ts (FINALLY_WITHOUT_CATCH_RE, VOID_PROMISE_RE, VAR_REF_ONLY_RE, REDIS_ASYNC_RE)
+
+### Hardcoded Config Detector (2026-05-28)
+- **+63 tests** in `src/__tests__/hardcoded-config-detector.test.ts`
+- **+40 tests** expanded in `src/__tests__/error-handling-detector.test.ts` (46→86)
+- **+38 tests** expanded in `src/__tests__/resource-lifecycle-detector.test.ts` (33→71)
+- **5556 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects hardcoded configuration as a category. LLMs optimize for "working example" over deployable code, embedding URLs, ports, timeouts, and feature flags directly instead of using config management.
