@@ -105,6 +105,7 @@ resourceLifecycleDetector: true,
 observabilityGapDetector: true,
     concurrencyHazardDetector: true,
     lifecycleProtocolDetector: true,
+semanticTypeConfusionDetector: true,
     ...overrides,
   };
 }

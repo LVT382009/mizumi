@@ -54,20 +54,27 @@ export interface ErrorHandlingResult {
 // Pattern definitions
 // ---------------------------------------------------------------------------
 
-// .then() without a following .catch() — look for .then( on added lines
-// where the line or nearby context doesn't also have .catch(
+// .then() without a following .catch()
 const THEN_WITHOUT_CATCH_RE = /\.then\s*\(/;
 
 // .finally() without a preceding .catch()
+const FINALLY_WITHOUT_CATCH_RE = /\.finally\s*\(/;
+
 // Promise that is created but not chained (no .then/.catch/await)
 const FLOATING_PROMISE_RE = /(?:new\s+Promise|Promise\.\w+)\s*\(/;
 
 // void expression discarding a promise: void somePromise
+const VOID_PROMISE_RE = /\bvoid\s+\S+/;
+
 // Catch blocks that only have trivial/no-op content
 const TRIVIAL_CATCH_RE = /catch\s*\([^)]*\)\s*\{[\s;]*\}/;
 
 // catch(e) { e; } — catch body with only a variable reference
-// Redis async operations
+const VAR_REF_ONLY_RE = /^\w+;?\s*$/;
+
+// Redis async operations: redis.get(), client.set(), etc.
+const REDIS_ASYNC_RE = /\b(redis|client)\.\s*(get|set|del|exists|incr|decr|hget|hset|hdel|lpush|rpush|sadd|srem|zadd|zrem|publish|subscribe|ping|flushdb|flushall)\s*\(/;
+
 // ---------------------------------------------------------------------------
 // Detection functions
 // ---------------------------------------------------------------------------
@@ -87,7 +94,8 @@ function detectUnhandledPromises(file: DiffFile): ErrorHandlingIssue[] {
     if (trimmed.startsWith("}")) continue;
 
     // Detect .then() without .catch()
-    if (THEN_WITHOUT_CATCH_RE.test(content)) {
+    // Skip if the line also has .finally() — handled by FINALLY_WITHOUT_CATCH below
+    if (THEN_WITHOUT_CATCH_RE.test(content) && !FINALLY_WITHOUT_CATCH_RE.test(content)) {
       // Check if the same line or the next added line has .catch()
       const hasNextCatch = content.includes(".catch(");
       if (hasNextCatch) continue;
@@ -125,6 +133,40 @@ function detectUnhandledPromises(file: DiffFile): ErrorHandlingIssue[] {
         line: change.line,
         code: trimmed,
         description: `Promise created but not handled in \`${file.path}:${change.line}\` — add await, .then()/.catch(), or assign to a variable`,
+        severity: "critical",
+      });
+    }
+
+    // Detect .finally() without .catch() — rejection still unhandled
+    if (FINALLY_WITHOUT_CATCH_RE.test(content) && !content.includes(".catch(")) {
+      const changeIdx = addedChanges.indexOf(change);
+      let lineHasCatch = false;
+      for (let j = Math.max(0, changeIdx - 3); j < Math.min(changeIdx + 3, addedChanges.length); j++) {
+        if (addedChanges[j].content.includes(".catch(")) {
+          lineHasCatch = true;
+          break;
+        }
+      }
+      if (!lineHasCatch) {
+        issues.push({
+          category: "unhandled-promise",
+          file: file.path,
+          line: change.line,
+          code: trimmed,
+          description: `Promise chain with .finally() but no .catch() in \`${file.path}:${change.line}\` — .finally() does not handle rejections, add .catch()`,
+          severity: "critical",
+        });
+      }
+    }
+
+    // Detect void expression discarding a promise: void somePromise
+    if (VOID_PROMISE_RE.test(trimmed) && trimmed.startsWith("void ")) {
+      issues.push({
+        category: "unhandled-promise",
+        file: file.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise discarded with void expression in \`${file.path}:${change.line}\` — void does not handle rejections, use .catch() or await with try/catch`,
         severity: "critical",
       });
     }
@@ -181,6 +223,21 @@ function detectMissingAwait(file: DiffFile): ErrorHandlingIssue[] {
           severity: "critical",
         });
       }
+
+      // Detect Redis async operations without await
+      if (REDIS_ASYNC_RE.test(content)) {
+        // Skip if inside .then() or .catch() callback
+        if (/\.then\s*\(/.test(content) || /\.catch\s*\(/.test(content)) continue;
+
+        issues.push({
+          category: "missing-await",
+          file: file.path,
+          line: change.line,
+          code: trimmed,
+          description: `Redis async operation without await in \`${file.path}:${change.line}\` — result is a Promise, add await or handle rejection`,
+          severity: "critical",
+        });
+      }
     }
   }
 
@@ -200,9 +257,8 @@ function detectSwallowedErrors(file: DiffFile): ErrorHandlingIssue[] {
       const content = change.content;
       const trimmed = content.replace(/^\+/, "").trim();
 
-      // Single-line empty catch: catch (e) {} — already flagged by dead-code-detector
-      //但我们检查的是 catch 块体为空或只有注释的情况
-      if (TRIVIAL_CATCH_RE.test(content)) continue; // 已由 dead code detector 覆盖
+      // Single-line empty catch: catch (e) {} — flagged by dead-code-detector
+      if (TRIVIAL_CATCH_RE.test(content)) continue;
 
       // Check for catch blocks with trivial content (just a comment or console.log)
       const catchOpenMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*$/);
@@ -214,19 +270,32 @@ function detectSwallowedErrors(file: DiffFile): ErrorHandlingIssue[] {
           const nextTrimmed = changes[j].content.replace(/^\+/, "").trim();
           if (nextTrimmed === "}") break;
           bodyLines.push(nextTrimmed);
-          if (bodyLines.length >= 5) break; // 最多通知5行
+          if (bodyLines.length >= 5) break;
         }
 
-        // A catch block with only a comment is a swallowed error
-        if (bodyLines.length > 0 && bodyLines.every((l) => l.startsWith("//") || l.startsWith("/*") || l.startsWith("*"))) {
-          issues.push({
-            category: "swallowed-error",
-            file: file.path,
-            line: change.line,
-            code: trimmed,
-            description: `Catch block body only contains comments in \`${file.path}:${change.line}\` — error is caught but not handled, add logging or rethrow`,
-            severity: "warning",
-          });
+        if (bodyLines.length > 0) {
+          const allComments = bodyLines.every((l) => l.startsWith("//") || l.startsWith("/*") || l.startsWith("*"));
+          const allVarRef = bodyLines.every((l) => VAR_REF_ONLY_RE.test(l))
+            && !bodyLines.some((l) => /\bthrow\b/.test(l));
+          if (allComments) {
+            issues.push({
+              category: "swallowed-error",
+              file: file.path,
+              line: change.line,
+              code: trimmed,
+              description: `Catch block body only contains comments in \`${file.path}:${change.line}\` — error is caught but not handled, add logging or rethrow`,
+              severity: "warning",
+            });
+          } else if (allVarRef) {
+            issues.push({
+              category: "swallowed-error",
+              file: file.path,
+              line: change.line,
+              code: trimmed,
+              description: `Catch block body only references the error variable in \`${file.path}:${change.line}\` — error is caught but not handled, add logging or rethrow`,
+              severity: "warning",
+            });
+          }
         }
       }
 
@@ -252,6 +321,35 @@ function detectSwallowedErrors(file: DiffFile): ErrorHandlingIssue[] {
           line: change.line,
           code: trimmed,
           description: `Catch block only logs error in \`${file.path}:${change.line}\` — error is logged but not propagated; consider logging at warning/error level and rethrowing or adding monitoring`,
+          severity: "warning",
+        });
+      }
+
+      // Inline catch with only variable reference: catch (e) { e; }
+      const varRefCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*\w+;?\s*\}/);
+      if (varRefCatch && !content.includes("throw") && !content.includes("console.error") && !content.includes("logger.error")) {
+        const bodyMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*(\w+;?)\s*\}/);
+        if (bodyMatch) {
+          issues.push({
+            category: "swallowed-error",
+            file: file.path,
+            line: change.line,
+            code: trimmed,
+            description: `Catch block body is only a variable reference in \`${file.path}:${change.line}\` — error is caught but not handled, add logging or rethrow`,
+            severity: "warning",
+          });
+        }
+      }
+
+      // .on('unhandledRejection', ...) with empty handler
+      const emptyErrorHandler = content.match(/\.on\s*\(\s*['"]unhandledRejection['"]\s*,/);
+      if (emptyErrorHandler && content.includes("{}")) {
+        issues.push({
+          category: "swallowed-error",
+          file: file.path,
+          line: change.line,
+          code: trimmed,
+          description: `Empty unhandledRejection handler in \`${file.path}:${change.line}\` — errors will be silently discarded, add proper handling`,
           severity: "warning",
         });
       }
@@ -343,6 +441,7 @@ export function detectErrorHandlingGaps(diffFiles: DiffFile[]): ErrorHandlingRes
   }
 
   const issues = dedupIssues(allIssues);
+
   issues.sort((a, b) => {
     const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
     if (sv !== 0) return sv;

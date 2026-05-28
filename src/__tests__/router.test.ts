@@ -85,6 +85,7 @@ resourceLifecycleDetector: true,
 observabilityGapDetector: true,
     concurrencyHazardDetector: true,
     lifecycleProtocolDetector: true,
+semanticTypeConfusionDetector: true,
 };
 
 describe("classifyDiff", () => {

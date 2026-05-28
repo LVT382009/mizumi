@@ -389,6 +389,134 @@ describe("detectErrorHandlingGaps — edge cases", () => {
     expect(missing).toHaveLength(1);
   });
 
+  it("detects .then() with .catch() — should NOT flag", () => {
+    const files = [makeFile("src/app.ts", [
+      "+promise.then(handleResult).catch(handleError);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("detects .then() without .catch() — should flag", () => {
+    const files = [makeFile("src/app.ts", [
+      "+promise.then(handleResult);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(1);
+    expect(unhandled[0].severity).toBe("critical");
+  });
+
+  it("detects mongoose findById without await", () => {
+    const files = [makeFile("src/model.ts", [
+      "+const user = findById(userId);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+    expect(missing[0].code).toContain("findById");
+  });
+
+  it("detects mongoose findOne with await — should NOT flag", () => {
+    const files = [makeFile("src/model.ts", [
+      "+const user = await findOne({ email });",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(0);
+  });
+
+  it("detects mongoose save without await", () => {
+    const files = [makeFile("src/model.ts", [
+      "+save();",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects redis.get without await", () => {
+    const files = [makeFile("src/cache.ts", [
+      "+const value = redis.get(key);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+    expect(missing[0].description).toContain("Redis");
+  });
+
+  it("detects redis.set without await", () => {
+    const files = [makeFile("src/cache.ts", [
+      "+redis.set(key, value);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects redis.del without await", () => {
+    const files = [makeFile("src/cache.ts", [
+      "+redis.del(key);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(1);
+  });
+
+  it("detects floating promise from void expression", () => {
+    const files = [makeFile("src/app.ts", [
+      "+void someAsyncOperation();",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(1);
+    expect(unhandled[0].description).toContain("void");
+  });
+
+  it("detects multiple missing-await in same file", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const a = fetch(url1);",
+      "+const b = fetch(url2);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const missing = result.issues.filter((i) => i.category === "missing-await");
+    expect(missing).toHaveLength(2);
+  });
+
+  it("detects swallowed error: catch with only variable reference", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+  e;",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(1);
+    expect(swallowed[0].description).toContain("error variable");
+  });
+
+  it("does NOT flag catch with throw — not swallowed", () => {
+    const files = [makeFile("src/app.ts", [
+      "+} catch (e) {",
+      "+  throw e;",
+      "+}",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const swallowed = result.issues.filter((i) => i.category === "swallowed-error");
+    expect(swallowed).toHaveLength(0);
+  });
+
+  it("detects promise.finally() without .catch()", () => {
+    const files = [makeFile("src/app.ts", [
+      "+promise.then(handleResult).finally(cleanup);",
+    ])];
+    const result = detectErrorHandlingGaps(files);
+    const unhandled = result.issues.filter((i) => i.category === "unhandled-promise");
+    expect(unhandled).toHaveLength(1);
+    expect(unhandled[0].description).toContain(".finally()");
+  });
+
   it("handles deduplication of same category+file+line", () => {
     const files = [makeFile("src/api.ts", [
       "+const res = fetch(url);",

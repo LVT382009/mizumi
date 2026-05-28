@@ -94,6 +94,7 @@ import { detectResourceLifecycleViolations } from "./resource-lifecycle-detector
 import { detectObservabilityGaps } from "./observability-gap-detector.js";
 import { detectConcurrencyHazards } from "./async-concurrency-hazard-detector.js";
 import { detectLifecycleProtocolViolations } from "./lifecycle-protocol-detector.js";
+import { detectSemanticTypeConfusion } from "./semantic-type-confusion-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -606,6 +607,19 @@ if (config.lifecycleProtocolDetector) {
   }
 }
 
+// 4a3r. Semantic type confusion detector — detect unit mismatch, id confusion, timestamp/duration swap, string subtype confusion
+let semanticConfusionResult: import("./semantic-type-confusion-detector.js").SemanticTypeConfusionResult | null = null;
+if (config.semanticTypeConfusionDetector) {
+  try {
+    semanticConfusionResult = detectSemanticTypeConfusion(diff.files);
+    if (semanticConfusionResult.issues.length > 0) {
+      core.info("Semantic type confusion detection: " + semanticConfusionResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Semantic type confusion detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1006,6 +1020,10 @@ if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
 // 5c2q. Lifecycle protocol detector context injection
 if (lifecycleProtocolResult && lifecycleProtocolResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lifecycleProtocolResult.contextText;
+}
+// 5c2r. Semantic type confusion detector context injection
+if (semanticConfusionResult && semanticConfusionResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + semanticConfusionResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -1874,6 +1892,17 @@ if (lifecycleProtocolResult && lifecycleProtocolResult.bodySummary) {
     core.warning("Lifecycle protocol comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post semantic type confusion detection summary as a separate comment
+if (semanticConfusionResult && semanticConfusionResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: semanticConfusionResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Semantic type confusion comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2030,6 +2059,7 @@ if (config.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-
 if (config.observabilityGapDetector) auditBuilder.logStage("observability-gap-detector", 0, true);
 if (config.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-detector", 0, true);
 if (config.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-detector", 0, true);
+if (config.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-confusion-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

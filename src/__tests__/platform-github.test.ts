@@ -179,6 +179,7 @@ resourceLifecycleDetector: true,
 observabilityGapDetector: true,
     concurrencyHazardDetector: true,
     lifecycleProtocolDetector: true,
+semanticTypeConfusionDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

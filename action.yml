@@ -385,6 +385,11 @@ lifecycle_protocol_detector:
   required: false
   default: "true"
 
+semantic_type_confusion_detector:
+  description: "Enable semantic type confusion detector — flags unit mismatches, ID type confusion, timestamp/duration swaps, and string subtype mixing. Zero LLM cost. No AI code reviewer detects semantic type confusion at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false
