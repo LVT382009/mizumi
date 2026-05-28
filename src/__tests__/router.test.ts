@@ -82,6 +82,7 @@ deadCodeDetector: true,
     errorHandlingDetector: true,
     performanceAntipatternDetector: true,
 resourceLifecycleDetector: true,
+observabilityGapDetector: true,
 };
 
 describe("classifyDiff", () => {

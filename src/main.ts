@@ -91,6 +91,7 @@ import { detectMagicNumbers } from "./magic-number-detector.js";
 import { detectErrorHandlingGaps } from "./error-handling-detector.js";
 import { detectPerformanceAntiPatterns } from "./performance-antipattern-detector.js";
 import { detectResourceLifecycleViolations } from "./resource-lifecycle-detector.js";
+import { detectObservabilityGaps } from "./observability-gap-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -563,6 +564,20 @@ if (config.resourceLifecycleDetector) {
   }
 }
 
+
+// 4a3o. Observability gap detector — detect silent catches, throw-without-log, unlogged routes, missing error metadata
+let observabilityGapResult: import("./observability-gap-detector.js").ObservabilityGapResult | null = null;
+if (config.observabilityGapDetector) {
+  try {
+    observabilityGapResult = detectObservabilityGaps(diff.files);
+    if (observabilityGapResult.issues.length > 0) {
+      core.info("Observability gap detection: " + observabilityGapResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Observability gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -955,6 +970,12 @@ if (perfAntiPatternResult && perfAntiPatternResult.contextText) {
 // 5c2n. Resource lifecycle violation detector context injection
 if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + resourceLifecycleResult.contextText;
+}
+
+
+// 5c2o. Observability gap detector context injection
+if (observabilityGapResult && observabilityGapResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + observabilityGapResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1783,6 +1804,16 @@ if (resourceLifecycleResult && resourceLifecycleResult.bodySummary) {
     core.warning("Resource lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post observability gap detection summary as a separate comment
+if (observabilityGapResult && observabilityGapResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: observabilityGapResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Observability gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1936,6 +1967,7 @@ if (config.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0
 if (config.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
 if (config.performanceAntipatternDetector) auditBuilder.logStage("performance-antipattern-detector", 0, true);
 if (config.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-detector", 0, true);
+if (config.observabilityGapDetector) auditBuilder.logStage("observability-gap-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
