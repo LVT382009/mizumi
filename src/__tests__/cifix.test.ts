@@ -135,6 +135,7 @@ deadCodeDetector: true,
     magicNumberDetector: true,
     errorHandlingDetector: true,
     performanceAntipatternDetector: true,
+resourceLifecycleDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

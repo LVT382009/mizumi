@@ -84,6 +84,7 @@ deadCodeDetector: boolean;
   magicNumberDetector: boolean;
   errorHandlingDetector: boolean;
   performanceAntipatternDetector: boolean;
+resourceLifecycleDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -190,7 +191,8 @@ const typeSafetyErosion = core.getInput("type_safety_erosion") !== "false"; // d
 const todoDebtDetector = core.getInput("todo_debt_detector") !== "false"; // default true
 const magicNumberDetector = core.getInput("magic_number_detector") !== "false"; // default true
 const errorHandlingDetector = core.getInput("error_handling_detector") !== "false"; // default true
-const performanceAntipatternDetector = core.getInput("performance_antipattern_detector") !== "false"; // default true
+const performanceAntipatternDetector = core.getInput("performance_antipattern_detector") !== "false";
+const resourceLifecycleDetector = core.getInput("resource_lifecycle_detector") !== "false"; // default true // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -317,6 +319,7 @@ deadCodeDetector,
     magicNumberDetector,
     errorHandlingDetector,
     performanceAntipatternDetector,
+resourceLifecycleDetector,
   };
 }
 

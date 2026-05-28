@@ -90,6 +90,7 @@ import { detectTechDebt } from "./todo-debt-detector.js";
 import { detectMagicNumbers } from "./magic-number-detector.js";
 import { detectErrorHandlingGaps } from "./error-handling-detector.js";
 import { detectPerformanceAntiPatterns } from "./performance-antipattern-detector.js";
+import { detectResourceLifecycleViolations } from "./resource-lifecycle-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -548,6 +549,20 @@ if (config.performanceAntipatternDetector) {
   }
 }
 
+
+// 4a3n. Resource lifecycle violation detector — detect unclosed resources, unreleased connections, unsubscribed listeners, missing finally, React missing cleanup
+let resourceLifecycleResult: import("./resource-lifecycle-detector.js").ResourceLifecycleResult | null = null;
+if (config.resourceLifecycleDetector) {
+  try {
+    resourceLifecycleResult = detectResourceLifecycleViolations(diff.files);
+    if (resourceLifecycleResult.issues.length > 0) {
+      core.info("Resource lifecycle detection: " + resourceLifecycleResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Resource lifecycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -934,6 +949,12 @@ if (errorHandlingResult && errorHandlingResult.contextText) {
 // 5c2m. Performance anti-pattern detector context injection
 if (perfAntiPatternResult && perfAntiPatternResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + perfAntiPatternResult.contextText;
+}
+
+
+// 5c2n. Resource lifecycle violation detector context injection
+if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + resourceLifecycleResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -1752,6 +1773,16 @@ if (perfAntiPatternResult && perfAntiPatternResult.bodySummary) {
     core.warning("Performance anti-pattern comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post resource lifecycle violation detection summary as a separate comment
+if (resourceLifecycleResult && resourceLifecycleResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber, body: resourceLifecycleResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Resource lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -1904,6 +1935,7 @@ if (config.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true
 if (config.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
 if (config.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
 if (config.performanceAntipatternDetector) auditBuilder.logStage("performance-antipattern-detector", 0, true);
+if (config.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
