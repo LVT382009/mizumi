@@ -503,9 +503,9 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - Added 11 integration scenario tests to defense.test.ts (roundtrip, interleaved provenance, multiple secrets, unicode)
 - **3345 tests** passing, 0 TS errors, bundle rebuilt
 
-### Build Stats (Current — 4545 Tests)
+### Build Stats (Current — 5132 Tests)
 
-- **4545 tests** passing (87 test files)
+- **5132 tests** passing (102 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -724,3 +724,23 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **48 tests** in `src/__tests__/async-concurrency-hazard-detector.test.ts`
 - **5064 tests** passing, 0 TS errors, bundle rebuilt
 - **Competitive gap**: No AI code reviewer detects concurrency hazards at PR review time. ESLint `require-atomic-updates` exists but is disabled by default and has severe false-positive problems. No linter detects TOCTOU, flag-flip races, or unbounded Promise.all.
+
+### State Machine / Lifecycle Protocol Detector (2026-05-28)
+- **New file**: `src/lifecycle-protocol-detector.ts` — detect state machine / lifecycle protocol violations in PR diffs
+- **4 detection categories**: invalid-transition (setState to state not in transition table — critical), missing-initial-state (state machine without initial/default state — critical), unreachable-state (state defined but no transition targets it — warning), missing-error-state (state machine without error/failure/rejected state — warning)
+- **Pattern analysis**: STATE_MACHINE_RE for createMachine/Machine/FSM/useStateMachine pattern matching, SET_STATUS_RE for setStatus/setState/goTo/proceed/transition calls, TRANSITION_RE for transition target definitions, INITIAL_STATE_RE for initial state declarations, ERROR_STATE_RE for error/failed/rejected/cancelled states (both quoted and bare object keys)
+- **Pipeline integration**: main.ts detection block (4a3q), context injection (5c2q), body summary comment, audit trail
+- **Config propagation**: `lifecycle_protocol_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **27 tests** in `src/__tests__/lifecycle-protocol-detector.test.ts`
+- **5132 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects state machine violations at PR review time. XState validates at runtime but not in PR review. Invalid transitions, missing initial states, and unreachable states cause non-deterministic bugs (orders shipped before payment, deploys rolled back before starting).
+
+### Test Coverage Expansion 2 (2026-05-28)
+- Added 10 edge case tests to test-assertion-audit (29→39): toBeNull, toBeUndefined, .spec.ts detection, test/ dir detection, nested describe, multiple expect on same line
+- Added 10 edge case tests to import-cycle-detector (32→42): self-import, indirect 3-node cycle, dynamic import(), re-export cycles, type-only imports, alias imports, deep paths, deleted files, side-effect imports
+- Added 11 edge case tests to todo-debt-detector (32→43): case-insensitive markers (fixme/FixMe), TODO with ticket ref, xxx/workaround detection, multiple markers, inline without colon, block comments, string literals
+- Made todo-debt-detector regex patterns case-insensitive (i flag)
+- Added 10 edge case tests to observability-gap-detector (33→43): console.warn as strong, Sentry/Datadog as strong observability, fastify.get routes, log.fatal metadata, multiple silent catches, console.error alongside console.log
+- Added Sentry pattern recognition to observability-gap-detector.ts
+- Extended missing-error-metadata to cover fatal/critical/alert/emergency log levels
+- Removed 4 unused regex patterns from error-handling-detector.ts (FINALLY_WITHOUT_CATCH_RE, VOID_PROMISE_RE, VAR_REF_ONLY_RE, REDIS_ASYNC_RE)
