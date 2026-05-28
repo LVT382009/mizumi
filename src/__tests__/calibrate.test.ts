@@ -182,6 +182,7 @@ observabilityGapDetector: true,
     concurrencyHazardDetector: true,
     lifecycleProtocolDetector: true,
 semanticTypeConfusionDetector: true,
+dataFlowBoundaryDetector: true,
     ...overrides,
   };
 }

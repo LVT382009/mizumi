@@ -390,6 +390,11 @@ semantic_type_confusion_detector:
   required: false
   default: "true"
 
+data_flow_boundary_detector:
+  description: "Enable data flow boundary detector — flags PII in responses, secrets in logs, trust boundary skips, and client-side leaks. Zero LLM cost. No AI code reviewer detects data flow boundary violations at PR review time."
+  required: false
+  default: "true"
+
 jira_base_url:
     description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
     required: false

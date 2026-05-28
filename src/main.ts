@@ -95,6 +95,7 @@ import { detectObservabilityGaps } from "./observability-gap-detector.js";
 import { detectConcurrencyHazards } from "./async-concurrency-hazard-detector.js";
 import { detectLifecycleProtocolViolations } from "./lifecycle-protocol-detector.js";
 import { detectSemanticTypeConfusion } from "./semantic-type-confusion-detector.js";
+import { detectDataFlowBoundaryViolations } from "./data-flow-boundary-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -620,6 +621,19 @@ if (config.semanticTypeConfusionDetector) {
   }
 }
 
+// 4a3s. Data flow boundary detector — detect PII in responses, secrets in logs, trust boundary skips, client-side leaks
+let dataFlowBoundaryResult: import("./data-flow-boundary-detector.js").DataFlowBoundaryResult | null = null;
+if (config.dataFlowBoundaryDetector) {
+  try {
+    dataFlowBoundaryResult = detectDataFlowBoundaryViolations(diff.files);
+    if (dataFlowBoundaryResult.issues.length > 0) {
+      core.info("Data flow boundary detection: " + dataFlowBoundaryResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Data flow boundary detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1024,6 +1038,10 @@ if (lifecycleProtocolResult && lifecycleProtocolResult.contextText) {
 // 5c2r. Semantic type confusion detector context injection
 if (semanticConfusionResult && semanticConfusionResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + semanticConfusionResult.contextText;
+}
+// 5c2s. Data flow boundary detector context injection
+if (dataFlowBoundaryResult && dataFlowBoundaryResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dataFlowBoundaryResult.contextText;
 }
 if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
@@ -1903,6 +1921,17 @@ if (semanticConfusionResult && semanticConfusionResult.bodySummary) {
     core.warning("Semantic type confusion comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+// Post data flow boundary detection summary as a separate comment
+if (dataFlowBoundaryResult && dataFlowBoundaryResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: dataFlowBoundaryResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Data flow boundary comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2060,6 +2089,7 @@ if (config.observabilityGapDetector) auditBuilder.logStage("observability-gap-de
 if (config.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-detector", 0, true);
 if (config.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-detector", 0, true);
 if (config.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-confusion-detector", 0, true);
+if (config.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
