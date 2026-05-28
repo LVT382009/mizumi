@@ -852,3 +852,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer detects cargo-cult boilerplate patterns. Codacy flags complexity metrics but not LLM-specific patterns like facade classes with pure delegation, interfaces for single implementations, or decorator stacks from training data.
 - **5 detection categories**: enterprise-facade (classes with 2-3 methods all delegating to injected dependencies), interface-for-single-impl (cross-file: interface + exactly one implements), deep-inheritance (3+ level extends chains with cycle protection), singleton-misuse (private constructor + getInstance/instance pattern), decorator-stack (3+ consecutive decorators)
 - **Key features**: cross-file interface-impl tracking, cycle-protected inheritance chain walking, SKIP_IFACE_NAMES for common benign interfaces (Error, Event, Options, etc.)
+
+### Confabulated API Surface Detector (2026-05-29)
+- **+23 tests** in `src/__tests__/confabulated-api-detector.test.ts`
+- **6129 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects confabulated API calls. CodeRabbit and others catch type errors post-compile, but don't flag method names that come from LLM training data in other languages (e.g., .contains() from Java, .add() from Java List, .abs() as a Number method).
+- **4 detection categories**: non-existent-method (30 patterns from Java/Ruby/C#/Kotlin/Scala training data with correct JS alternatives), wrong-arity (26 built-in JS functions with known signatures), fantasy-optional-chain (?. on primitive literals — always a coder error), confabulated-import (wrong symbols from well-known Node.js modules)
+- **Key features**: severity="critical" for confabulated-import (code won't run), severity="warning" for other categories. Cross-file detection, capped output per category
