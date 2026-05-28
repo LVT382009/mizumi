@@ -103,6 +103,7 @@ import { detectHardcodedConfig } from "./hardcoded-config-detector.js";
 import { detectDebugArtifacts } from "./debug-artifact-detector.js";
 import { detectCallbackMisuse } from "./callback-misuse-detector.js";
 import { detectStaleClosures } from "./stale-closure-detector.js";
+import { detectHallucinatedDeps } from "./hallucinated-dependency-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -728,6 +729,15 @@ if (config.callbackMisuseDetector) {
           }
         }
 
+        // 4a3za. Hallucinated dependency detector — detect phantom package references: unknown-import, slopsquatting-signal, phantom-scoped-import, version-mismatch
+        let hallucinatedDepResult: import("./hallucinated-dependency-detector.js").HallucinatedDepResult | null = null;
+        if (config.hallucinatedDependencyDetector) {
+          hallucinatedDepResult = detectHallucinatedDeps(diff.files);
+          if (hallucinatedDepResult.issues.length > 0) {
+            core.info("Hallucinated dependency detection: " + hallucinatedDepResult.issues.length + " issue(s)");
+          }
+        }
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1167,6 +1177,9 @@ if (callbackMisuseResult && callbackMisuseResult.contextText) {
 }
 if (staleClosureResult && staleClosureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + staleClosureResult.contextText;
+}
+if (hallucinatedDepResult && hallucinatedDepResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + hallucinatedDepResult.contextText;
 }
 
 // 5c3. Learning context injection
@@ -2126,6 +2139,17 @@ if (staleClosureResult && staleClosureResult.bodySummary) {
   } catch (e) {
     core.warning("Stale closure comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
+// Post hallucinated dependency detection summary as a separate comment
+if (hallucinatedDepResult && hallucinatedDepResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: hallucinatedDepResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Hallucinated dependency comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 }
  }
 // Post architecture drift summary as a separate comment
@@ -2293,6 +2317,7 @@ if (config.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-dete
 if (config.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector", 0, true);
 if (config.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detector", 0, true);
 if (config.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0, true);
+if (config.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

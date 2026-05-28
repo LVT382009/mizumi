@@ -112,6 +112,7 @@ nullGuardDetector: true,
     debugArtifactDetector: true,
     callbackMisuseDetector: true,
       staleClosureDetector: true,
+      hallucinatedDependencyDetector: true,
   ...overrides,
 });
 
