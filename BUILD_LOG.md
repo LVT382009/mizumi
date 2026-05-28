@@ -505,7 +505,7 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 
 ### Build Stats (Current — 5132 Tests)
 
-- **5178 tests** passing (103 test files)
+- **5222 tests** passing (104 test files)
 - **10,000+ production lines** (60+ source modules)
 - **0 TS errors**
 - **7 providers** (anthropic, openai, google, openrouter, nvidia, local, custom)
@@ -744,6 +744,16 @@ covering closes/fixes/resolves keywords, bare refs, dedup, limit, case sensitivi
 - **33 tests** in `src/__tests__/semantic-type-confusion-detector.test.ts`
 - **Also expanded error-handling-detector**: wired FINALLY_WITHOUT_CATCH_RE, VOID_PROMISE_RE, VAR_REF_ONLY_RE, REDIS_ASYNC_RE into detection functions (+13 tests = 46 total)
 - **5178 tests** passing, 0 TS errors, bundle rebuilt
+
+### Data Flow Boundary Detector (2026-05-28)
+- **New file**: `src/data-flow-boundary-detector.ts` — detect sensitive data crossing trust boundaries without protection
+- **4 categories**: unprotected-pii-in-response (warning/critical for financial), sensitive-data-in-log (critical), trust-boundary-skip (critical), client-side-leak (critical/warning)
+- **Pattern analysis**: PII_FIELDS_RE for SSN/passport/DOB, FINANCIAL_PII_RE for creditCard/CVV/bankAccount, SECRET_DATA_RE for password/token/apiKey, LOG_OUTPUT_RE for console/logger, RESPONSE_RE for res.json/ctx.body, EXTERNAL_API_RE for fetch/axios/webhook, DB_SOURCE_RE for db.query/prisma/redis, SANITIZE_RE for hash/encrypt/redact/mask
+- **Pipeline integration**: main.ts detection block (4a3s), context injection (5c2s), body summary comment, audit trail
+- **Config propagation**: `data_flow_boundary_detector` added to MizumiConfig, loadConfig, action.yml, all 8 test stubs
+- **44 tests** in `src/__tests__/data-flow-boundary-detector.test.ts`
+- **5222 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects data flow boundary violations. SAST tools find hardcoded secrets but miss when PII flows from trusted layers (DB/auth) to untrusted layers (HTTP response, log, client bundle, third-party API) without sanitization.
 - **Competitive gap**: No AI code reviewer detects semantic type confusion. TypeScript catches structural incompatibility but not semantic mismatch (userId vs orderId, priceCents vs priceDollars).
 
 ### Test Coverage Expansion 2 (2026-05-28)
