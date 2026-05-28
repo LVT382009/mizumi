@@ -454,6 +454,11 @@ default: 'true'
     description: 'Detect incompatible programming paradigms mixed in same scope by AI-generated code'
     required: false
     default: 'true'
+
+  velocity_risk_detector:
+    description: 'Detect risky patterns from high-velocity AI-generated PRs'
+    required: false
+    default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:

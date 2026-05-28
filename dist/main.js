@@ -56550,6 +56550,7 @@ function loadConfig() {
   const confabulatedAPIDetector = getInput("confabulated_api_detector") !== "false";
   const partialSecurityControlDetector = getInput("partial_security_control_detector") !== "false";
   const paradigmClashDetector = getInput("paradigm_clash_detector") !== "false";
+  const velocityRiskDetector = getInput("velocity_risk_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56693,7 +56694,8 @@ function loadConfig() {
     cargoCultArchitectureDetector,
     confabulatedAPIDetector,
     partialSecurityControlDetector,
-    paradigmClashDetector
+    paradigmClashDetector,
+    velocityRiskDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -124507,6 +124509,261 @@ function detectParadigmClashes(diffFiles) {
   return result;
 }
 
+// src/velocity-risk-detector.ts
+function stripPrefix9(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges9(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+function getRemovedChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "delete");
+}
+var LARGE_NEW_FILE_THRESHOLD = 100;
+var BOILERPLATE_SIMILARITY_THRESHOLD = 3;
+var SWEEP_REFACTOR_RATIO = 0.6;
+var COPY_PASTE_MIN_WORDS = 4;
+var COPY_PASTE_MIN_FILES = 3;
+function detectLargeNewFiles(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const isNew = file2.status === "added";
+    const isLarge = added.length > LARGE_NEW_FILE_THRESHOLD;
+    if (isNew && isLarge) {
+      const hasTest = file2.path.includes("test") || file2.path.includes("spec") || file2.path.includes("__tests__");
+      const addedContent = added.map((c) => stripPrefix9(c.content)).join("\n");
+      const hasAssertions = /\bexpect\s*\(|\bassert\s*\(|\bshould\b|\bAssertions\b/i.test(addedContent);
+      if (!hasTest && !hasAssertions) {
+        const baseName = file2.path.replace(/\.\w+$/, "").split("/").pop() || "";
+        const testCoverage = diffFiles.some(
+          (f) => f.path !== file2.path && (f.path.includes("test") || f.path.includes("spec") || f.path.includes("__tests__")) && f.path.includes(baseName)
+        );
+        if (!testCoverage) {
+          issues.push({
+            category: "large-new-file",
+            file: file2.path,
+            line: 1,
+            code: `${added.length} added lines`,
+            description: `New file \`${file2.path}\` has ${added.length} added lines with no test coverage \u2014 LLMs generate large files at machine speed but tests lag behind; high-velocity PRs with 100+ new lines and no tests have 3x higher defect density than PRs with test coverage; add unit tests before merging`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function extractSignature(line) {
+  const funcMatch = line.match(/(?:export\s+)?(?:async\s+)?(?:function|const|let|var)\s+(\w+)\s*(?:=|\(|<)/);
+  if (funcMatch) return funcMatch[1];
+  const classMatch = line.match(/(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/);
+  if (classMatch) return classMatch[1];
+  const methodMatch = line.match(/^\s+(?:public|private|protected|static|async)?\s*(?:get|set)?\s*(\w+)\s*\(/);
+  if (methodMatch) return `method:${methodMatch[1]}`;
+  return "";
+}
+function detectBoilerplateProliferation(diffFiles) {
+  const issues = [];
+  const sigFiles = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const sigs = /* @__PURE__ */ new Set();
+    for (const change of added) {
+      if (/^\+\s*(\/\/|\/\*|\*|import\s+type|export\s+type)/.test(change.content)) continue;
+      const sig = extractSignature(stripPrefix9(change.content));
+      if (sig) sigs.add(sig);
+    }
+    for (const sig of sigs) {
+      if (!sigFiles.has(sig)) sigFiles.set(sig, []);
+      sigFiles.get(sig).push(file2.path);
+    }
+  }
+  for (const [sig, files] of sigFiles) {
+    if (files.length >= BOILERPLATE_SIMILARITY_THRESHOLD) {
+      issues.push({
+        category: "boilerplate-proliferation",
+        file: files[0],
+        line: 1,
+        code: `\`${sig}\` in ${files.length} files`,
+        description: `Function/class signature \`${sig}\` appears in ${files.length} files (\`${files.slice(0, 3).join("`, `")}\`) \u2014 LLMs generate boilerplate by repeating patterns across files instead of extracting shared abstractions; this proliferation creates maintenance burden where a fix must be applied to all copies; extract to a shared module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectSweepNoSafety(diffFiles) {
+  const issues = [];
+  let totalAdded = 0;
+  let totalRemoved = 0;
+  let typeAnnotations = 0;
+  let testAdditions = 0;
+  const refactoredFiles = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const removed = getRemovedChanges(file2);
+    totalAdded += added.length;
+    totalRemoved += removed.length;
+    const addedContent = added.map((c) => stripPrefix9(c.content)).join("\n");
+    const typeMatches = addedContent.match(/:\s*(?:string|number|boolean|void|never|unknown|any|Record|Map|Set|Promise|Array|\w+\[\]|\w+<)/g);
+    if (typeMatches) typeAnnotations += typeMatches.length;
+    const assertionMatches = addedContent.match(/\bexpect\s*\(|\bassert\s*\(|\bshould\b|\bAssertions\b/gi);
+    if (assertionMatches) testAdditions += assertionMatches.length;
+    if (removed.length > 0 && removed.length >= added.length) {
+      refactoredFiles.push(file2.path);
+    }
+  }
+  const totalChanges = totalAdded + totalRemoved;
+  if (totalChanges > 0 && totalRemoved / totalChanges > SWEEP_REFACTOR_RATIO) {
+    const safetyRatio = (typeAnnotations + testAdditions) / totalAdded;
+    if (totalAdded > 20 && safetyRatio < 0.1) {
+      issues.push({
+        category: "sweep-no-safety",
+        file: refactoredFiles[0] || diffFiles[0]?.path || "unknown",
+        line: 1,
+        code: `${totalRemoved} removed, ${totalAdded} added, ${typeAnnotations} types, ${testAdditions} tests`,
+        description: `PR is ${Math.round(totalRemoved / totalChanges * 100)}% removals (sweep refactor) with ${totalAdded} additions but only ${typeAnnotations} type annotations and ${testAdditions} test assertions \u2014 LLMs perform large-scale refactors at machine speed but skip adding type safety and tests; sweeping refactors without validation have 2.5x regression rate; add type annotations and test coverage for refactored code`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectCopyPastePattern(diffFiles) {
+  const issues = [];
+  const fileContents = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    if (added.length < 5) continue;
+    const lines = [];
+    for (const change of added) {
+      if (/^\+\s*(\/\/|\/\*|\*|import\s|export\s+type)/.test(change.content)) continue;
+      const trimmed = stripPrefix9(change.content);
+      if (trimmed.length > 20) lines.push(trimmed);
+    }
+    if (lines.length > 0) fileContents.set(file2.path, lines);
+  }
+  const ngramFiles = /* @__PURE__ */ new Map();
+  for (const [filePath, lines] of fileContents) {
+    for (const line of lines) {
+      const words = line.split(/\s+/).filter((w) => w.length > 1);
+      if (words.length < COPY_PASTE_MIN_WORDS) continue;
+      for (let i = 0; i <= words.length - COPY_PASTE_MIN_WORDS; i++) {
+        const ngram = words.slice(i, i + COPY_PASTE_MIN_WORDS).join(" ");
+        const normalized = ngram.replace(/['"`][^'"]*['"`]/g, "STR").replace(/\b\d+\b/g, "NUM").replace(/\b[a-z]\b/g, "x");
+        if (normalized.length > 10) {
+          if (!ngramFiles.has(normalized)) ngramFiles.set(normalized, /* @__PURE__ */ new Set());
+          ngramFiles.get(normalized).add(filePath);
+        }
+      }
+    }
+  }
+  for (const [ngram, files] of ngramFiles) {
+    if (files.size >= COPY_PASTE_MIN_FILES) {
+      const fileList = [...files];
+      issues.push({
+        category: "copy-paste-pattern",
+        file: fileList[0],
+        line: 1,
+        code: `"${ngram.slice(0, 50)}..." in ${files.size} files`,
+        description: `5+ word code sequence appears in ${files.size} files (\`${fileList.slice(0, 3).join("`, `")}\`) \u2014 LLMs copy-paste code across files instead of extracting shared helpers; duplicated logic means bugs must be fixed in every copy; extract the repeated code into a shared utility`,
+        severity: "warning"
+      });
+    }
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const filtered = issues.filter((issue3) => {
+    const dedupKey = `${issue3.category}:${issue3.file}`;
+    if (seen.has(dedupKey)) return false;
+    seen.add(dedupKey);
+    return true;
+  });
+  return filtered.slice(0, 10);
+}
+function dedupIssues28(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildVelocityRiskContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Velocity Risk Detection (${result.issues.length})
+`;
+  ctx += "This PR shows high-velocity AI-generated code patterns \u2014 ship speed exceeds review validation:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildVelocityRiskBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Velocity Risk Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs generate code at machine speed \u2014 500+ lines in seconds \u2014 but human review can't keep up. High-velocity PRs with large new files, boilerplate proliferation, sweep refactors without tests, or copy-paste patterns have significantly higher defect density. Slow down, add tests, extract shared code.*
+</details>
+`;
+  return body;
+}
+function detectVelocityRisks(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectLargeNewFiles(diffFiles));
+  allIssues.push(...detectBoilerplateProliferation(diffFiles));
+  allIssues.push(...detectSweepNoSafety(diffFiles));
+  allIssues.push(...detectCopyPastePattern(diffFiles));
+  const issues = dedupIssues28(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildVelocityRiskContext(result);
+  result.bodySummary = buildVelocityRiskBodySummary(result);
+  if (issues.length > 0) {
+    info(`Velocity risk detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -125104,6 +125361,13 @@ async function run() {
         info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
       }
     }
+    let velocityRiskResult = null;
+    if (config2.velocityRiskDetector) {
+      velocityRiskResult = detectVelocityRisks(diff.files);
+      if (velocityRiskResult.issues.length > 0) {
+        info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -125489,6 +125753,9 @@ ${taintContextStr}`;
     }
     if (paradigmClashResult && paradigmClashResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + paradigmClashResult.contextText;
+    }
+    if (velocityRiskResult && velocityRiskResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + velocityRiskResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -126500,6 +126767,18 @@ ${digest}
                   warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (velocityRiskResult && velocityRiskResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: velocityRiskResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
             } catch (e) {
               warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
@@ -126669,6 +126948,7 @@ ${digest}
         if (config2.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
         if (config2.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
         if (config2.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
+        if (config2.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

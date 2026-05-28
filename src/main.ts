@@ -110,6 +110,7 @@ import { detectCargoCultArchitecture } from "./cargo-cult-architecture-detector.
 import { detectConfabulatedAPI } from "./confabulated-api-detector.js";
 import { detectPartialSecurityControls } from "./partial-security-control-detector.js";
 import { detectParadigmClashes } from "./paradigm-clash-detector.js";
+import { detectVelocityRisks } from "./velocity-risk-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -798,6 +799,15 @@ if (config.paradigmClashDetector) {
     core.info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zh. Velocity risk detector — detect risky patterns from high-velocity AI-generated PRs
+let velocityRiskResult: import("./velocity-risk-detector.js").VelocityRiskResult | null = null;
+if (config.velocityRiskDetector) {
+  velocityRiskResult = detectVelocityRisks(diff.files);
+  if (velocityRiskResult.issues.length > 0) {
+    core.info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1258,6 +1268,9 @@ if (partialSecurityResult && partialSecurityResult.contextText) {
 }
 if (paradigmClashResult && paradigmClashResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + paradigmClashResult.contextText;
+}
+if (velocityRiskResult && velocityRiskResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + velocityRiskResult.contextText;
 }
 
 
@@ -2292,6 +2305,18 @@ if (paradigmClashResult && paradigmClashResult.bodySummary) {
     core.warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (velocityRiskResult && velocityRiskResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: velocityRiskResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2471,6 +2496,7 @@ if (config.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch
 if (config.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
 if (config.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
 if (config.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
+if (config.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

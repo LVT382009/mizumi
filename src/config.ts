@@ -104,6 +104,7 @@ observabilityGapDetector: boolean;
   confabulatedAPIDetector: boolean;
   partialSecurityControlDetector: boolean;
   paradigmClashDetector: boolean;
+  velocityRiskDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -231,6 +232,7 @@ const cargoCultArchitectureDetector = core.getInput("cargo_cult_architecture_det
 const confabulatedAPIDetector = core.getInput("confabulated_api_detector") !== "false"; // default true
 const partialSecurityControlDetector = core.getInput("partial_security_control_detector") !== "false"; // default true
 const paradigmClashDetector = core.getInput("paradigm_clash_detector") !== "false"; // default true
+const velocityRiskDetector = core.getInput("velocity_risk_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -377,6 +379,7 @@ observabilityGapDetector,
   confabulatedAPIDetector,
   partialSecurityControlDetector,
     paradigmClashDetector,
+    velocityRiskDetector,
   };
 }
 
