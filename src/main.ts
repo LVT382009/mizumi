@@ -101,6 +101,7 @@ import { detectAICodePathologies } from "./ai-code-pathology-detector.js";
 import { detectUngatedCriticalReturns } from "./ungated-critical-return-detector.js";
 import { detectHardcodedConfig } from "./hardcoded-config-detector.js";
 import { detectDebugArtifacts } from "./debug-artifact-detector.js";
+import { detectCallbackMisuse } from "./callback-misuse-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -701,6 +702,19 @@ if (config.debugArtifactDetector) {
     }
   } catch (e) {
     core.warning("Debug artifact detection failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// 4a3y. Callback misuse detector — detect callback/Promise mixing: callback-promise-mix, promise-callback-wrap, unhandled-callback-error, deprecated-callback-api
+let callbackMisuseResult: import("./callback-misuse-detector.js").CallbackMisuseResult | null = null;
+if (config.callbackMisuseDetector) {
+  try {
+    callbackMisuseResult = detectCallbackMisuse(diff.files);
+    if (callbackMisuseResult.issues.length > 0) {
+      core.info("Callback misuse detection: " + callbackMisuseResult.issues.length + " issue(s) detected");
+    }
+  } catch (e) {
+    core.warning("Callback misuse detection failed: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 
@@ -2073,6 +2087,17 @@ if (debugArtifactResult && debugArtifactResult.bodySummary) {
     core.warning("Debug artifact comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
  }
+// Post callback misuse detection summary as a separate comment
+if (callbackMisuseResult && callbackMisuseResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: prNumber,
+      body: callbackMisuseResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Callback misuse comment failed: " + (e instanceof Error ? e.message : String(e)));
+  }
+ }
 // Post architecture drift summary as a separate comment
 if (driftResult && driftResult.bodySummary) {
   try {
@@ -2236,6 +2261,7 @@ if (config.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-det
 if (config.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critical-return-detector", 0, true);
 if (config.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-detector", 0, true);
 if (config.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector", 0, true);
+if (config.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detector", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

@@ -146,6 +146,7 @@ nullGuardDetector: true,
       ungatedCriticalReturnDetector: true,
       hardcodedConfigDetector: true,
     debugArtifactDetector: true,
+    callbackMisuseDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
