@@ -118,6 +118,7 @@ import { detectCredentialExposure } from "./credential-exposure-detector.js";
 import { detectIllusoryValidation } from "./illusory-validation-detector.js";
 import { detectIterationStripping } from "./iteration-stripping-detector.js";
 import { detectSecurityParadox } from "./security-paradox-detector.js";
+import { detectTrustBoundaryErosion } from "./trust-boundary-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -879,6 +880,15 @@ if (config.securityParadoxDetector) {
     core.info("Security paradox detection: " + secParadoxResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zp. Trust boundary erosion detector — detect architectural privilege escalation
+let trustBoundaryResult: import("./trust-boundary-detector.js").TrustBoundaryResult | null = null;
+if (config.trustBoundaryDetector) {
+  trustBoundaryResult = detectTrustBoundaryErosion(diff.files);
+  if (trustBoundaryResult.issues.length > 0) {
+    core.info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1363,6 +1373,10 @@ if (iterStrippingResult && iterStrippingResult.contextText) {
 
 if (secParadoxResult && secParadoxResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + secParadoxResult.contextText;
+}
+
+if (trustBoundaryResult && trustBoundaryResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + trustBoundaryResult.contextText;
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
@@ -2484,6 +2498,18 @@ if (secParadoxResult && secParadoxResult.bodySummary) {
     core.warning("Failed to post security paradox summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (trustBoundaryResult && trustBoundaryResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: trustBoundaryResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2683,6 +2709,7 @@ if (config.credentialExposureDetector) auditBuilder.logStage("credential-exposur
 if (config.illusoryValidationDetector) auditBuilder.logStage("illusory-validation-detect", 0, true);
 if (config.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
 if (config.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
+if (config.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

@@ -203,6 +203,7 @@ nullGuardDetector: true,
     illusoryValidationDetector: true,
     iterationStrippingDetector: true,
       securityParadoxDetector: true,
+      trustBoundaryDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

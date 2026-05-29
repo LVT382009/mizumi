@@ -132,6 +132,7 @@ nullGuardDetector: true,
     illusoryValidationDetector: true,
     iterationStrippingDetector: true,
       securityParadoxDetector: true,
+      trustBoundaryDetector: true,
   })),
 }));
 

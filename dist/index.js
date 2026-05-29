@@ -56558,6 +56558,7 @@ function loadConfig() {
   const illusoryValidationDetector = getInput("illusory_validation_detector") !== "false";
   const iterationStrippingDetector = getInput("iteration_stripping_detector") !== "false";
   const securityParadoxDetector = getInput("security_paradox_detector") !== "false";
+  const trustBoundaryDetector = getInput("trust_boundary_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56709,7 +56710,8 @@ function loadConfig() {
     credentialExposureDetector,
     illusoryValidationDetector,
     iterationStrippingDetector,
-    securityParadoxDetector
+    securityParadoxDetector,
+    trustBoundaryDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -126569,6 +126571,242 @@ function detectSecurityParadox(diffFiles, prTitle, prBody) {
   return result;
 }
 
+// src/trust-boundary-detector.ts
+function stripPrefix17(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges16(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE27 = /^[-+]\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var TEST_PATH_RE3 = /(?:__tests__|\.test\.|\.spec\.|_test\.|_spec\.|tests?\/)/;
+var IAM_RELEVANT_PATHS = /\.(?:yml|yaml|tf|json|jsonnet|cdk\.ts|template\.)/i;
+var ROUTE_HANDLER_PATTERNS = [
+  // Express/Connect routes
+  /\b(?:app|router)\.(?:get|post|put|patch|delete|all)\s*\(\s*['"]/i,
+  // Fastify routes
+  /\.route\s*\(\s*\{/i,
+  // Koa routes
+  /\.use\s*\(\s*\/\w+/i,
+  // Flask/Django routes
+  /@(?:app|bp|router)\.(?:route|get|post|put|delete|patch)\s*\(/i,
+  // Spring @RequestMapping family
+  /@(?:Request(?:Mapping|Mapping)|Get|Post|Put|Delete|Patch)Mapping\b/i,
+  // .NET [HttpGet] etc
+  /\[(?:Http(?:Get|Post|Put|Delete|Patch))\]/i,
+  // AWS Lambda handlers
+  /exports?\.(?:handler|lambda)\s*=/i,
+  /async\s+function\s+(?:handler|lambdaHandler)\s*\(/i
+];
+var AUTH_MIDDLEWARE_PATTERNS = [
+  /\b(?:auth|authenticate|verifyToken|checkAuth|isAuthenticated|requireAuth|isAllowed)\b/i,
+  /\bUseGuards\s*\(\s*AuthGuard/i,
+  /@(?:login_required|require_auth|preAuthorize|RolesAllowed)\b/i,
+  /\bmiddleware\s*[:=]\s*\[.*(?:auth|authenticate)/i,
+  /\bbefore_action\s*:/i,
+  /\[Authorize\]/i,
+  /\[AllowAnonymous\]/i
+];
+var SECURITY_EVENT_PATTERNS = [
+  /\b(?:login|signin|auth(?:enticate|orize)?)\s*\(/i,
+  /\b(?:logout|signout|revoke)\s*\(/i,
+  /\b(?:grant|revoke|assign|remove)\w*(?:Role|Permission|Access|Privilege)\b/i,
+  /\b(?:create|delete|update)\w*(?:User|Account|Admin|Secret|Key|Token|Credential)\b/i,
+  /\b(?:password|passwd|secret)\w*(?:reset|change|update|rotate)\b/i,
+  /\b(?:permission|privilege|capability)\w*(?:escalat|elevat|chang|modif)\b/i,
+  /\b(?:escalat|elevat)\w*(?:Privilege|Permission|Access|Capability)\b/i
+];
+var LOGGING_PATTERNS = [
+  /\b(?:log|logger|audit|record|track|trace|monitor|alert)\w*\s*\.\s*(?:info|warn|error|debug|audit)\s*\(/i,
+  /\bconsole\.\s*(?:log|warn|error|info)\s*\(/i,
+  /\bwrite(?:Log|Audit|Event|Record)\s*\(/i,
+  /\b(?:emit|dispatch|publish|send)\w*(?:Event|Audit|Log)\s*\(/i,
+  /\.audit\s*\.\s*(?:log|record|write)\s*\(/i
+];
+function detectOverPermissiveIAM(file2) {
+  const issues = [];
+  if (!IAM_RELEVANT_PATHS.test(file2.path)) return issues;
+  const added = getAddedChanges16(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE27.test(change.content)) continue;
+    const trimmed = stripPrefix17(change.content);
+    if (TEST_PATH_RE3.test(file2.path)) continue;
+    if (/(?:Action|actions?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+      issues.push({
+        category: "over-permissive-iam",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Over-permissive IAM in \`${file2.path}:${change.line}\` \u2014 wildcard action grants all permissions; CSA 2026: privilege escalation paths rose 322% in AI-generated code; follow least-privilege principle: grant only the specific actions needed`,
+        severity: "critical"
+      });
+      continue;
+    }
+    if (/(?:Resource|resources?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+      issues.push({
+        category: "over-permissive-iam",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Over-permissive IAM in \`${file2.path}:${change.line}\` \u2014 wildcard resource grants access to all resources; CSA 2026: privilege escalation +322% in AI-iterated code; restrict to specific resource ARNs`,
+        severity: "critical"
+      });
+      continue;
+    }
+    if (/(?:Principal|principals?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+      issues.push({
+        category: "over-permissive-iam",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Public IAM principal in \`${file2.path}:${change.line}\` \u2014 Principal:"*" grants access to everyone; restrict to specific IAM roles or accounts`,
+        severity: "critical"
+      });
+      continue;
+    }
+    const SERVICE_STAR_RE = /\b(s3|sqs|sns|lambda|ec2|secretsmanager|kms|dynamodb|iam|sts):\*/i;
+    const starMatch = SERVICE_STAR_RE.exec(trimmed);
+    if (starMatch) {
+      issues.push({
+        category: "over-permissive-iam",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Over-permissive IAM in \`${file2.path}:${change.line}\`: \`${starMatch[1]}:*\` grants all ${starMatch[1]} permissions; follow least-privilege: specify only the actions needed`,
+        severity: "warning"
+      });
+      continue;
+    }
+  }
+  return issues;
+}
+function detectMissingAuthMiddleware(file2) {
+  const issues = [];
+  const added = getAddedChanges16(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE27.test(change.content)) continue;
+    const trimmed = stripPrefix17(change.content);
+    if (TEST_PATH_RE3.test(file2.path)) continue;
+    const isRoute = ROUTE_HANDLER_PATTERNS.some((re2) => re2.test(trimmed));
+    if (!isRoute) continue;
+    const hasAuth = AUTH_MIDDLEWARE_PATTERNS.some((re2) => re2.test(trimmed));
+    if (hasAuth) continue;
+    if (/\[AllowAnonymous\]/i.test(trimmed)) continue;
+    const isDataMutating = /\b(?:post|put|delete|patch)\b/i.test(trimmed);
+    issues.push({
+      category: "missing-auth-middleware",
+      file: file2.path,
+      line: change.line,
+      code: trimmed,
+      description: `Missing auth middleware in \`${file2.path}:${change.line}\`: route handler${isDataMutating ? " with data mutation" : ""} without authentication/authorization guard; CSA 2026: architectural design flaws rose 153% as LLMs iterate \u2014 controls that should exist by design are absent; add auth middleware or document why this route is intentionally public`,
+      severity: isDataMutating ? "critical" : "warning"
+    });
+  }
+  return issues;
+}
+function detectAbsentAuditLogging(file2) {
+  const issues = [];
+  const added = getAddedChanges16(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE27.test(change.content)) continue;
+    const trimmed = stripPrefix17(change.content);
+    if (TEST_PATH_RE3.test(file2.path)) continue;
+    const isSecurityEvent = SECURITY_EVENT_PATTERNS.some((re2) => re2.test(trimmed));
+    if (!isSecurityEvent) continue;
+    const hasLogging = LOGGING_PATTERNS.some((re2) => re2.test(trimmed));
+    if (hasLogging) continue;
+    issues.push({
+      category: "absent-audit-logging",
+      file: file2.path,
+      line: change.line,
+      code: trimmed,
+      description: `Absent audit logging in \`${file2.path}:${change.line}\`: security event without logging/audit trail; CSA 2026: "architectural design flaws rose 153%" \u2014 security events must produce audit records for compliance and incident response; add structured logging for this security-relevant operation`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function dedupIssues36(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildTrustBoundaryContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Trust Boundary Erosion Detection (${result.issues.length})
+`;
+  ctx += "This PR has trust boundary erosion \u2014 missing or overly broad security controls:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildTrustBoundaryBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Trust Boundary Erosion Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Trust boundary erosion \u2014 CSR 2026: privilege escalation +322%, design flaws +153% in AI-iterated code. Over-permissive IAM, missing auth middleware on data-handling routes, absent audit logging on security events. These are architectural vulnerabilities invisible to SAST.*
+</details>
+`;
+  return body;
+}
+function detectTrustBoundaryErosion(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectOverPermissiveIAM(file2));
+    allIssues.push(...detectMissingAuthMiddleware(file2));
+    allIssues.push(...detectAbsentAuditLogging(file2));
+  }
+  const issues = dedupIssues36(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildTrustBoundaryContext(result);
+  result.bodySummary = buildTrustBoundaryBodySummary(result);
+  if (issues.length > 0) {
+    info(`Trust boundary erosion detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -127222,6 +127460,13 @@ async function run() {
         info("Security paradox detection: " + secParadoxResult.issues.length + " issue(s)");
       }
     }
+    let trustBoundaryResult = null;
+    if (config2.trustBoundaryDetector) {
+      trustBoundaryResult = detectTrustBoundaryErosion(diff.files);
+      if (trustBoundaryResult.issues.length > 0) {
+        info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -127628,6 +127873,9 @@ ${taintContextStr}`;
     }
     if (secParadoxResult && secParadoxResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + secParadoxResult.contextText;
+    }
+    if (trustBoundaryResult && trustBoundaryResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + trustBoundaryResult.contextText;
     }
     if (credExposureResult && credExposureResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -128726,6 +128974,18 @@ ${digest}
                   warning("Failed to post security paradox summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (trustBoundaryResult && trustBoundaryResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: trustBoundaryResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
               if (credExposureResult && credExposureResult.bodySummary) {
                 try {
                   await octokit.rest.issues.createComment({
@@ -128915,6 +129175,7 @@ ${digest}
         if (config2.illusoryValidationDetector) auditBuilder.logStage("illusory-validation-detect", 0, true);
         if (config2.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
         if (config2.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
+        if (config2.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
