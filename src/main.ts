@@ -115,6 +115,7 @@ import { detectRulesFileIntegrity } from "./rules-file-integrity-detector.js";
 import { detectSpecDrift } from "./spec-drift-detector.js";
 import { detectIaCVulnerabilities } from "./iac-vulnerability-detector.js";
 import { detectCredentialExposure } from "./credential-exposure-detector.js";
+import { detectIllusoryValidation } from "./illusory-validation-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -848,6 +849,16 @@ if (config.credentialExposureDetector) {
     core.info("Credential exposure detection: " + credExposureResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zm. Illusory validation detector — detect security-shaped code that doesn't protect
+let illusoryResult: import("./illusory-validation-detector.js").IllusoryValidationResult | null = null;
+if (config.illusoryValidationDetector) {
+  illusoryResult = detectIllusoryValidation(diff.files);
+  if (illusoryResult.issues.length > 0) {
+    core.info("Illusory validation detection: " + illusoryResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1320,6 +1331,10 @@ if (specDriftResult && specDriftResult.contextText) {
 }
 if (iacVulnResult && iacVulnResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iacVulnResult.contextText;
+}
+
+if (illusoryResult && illusoryResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + illusoryResult.contextText;
 }
 if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -2403,6 +2418,19 @@ if (iacVulnResult && iacVulnResult.bodySummary) {
     });
   } catch (e) {
     core.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+if (illusoryResult && illusoryResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: illusoryResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post illusory validation summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 if (credExposureResult && credExposureResult.bodySummary) {

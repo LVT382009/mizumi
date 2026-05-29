@@ -124,6 +124,7 @@ nullGuardDetector: true,
   specDriftDetector: true,
   iacVulnerabilityDetector: true,
     credentialExposureDetector: true,
+    illusoryValidationDetector: true,
   ...overrides,
 });
 
