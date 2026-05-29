@@ -3725,17 +3725,17 @@ var require_parse = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports._safeDecodeAsync = exports.safeEncodeAsync = exports._safeEncodeAsync = exports.safeDecode = exports._safeDecode = exports.safeEncode = exports._safeEncode = exports.decodeAsync = exports._decodeAsync = exports.encodeAsync = exports._encodeAsync = exports.decode = exports._decode = exports.encode = exports._encode = exports.safeParseAsync = exports._safeParseAsync = exports.safeParse = exports._safeParse = exports.parseAsync = exports._parseAsync = exports.parse = exports._parse = void 0;
-    var core92 = __importStar(require_core());
+    var core93 = __importStar(require_core());
     var errors = __importStar(require_errors());
     var util2 = __importStar(require_util());
     var _parse3 = (_Err) => (schema, value, _ctx, _params) => {
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core92.$ZodAsyncError();
+        throw new core93.$ZodAsyncError();
       }
       if (result.issues.length) {
-        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())));
+        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())));
         util2.captureStackTrace(e, _params?.callee);
         throw e;
       }
@@ -3749,7 +3749,7 @@ var require_parse = __commonJS({
       if (result instanceof Promise)
         result = await result;
       if (result.issues.length) {
-        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())));
+        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())));
         util2.captureStackTrace(e, params?.callee);
         throw e;
       }
@@ -3761,11 +3761,11 @@ var require_parse = __commonJS({
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core92.$ZodAsyncError();
+        throw new core93.$ZodAsyncError();
       }
       return result.issues.length ? {
         success: false,
-        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())))
+        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParse = _safeParse2;
@@ -3777,7 +3777,7 @@ var require_parse = __commonJS({
         result = await result;
       return result.issues.length ? {
         success: false,
-        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())))
+        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParseAsync = _safeParseAsync2;
@@ -4003,10 +4003,10 @@ var require_checks = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.$ZodCheckOverwrite = exports.$ZodCheckMimeType = exports.$ZodCheckProperty = exports.$ZodCheckEndsWith = exports.$ZodCheckStartsWith = exports.$ZodCheckIncludes = exports.$ZodCheckUpperCase = exports.$ZodCheckLowerCase = exports.$ZodCheckRegex = exports.$ZodCheckStringFormat = exports.$ZodCheckLengthEquals = exports.$ZodCheckMinLength = exports.$ZodCheckMaxLength = exports.$ZodCheckSizeEquals = exports.$ZodCheckMinSize = exports.$ZodCheckMaxSize = exports.$ZodCheckBigIntFormat = exports.$ZodCheckNumberFormat = exports.$ZodCheckMultipleOf = exports.$ZodCheckGreaterThan = exports.$ZodCheckLessThan = exports.$ZodCheck = void 0;
-    var core92 = __importStar(require_core());
+    var core93 = __importStar(require_core());
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
-    exports.$ZodCheck = core92.$constructor("$ZodCheck", (inst, def) => {
+    exports.$ZodCheck = core93.$constructor("$ZodCheck", (inst, def) => {
       var _a21;
       inst._zod ?? (inst._zod = {});
       inst._zod.def = def;
@@ -4017,7 +4017,7 @@ var require_checks = __commonJS({
       bigint: "bigint",
       object: "date"
     };
-    exports.$ZodCheckLessThan = core92.$constructor("$ZodCheckLessThan", (inst, def) => {
+    exports.$ZodCheckLessThan = core93.$constructor("$ZodCheckLessThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -4045,7 +4045,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckGreaterThan = core92.$constructor("$ZodCheckGreaterThan", (inst, def) => {
+    exports.$ZodCheckGreaterThan = core93.$constructor("$ZodCheckGreaterThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -4073,7 +4073,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core92.$constructor("$ZodCheckMultipleOf", (inst, def) => {
+    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core93.$constructor("$ZodCheckMultipleOf", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
         var _a21;
@@ -4095,7 +4095,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckNumberFormat = core92.$constructor("$ZodCheckNumberFormat", (inst, def) => {
+    exports.$ZodCheckNumberFormat = core93.$constructor("$ZodCheckNumberFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       def.format = def.format || "float64";
       const isInt = def.format?.includes("int");
@@ -4174,7 +4174,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckBigIntFormat = core92.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
+    exports.$ZodCheckBigIntFormat = core93.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const [minimum, maximum] = util2.BIGINT_FORMAT_RANGES[def.format];
       inst._zod.onattach.push((inst2) => {
@@ -4209,7 +4209,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckMaxSize = core92.$constructor("$ZodCheckMaxSize", (inst, def) => {
+    exports.$ZodCheckMaxSize = core93.$constructor("$ZodCheckMaxSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4237,7 +4237,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinSize = core92.$constructor("$ZodCheckMinSize", (inst, def) => {
+    exports.$ZodCheckMinSize = core93.$constructor("$ZodCheckMinSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4265,7 +4265,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckSizeEquals = core92.$constructor("$ZodCheckSizeEquals", (inst, def) => {
+    exports.$ZodCheckSizeEquals = core93.$constructor("$ZodCheckSizeEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4295,7 +4295,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMaxLength = core92.$constructor("$ZodCheckMaxLength", (inst, def) => {
+    exports.$ZodCheckMaxLength = core93.$constructor("$ZodCheckMaxLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4324,7 +4324,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinLength = core92.$constructor("$ZodCheckMinLength", (inst, def) => {
+    exports.$ZodCheckMinLength = core93.$constructor("$ZodCheckMinLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4353,7 +4353,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLengthEquals = core92.$constructor("$ZodCheckLengthEquals", (inst, def) => {
+    exports.$ZodCheckLengthEquals = core93.$constructor("$ZodCheckLengthEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4384,7 +4384,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStringFormat = core92.$constructor("$ZodCheckStringFormat", (inst, def) => {
+    exports.$ZodCheckStringFormat = core93.$constructor("$ZodCheckStringFormat", (inst, def) => {
       var _a21, _b17;
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
@@ -4414,7 +4414,7 @@ var require_checks = __commonJS({
         (_b17 = inst._zod).check ?? (_b17.check = () => {
         });
     });
-    exports.$ZodCheckRegex = core92.$constructor("$ZodCheckRegex", (inst, def) => {
+    exports.$ZodCheckRegex = core93.$constructor("$ZodCheckRegex", (inst, def) => {
       exports.$ZodCheckStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         def.pattern.lastIndex = 0;
@@ -4431,15 +4431,15 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLowerCase = core92.$constructor("$ZodCheckLowerCase", (inst, def) => {
+    exports.$ZodCheckLowerCase = core93.$constructor("$ZodCheckLowerCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.lowercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckUpperCase = core92.$constructor("$ZodCheckUpperCase", (inst, def) => {
+    exports.$ZodCheckUpperCase = core93.$constructor("$ZodCheckUpperCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.uppercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckIncludes = core92.$constructor("$ZodCheckIncludes", (inst, def) => {
+    exports.$ZodCheckIncludes = core93.$constructor("$ZodCheckIncludes", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const escapedRegex = util2.escapeRegex(def.includes);
       const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position}}${escapedRegex}` : escapedRegex);
@@ -4463,7 +4463,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStartsWith = core92.$constructor("$ZodCheckStartsWith", (inst, def) => {
+    exports.$ZodCheckStartsWith = core93.$constructor("$ZodCheckStartsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`^${util2.escapeRegex(def.prefix)}.*`);
       def.pattern ?? (def.pattern = pattern);
@@ -4486,7 +4486,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckEndsWith = core92.$constructor("$ZodCheckEndsWith", (inst, def) => {
+    exports.$ZodCheckEndsWith = core93.$constructor("$ZodCheckEndsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`.*${util2.escapeRegex(def.suffix)}$`);
       def.pattern ?? (def.pattern = pattern);
@@ -4514,7 +4514,7 @@ var require_checks = __commonJS({
         payload.issues.push(...util2.prefixIssues(property, result.issues));
       }
     }
-    exports.$ZodCheckProperty = core92.$constructor("$ZodCheckProperty", (inst, def) => {
+    exports.$ZodCheckProperty = core93.$constructor("$ZodCheckProperty", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         const result = def.schema._zod.run({
@@ -4528,7 +4528,7 @@ var require_checks = __commonJS({
         return;
       };
     });
-    exports.$ZodCheckMimeType = core92.$constructor("$ZodCheckMimeType", (inst, def) => {
+    exports.$ZodCheckMimeType = core93.$constructor("$ZodCheckMimeType", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const mimeSet = new Set(def.mime);
       inst._zod.onattach.push((inst2) => {
@@ -4546,7 +4546,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckOverwrite = core92.$constructor("$ZodCheckOverwrite", (inst, def) => {
+    exports.$ZodCheckOverwrite = core93.$constructor("$ZodCheckOverwrite", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         payload.value = def.tx(payload.value);
@@ -4651,13 +4651,13 @@ var require_schemas = __commonJS({
     exports.isValidBase64URL = isValidBase64URL2;
     exports.isValidJWT = isValidJWT3;
     var checks = __importStar(require_checks());
-    var core92 = __importStar(require_core());
+    var core93 = __importStar(require_core());
     var doc_js_1 = require_doc();
     var parse_js_1 = require_parse();
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
     var versions_js_1 = require_versions();
-    exports.$ZodType = core92.$constructor("$ZodType", (inst, def) => {
+    exports.$ZodType = core93.$constructor("$ZodType", (inst, def) => {
       var _a21;
       inst ?? (inst = {});
       inst._zod.def = def;
@@ -4694,7 +4694,7 @@ var require_schemas = __commonJS({
             const currLen = payload.issues.length;
             const _ = ch._zod.check(payload);
             if (_ instanceof Promise && ctx?.async === false) {
-              throw new core92.$ZodAsyncError();
+              throw new core93.$ZodAsyncError();
             }
             if (asyncResult || _ instanceof Promise) {
               asyncResult = (asyncResult ?? Promise.resolve()).then(async () => {
@@ -4728,7 +4728,7 @@ var require_schemas = __commonJS({
           const checkResult = runChecks(payload, checks2, ctx);
           if (checkResult instanceof Promise) {
             if (ctx.async === false)
-              throw new core92.$ZodAsyncError();
+              throw new core93.$ZodAsyncError();
             return checkResult.then((checkResult2) => inst._zod.parse(checkResult2, ctx));
           }
           return inst._zod.parse(checkResult, ctx);
@@ -4749,7 +4749,7 @@ var require_schemas = __commonJS({
           const result = inst._zod.parse(payload, ctx);
           if (result instanceof Promise) {
             if (ctx.async === false)
-              throw new core92.$ZodAsyncError();
+              throw new core93.$ZodAsyncError();
             return result.then((result2) => runChecks(result2, checks2, ctx));
           }
           return runChecks(result, checks2, ctx);
@@ -4772,7 +4772,7 @@ var require_schemas = __commonJS({
     Object.defineProperty(exports, "clone", { enumerable: true, get: function() {
       return util_js_1.clone;
     } });
-    exports.$ZodString = core92.$constructor("$ZodString", (inst, def) => {
+    exports.$ZodString = core93.$constructor("$ZodString", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? regexes.string(inst._zod.bag);
       inst._zod.parse = (payload, _) => {
@@ -4792,15 +4792,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodStringFormat = core92.$constructor("$ZodStringFormat", (inst, def) => {
+    exports.$ZodStringFormat = core93.$constructor("$ZodStringFormat", (inst, def) => {
       checks.$ZodCheckStringFormat.init(inst, def);
       exports.$ZodString.init(inst, def);
     });
-    exports.$ZodGUID = core92.$constructor("$ZodGUID", (inst, def) => {
+    exports.$ZodGUID = core93.$constructor("$ZodGUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.guid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodUUID = core92.$constructor("$ZodUUID", (inst, def) => {
+    exports.$ZodUUID = core93.$constructor("$ZodUUID", (inst, def) => {
       if (def.version) {
         const versionMap = {
           v1: 1,
@@ -4820,11 +4820,11 @@ var require_schemas = __commonJS({
         def.pattern ?? (def.pattern = regexes.uuid());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodEmail = core92.$constructor("$ZodEmail", (inst, def) => {
+    exports.$ZodEmail = core93.$constructor("$ZodEmail", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.email);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodURL = core92.$constructor("$ZodURL", (inst, def) => {
+    exports.$ZodURL = core93.$constructor("$ZodURL", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         try {
@@ -4888,56 +4888,56 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodEmoji = core92.$constructor("$ZodEmoji", (inst, def) => {
+    exports.$ZodEmoji = core93.$constructor("$ZodEmoji", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.emoji());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodNanoID = core92.$constructor("$ZodNanoID", (inst, def) => {
+    exports.$ZodNanoID = core93.$constructor("$ZodNanoID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.nanoid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID = core92.$constructor("$ZodCUID", (inst, def) => {
+    exports.$ZodCUID = core93.$constructor("$ZodCUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID2 = core92.$constructor("$ZodCUID2", (inst, def) => {
+    exports.$ZodCUID2 = core93.$constructor("$ZodCUID2", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid2);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodULID = core92.$constructor("$ZodULID", (inst, def) => {
+    exports.$ZodULID = core93.$constructor("$ZodULID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ulid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodXID = core92.$constructor("$ZodXID", (inst, def) => {
+    exports.$ZodXID = core93.$constructor("$ZodXID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.xid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodKSUID = core92.$constructor("$ZodKSUID", (inst, def) => {
+    exports.$ZodKSUID = core93.$constructor("$ZodKSUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ksuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODateTime = core92.$constructor("$ZodISODateTime", (inst, def) => {
+    exports.$ZodISODateTime = core93.$constructor("$ZodISODateTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.datetime(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODate = core92.$constructor("$ZodISODate", (inst, def) => {
+    exports.$ZodISODate = core93.$constructor("$ZodISODate", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.date);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISOTime = core92.$constructor("$ZodISOTime", (inst, def) => {
+    exports.$ZodISOTime = core93.$constructor("$ZodISOTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.time(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODuration = core92.$constructor("$ZodISODuration", (inst, def) => {
+    exports.$ZodISODuration = core93.$constructor("$ZodISODuration", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.duration);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodIPv4 = core92.$constructor("$ZodIPv4", (inst, def) => {
+    exports.$ZodIPv4 = core93.$constructor("$ZodIPv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv4);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv4`;
     });
-    exports.$ZodIPv6 = core92.$constructor("$ZodIPv6", (inst, def) => {
+    exports.$ZodIPv6 = core93.$constructor("$ZodIPv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv6`;
@@ -4955,16 +4955,16 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodMAC = core92.$constructor("$ZodMAC", (inst, def) => {
+    exports.$ZodMAC = core93.$constructor("$ZodMAC", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.mac(def.delimiter));
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `mac`;
     });
-    exports.$ZodCIDRv4 = core92.$constructor("$ZodCIDRv4", (inst, def) => {
+    exports.$ZodCIDRv4 = core93.$constructor("$ZodCIDRv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv4);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCIDRv6 = core92.$constructor("$ZodCIDRv6", (inst, def) => {
+    exports.$ZodCIDRv6 = core93.$constructor("$ZodCIDRv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
@@ -5006,7 +5006,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodBase64 = core92.$constructor("$ZodBase64", (inst, def) => {
+    exports.$ZodBase64 = core93.$constructor("$ZodBase64", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64";
@@ -5029,7 +5029,7 @@ var require_schemas = __commonJS({
       const padded = base643.padEnd(Math.ceil(base643.length / 4) * 4, "=");
       return isValidBase642(padded);
     }
-    exports.$ZodBase64URL = core92.$constructor("$ZodBase64URL", (inst, def) => {
+    exports.$ZodBase64URL = core93.$constructor("$ZodBase64URL", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64url);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64url";
@@ -5045,7 +5045,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodE164 = core92.$constructor("$ZodE164", (inst, def) => {
+    exports.$ZodE164 = core93.$constructor("$ZodE164", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.e164);
       exports.$ZodStringFormat.init(inst, def);
     });
@@ -5069,7 +5069,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodJWT = core92.$constructor("$ZodJWT", (inst, def) => {
+    exports.$ZodJWT = core93.$constructor("$ZodJWT", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (isValidJWT3(payload.value, def.alg))
@@ -5083,7 +5083,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodCustomStringFormat = core92.$constructor("$ZodCustomStringFormat", (inst, def) => {
+    exports.$ZodCustomStringFormat = core93.$constructor("$ZodCustomStringFormat", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (def.fn(payload.value))
@@ -5097,7 +5097,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodNumber = core92.$constructor("$ZodNumber", (inst, def) => {
+    exports.$ZodNumber = core93.$constructor("$ZodNumber", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = inst._zod.bag.pattern ?? regexes.number;
       inst._zod.parse = (payload, _ctx) => {
@@ -5121,11 +5121,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNumberFormat = core92.$constructor("$ZodNumberFormat", (inst, def) => {
+    exports.$ZodNumberFormat = core93.$constructor("$ZodNumberFormat", (inst, def) => {
       checks.$ZodCheckNumberFormat.init(inst, def);
       exports.$ZodNumber.init(inst, def);
     });
-    exports.$ZodBoolean = core92.$constructor("$ZodBoolean", (inst, def) => {
+    exports.$ZodBoolean = core93.$constructor("$ZodBoolean", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.boolean;
       inst._zod.parse = (payload, _ctx) => {
@@ -5146,7 +5146,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigInt = core92.$constructor("$ZodBigInt", (inst, def) => {
+    exports.$ZodBigInt = core93.$constructor("$ZodBigInt", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.bigint;
       inst._zod.parse = (payload, _ctx) => {
@@ -5166,11 +5166,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigIntFormat = core92.$constructor("$ZodBigIntFormat", (inst, def) => {
+    exports.$ZodBigIntFormat = core93.$constructor("$ZodBigIntFormat", (inst, def) => {
       checks.$ZodCheckBigIntFormat.init(inst, def);
       exports.$ZodBigInt.init(inst, def);
     });
-    exports.$ZodSymbol = core92.$constructor("$ZodSymbol", (inst, def) => {
+    exports.$ZodSymbol = core93.$constructor("$ZodSymbol", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -5185,7 +5185,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodUndefined = core92.$constructor("$ZodUndefined", (inst, def) => {
+    exports.$ZodUndefined = core93.$constructor("$ZodUndefined", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.undefined;
       inst._zod.values = /* @__PURE__ */ new Set([void 0]);
@@ -5202,7 +5202,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNull = core92.$constructor("$ZodNull", (inst, def) => {
+    exports.$ZodNull = core93.$constructor("$ZodNull", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.null;
       inst._zod.values = /* @__PURE__ */ new Set([null]);
@@ -5219,15 +5219,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodAny = core92.$constructor("$ZodAny", (inst, def) => {
+    exports.$ZodAny = core93.$constructor("$ZodAny", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodUnknown = core92.$constructor("$ZodUnknown", (inst, def) => {
+    exports.$ZodUnknown = core93.$constructor("$ZodUnknown", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodNever = core92.$constructor("$ZodNever", (inst, def) => {
+    exports.$ZodNever = core93.$constructor("$ZodNever", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         payload.issues.push({
@@ -5239,7 +5239,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodVoid = core92.$constructor("$ZodVoid", (inst, def) => {
+    exports.$ZodVoid = core93.$constructor("$ZodVoid", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -5254,7 +5254,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodDate = core92.$constructor("$ZodDate", (inst, def) => {
+    exports.$ZodDate = core93.$constructor("$ZodDate", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (def.coerce) {
@@ -5284,7 +5284,7 @@ var require_schemas = __commonJS({
       }
       final.value[index] = result.value;
     }
-    exports.$ZodArray = core92.$constructor("$ZodArray", (inst, def) => {
+    exports.$ZodArray = core93.$constructor("$ZodArray", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -5397,7 +5397,7 @@ var require_schemas = __commonJS({
         return payload;
       });
     }
-    exports.$ZodObject = core92.$constructor("$ZodObject", (inst, def) => {
+    exports.$ZodObject = core93.$constructor("$ZodObject", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const desc = Object.getOwnPropertyDescriptor(def, "shape");
       if (!desc?.get) {
@@ -5461,7 +5461,7 @@ var require_schemas = __commonJS({
         return handleCatchall2(proms, input, payload, ctx, _normalized.value, inst);
       };
     });
-    exports.$ZodObjectJIT = core92.$constructor("$ZodObjectJIT", (inst, def) => {
+    exports.$ZodObjectJIT = core93.$constructor("$ZodObjectJIT", (inst, def) => {
       exports.$ZodObject.init(inst, def);
       const superParse = inst._zod.parse;
       const _normalized = util2.cached(() => normalizeDef2(def));
@@ -5560,7 +5560,7 @@ var require_schemas = __commonJS({
       };
       let fastpass;
       const isObject2 = util2.isObject;
-      const jit = !core92.globalConfig.jitless;
+      const jit = !core93.globalConfig.jitless;
       const allowsEval2 = util2.allowsEval;
       const fastEnabled = jit && allowsEval2.value;
       const catchall = def.catchall;
@@ -5604,11 +5604,11 @@ var require_schemas = __commonJS({
         code: "invalid_union",
         input: final.value,
         inst,
-        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())))
+        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())))
       });
       return final;
     }
-    exports.$ZodUnion = core92.$constructor("$ZodUnion", (inst, def) => {
+    exports.$ZodUnion = core93.$constructor("$ZodUnion", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.options.some((o) => o._zod.optin === "optional") ? "optional" : void 0);
       util2.defineLazy(inst._zod, "optout", () => def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
@@ -5664,7 +5664,7 @@ var require_schemas = __commonJS({
           code: "invalid_union",
           input: final.value,
           inst,
-          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())))
+          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())))
         });
       } else {
         final.issues.push({
@@ -5677,7 +5677,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodXor = core92.$constructor("$ZodXor", (inst, def) => {
+    exports.$ZodXor = core93.$constructor("$ZodXor", (inst, def) => {
       exports.$ZodUnion.init(inst, def);
       def.inclusive = false;
       const first = def.options.length === 1 ? def.options[0]._zod.run : null;
@@ -5706,7 +5706,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core92.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
+    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core93.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
       def.inclusive = false;
       exports.$ZodUnion.init(inst, def);
       const _super = inst._zod.parse;
@@ -5773,7 +5773,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodIntersection = core92.$constructor("$ZodIntersection", (inst, def) => {
+    exports.$ZodIntersection = core93.$constructor("$ZodIntersection", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -5871,7 +5871,7 @@ var require_schemas = __commonJS({
       result.value = merged.data;
       return result;
     }
-    exports.$ZodTuple = core92.$constructor("$ZodTuple", (inst, def) => {
+    exports.$ZodTuple = core93.$constructor("$ZodTuple", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const items = def.items;
       inst._zod.parse = (payload, ctx) => {
@@ -5977,7 +5977,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodRecord = core92.$constructor("$ZodRecord", (inst, def) => {
+    exports.$ZodRecord = core93.$constructor("$ZodRecord", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -6006,7 +6006,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())),
                   input: key,
                   path: [key],
                   inst
@@ -6073,7 +6073,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config())),
                   input: key,
                   path: [key],
                   inst
@@ -6103,7 +6103,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodMap = core92.$constructor("$ZodMap", (inst, def) => {
+    exports.$ZodMap = core93.$constructor("$ZodMap", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -6144,7 +6144,7 @@ var require_schemas = __commonJS({
             origin: "map",
             input,
             inst,
-            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config()))
+            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config()))
           });
         }
       }
@@ -6158,13 +6158,13 @@ var require_schemas = __commonJS({
             input,
             inst,
             key,
-            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config()))
+            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config()))
           });
         }
       }
       final.value.set(keyResult.value, valueResult.value);
     }
-    exports.$ZodSet = core92.$constructor("$ZodSet", (inst, def) => {
+    exports.$ZodSet = core93.$constructor("$ZodSet", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -6197,7 +6197,7 @@ var require_schemas = __commonJS({
       }
       final.value.add(result.value);
     }
-    exports.$ZodEnum = core92.$constructor("$ZodEnum", (inst, def) => {
+    exports.$ZodEnum = core93.$constructor("$ZodEnum", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const values = util2.getEnumValues(def.entries);
       const valuesSet = new Set(values);
@@ -6217,7 +6217,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodLiteral = core92.$constructor("$ZodLiteral", (inst, def) => {
+    exports.$ZodLiteral = core93.$constructor("$ZodLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       if (def.values.length === 0) {
         throw new Error("Cannot create literal schema with no valid values");
@@ -6239,7 +6239,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFile = core92.$constructor("$ZodFile", (inst, def) => {
+    exports.$ZodFile = core93.$constructor("$ZodFile", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -6254,12 +6254,12 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodTransform = core92.$constructor("$ZodTransform", (inst, def) => {
+    exports.$ZodTransform = core93.$constructor("$ZodTransform", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core92.$ZodEncodeError(inst.constructor.name);
+          throw new core93.$ZodEncodeError(inst.constructor.name);
         }
         const _out = def.transform(payload.value, payload);
         if (ctx.async) {
@@ -6271,7 +6271,7 @@ var require_schemas = __commonJS({
           });
         }
         if (_out instanceof Promise) {
-          throw new core92.$ZodAsyncError();
+          throw new core93.$ZodAsyncError();
         }
         payload.value = _out;
         payload.fallback = true;
@@ -6284,7 +6284,7 @@ var require_schemas = __commonJS({
       }
       return result;
     }
-    exports.$ZodOptional = core92.$constructor("$ZodOptional", (inst, def) => {
+    exports.$ZodOptional = core93.$constructor("$ZodOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.optout = "optional";
@@ -6309,7 +6309,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodExactOptional = core92.$constructor("$ZodExactOptional", (inst, def) => {
+    exports.$ZodExactOptional = core93.$constructor("$ZodExactOptional", (inst, def) => {
       exports.$ZodOptional.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
       util2.defineLazy(inst._zod, "pattern", () => def.innerType._zod.pattern);
@@ -6317,7 +6317,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNullable = core92.$constructor("$ZodNullable", (inst, def) => {
+    exports.$ZodNullable = core93.$constructor("$ZodNullable", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.innerType._zod.optin);
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -6334,7 +6334,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodDefault = core92.$constructor("$ZodDefault", (inst, def) => {
+    exports.$ZodDefault = core93.$constructor("$ZodDefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6359,7 +6359,7 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodPrefault = core92.$constructor("$ZodPrefault", (inst, def) => {
+    exports.$ZodPrefault = core93.$constructor("$ZodPrefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6373,7 +6373,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNonOptional = core92.$constructor("$ZodNonOptional", (inst, def) => {
+    exports.$ZodNonOptional = core93.$constructor("$ZodNonOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => {
         const v = def.innerType._zod.values;
@@ -6398,11 +6398,11 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodSuccess = core92.$constructor("$ZodSuccess", (inst, def) => {
+    exports.$ZodSuccess = core93.$constructor("$ZodSuccess", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core92.$ZodEncodeError("ZodSuccess");
+          throw new core93.$ZodEncodeError("ZodSuccess");
         }
         const result = def.innerType._zod.run(payload, ctx);
         if (result instanceof Promise) {
@@ -6415,7 +6415,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodCatch = core92.$constructor("$ZodCatch", (inst, def) => {
+    exports.$ZodCatch = core93.$constructor("$ZodCatch", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -6432,7 +6432,7 @@ var require_schemas = __commonJS({
               payload.value = def.catchValue({
                 ...payload,
                 error: {
-                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config()))
+                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config()))
                 },
                 input: payload.value
               });
@@ -6447,7 +6447,7 @@ var require_schemas = __commonJS({
           payload.value = def.catchValue({
             ...payload,
             error: {
-              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core92.config()))
+              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core93.config()))
             },
             input: payload.value
           });
@@ -6457,7 +6457,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNaN = core92.$constructor("$ZodNaN", (inst, def) => {
+    exports.$ZodNaN = core93.$constructor("$ZodNaN", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (typeof payload.value !== "number" || !Number.isNaN(payload.value)) {
@@ -6472,7 +6472,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodPipe = core92.$constructor("$ZodPipe", (inst, def) => {
+    exports.$ZodPipe = core93.$constructor("$ZodPipe", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -6500,7 +6500,7 @@ var require_schemas = __commonJS({
       }
       return next._zod.run({ value: left.value, issues: left.issues, fallback: left.fallback }, ctx);
     }
-    exports.$ZodCodec = core92.$constructor("$ZodCodec", (inst, def) => {
+    exports.$ZodCodec = core93.$constructor("$ZodCodec", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -6550,10 +6550,10 @@ var require_schemas = __commonJS({
       }
       return nextSchema._zod.run({ value, issues: left.issues }, ctx);
     }
-    exports.$ZodPreprocess = core92.$constructor("$ZodPreprocess", (inst, def) => {
+    exports.$ZodPreprocess = core93.$constructor("$ZodPreprocess", (inst, def) => {
       exports.$ZodPipe.init(inst, def);
     });
-    exports.$ZodReadonly = core92.$constructor("$ZodReadonly", (inst, def) => {
+    exports.$ZodReadonly = core93.$constructor("$ZodReadonly", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "propValues", () => def.innerType._zod.propValues);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6574,7 +6574,7 @@ var require_schemas = __commonJS({
       payload.value = Object.freeze(payload.value);
       return payload;
     }
-    exports.$ZodTemplateLiteral = core92.$constructor("$ZodTemplateLiteral", (inst, def) => {
+    exports.$ZodTemplateLiteral = core93.$constructor("$ZodTemplateLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const regexParts = [];
       for (const part of def.parts) {
@@ -6619,7 +6619,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFunction = core92.$constructor("$ZodFunction", (inst, def) => {
+    exports.$ZodFunction = core93.$constructor("$ZodFunction", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._def = def;
       inst._zod.def = def;
@@ -6696,13 +6696,13 @@ var require_schemas = __commonJS({
       };
       return inst;
     });
-    exports.$ZodPromise = core92.$constructor("$ZodPromise", (inst, def) => {
+    exports.$ZodPromise = core93.$constructor("$ZodPromise", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         return Promise.resolve(payload.value).then((inner) => def.innerType._zod.run({ value: inner, issues: [] }, ctx));
       };
     });
-    exports.$ZodLazy = core92.$constructor("$ZodLazy", (inst, def) => {
+    exports.$ZodLazy = core93.$constructor("$ZodLazy", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "innerType", () => {
         const d = def;
@@ -6719,7 +6719,7 @@ var require_schemas = __commonJS({
         return inner._zod.run(payload, ctx);
       };
     });
-    exports.$ZodCustom = core92.$constructor("$ZodCustom", (inst, def) => {
+    exports.$ZodCustom = core93.$constructor("$ZodCustom", (inst, def) => {
       checks.$ZodCheck.init(inst, def);
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _) => {
@@ -17208,35 +17208,35 @@ var require_iso = __commonJS({
     exports.date = date5;
     exports.time = time3;
     exports.duration = duration3;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
-    exports.ZodISODateTime = core92.$constructor("ZodISODateTime", (inst, def) => {
-      core92.$ZodISODateTime.init(inst, def);
+    exports.ZodISODateTime = core93.$constructor("ZodISODateTime", (inst, def) => {
+      core93.$ZodISODateTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function datetime3(params) {
-      return core92._isoDateTime(exports.ZodISODateTime, params);
+      return core93._isoDateTime(exports.ZodISODateTime, params);
     }
-    exports.ZodISODate = core92.$constructor("ZodISODate", (inst, def) => {
-      core92.$ZodISODate.init(inst, def);
+    exports.ZodISODate = core93.$constructor("ZodISODate", (inst, def) => {
+      core93.$ZodISODate.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function date5(params) {
-      return core92._isoDate(exports.ZodISODate, params);
+      return core93._isoDate(exports.ZodISODate, params);
     }
-    exports.ZodISOTime = core92.$constructor("ZodISOTime", (inst, def) => {
-      core92.$ZodISOTime.init(inst, def);
+    exports.ZodISOTime = core93.$constructor("ZodISOTime", (inst, def) => {
+      core93.$ZodISOTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function time3(params) {
-      return core92._isoTime(exports.ZodISOTime, params);
+      return core93._isoTime(exports.ZodISOTime, params);
     }
-    exports.ZodISODuration = core92.$constructor("ZodISODuration", (inst, def) => {
-      core92.$ZodISODuration.init(inst, def);
+    exports.ZodISODuration = core93.$constructor("ZodISODuration", (inst, def) => {
+      core93.$ZodISODuration.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function duration3(params) {
-      return core92._isoDuration(exports.ZodISODuration, params);
+      return core93._isoDuration(exports.ZodISODuration, params);
     }
   }
 });
@@ -17274,7 +17274,7 @@ var require_errors2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ZodRealError = exports.ZodError = void 0;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var util2 = __importStar(require_util());
     var initializer3 = (inst, issues) => {
@@ -17282,11 +17282,11 @@ var require_errors2 = __commonJS({
       inst.name = "ZodError";
       Object.defineProperties(inst, {
         format: {
-          value: (mapper) => core92.formatError(inst, mapper)
+          value: (mapper) => core93.formatError(inst, mapper)
           // enumerable: false,
         },
         flatten: {
-          value: (mapper) => core92.flattenError(inst, mapper)
+          value: (mapper) => core93.flattenError(inst, mapper)
           // enumerable: false,
         },
         addIssue: {
@@ -17311,8 +17311,8 @@ var require_errors2 = __commonJS({
         }
       });
     };
-    exports.ZodError = core92.$constructor("ZodError", initializer3);
-    exports.ZodRealError = core92.$constructor("ZodError", initializer3, {
+    exports.ZodError = core93.$constructor("ZodError", initializer3);
+    exports.ZodRealError = core93.$constructor("ZodError", initializer3, {
       Parent: Error
     });
   }
@@ -17351,20 +17351,20 @@ var require_parse2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports.safeEncodeAsync = exports.safeDecode = exports.safeEncode = exports.decodeAsync = exports.encodeAsync = exports.decode = exports.encode = exports.safeParseAsync = exports.safeParse = exports.parseAsync = exports.parse = void 0;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     var errors_js_1 = require_errors2();
-    exports.parse = core92._parse(errors_js_1.ZodRealError);
-    exports.parseAsync = core92._parseAsync(errors_js_1.ZodRealError);
-    exports.safeParse = core92._safeParse(errors_js_1.ZodRealError);
-    exports.safeParseAsync = core92._safeParseAsync(errors_js_1.ZodRealError);
-    exports.encode = core92._encode(errors_js_1.ZodRealError);
-    exports.decode = core92._decode(errors_js_1.ZodRealError);
-    exports.encodeAsync = core92._encodeAsync(errors_js_1.ZodRealError);
-    exports.decodeAsync = core92._decodeAsync(errors_js_1.ZodRealError);
-    exports.safeEncode = core92._safeEncode(errors_js_1.ZodRealError);
-    exports.safeDecode = core92._safeDecode(errors_js_1.ZodRealError);
-    exports.safeEncodeAsync = core92._safeEncodeAsync(errors_js_1.ZodRealError);
-    exports.safeDecodeAsync = core92._safeDecodeAsync(errors_js_1.ZodRealError);
+    exports.parse = core93._parse(errors_js_1.ZodRealError);
+    exports.parseAsync = core93._parseAsync(errors_js_1.ZodRealError);
+    exports.safeParse = core93._safeParse(errors_js_1.ZodRealError);
+    exports.safeParseAsync = core93._safeParseAsync(errors_js_1.ZodRealError);
+    exports.encode = core93._encode(errors_js_1.ZodRealError);
+    exports.decode = core93._decode(errors_js_1.ZodRealError);
+    exports.encodeAsync = core93._encodeAsync(errors_js_1.ZodRealError);
+    exports.decodeAsync = core93._decodeAsync(errors_js_1.ZodRealError);
+    exports.safeEncode = core93._safeEncode(errors_js_1.ZodRealError);
+    exports.safeDecode = core93._safeDecode(errors_js_1.ZodRealError);
+    exports.safeEncodeAsync = core93._safeEncodeAsync(errors_js_1.ZodRealError);
+    exports.safeDecodeAsync = core93._safeDecodeAsync(errors_js_1.ZodRealError);
   }
 });
 
@@ -17497,7 +17497,7 @@ var require_schemas2 = __commonJS({
     exports.instanceof = _instanceof2;
     exports.json = json3;
     exports.preprocess = preprocess2;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var processors = __importStar(require_json_schema_processors());
     var to_json_schema_js_1 = require_to_json_schema();
@@ -17541,8 +17541,8 @@ var require_schemas2 = __commonJS({
         });
       }
     }
-    exports.ZodType = core92.$constructor("ZodType", (inst, def) => {
-      core92.$ZodType.init(inst, def);
+    exports.ZodType = core93.$constructor("ZodType", (inst, def) => {
+      core93.$ZodType.init(inst, def);
       Object.assign(inst["~standard"], {
         jsonSchema: {
           input: (0, to_json_schema_js_1.createStandardJSONSchemaMethod)(inst, "input"),
@@ -17580,7 +17580,7 @@ var require_schemas2 = __commonJS({
           return this.check(...chks);
         },
         clone(def2, params) {
-          return core92.clone(this, def2, params);
+          return core93.clone(this, def2, params);
         },
         brand() {
           return this;
@@ -17642,14 +17642,14 @@ var require_schemas2 = __commonJS({
         },
         describe(description) {
           const cl = this.clone();
-          core92.globalRegistry.add(cl, { description });
+          core93.globalRegistry.add(cl, { description });
           return cl;
         },
         meta(...args) {
           if (args.length === 0)
-            return core92.globalRegistry.get(this);
+            return core93.globalRegistry.get(this);
           const cl = this.clone();
-          core92.globalRegistry.add(cl, args[0]);
+          core93.globalRegistry.add(cl, args[0]);
           return cl;
         },
         isOptional() {
@@ -17664,14 +17664,14 @@ var require_schemas2 = __commonJS({
       });
       Object.defineProperty(inst, "description", {
         get() {
-          return core92.globalRegistry.get(inst)?.description;
+          return core93.globalRegistry.get(inst)?.description;
         },
         configurable: true
       });
       return inst;
     });
-    exports._ZodString = core92.$constructor("_ZodString", (inst, def) => {
-      core92.$ZodString.init(inst, def);
+    exports._ZodString = core93.$constructor("_ZodString", (inst, def) => {
+      core93.$ZodString.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.stringProcessor(inst, ctx, json4, params);
       const bag = inst._zod.bag;
@@ -17726,223 +17726,223 @@ var require_schemas2 = __commonJS({
         }
       });
     });
-    exports.ZodString = core92.$constructor("ZodString", (inst, def) => {
-      core92.$ZodString.init(inst, def);
+    exports.ZodString = core93.$constructor("ZodString", (inst, def) => {
+      core93.$ZodString.init(inst, def);
       exports._ZodString.init(inst, def);
-      inst.email = (params) => inst.check(core92._email(exports.ZodEmail, params));
-      inst.url = (params) => inst.check(core92._url(exports.ZodURL, params));
-      inst.jwt = (params) => inst.check(core92._jwt(exports.ZodJWT, params));
-      inst.emoji = (params) => inst.check(core92._emoji(exports.ZodEmoji, params));
-      inst.guid = (params) => inst.check(core92._guid(exports.ZodGUID, params));
-      inst.uuid = (params) => inst.check(core92._uuid(exports.ZodUUID, params));
-      inst.uuidv4 = (params) => inst.check(core92._uuidv4(exports.ZodUUID, params));
-      inst.uuidv6 = (params) => inst.check(core92._uuidv6(exports.ZodUUID, params));
-      inst.uuidv7 = (params) => inst.check(core92._uuidv7(exports.ZodUUID, params));
-      inst.nanoid = (params) => inst.check(core92._nanoid(exports.ZodNanoID, params));
-      inst.guid = (params) => inst.check(core92._guid(exports.ZodGUID, params));
-      inst.cuid = (params) => inst.check(core92._cuid(exports.ZodCUID, params));
-      inst.cuid2 = (params) => inst.check(core92._cuid2(exports.ZodCUID2, params));
-      inst.ulid = (params) => inst.check(core92._ulid(exports.ZodULID, params));
-      inst.base64 = (params) => inst.check(core92._base64(exports.ZodBase64, params));
-      inst.base64url = (params) => inst.check(core92._base64url(exports.ZodBase64URL, params));
-      inst.xid = (params) => inst.check(core92._xid(exports.ZodXID, params));
-      inst.ksuid = (params) => inst.check(core92._ksuid(exports.ZodKSUID, params));
-      inst.ipv4 = (params) => inst.check(core92._ipv4(exports.ZodIPv4, params));
-      inst.ipv6 = (params) => inst.check(core92._ipv6(exports.ZodIPv6, params));
-      inst.cidrv4 = (params) => inst.check(core92._cidrv4(exports.ZodCIDRv4, params));
-      inst.cidrv6 = (params) => inst.check(core92._cidrv6(exports.ZodCIDRv6, params));
-      inst.e164 = (params) => inst.check(core92._e164(exports.ZodE164, params));
+      inst.email = (params) => inst.check(core93._email(exports.ZodEmail, params));
+      inst.url = (params) => inst.check(core93._url(exports.ZodURL, params));
+      inst.jwt = (params) => inst.check(core93._jwt(exports.ZodJWT, params));
+      inst.emoji = (params) => inst.check(core93._emoji(exports.ZodEmoji, params));
+      inst.guid = (params) => inst.check(core93._guid(exports.ZodGUID, params));
+      inst.uuid = (params) => inst.check(core93._uuid(exports.ZodUUID, params));
+      inst.uuidv4 = (params) => inst.check(core93._uuidv4(exports.ZodUUID, params));
+      inst.uuidv6 = (params) => inst.check(core93._uuidv6(exports.ZodUUID, params));
+      inst.uuidv7 = (params) => inst.check(core93._uuidv7(exports.ZodUUID, params));
+      inst.nanoid = (params) => inst.check(core93._nanoid(exports.ZodNanoID, params));
+      inst.guid = (params) => inst.check(core93._guid(exports.ZodGUID, params));
+      inst.cuid = (params) => inst.check(core93._cuid(exports.ZodCUID, params));
+      inst.cuid2 = (params) => inst.check(core93._cuid2(exports.ZodCUID2, params));
+      inst.ulid = (params) => inst.check(core93._ulid(exports.ZodULID, params));
+      inst.base64 = (params) => inst.check(core93._base64(exports.ZodBase64, params));
+      inst.base64url = (params) => inst.check(core93._base64url(exports.ZodBase64URL, params));
+      inst.xid = (params) => inst.check(core93._xid(exports.ZodXID, params));
+      inst.ksuid = (params) => inst.check(core93._ksuid(exports.ZodKSUID, params));
+      inst.ipv4 = (params) => inst.check(core93._ipv4(exports.ZodIPv4, params));
+      inst.ipv6 = (params) => inst.check(core93._ipv6(exports.ZodIPv6, params));
+      inst.cidrv4 = (params) => inst.check(core93._cidrv4(exports.ZodCIDRv4, params));
+      inst.cidrv6 = (params) => inst.check(core93._cidrv6(exports.ZodCIDRv6, params));
+      inst.e164 = (params) => inst.check(core93._e164(exports.ZodE164, params));
       inst.datetime = (params) => inst.check(iso.datetime(params));
       inst.date = (params) => inst.check(iso.date(params));
       inst.time = (params) => inst.check(iso.time(params));
       inst.duration = (params) => inst.check(iso.duration(params));
     });
     function string4(params) {
-      return core92._string(exports.ZodString, params);
+      return core93._string(exports.ZodString, params);
     }
-    exports.ZodStringFormat = core92.$constructor("ZodStringFormat", (inst, def) => {
-      core92.$ZodStringFormat.init(inst, def);
+    exports.ZodStringFormat = core93.$constructor("ZodStringFormat", (inst, def) => {
+      core93.$ZodStringFormat.init(inst, def);
       exports._ZodString.init(inst, def);
     });
-    exports.ZodEmail = core92.$constructor("ZodEmail", (inst, def) => {
-      core92.$ZodEmail.init(inst, def);
+    exports.ZodEmail = core93.$constructor("ZodEmail", (inst, def) => {
+      core93.$ZodEmail.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function email3(params) {
-      return core92._email(exports.ZodEmail, params);
+      return core93._email(exports.ZodEmail, params);
     }
-    exports.ZodGUID = core92.$constructor("ZodGUID", (inst, def) => {
-      core92.$ZodGUID.init(inst, def);
+    exports.ZodGUID = core93.$constructor("ZodGUID", (inst, def) => {
+      core93.$ZodGUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function guid3(params) {
-      return core92._guid(exports.ZodGUID, params);
+      return core93._guid(exports.ZodGUID, params);
     }
-    exports.ZodUUID = core92.$constructor("ZodUUID", (inst, def) => {
-      core92.$ZodUUID.init(inst, def);
+    exports.ZodUUID = core93.$constructor("ZodUUID", (inst, def) => {
+      core93.$ZodUUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function uuid3(params) {
-      return core92._uuid(exports.ZodUUID, params);
+      return core93._uuid(exports.ZodUUID, params);
     }
     function uuidv42(params) {
-      return core92._uuidv4(exports.ZodUUID, params);
+      return core93._uuidv4(exports.ZodUUID, params);
     }
     function uuidv62(params) {
-      return core92._uuidv6(exports.ZodUUID, params);
+      return core93._uuidv6(exports.ZodUUID, params);
     }
     function uuidv72(params) {
-      return core92._uuidv7(exports.ZodUUID, params);
+      return core93._uuidv7(exports.ZodUUID, params);
     }
-    exports.ZodURL = core92.$constructor("ZodURL", (inst, def) => {
-      core92.$ZodURL.init(inst, def);
+    exports.ZodURL = core93.$constructor("ZodURL", (inst, def) => {
+      core93.$ZodURL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function url2(params) {
-      return core92._url(exports.ZodURL, params);
+      return core93._url(exports.ZodURL, params);
     }
     function httpUrl2(params) {
-      return core92._url(exports.ZodURL, {
-        protocol: core92.regexes.httpProtocol,
-        hostname: core92.regexes.domain,
+      return core93._url(exports.ZodURL, {
+        protocol: core93.regexes.httpProtocol,
+        hostname: core93.regexes.domain,
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEmoji = core92.$constructor("ZodEmoji", (inst, def) => {
-      core92.$ZodEmoji.init(inst, def);
+    exports.ZodEmoji = core93.$constructor("ZodEmoji", (inst, def) => {
+      core93.$ZodEmoji.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function emoji3(params) {
-      return core92._emoji(exports.ZodEmoji, params);
+      return core93._emoji(exports.ZodEmoji, params);
     }
-    exports.ZodNanoID = core92.$constructor("ZodNanoID", (inst, def) => {
-      core92.$ZodNanoID.init(inst, def);
+    exports.ZodNanoID = core93.$constructor("ZodNanoID", (inst, def) => {
+      core93.$ZodNanoID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function nanoid3(params) {
-      return core92._nanoid(exports.ZodNanoID, params);
+      return core93._nanoid(exports.ZodNanoID, params);
     }
-    exports.ZodCUID = core92.$constructor("ZodCUID", (inst, def) => {
-      core92.$ZodCUID.init(inst, def);
+    exports.ZodCUID = core93.$constructor("ZodCUID", (inst, def) => {
+      core93.$ZodCUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid4(params) {
-      return core92._cuid(exports.ZodCUID, params);
+      return core93._cuid(exports.ZodCUID, params);
     }
-    exports.ZodCUID2 = core92.$constructor("ZodCUID2", (inst, def) => {
-      core92.$ZodCUID2.init(inst, def);
+    exports.ZodCUID2 = core93.$constructor("ZodCUID2", (inst, def) => {
+      core93.$ZodCUID2.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid23(params) {
-      return core92._cuid2(exports.ZodCUID2, params);
+      return core93._cuid2(exports.ZodCUID2, params);
     }
-    exports.ZodULID = core92.$constructor("ZodULID", (inst, def) => {
-      core92.$ZodULID.init(inst, def);
+    exports.ZodULID = core93.$constructor("ZodULID", (inst, def) => {
+      core93.$ZodULID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ulid3(params) {
-      return core92._ulid(exports.ZodULID, params);
+      return core93._ulid(exports.ZodULID, params);
     }
-    exports.ZodXID = core92.$constructor("ZodXID", (inst, def) => {
-      core92.$ZodXID.init(inst, def);
+    exports.ZodXID = core93.$constructor("ZodXID", (inst, def) => {
+      core93.$ZodXID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function xid3(params) {
-      return core92._xid(exports.ZodXID, params);
+      return core93._xid(exports.ZodXID, params);
     }
-    exports.ZodKSUID = core92.$constructor("ZodKSUID", (inst, def) => {
-      core92.$ZodKSUID.init(inst, def);
+    exports.ZodKSUID = core93.$constructor("ZodKSUID", (inst, def) => {
+      core93.$ZodKSUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ksuid3(params) {
-      return core92._ksuid(exports.ZodKSUID, params);
+      return core93._ksuid(exports.ZodKSUID, params);
     }
-    exports.ZodIPv4 = core92.$constructor("ZodIPv4", (inst, def) => {
-      core92.$ZodIPv4.init(inst, def);
+    exports.ZodIPv4 = core93.$constructor("ZodIPv4", (inst, def) => {
+      core93.$ZodIPv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv43(params) {
-      return core92._ipv4(exports.ZodIPv4, params);
+      return core93._ipv4(exports.ZodIPv4, params);
     }
-    exports.ZodMAC = core92.$constructor("ZodMAC", (inst, def) => {
-      core92.$ZodMAC.init(inst, def);
+    exports.ZodMAC = core93.$constructor("ZodMAC", (inst, def) => {
+      core93.$ZodMAC.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function mac3(params) {
-      return core92._mac(exports.ZodMAC, params);
+      return core93._mac(exports.ZodMAC, params);
     }
-    exports.ZodIPv6 = core92.$constructor("ZodIPv6", (inst, def) => {
-      core92.$ZodIPv6.init(inst, def);
+    exports.ZodIPv6 = core93.$constructor("ZodIPv6", (inst, def) => {
+      core93.$ZodIPv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv63(params) {
-      return core92._ipv6(exports.ZodIPv6, params);
+      return core93._ipv6(exports.ZodIPv6, params);
     }
-    exports.ZodCIDRv4 = core92.$constructor("ZodCIDRv4", (inst, def) => {
-      core92.$ZodCIDRv4.init(inst, def);
+    exports.ZodCIDRv4 = core93.$constructor("ZodCIDRv4", (inst, def) => {
+      core93.$ZodCIDRv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv43(params) {
-      return core92._cidrv4(exports.ZodCIDRv4, params);
+      return core93._cidrv4(exports.ZodCIDRv4, params);
     }
-    exports.ZodCIDRv6 = core92.$constructor("ZodCIDRv6", (inst, def) => {
-      core92.$ZodCIDRv6.init(inst, def);
+    exports.ZodCIDRv6 = core93.$constructor("ZodCIDRv6", (inst, def) => {
+      core93.$ZodCIDRv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv63(params) {
-      return core92._cidrv6(exports.ZodCIDRv6, params);
+      return core93._cidrv6(exports.ZodCIDRv6, params);
     }
-    exports.ZodBase64 = core92.$constructor("ZodBase64", (inst, def) => {
-      core92.$ZodBase64.init(inst, def);
+    exports.ZodBase64 = core93.$constructor("ZodBase64", (inst, def) => {
+      core93.$ZodBase64.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base643(params) {
-      return core92._base64(exports.ZodBase64, params);
+      return core93._base64(exports.ZodBase64, params);
     }
-    exports.ZodBase64URL = core92.$constructor("ZodBase64URL", (inst, def) => {
-      core92.$ZodBase64URL.init(inst, def);
+    exports.ZodBase64URL = core93.$constructor("ZodBase64URL", (inst, def) => {
+      core93.$ZodBase64URL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base64url3(params) {
-      return core92._base64url(exports.ZodBase64URL, params);
+      return core93._base64url(exports.ZodBase64URL, params);
     }
-    exports.ZodE164 = core92.$constructor("ZodE164", (inst, def) => {
-      core92.$ZodE164.init(inst, def);
+    exports.ZodE164 = core93.$constructor("ZodE164", (inst, def) => {
+      core93.$ZodE164.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function e1643(params) {
-      return core92._e164(exports.ZodE164, params);
+      return core93._e164(exports.ZodE164, params);
     }
-    exports.ZodJWT = core92.$constructor("ZodJWT", (inst, def) => {
-      core92.$ZodJWT.init(inst, def);
+    exports.ZodJWT = core93.$constructor("ZodJWT", (inst, def) => {
+      core93.$ZodJWT.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function jwt2(params) {
-      return core92._jwt(exports.ZodJWT, params);
+      return core93._jwt(exports.ZodJWT, params);
     }
-    exports.ZodCustomStringFormat = core92.$constructor("ZodCustomStringFormat", (inst, def) => {
-      core92.$ZodCustomStringFormat.init(inst, def);
+    exports.ZodCustomStringFormat = core93.$constructor("ZodCustomStringFormat", (inst, def) => {
+      core93.$ZodCustomStringFormat.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function stringFormat2(format, fnOrRegex, _params = {}) {
-      return core92._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
+      return core93._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
     }
     function hostname3(_params) {
-      return core92._stringFormat(exports.ZodCustomStringFormat, "hostname", core92.regexes.hostname, _params);
+      return core93._stringFormat(exports.ZodCustomStringFormat, "hostname", core93.regexes.hostname, _params);
     }
     function hex3(_params) {
-      return core92._stringFormat(exports.ZodCustomStringFormat, "hex", core92.regexes.hex, _params);
+      return core93._stringFormat(exports.ZodCustomStringFormat, "hex", core93.regexes.hex, _params);
     }
     function hash2(alg, params) {
       const enc = params?.enc ?? "hex";
       const format = `${alg}_${enc}`;
-      const regex2 = core92.regexes[format];
+      const regex2 = core93.regexes[format];
       if (!regex2)
         throw new Error(`Unrecognized hash format: ${format}`);
-      return core92._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
+      return core93._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
     }
-    exports.ZodNumber = core92.$constructor("ZodNumber", (inst, def) => {
-      core92.$ZodNumber.init(inst, def);
+    exports.ZodNumber = core93.$constructor("ZodNumber", (inst, def) => {
+      core93.$ZodNumber.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.numberProcessor(inst, ctx, json4, params);
       _installLazyMethods2(inst, "ZodNumber", {
@@ -18000,37 +18000,37 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function number4(params) {
-      return core92._number(exports.ZodNumber, params);
+      return core93._number(exports.ZodNumber, params);
     }
-    exports.ZodNumberFormat = core92.$constructor("ZodNumberFormat", (inst, def) => {
-      core92.$ZodNumberFormat.init(inst, def);
+    exports.ZodNumberFormat = core93.$constructor("ZodNumberFormat", (inst, def) => {
+      core93.$ZodNumberFormat.init(inst, def);
       exports.ZodNumber.init(inst, def);
     });
     function int2(params) {
-      return core92._int(exports.ZodNumberFormat, params);
+      return core93._int(exports.ZodNumberFormat, params);
     }
     function float322(params) {
-      return core92._float32(exports.ZodNumberFormat, params);
+      return core93._float32(exports.ZodNumberFormat, params);
     }
     function float642(params) {
-      return core92._float64(exports.ZodNumberFormat, params);
+      return core93._float64(exports.ZodNumberFormat, params);
     }
     function int322(params) {
-      return core92._int32(exports.ZodNumberFormat, params);
+      return core93._int32(exports.ZodNumberFormat, params);
     }
     function uint322(params) {
-      return core92._uint32(exports.ZodNumberFormat, params);
+      return core93._uint32(exports.ZodNumberFormat, params);
     }
-    exports.ZodBoolean = core92.$constructor("ZodBoolean", (inst, def) => {
-      core92.$ZodBoolean.init(inst, def);
+    exports.ZodBoolean = core93.$constructor("ZodBoolean", (inst, def) => {
+      core93.$ZodBoolean.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.booleanProcessor(inst, ctx, json4, params);
     });
     function boolean4(params) {
-      return core92._boolean(exports.ZodBoolean, params);
+      return core93._boolean(exports.ZodBoolean, params);
     }
-    exports.ZodBigInt = core92.$constructor("ZodBigInt", (inst, def) => {
-      core92.$ZodBigInt.init(inst, def);
+    exports.ZodBigInt = core93.$constructor("ZodBigInt", (inst, def) => {
+      core93.$ZodBigInt.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.bigintProcessor(inst, ctx, json4, params);
       inst.gte = (value, params) => inst.check(checks.gte(value, params));
@@ -18052,76 +18052,76 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function bigint4(params) {
-      return core92._bigint(exports.ZodBigInt, params);
+      return core93._bigint(exports.ZodBigInt, params);
     }
-    exports.ZodBigIntFormat = core92.$constructor("ZodBigIntFormat", (inst, def) => {
-      core92.$ZodBigIntFormat.init(inst, def);
+    exports.ZodBigIntFormat = core93.$constructor("ZodBigIntFormat", (inst, def) => {
+      core93.$ZodBigIntFormat.init(inst, def);
       exports.ZodBigInt.init(inst, def);
     });
     function int642(params) {
-      return core92._int64(exports.ZodBigIntFormat, params);
+      return core93._int64(exports.ZodBigIntFormat, params);
     }
     function uint642(params) {
-      return core92._uint64(exports.ZodBigIntFormat, params);
+      return core93._uint64(exports.ZodBigIntFormat, params);
     }
-    exports.ZodSymbol = core92.$constructor("ZodSymbol", (inst, def) => {
-      core92.$ZodSymbol.init(inst, def);
+    exports.ZodSymbol = core93.$constructor("ZodSymbol", (inst, def) => {
+      core93.$ZodSymbol.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.symbolProcessor(inst, ctx, json4, params);
     });
     function symbol21(params) {
-      return core92._symbol(exports.ZodSymbol, params);
+      return core93._symbol(exports.ZodSymbol, params);
     }
-    exports.ZodUndefined = core92.$constructor("ZodUndefined", (inst, def) => {
-      core92.$ZodUndefined.init(inst, def);
+    exports.ZodUndefined = core93.$constructor("ZodUndefined", (inst, def) => {
+      core93.$ZodUndefined.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.undefinedProcessor(inst, ctx, json4, params);
     });
     function _undefined4(params) {
-      return core92._undefined(exports.ZodUndefined, params);
+      return core93._undefined(exports.ZodUndefined, params);
     }
-    exports.ZodNull = core92.$constructor("ZodNull", (inst, def) => {
-      core92.$ZodNull.init(inst, def);
+    exports.ZodNull = core93.$constructor("ZodNull", (inst, def) => {
+      core93.$ZodNull.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullProcessor(inst, ctx, json4, params);
     });
     function _null4(params) {
-      return core92._null(exports.ZodNull, params);
+      return core93._null(exports.ZodNull, params);
     }
-    exports.ZodAny = core92.$constructor("ZodAny", (inst, def) => {
-      core92.$ZodAny.init(inst, def);
+    exports.ZodAny = core93.$constructor("ZodAny", (inst, def) => {
+      core93.$ZodAny.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.anyProcessor(inst, ctx, json4, params);
     });
     function any2() {
-      return core92._any(exports.ZodAny);
+      return core93._any(exports.ZodAny);
     }
-    exports.ZodUnknown = core92.$constructor("ZodUnknown", (inst, def) => {
-      core92.$ZodUnknown.init(inst, def);
+    exports.ZodUnknown = core93.$constructor("ZodUnknown", (inst, def) => {
+      core93.$ZodUnknown.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unknownProcessor(inst, ctx, json4, params);
     });
     function unknown2() {
-      return core92._unknown(exports.ZodUnknown);
+      return core93._unknown(exports.ZodUnknown);
     }
-    exports.ZodNever = core92.$constructor("ZodNever", (inst, def) => {
-      core92.$ZodNever.init(inst, def);
+    exports.ZodNever = core93.$constructor("ZodNever", (inst, def) => {
+      core93.$ZodNever.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.neverProcessor(inst, ctx, json4, params);
     });
     function never2(params) {
-      return core92._never(exports.ZodNever, params);
+      return core93._never(exports.ZodNever, params);
     }
-    exports.ZodVoid = core92.$constructor("ZodVoid", (inst, def) => {
-      core92.$ZodVoid.init(inst, def);
+    exports.ZodVoid = core93.$constructor("ZodVoid", (inst, def) => {
+      core93.$ZodVoid.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.voidProcessor(inst, ctx, json4, params);
     });
     function _void3(params) {
-      return core92._void(exports.ZodVoid, params);
+      return core93._void(exports.ZodVoid, params);
     }
-    exports.ZodDate = core92.$constructor("ZodDate", (inst, def) => {
-      core92.$ZodDate.init(inst, def);
+    exports.ZodDate = core93.$constructor("ZodDate", (inst, def) => {
+      core93.$ZodDate.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.dateProcessor(inst, ctx, json4, params);
       inst.min = (value, params) => inst.check(checks.gte(value, params));
@@ -18131,10 +18131,10 @@ var require_schemas2 = __commonJS({
       inst.maxDate = c.maximum ? new Date(c.maximum) : null;
     });
     function date5(params) {
-      return core92._date(exports.ZodDate, params);
+      return core93._date(exports.ZodDate, params);
     }
-    exports.ZodArray = core92.$constructor("ZodArray", (inst, def) => {
-      core92.$ZodArray.init(inst, def);
+    exports.ZodArray = core93.$constructor("ZodArray", (inst, def) => {
+      core93.$ZodArray.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.arrayProcessor(inst, ctx, json4, params);
       inst.element = def.element;
@@ -18157,14 +18157,14 @@ var require_schemas2 = __commonJS({
       });
     });
     function array3(element, params) {
-      return core92._array(exports.ZodArray, element, params);
+      return core93._array(exports.ZodArray, element, params);
     }
     function keyof2(schema) {
       const shape = schema._zod.def.shape;
       return _enum3(Object.keys(shape));
     }
-    exports.ZodObject = core92.$constructor("ZodObject", (inst, def) => {
-      core92.$ZodObjectJIT.init(inst, def);
+    exports.ZodObject = core93.$constructor("ZodObject", (inst, def) => {
+      core93.$ZodObjectJIT.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.objectProcessor(inst, ctx, json4, params);
       index_js_1.util.defineLazy(inst, "shape", () => {
@@ -18236,8 +18236,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodUnion = core92.$constructor("ZodUnion", (inst, def) => {
-      core92.$ZodUnion.init(inst, def);
+    exports.ZodUnion = core93.$constructor("ZodUnion", (inst, def) => {
+      core93.$ZodUnion.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
@@ -18249,9 +18249,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodXor = core92.$constructor("ZodXor", (inst, def) => {
+    exports.ZodXor = core93.$constructor("ZodXor", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core92.$ZodXor.init(inst, def);
+      core93.$ZodXor.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
     });
@@ -18263,9 +18263,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodDiscriminatedUnion = core92.$constructor("ZodDiscriminatedUnion", (inst, def) => {
+    exports.ZodDiscriminatedUnion = core93.$constructor("ZodDiscriminatedUnion", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core92.$ZodDiscriminatedUnion.init(inst, def);
+      core93.$ZodDiscriminatedUnion.init(inst, def);
     });
     function discriminatedUnion2(discriminator, options, params) {
       return new exports.ZodDiscriminatedUnion({
@@ -18275,8 +18275,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodIntersection = core92.$constructor("ZodIntersection", (inst, def) => {
-      core92.$ZodIntersection.init(inst, def);
+    exports.ZodIntersection = core93.$constructor("ZodIntersection", (inst, def) => {
+      core93.$ZodIntersection.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.intersectionProcessor(inst, ctx, json4, params);
     });
@@ -18287,8 +18287,8 @@ var require_schemas2 = __commonJS({
         right
       });
     }
-    exports.ZodTuple = core92.$constructor("ZodTuple", (inst, def) => {
-      core92.$ZodTuple.init(inst, def);
+    exports.ZodTuple = core93.$constructor("ZodTuple", (inst, def) => {
+      core93.$ZodTuple.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.tupleProcessor(inst, ctx, json4, params);
       inst.rest = (rest) => inst.clone({
@@ -18297,7 +18297,7 @@ var require_schemas2 = __commonJS({
       });
     });
     function tuple2(items, _paramsOrRest, _params) {
-      const hasRest = _paramsOrRest instanceof core92.$ZodType;
+      const hasRest = _paramsOrRest instanceof core93.$ZodType;
       const params = hasRest ? _params : _paramsOrRest;
       const rest = hasRest ? _paramsOrRest : null;
       return new exports.ZodTuple({
@@ -18307,8 +18307,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodRecord = core92.$constructor("ZodRecord", (inst, def) => {
-      core92.$ZodRecord.init(inst, def);
+    exports.ZodRecord = core93.$constructor("ZodRecord", (inst, def) => {
+      core93.$ZodRecord.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.recordProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
@@ -18331,7 +18331,7 @@ var require_schemas2 = __commonJS({
       });
     }
     function partialRecord2(keyType, valueType, params) {
-      const k = core92.clone(keyType);
+      const k = core93.clone(keyType);
       k._zod.values = void 0;
       return new exports.ZodRecord({
         type: "record",
@@ -18349,16 +18349,16 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodMap = core92.$constructor("ZodMap", (inst, def) => {
-      core92.$ZodMap.init(inst, def);
+    exports.ZodMap = core93.$constructor("ZodMap", (inst, def) => {
+      core93.$ZodMap.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.mapProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
       inst.valueType = def.valueType;
-      inst.min = (...args) => inst.check(core92._minSize(...args));
-      inst.nonempty = (params) => inst.check(core92._minSize(1, params));
-      inst.max = (...args) => inst.check(core92._maxSize(...args));
-      inst.size = (...args) => inst.check(core92._size(...args));
+      inst.min = (...args) => inst.check(core93._minSize(...args));
+      inst.nonempty = (params) => inst.check(core93._minSize(1, params));
+      inst.max = (...args) => inst.check(core93._maxSize(...args));
+      inst.size = (...args) => inst.check(core93._size(...args));
     });
     function map2(keyType, valueType, params) {
       return new exports.ZodMap({
@@ -18368,14 +18368,14 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSet = core92.$constructor("ZodSet", (inst, def) => {
-      core92.$ZodSet.init(inst, def);
+    exports.ZodSet = core93.$constructor("ZodSet", (inst, def) => {
+      core93.$ZodSet.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.setProcessor(inst, ctx, json4, params);
-      inst.min = (...args) => inst.check(core92._minSize(...args));
-      inst.nonempty = (params) => inst.check(core92._minSize(1, params));
-      inst.max = (...args) => inst.check(core92._maxSize(...args));
-      inst.size = (...args) => inst.check(core92._size(...args));
+      inst.min = (...args) => inst.check(core93._minSize(...args));
+      inst.nonempty = (params) => inst.check(core93._minSize(1, params));
+      inst.max = (...args) => inst.check(core93._maxSize(...args));
+      inst.size = (...args) => inst.check(core93._size(...args));
     });
     function set2(valueType, params) {
       return new exports.ZodSet({
@@ -18384,8 +18384,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEnum = core92.$constructor("ZodEnum", (inst, def) => {
-      core92.$ZodEnum.init(inst, def);
+    exports.ZodEnum = core93.$constructor("ZodEnum", (inst, def) => {
+      core93.$ZodEnum.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.enumProcessor(inst, ctx, json4, params);
       inst.enum = def.entries;
@@ -18437,8 +18437,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLiteral = core92.$constructor("ZodLiteral", (inst, def) => {
-      core92.$ZodLiteral.init(inst, def);
+    exports.ZodLiteral = core93.$constructor("ZodLiteral", (inst, def) => {
+      core93.$ZodLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.literalProcessor(inst, ctx, json4, params);
       inst.values = new Set(def.values);
@@ -18458,24 +18458,24 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodFile = core92.$constructor("ZodFile", (inst, def) => {
-      core92.$ZodFile.init(inst, def);
+    exports.ZodFile = core93.$constructor("ZodFile", (inst, def) => {
+      core93.$ZodFile.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.fileProcessor(inst, ctx, json4, params);
-      inst.min = (size, params) => inst.check(core92._minSize(size, params));
-      inst.max = (size, params) => inst.check(core92._maxSize(size, params));
-      inst.mime = (types2, params) => inst.check(core92._mime(Array.isArray(types2) ? types2 : [types2], params));
+      inst.min = (size, params) => inst.check(core93._minSize(size, params));
+      inst.max = (size, params) => inst.check(core93._maxSize(size, params));
+      inst.mime = (types2, params) => inst.check(core93._mime(Array.isArray(types2) ? types2 : [types2], params));
     });
     function file2(params) {
-      return core92._file(exports.ZodFile, params);
+      return core93._file(exports.ZodFile, params);
     }
-    exports.ZodTransform = core92.$constructor("ZodTransform", (inst, def) => {
-      core92.$ZodTransform.init(inst, def);
+    exports.ZodTransform = core93.$constructor("ZodTransform", (inst, def) => {
+      core93.$ZodTransform.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.transformProcessor(inst, ctx, json4, params);
       inst._zod.parse = (payload, _ctx) => {
         if (_ctx.direction === "backward") {
-          throw new core92.$ZodEncodeError(inst.constructor.name);
+          throw new core93.$ZodEncodeError(inst.constructor.name);
         }
         payload.addIssue = (issue2) => {
           if (typeof issue2 === "string") {
@@ -18509,8 +18509,8 @@ var require_schemas2 = __commonJS({
         transform: fn
       });
     }
-    exports.ZodOptional = core92.$constructor("ZodOptional", (inst, def) => {
-      core92.$ZodOptional.init(inst, def);
+    exports.ZodOptional = core93.$constructor("ZodOptional", (inst, def) => {
+      core93.$ZodOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18521,8 +18521,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodExactOptional = core92.$constructor("ZodExactOptional", (inst, def) => {
-      core92.$ZodExactOptional.init(inst, def);
+    exports.ZodExactOptional = core93.$constructor("ZodExactOptional", (inst, def) => {
+      core93.$ZodExactOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18533,8 +18533,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodNullable = core92.$constructor("ZodNullable", (inst, def) => {
-      core92.$ZodNullable.init(inst, def);
+    exports.ZodNullable = core93.$constructor("ZodNullable", (inst, def) => {
+      core93.$ZodNullable.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullableProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18548,8 +18548,8 @@ var require_schemas2 = __commonJS({
     function nullish3(innerType) {
       return optional2(nullable2(innerType));
     }
-    exports.ZodDefault = core92.$constructor("ZodDefault", (inst, def) => {
-      core92.$ZodDefault.init(inst, def);
+    exports.ZodDefault = core93.$constructor("ZodDefault", (inst, def) => {
+      core93.$ZodDefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.defaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18564,8 +18564,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodPrefault = core92.$constructor("ZodPrefault", (inst, def) => {
-      core92.$ZodPrefault.init(inst, def);
+    exports.ZodPrefault = core93.$constructor("ZodPrefault", (inst, def) => {
+      core93.$ZodPrefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.prefaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18579,8 +18579,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodNonOptional = core92.$constructor("ZodNonOptional", (inst, def) => {
-      core92.$ZodNonOptional.init(inst, def);
+    exports.ZodNonOptional = core93.$constructor("ZodNonOptional", (inst, def) => {
+      core93.$ZodNonOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nonoptionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18592,8 +18592,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSuccess = core92.$constructor("ZodSuccess", (inst, def) => {
-      core92.$ZodSuccess.init(inst, def);
+    exports.ZodSuccess = core93.$constructor("ZodSuccess", (inst, def) => {
+      core93.$ZodSuccess.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.successProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18604,8 +18604,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodCatch = core92.$constructor("ZodCatch", (inst, def) => {
-      core92.$ZodCatch.init(inst, def);
+    exports.ZodCatch = core93.$constructor("ZodCatch", (inst, def) => {
+      core93.$ZodCatch.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.catchProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18618,16 +18618,16 @@ var require_schemas2 = __commonJS({
         catchValue: typeof catchValue === "function" ? catchValue : () => catchValue
       });
     }
-    exports.ZodNaN = core92.$constructor("ZodNaN", (inst, def) => {
-      core92.$ZodNaN.init(inst, def);
+    exports.ZodNaN = core93.$constructor("ZodNaN", (inst, def) => {
+      core93.$ZodNaN.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nanProcessor(inst, ctx, json4, params);
     });
     function nan2(params) {
-      return core92._nan(exports.ZodNaN, params);
+      return core93._nan(exports.ZodNaN, params);
     }
-    exports.ZodPipe = core92.$constructor("ZodPipe", (inst, def) => {
-      core92.$ZodPipe.init(inst, def);
+    exports.ZodPipe = core93.$constructor("ZodPipe", (inst, def) => {
+      core93.$ZodPipe.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.pipeProcessor(inst, ctx, json4, params);
       inst.in = def.in;
@@ -18641,9 +18641,9 @@ var require_schemas2 = __commonJS({
         // ...util.normalizeParams(params),
       });
     }
-    exports.ZodCodec = core92.$constructor("ZodCodec", (inst, def) => {
+    exports.ZodCodec = core93.$constructor("ZodCodec", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core92.$ZodCodec.init(inst, def);
+      core93.$ZodCodec.init(inst, def);
     });
     function codec2(in_, out, params) {
       return new exports.ZodCodec({
@@ -18664,12 +18664,12 @@ var require_schemas2 = __commonJS({
         reverseTransform: def.transform
       });
     }
-    exports.ZodPreprocess = core92.$constructor("ZodPreprocess", (inst, def) => {
+    exports.ZodPreprocess = core93.$constructor("ZodPreprocess", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core92.$ZodPreprocess.init(inst, def);
+      core93.$ZodPreprocess.init(inst, def);
     });
-    exports.ZodReadonly = core92.$constructor("ZodReadonly", (inst, def) => {
-      core92.$ZodReadonly.init(inst, def);
+    exports.ZodReadonly = core93.$constructor("ZodReadonly", (inst, def) => {
+      core93.$ZodReadonly.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.readonlyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18680,8 +18680,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodTemplateLiteral = core92.$constructor("ZodTemplateLiteral", (inst, def) => {
-      core92.$ZodTemplateLiteral.init(inst, def);
+    exports.ZodTemplateLiteral = core93.$constructor("ZodTemplateLiteral", (inst, def) => {
+      core93.$ZodTemplateLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.templateLiteralProcessor(inst, ctx, json4, params);
     });
@@ -18692,8 +18692,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLazy = core92.$constructor("ZodLazy", (inst, def) => {
-      core92.$ZodLazy.init(inst, def);
+    exports.ZodLazy = core93.$constructor("ZodLazy", (inst, def) => {
+      core93.$ZodLazy.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.lazyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.getter();
@@ -18704,8 +18704,8 @@ var require_schemas2 = __commonJS({
         getter
       });
     }
-    exports.ZodPromise = core92.$constructor("ZodPromise", (inst, def) => {
-      core92.$ZodPromise.init(inst, def);
+    exports.ZodPromise = core93.$constructor("ZodPromise", (inst, def) => {
+      core93.$ZodPromise.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.promiseProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18716,8 +18716,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodFunction = core92.$constructor("ZodFunction", (inst, def) => {
-      core92.$ZodFunction.init(inst, def);
+    exports.ZodFunction = core93.$constructor("ZodFunction", (inst, def) => {
+      core93.$ZodFunction.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.functionProcessor(inst, ctx, json4, params);
     });
@@ -18728,13 +18728,13 @@ var require_schemas2 = __commonJS({
         output: params?.output ?? unknown2()
       });
     }
-    exports.ZodCustom = core92.$constructor("ZodCustom", (inst, def) => {
-      core92.$ZodCustom.init(inst, def);
+    exports.ZodCustom = core93.$constructor("ZodCustom", (inst, def) => {
+      core93.$ZodCustom.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.customProcessor(inst, ctx, json4, params);
     });
     function check2(fn) {
-      const ch = new core92.$ZodCheck({
+      const ch = new core93.$ZodCheck({
         check: "custom"
         // ...util.normalizeParams(params),
       });
@@ -18742,16 +18742,16 @@ var require_schemas2 = __commonJS({
       return ch;
     }
     function custom2(fn, _params) {
-      return core92._custom(exports.ZodCustom, fn ?? (() => true), _params);
+      return core93._custom(exports.ZodCustom, fn ?? (() => true), _params);
     }
     function refine2(fn, _params = {}) {
-      return core92._refine(exports.ZodCustom, fn, _params);
+      return core93._refine(exports.ZodCustom, fn, _params);
     }
     function superRefine2(fn, params) {
-      return core92._superRefine(fn, params);
+      return core93._superRefine(fn, params);
     }
-    exports.describe = core92.describe;
-    exports.meta = core92.meta;
+    exports.describe = core93.describe;
+    exports.meta = core93.meta;
     function _instanceof2(cls, params = {}) {
       const inst = new exports.ZodCustom({
         type: "custom",
@@ -18774,7 +18774,7 @@ var require_schemas2 = __commonJS({
       };
       return inst;
     }
-    var stringbool2 = (...args) => core92._stringbool({
+    var stringbool2 = (...args) => core93._stringbool({
       Codec: exports.ZodCodec,
       Boolean: exports.ZodBoolean,
       String: exports.ZodString
@@ -18831,7 +18831,7 @@ var require_compat = __commonJS({
     exports.ZodFirstPartyTypeKind = exports.config = exports.$brand = exports.ZodIssueCode = void 0;
     exports.setErrorMap = setErrorMap2;
     exports.getErrorMap = getErrorMap3;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     exports.ZodIssueCode = {
       invalid_type: "invalid_type",
       too_big: "too_big",
@@ -18853,12 +18853,12 @@ var require_compat = __commonJS({
       return index_js_1.config;
     } });
     function setErrorMap2(map2) {
-      core92.config({
+      core93.config({
         customError: map2
       });
     }
     function getErrorMap3() {
-      return core92.config().customError;
+      return core93.config().customError;
     }
     var ZodFirstPartyTypeKind3;
     /* @__PURE__ */ (function(ZodFirstPartyTypeKind4) {
@@ -19421,22 +19421,22 @@ var require_coerce = __commonJS({
     exports.boolean = boolean4;
     exports.bigint = bigint4;
     exports.date = date5;
-    var core92 = __importStar(require_core2());
+    var core93 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
     function string4(params) {
-      return core92._coercedString(schemas.ZodString, params);
+      return core93._coercedString(schemas.ZodString, params);
     }
     function number4(params) {
-      return core92._coercedNumber(schemas.ZodNumber, params);
+      return core93._coercedNumber(schemas.ZodNumber, params);
     }
     function boolean4(params) {
-      return core92._coercedBoolean(schemas.ZodBoolean, params);
+      return core93._coercedBoolean(schemas.ZodBoolean, params);
     }
     function bigint4(params) {
-      return core92._coercedBigint(schemas.ZodBigInt, params);
+      return core93._coercedBigint(schemas.ZodBigInt, params);
     }
     function date5(params) {
-      return core92._coercedDate(schemas.ZodDate, params);
+      return core93._coercedDate(schemas.ZodDate, params);
     }
   }
 });
@@ -32735,7 +32735,7 @@ var init_finding_dedup = __esm({
 });
 
 // src/main.ts
-import * as core91 from "@actions/core";
+import * as core92 from "@actions/core";
 import * as github from "@actions/github";
 
 // node_modules/universal-user-agent/index.js
@@ -36387,11 +36387,11 @@ async function errorRequest(state, octokit, error52, options) {
 }
 async function wrapRequest(state, octokit, request2, options) {
   const limiter = new import_light.default();
-  limiter.on("failed", function(error52, info86) {
+  limiter.on("failed", function(error52, info87) {
     const maxRetries = ~~error52.request.request?.retries;
     const after = ~~error52.request.request?.retryAfter;
-    options.request.retryCount = info86.retryCount + 1;
-    if (maxRetries > info86.retryCount) {
+    options.request.retryCount = info87.retryCount + 1;
+    if (maxRetries > info87.retryCount) {
       return after * state.retryAfterBaseValue;
     }
   });
@@ -36582,6 +36582,7 @@ function loadConfig() {
   const taintPathDetector = core.getInput("taint_path_detector") !== "false";
   const symbolImpactDetector = core.getInput("symbol_impact_detector") !== "false";
   const dependencyRiskDetector = core.getInput("dependency_risk_detector") !== "false";
+  const lockfileIntegrityDetector = core.getInput("lockfile_integrity_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -36740,7 +36741,8 @@ function loadConfig() {
     agencyEscalationDetector,
     taintPathDetector,
     symbolImpactDetector,
-    dependencyRiskDetector
+    dependencyRiskDetector,
+    lockfileIntegrityDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -97560,14 +97562,14 @@ function detectNewThrownExceptions(file2) {
       }
     }
   }
-  for (const [exceptionType, info86] of newThrows) {
+  for (const [exceptionType, info87] of newThrows) {
     if (!oldThrows.has(exceptionType)) {
       changes.push({
         category: "changed-thrown-exceptions",
         file: file2.path,
-        line: info86.line,
+        line: info87.line,
         symbol: exceptionType,
-        description: `New exception type \`${exceptionType}\` thrown in \`${file2.path}:${info86.line}\` \u2014 callers may not handle this`,
+        description: `New exception type \`${exceptionType}\` thrown in \`${file2.path}:${info87.line}\` \u2014 callers may not handle this`,
         severity: "warning"
       });
     }
@@ -101226,13 +101228,13 @@ function detectDiscardedValidationReturn(file2) {
       }
     }
   }
-  for (const [varName, info86] of assignedVars) {
+  for (const [varName, info87] of assignedVars) {
     issues.push({
       category: "assigned-but-ungated",
       file: file2.path,
-      line: info86.line,
-      code: info86.code,
-      description: `Variable \`${varName}\` assigned result of \`${info86.funcName}()\` but never used in a guard (if/throw/return) in \`${file2.path}:${info86.line}\` \u2014 LLMs assign validation results without adding the guard clause; add \`if (!${varName})\` or \`if (${varName} === false)\` check`,
+      line: info87.line,
+      code: info87.code,
+      description: `Variable \`${varName}\` assigned result of \`${info87.funcName}()\` but never used in a guard (if/throw/return) in \`${file2.path}:${info87.line}\` \u2014 LLMs assign validation results without adding the guard clause; add \`if (!${varName})\` or \`if (${varName} === false)\` check`,
       severity: "warning"
     });
   }
@@ -103526,9 +103528,9 @@ function detectDeepInheritance(diffFiles) {
       }
     }
   }
-  for (const [className, info86] of extendsMap) {
+  for (const [className, info87] of extendsMap) {
     let depth = 2;
-    let current = info86.parent;
+    let current = info87.parent;
     const visited = /* @__PURE__ */ new Set([className]);
     while (extendsMap.has(current) && !visited.has(current)) {
       visited.add(current);
@@ -103538,10 +103540,10 @@ function detectDeepInheritance(diffFiles) {
     if (depth >= 3) {
       issues.push({
         category: "deep-inheritance",
-        file: info86.file,
-        line: info86.line,
-        code: info86.code,
-        description: `Class \`${className}\` in \`${info86.file}:${info86.line}\` sits in a ${depth}-level inheritance chain \u2014 LLMs generate deep class hierarchies from OOP training data; modern patterns favor composition over inheritance; flatten the chain using mixins, composition, or utility functions`,
+        file: info87.file,
+        line: info87.line,
+        code: info87.code,
+        description: `Class \`${className}\` in \`${info87.file}:${info87.line}\` sits in a ${depth}-level inheritance chain \u2014 LLMs generate deep class hierarchies from OOP training data; modern patterns favor composition over inheritance; flatten the chain using mixins, composition, or utility functions`,
         severity: "warning"
       });
     }
@@ -105230,18 +105232,18 @@ function detectOrphanedSpec(diffFiles) {
       }
     }
   }
-  for (const [symbol21, info86] of exportedSymbols) {
+  for (const [symbol21, info87] of exportedSymbols) {
     if (!referencedSymbols.has(symbol21)) {
-      const isLikelyEntry = info86.file.includes("index") || info86.file.includes("main") || info86.file.includes("mod");
-      const isDefaultExport = info86.code.includes("export default");
-      const isTypeExport = info86.code.includes("interface ") || info86.code.includes("type ");
+      const isLikelyEntry = info87.file.includes("index") || info87.file.includes("main") || info87.file.includes("mod");
+      const isDefaultExport = info87.code.includes("export default");
+      const isTypeExport = info87.code.includes("interface ") || info87.code.includes("type ");
       if (!isLikelyEntry && !isDefaultExport && !isTypeExport) {
         issues.push({
           category: "orphaned-spec",
-          file: info86.file,
-          line: info86.line,
-          code: info86.code,
-          description: `Orphaned export \`${symbol21}\` in \`${info86.file}:${info86.line}\` is not referenced by any other file in this PR \u2014 LLMs generate "defensive exports" that create API surface without consumers; unused exports increase bundle size and maintenance burden; remove if not needed or add explicit consumers`,
+          file: info87.file,
+          line: info87.line,
+          code: info87.code,
+          description: `Orphaned export \`${symbol21}\` in \`${info87.file}:${info87.line}\` is not referenced by any other file in this PR \u2014 LLMs generate "defensive exports" that create API surface without consumers; unused exports increase bundle size and maintenance burden; remove if not needed or add explicit consumers`,
           severity: "warning"
         });
       }
@@ -108488,6 +108490,185 @@ function detectDependencyRisk(diffFiles) {
   return result;
 }
 
+// src/lockfile-integrity-detector.ts
+import * as core91 from "@actions/core";
+function stripPrefix24(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges23(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var PKG_JSON_RE2 = /(?:^|[\\/])package\.json$/;
+var PKG_LOCK_RE2 = /(?:^|[\\/])package-lock\.json$/;
+var YARN_LOCK_RE2 = /(?:^|[\\/])yarn\.lock$/;
+var PNPM_LOCK_RE2 = /(?:^|[\\/])pnpm-lock\.yaml$/;
+var NON_DEP_KEYS = /^(?:name|version|description|main|type|license|author|repository|scripts|engines|module|exports|files|keywords|bugs|homepage|contributors|private|workspaces|sideEffects|bin|man|directories|config|browser|eslintConfig|prettier|babel|jest|types|typings|peerDependenciesMeta|optionalDependencies|publishConfig|overrides|resolutions)$/i;
+var DEP_LINE_RE2 = /^\s*["'](@?[\w\-./@]+)["']\s*:\s*["']([~^>=<\s]*\d+\.\d+[^"']+)["']/;
+function detectMissingLockfileUpdate(diffFiles) {
+  const issues = [];
+  const pkgFilesWithDepChanges = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!PKG_JSON_RE2.test(file2.path)) continue;
+    const added = getAddedChanges23(file2);
+    const hasDepAddition = added.some((c) => {
+      const trimmed = stripPrefix24(c.content);
+      const match2 = trimmed.match(DEP_LINE_RE2);
+      if (!match2) return false;
+      return !NON_DEP_KEYS.test(match2[1]);
+    });
+    if (hasDepAddition) {
+      pkgFilesWithDepChanges.push(file2);
+    }
+  }
+  const lockfilePaths = /* @__PURE__ */ new Set();
+  for (const file2 of diffFiles) {
+    if (PKG_LOCK_RE2.test(file2.path) || YARN_LOCK_RE2.test(file2.path) || PNPM_LOCK_RE2.test(file2.path)) {
+      lockfilePaths.add(file2.path);
+    }
+  }
+  const lockfilesInDiff = diffFiles.filter(
+    (f) => PKG_LOCK_RE2.test(f.path) || YARN_LOCK_RE2.test(f.path) || PNPM_LOCK_RE2.test(f.path)
+  );
+  if (pkgFilesWithDepChanges.length > 0 && lockfilesInDiff.length === 0) {
+    for (const pkgFile of pkgFilesWithDepChanges) {
+      const added = getAddedChanges23(pkgFile);
+      const firstDepLine = added.find((c) => DEP_LINE_RE2.test(stripPrefix24(c.content)));
+      if (firstDepLine) {
+        issues.push({
+          category: "missing-lockfile-update",
+          file: pkgFile.path,
+          line: firstDepLine.line,
+          code: stripPrefix24(firstDepLine.content),
+          description: `Dependencies added to \`${pkgFile.path}\` but lockfile was not updated; run \`npm install\` or equivalent to regenerate the lockfile; ai agents frequently add deps without syncing lockfiles, causing CI failures and non-deterministic installs`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectOrphanLockfileChange(diffFiles) {
+  const issues = [];
+  const hasPkgJsonChange = diffFiles.some(
+    (f) => f.status !== "deleted" && PKG_JSON_RE2.test(f.path)
+  );
+  const lockfileChanges = diffFiles.filter(
+    (f) => f.status !== "deleted" && (PKG_LOCK_RE2.test(f.path) || YARN_LOCK_RE2.test(f.path) || PNPM_LOCK_RE2.test(f.path))
+  );
+  if (!hasPkgJsonChange && lockfileChanges.length > 0) {
+    for (const lockfile of lockfileChanges) {
+      const added = getAddedChanges23(lockfile);
+      if (added.length > 0) {
+        issues.push({
+          category: "orphan-lockfile-change",
+          file: lockfile.path,
+          line: added[0].line,
+          code: `lockfile modified without package.json change (${added.length} lines)`,
+          description: `Lockfile \`${lockfile.path}\` was modified without a corresponding package.json change; this may indicate a manual lockfile edit, accidental version pinning, or stale lockfile; verify the lockfile matches the current package.json`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectLockfileVersionDrift(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!PKG_LOCK_RE2.test(file2.path)) continue;
+    const added = getAddedChanges23(file2);
+    let lockfileVersion = null;
+    for (const change of added) {
+      const trimmed = stripPrefix24(change.content);
+      const versionMatch = trimmed.match(/"lockfileVersion"\s*:\s*(\d+)/);
+      if (versionMatch) {
+        lockfileVersion = versionMatch[1];
+      }
+    }
+    if (lockfileVersion && lockfileVersion !== "2" && lockfileVersion !== "3") {
+      issues.push({
+        category: "lockfile-version-drift",
+        file: file2.path,
+        line: 1,
+        code: `lockfileVersion: ${lockfileVersion}`,
+        description: `Lockfile version ${lockfileVersion} in \`${file2.path}\` may indicate npm version mismatch; npm v7+ uses lockfileVersion 2, npm v9+ uses 3; verify all developers use compatible npm versions`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function buildContext4(result) {
+  if (result.issues.length === 0) return "";
+  let ctx = `## Lockfile Integrity Detection (${result.issues.length})
+`;
+  ctx += "This PR has lockfile inconsistencies:\n\n";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical) ctx += `- ${i.description}
+`;
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings) ctx += `- ${i.description}
+`;
+  }
+  return ctx.trim();
+}
+function buildBodySummary3(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Lockfile Integrity Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Severity |\n";
+  body += "|----------|------|----------|\n";
+  for (const i of result.issues) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.severity} |
+`;
+  }
+  body += `
+*Lockfile integrity: arxiv 2601.17548 \u2014 AI platforms fail trust boundaries. Missing lockfile updates cause CI failures and non-deterministic builds.*
+</details>
+`;
+  return body;
+}
+function dedupIssues43(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function detectLockfileIntegrity(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectMissingLockfileUpdate(diffFiles));
+  allIssues.push(...detectOrphanLockfileChange(diffFiles));
+  allIssues.push(...detectLockfileVersionDrift(diffFiles));
+  const issues = dedupIssues43(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    return sv || a.file.localeCompare(b.file);
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildContext4(result);
+  result.bodySummary = buildBodySummary3(result);
+  if (issues.length > 0) {
+    core91.info(`Lockfile integrity: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -108495,23 +108676,23 @@ async function run() {
     const config2 = loadConfig();
     let manualInstructions = "";
     const ctx = github.context;
-    const token = process.env.GITHUB_TOKEN || core91.getInput("github_token");
+    const token = process.env.GITHUB_TOKEN || core92.getInput("github_token");
     if (!token) {
-      core91.setFailed("GITHUB_TOKEN is required");
+      core92.setFailed("GITHUB_TOKEN is required");
       return;
     }
     const octokit = new RetryingOctokit({ auth: token });
     const rateLimiter = createRateLimiter(config2.provider);
     const prNumber = getPrNumber(ctx);
     if (!prNumber) {
-      core91.info("No PR number found \xE2\u20AC\u201D skipping review");
+      core92.info("No PR number found \xE2\u20AC\u201D skipping review");
       return;
     }
     const owner = ctx.repo.owner;
     const repo = ctx.repo.repo;
     const isManualTrigger = ctx.eventName === "issue_comment";
-    core91.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
-    if (config2.dryRun) core91.info("DRY RUN: review will be logged but not posted");
+    core92.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
+    if (config2.dryRun) core92.info("DRY RUN: review will be logged but not posted");
     const workspace = process.env.GITHUB_WORKSPACE || ".";
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     const deliveryId = ctx.payload.delivery_id || "";
@@ -108521,7 +108702,7 @@ async function run() {
     if (isManualTrigger) {
       const cmd = parseCommand(ctx.payload.comment?.body || "");
       if (cmd?.command === "describe") {
-        core91.info("Running /mizumi describe...");
+        core92.info("Running /mizumi describe...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
         await rateLimiter.acquire();
@@ -108538,7 +108719,7 @@ async function run() {
           issue_number: prNumber,
           body: description
         });
-        core91.info("Description posted");
+        core92.info("Description posted");
         return;
       }
       if (cmd?.command === "improve") {
@@ -108551,7 +108732,7 @@ async function run() {
           });
           return;
         }
-        core91.info("Running /mizumi improve...");
+        core92.info("Running /mizumi improve...");
         const result = await generateFix(octokit, owner, repo, prNumber, config2);
         await octokit.rest.issues.createComment({
           owner,
@@ -108562,7 +108743,7 @@ async function run() {
         return;
       }
       if (cmd?.command === "test") {
-        core91.info("Running /mizumi test...");
+        core92.info("Running /mizumi test...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
         await rateLimiter.acquire();
@@ -108571,49 +108752,49 @@ async function run() {
         return;
       }
       if (cmd?.command === "spend") {
-        core91.info("Running /mizumi spend...");
+        core92.info("Running /mizumi spend...");
         const entries = readSpendLog(workspace);
         await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
         return;
       }
       if (cmd?.command === "review" && cmd.args) {
         manualInstructions = cmd.args;
-        core91.info("Custom review instructions: " + manualInstructions);
+        core92.info("Custom review instructions: " + manualInstructions);
       }
     }
     if (!config2.autoReview && !isManualTrigger) {
-      core91.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
+      core92.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
       return;
     }
     if (!isManualTrigger && config2.autoPauseAfter > 0) {
       const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
       if (reviewCount >= config2.autoPauseAfter) {
-        core91.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
+        core92.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
         return;
       }
     }
     if (checkAndMarkDelivery(workspace, deliveryId)) {
-      core91.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
+      core92.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
       return;
     }
     if (!isManualTrigger && checkAndMarkSha(workspace, headSha)) {
-      core91.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
+      core92.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
       return;
     }
     if (config2.autoFix) {
       try {
         const autoFixed = await processReactionApprovals(octokit, owner, repo, prNumber, config2);
         if (autoFixed > 0) {
-          core91.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
-          core91.setOutput("auto_fixed", autoFixed);
+          core92.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
+          core92.setOutput("auto_fixed", autoFixed);
         }
       } catch (e) {
-        core91.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.ciValidatedFix && config2.improveEnabled) {
       try {
-        core91.info("Running CI-validated fix loop...");
+        core92.info("Running CI-validated fix loop...");
         const ciResult = await runCIFixLoop(octokit, owner, repo, prNumber, {
           enabled: config2.ciValidatedFix,
           timeoutSeconds: config2.ciFixTimeout,
@@ -108625,15 +108806,15 @@ async function run() {
         const ciRetries = ciResult.retriesUsed;
         const ciReverted = ciResult.reverted;
         const ciStatus = ciResult.ciStatus;
-        core91.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
+        core92.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
       } catch (e) {
-        core91.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
       }
     } else if (config2.ciValidatedFix && !config2.improveEnabled) {
-      core91.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
+      core92.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
     }
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
-    core91.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
+    core92.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
     let deltaBody = "";
     if (config2.deltaReview) {
       try {
@@ -108649,24 +108830,24 @@ async function run() {
         );
         if (deltaResult.isIncremental && deltaResult.incrementalDiff) {
           if (deltaResult.incrementalDiff.files.length === 0) {
-            core91.info("Delta review: no new changes since last review - skipping");
+            core92.info("Delta review: no new changes since last review - skipping");
             return;
           }
-          core91.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
+          core92.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
           diff.files = deltaResult.incrementalDiff.files;
           diff.totalAdditions = deltaResult.incrementalDiff.totalAdditions;
           diff.totalDeletions = deltaResult.incrementalDiff.totalDeletions;
           diff.rawDiff = deltaResult.incrementalDiff.rawDiff;
           deltaBody = formatDeltaSummary(deltaResult);
         } else {
-          core91.info("Delta review: full review (no previous SHA or non-incremental)");
+          core92.info("Delta review: full review (no previous SHA or non-incremental)");
         }
       } catch (e) {
-        core91.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (diff.files.length === 0) {
-      core91.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
+      core92.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
       return;
     }
     const prClassification = classifyPR(
@@ -108674,14 +108855,14 @@ async function run() {
       diff.totalAdditions,
       diff.totalDeletions
     );
-    core91.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
+    core92.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
     const classification = classifyDiff(
       diff.totalAdditions + diff.totalDeletions,
       diff.files.length,
       diff.files.map((f) => f.path),
       config2
     );
-    core91.info(`Classification: ${classification.tier} (${classification.reason})`);
+    core92.info(`Classification: ${classification.tier} (${classification.reason})`);
     const slopResult = detectSlop(
       diff.rawDiff,
       diff.totalAdditions,
@@ -108690,17 +108871,17 @@ async function run() {
       diff.files.map((f) => f.path)
     );
     if (slopResult.isSlop) {
-      core91.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
+      core92.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
     }
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
     const ruleFindings = runRules(diff.files);
-    core91.info(`Rules: ${ruleFindings.length} deterministic findings`);
+    core92.info(`Rules: ${ruleFindings.length} deterministic findings`);
     const adrs = discoverADRs(workspace);
     let engineFindings = [];
     try {
       const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
       engineFindings = engineResult.findings;
-      core91.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
+      core92.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
       let adrViolations = [];
       if (adrs.length > 0) {
         try {
@@ -108714,14 +108895,14 @@ async function run() {
               message: v.message,
               rule: v.rule
             }))];
-            core91.info("ADR violations: " + adrViolations.length);
+            core92.info("ADR violations: " + adrViolations.length);
           }
         } catch (e) {
-          core91.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     } catch (e) {
-      core91.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
+      core92.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     let astViolations = [];
     if (config2.astContractAnalysis) {
@@ -108729,12 +108910,12 @@ async function run() {
         const astResult = runASTContractAnalysis(diff.files, workspace);
         astViolations = astResult.violations;
         if (astViolations.length > 0) {
-          core91.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
+          core92.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
         } else {
-          core91.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
+          core92.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
         }
       } catch (e) {
-        core91.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let taintResult = null;
@@ -108742,7 +108923,7 @@ async function run() {
       try {
         taintResult = runTaintAnalysis(diff.files);
       } catch (e) {
-        core91.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let concurrencyResult = null;
@@ -108750,10 +108931,10 @@ async function run() {
       try {
         concurrencyResult = analyzeConcurrency(diff.files);
         if (concurrencyResult.hazards.length > 0) {
-          core91.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
+          core92.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
         }
       } catch (e) {
-        core91.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let crossPRConflictResult = null;
@@ -108778,10 +108959,10 @@ async function run() {
         }
         crossPRConflictResult = detectCrossPRConflicts(diff.files, otherPRSummaries);
         if (crossPRConflictResult.conflicts.length > 0) {
-          core91.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
+          core92.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
         }
       } catch (e) {
-        core91.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let driftResult = null;
@@ -108791,11 +108972,11 @@ async function run() {
         if (archModel) {
           driftResult = detectArchitectureDrift(diff.files, archModel);
           if (driftResult.violations.length > 0) {
-            core91.info("Architecture drift: " + driftResult.violations.length + " violations detected");
+            core92.info("Architecture drift: " + driftResult.violations.length + " violations detected");
           }
         }
       } catch (e) {
-        core91.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let assertionAuditResult = null;
@@ -108803,10 +108984,10 @@ async function run() {
       try {
         assertionAuditResult = auditTestAssertions(diff.files);
         if (assertionAuditResult.issues.length > 0) {
-          core91.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
+          core92.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
         }
       } catch (e) {
-        core91.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let breakingChangeResult = null;
@@ -108814,10 +108995,10 @@ async function run() {
       try {
         breakingChangeResult = detectBreakingChanges(diff.files);
         if (breakingChangeResult.changes.length > 0) {
-          core91.info("Breaking change radar: " + breakingChangeResult.changes.length + " detected");
+          core92.info("Breaking change radar: " + breakingChangeResult.changes.length + " detected");
         }
       } catch (e) {
-        core91.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let importCycleResult = null;
@@ -108825,10 +109006,10 @@ async function run() {
       try {
         importCycleResult = detectImportCycles(diff.files);
         if (importCycleResult.cycles.length > 0) {
-          core91.info("Import cycle detection: " + importCycleResult.cycles.length + " cycle(s) detected");
+          core92.info("Import cycle detection: " + importCycleResult.cycles.length + " cycle(s) detected");
         }
       } catch (e) {
-        core91.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let deadCodeResult = null;
@@ -108836,10 +109017,10 @@ async function run() {
       try {
         deadCodeResult = detectDeadCode(diff.files);
         if (deadCodeResult.issues.length > 0) {
-          core91.info("Dead code detection: " + deadCodeResult.issues.length + " issue(s) detected");
+          core92.info("Dead code detection: " + deadCodeResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Dead code detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Dead code detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let typeErosionResult = null;
@@ -108847,10 +109028,10 @@ async function run() {
       try {
         typeErosionResult = detectTypeSafetyErosion(diff.files);
         if (typeErosionResult.issues.length > 0) {
-          core91.info("Type safety erosion: " + typeErosionResult.issues.length + " issue(s) detected");
+          core92.info("Type safety erosion: " + typeErosionResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Type safety erosion detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Type safety erosion detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let techDebtResult = null;
@@ -108858,10 +109039,10 @@ async function run() {
       try {
         techDebtResult = detectTechDebt(diff.files);
         if (techDebtResult.issues.length > 0) {
-          core91.info("Tech debt detection: " + techDebtResult.issues.length + " marker(s) detected");
+          core92.info("Tech debt detection: " + techDebtResult.issues.length + " marker(s) detected");
         }
       } catch (e) {
-        core91.warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let magicNumberResult = null;
@@ -108869,10 +109050,10 @@ async function run() {
       try {
         magicNumberResult = detectMagicNumbers(diff.files);
         if (magicNumberResult.issues.length > 0) {
-          core91.info("Magic number detection: " + magicNumberResult.issues.length + " issue(s) detected");
+          core92.info("Magic number detection: " + magicNumberResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let errorHandlingResult = null;
@@ -108880,10 +109061,10 @@ async function run() {
       try {
         errorHandlingResult = detectErrorHandlingGaps(diff.files);
         if (errorHandlingResult.issues.length > 0) {
-          core91.info("Error handling gap detection: " + errorHandlingResult.issues.length + " issue(s) detected");
+          core92.info("Error handling gap detection: " + errorHandlingResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Error handling gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Error handling gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let perfAntiPatternResult = null;
@@ -108891,10 +109072,10 @@ async function run() {
       try {
         perfAntiPatternResult = detectPerformanceAntiPatterns(diff.files);
         if (perfAntiPatternResult.issues.length > 0) {
-          core91.info("Performance anti-pattern detection: " + perfAntiPatternResult.issues.length + " issue(s) detected");
+          core92.info("Performance anti-pattern detection: " + perfAntiPatternResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Performance anti-pattern detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Performance anti-pattern detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let resourceLifecycleResult = null;
@@ -108902,10 +109083,10 @@ async function run() {
       try {
         resourceLifecycleResult = detectResourceLifecycleViolations(diff.files);
         if (resourceLifecycleResult.issues.length > 0) {
-          core91.info("Resource lifecycle detection: " + resourceLifecycleResult.issues.length + " issue(s) detected");
+          core92.info("Resource lifecycle detection: " + resourceLifecycleResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Resource lifecycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Resource lifecycle detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let observabilityGapResult = null;
@@ -108913,10 +109094,10 @@ async function run() {
       try {
         observabilityGapResult = detectObservabilityGaps(diff.files);
         if (observabilityGapResult.issues.length > 0) {
-          core91.info("Observability gap detection: " + observabilityGapResult.issues.length + " issue(s) detected");
+          core92.info("Observability gap detection: " + observabilityGapResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Observability gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Observability gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let concurrencyHazardResult = null;
@@ -108924,10 +109105,10 @@ async function run() {
       try {
         concurrencyHazardResult = detectConcurrencyHazards(diff.files);
         if (concurrencyHazardResult.issues.length > 0) {
-          core91.info("Concurrency hazard detection: " + concurrencyHazardResult.issues.length + " issue(s) detected");
+          core92.info("Concurrency hazard detection: " + concurrencyHazardResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Concurrency hazard detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Concurrency hazard detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let lifecycleProtocolResult = null;
@@ -108935,10 +109116,10 @@ async function run() {
       try {
         lifecycleProtocolResult = detectLifecycleProtocolViolations(diff.files);
         if (lifecycleProtocolResult.issues.length > 0) {
-          core91.info("Lifecycle protocol detection: " + lifecycleProtocolResult.issues.length + " issue(s) detected");
+          core92.info("Lifecycle protocol detection: " + lifecycleProtocolResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Lifecycle protocol detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Lifecycle protocol detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let semanticConfusionResult = null;
@@ -108946,10 +109127,10 @@ async function run() {
       try {
         semanticConfusionResult = detectSemanticTypeConfusion(diff.files);
         if (semanticConfusionResult.issues.length > 0) {
-          core91.info("Semantic type confusion detection: " + semanticConfusionResult.issues.length + " issue(s) detected");
+          core92.info("Semantic type confusion detection: " + semanticConfusionResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Semantic type confusion detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Semantic type confusion detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let dataFlowBoundaryResult = null;
@@ -108957,10 +109138,10 @@ async function run() {
       try {
         dataFlowBoundaryResult = detectDataFlowBoundaryViolations(diff.files);
         if (dataFlowBoundaryResult.issues.length > 0) {
-          core91.info("Data flow boundary detection: " + dataFlowBoundaryResult.issues.length + " issue(s) detected");
+          core92.info("Data flow boundary detection: " + dataFlowBoundaryResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Data flow boundary detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Data flow boundary detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let nullGuardResult = null;
@@ -108968,10 +109149,10 @@ async function run() {
       try {
         nullGuardResult = detectNullGuardGaps(diff.files);
         if (nullGuardResult.issues.length > 0) {
-          core91.info("Null guard detection: " + nullGuardResult.issues.length + " issue(s) detected");
+          core92.info("Null guard detection: " + nullGuardResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Null guard detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Null guard detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let aiPathologyResult = null;
@@ -108979,10 +109160,10 @@ async function run() {
       try {
         aiPathologyResult = detectAICodePathologies(diff.files);
         if (aiPathologyResult.issues.length > 0) {
-          core91.info("AI code pathology detection: " + aiPathologyResult.issues.length + " issue(s) detected");
+          core92.info("AI code pathology detection: " + aiPathologyResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("AI code pathology detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("AI code pathology detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let ungatedReturnResult = null;
@@ -108990,10 +109171,10 @@ async function run() {
       try {
         ungatedReturnResult = detectUngatedCriticalReturns(diff.files);
         if (ungatedReturnResult.issues.length > 0) {
-          core91.info("Ungated critical return detection: " + ungatedReturnResult.issues.length + " issue(s) detected");
+          core92.info("Ungated critical return detection: " + ungatedReturnResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Ungated critical return detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Ungated critical return detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let hardcodedConfigResult = null;
@@ -109001,10 +109182,10 @@ async function run() {
       try {
         hardcodedConfigResult = detectHardcodedConfig(diff.files);
         if (hardcodedConfigResult.issues.length > 0) {
-          core91.info("Hardcoded config detection: " + hardcodedConfigResult.issues.length + " issue(s) detected");
+          core92.info("Hardcoded config detection: " + hardcodedConfigResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Hardcoded config detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Hardcoded config detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let debugArtifactResult = null;
@@ -109012,10 +109193,10 @@ async function run() {
       try {
         debugArtifactResult = detectDebugArtifacts(diff.files);
         if (debugArtifactResult.issues.length > 0) {
-          core91.info("Debug artifact detection: " + debugArtifactResult.issues.length + " issue(s) detected");
+          core92.info("Debug artifact detection: " + debugArtifactResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Debug artifact detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Debug artifact detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let callbackMisuseResult = null;
@@ -109023,171 +109204,178 @@ async function run() {
       try {
         callbackMisuseResult = detectCallbackMisuse(diff.files);
         if (callbackMisuseResult.issues.length > 0) {
-          core91.info("Callback misuse detection: " + callbackMisuseResult.issues.length + " issue(s) detected");
+          core92.info("Callback misuse detection: " + callbackMisuseResult.issues.length + " issue(s) detected");
         }
       } catch (e) {
-        core91.warning("Callback misuse detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Callback misuse detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let staleClosureResult = null;
     if (config2.staleClosureDetector) {
       staleClosureResult = detectStaleClosures(diff.files);
       if (staleClosureResult.issues.length > 0) {
-        core91.info("Stale closure detection: " + staleClosureResult.issues.length + " issue(s)");
+        core92.info("Stale closure detection: " + staleClosureResult.issues.length + " issue(s)");
       }
     }
     let hallucinatedDepResult = null;
     if (config2.hallucinatedDependencyDetector) {
       hallucinatedDepResult = detectHallucinatedDeps(diff.files);
       if (hallucinatedDepResult.issues.length > 0) {
-        core91.info("Hallucinated dependency detection: " + hallucinatedDepResult.issues.length + " issue(s)");
+        core92.info("Hallucinated dependency detection: " + hallucinatedDepResult.issues.length + " issue(s)");
       }
     }
     let tautologicalTestResult = null;
     if (config2.tautologicalTestDetector) {
       tautologicalTestResult = detectTautologicalTests(diff.files);
       if (tautologicalTestResult.issues.length > 0) {
-        core91.info("Tautological test detection: " + tautologicalTestResult.issues.length + " issue(s)");
+        core92.info("Tautological test detection: " + tautologicalTestResult.issues.length + " issue(s)");
       }
     }
     let contextAmplificationResult = null;
     if (config2.contextAmplificationDetector) {
       contextAmplificationResult = detectContextAmplification(diff.files);
       if (contextAmplificationResult.issues.length > 0) {
-        core91.info("Context amplification detection: " + contextAmplificationResult.issues.length + " issue(s)");
+        core92.info("Context amplification detection: " + contextAmplificationResult.issues.length + " issue(s)");
       }
     }
     let cargoCultResult = null;
     if (config2.cargoCultArchitectureDetector) {
       cargoCultResult = detectCargoCultArchitecture(diff.files);
       if (cargoCultResult.issues.length > 0) {
-        core91.info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
+        core92.info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
       }
     }
     let confabulatedAPIResult = null;
     if (config2.confabulatedAPIDetector) {
       confabulatedAPIResult = detectConfabulatedAPI(diff.files);
       if (confabulatedAPIResult.issues.length > 0) {
-        core91.info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
+        core92.info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
       }
     }
     let partialSecurityResult = null;
     if (config2.partialSecurityControlDetector) {
       partialSecurityResult = detectPartialSecurityControls(diff.files);
       if (partialSecurityResult.issues.length > 0) {
-        core91.info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
+        core92.info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
       }
     }
     let paradigmClashResult = null;
     if (config2.paradigmClashDetector) {
       paradigmClashResult = detectParadigmClashes(diff.files);
       if (paradigmClashResult.issues.length > 0) {
-        core91.info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
+        core92.info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
       }
     }
     let velocityRiskResult = null;
     if (config2.velocityRiskDetector) {
       velocityRiskResult = detectVelocityRisks(diff.files);
       if (velocityRiskResult.issues.length > 0) {
-        core91.info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
+        core92.info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
       }
     }
     let rulesIntegrityResult = null;
     if (config2.rulesFileIntegrityDetector) {
       rulesIntegrityResult = detectRulesFileIntegrity(diff.files);
       if (rulesIntegrityResult.issues.length > 0) {
-        core91.info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
+        core92.info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
       }
     }
     let specDriftResult = null;
     if (config2.specDriftDetector) {
       specDriftResult = detectSpecDrift(diff.files);
       if (specDriftResult.issues.length > 0) {
-        core91.info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
+        core92.info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
       }
     }
     let iacVulnResult = null;
     if (config2.iacVulnerabilityDetector) {
       iacVulnResult = detectIaCVulnerabilities(diff.files);
       if (iacVulnResult.issues.length > 0) {
-        core91.info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
+        core92.info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
       }
     }
     let credExposureResult = null;
     if (config2.credentialExposureDetector) {
       credExposureResult = detectCredentialExposure(diff.files);
       if (credExposureResult.issues.length > 0) {
-        core91.info("Credential exposure detection: " + credExposureResult.issues.length + " issue(s)");
+        core92.info("Credential exposure detection: " + credExposureResult.issues.length + " issue(s)");
       }
     }
     let illusoryResult = null;
     if (config2.illusoryValidationDetector) {
       illusoryResult = detectIllusoryValidation(diff.files);
       if (illusoryResult.issues.length > 0) {
-        core91.info("Illusory validation detection: " + illusoryResult.issues.length + " issue(s)");
+        core92.info("Illusory validation detection: " + illusoryResult.issues.length + " issue(s)");
       }
     }
     let iterStrippingResult = null;
     if (config2.iterationStrippingDetector) {
       iterStrippingResult = detectIterationStripping(diff.files);
       if (iterStrippingResult.issues.length > 0) {
-        core91.info("Iteration stripping detection: " + iterStrippingResult.issues.length + " issue(s)");
+        core92.info("Iteration stripping detection: " + iterStrippingResult.issues.length + " issue(s)");
       }
     }
     let secParadoxResult = null;
     if (config2.securityParadoxDetector) {
       secParadoxResult = detectSecurityParadox(diff.files);
       if (secParadoxResult.issues.length > 0) {
-        core91.info("Security paradox detection: " + secParadoxResult.issues.length + " issue(s)");
+        core92.info("Security paradox detection: " + secParadoxResult.issues.length + " issue(s)");
       }
     }
     let trustBoundaryResult = null;
     if (config2.trustBoundaryDetector) {
       trustBoundaryResult = detectTrustBoundaryErosion(diff.files);
       if (trustBoundaryResult.issues.length > 0) {
-        core91.info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
+        core92.info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
       }
     }
     let aiConfigIntegrityResult = null;
     if (config2.aiConfigIntegrityDetector) {
       aiConfigIntegrityResult = detectAIConfigIntegrity(diff.files);
       if (aiConfigIntegrityResult.issues.length > 0) {
-        core91.info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
+        core92.info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
       }
     }
     let agentSafetyBypassResult = null;
     if (config2.agentSafetyBypassDetector) {
       agentSafetyBypassResult = detectAgentSafetyBypass(diff.files);
       if (agentSafetyBypassResult.issues.length > 0) {
-        core91.info("Agent safety bypass detection: " + agentSafetyBypassResult.issues.length + " issue(s)");
+        core92.info("Agent safety bypass detection: " + agentSafetyBypassResult.issues.length + " issue(s)");
       }
     }
     let agencyEscalationResult = null;
     if (config2.agencyEscalationDetector) {
       agencyEscalationResult = detectAgencyEscalation(diff.files);
       if (agencyEscalationResult.issues.length > 0) {
-        core91.info("Agency escalation detection: " + agencyEscalationResult.issues.length + " issue(s)");
+        core92.info("Agency escalation detection: " + agencyEscalationResult.issues.length + " issue(s)");
       }
     }
     let taintPathResult = null;
     if (config2.taintPathDetector) {
       taintPathResult = detectTaintPaths(diff.files);
       if (taintPathResult.issues.length > 0) {
-        core91.info("Taint path detection: " + taintPathResult.issues.length + " issue(s)");
+        core92.info("Taint path detection: " + taintPathResult.issues.length + " issue(s)");
       }
     }
     let symbolImpactResult = null;
     if (config2.symbolImpactDetector) {
       symbolImpactResult = detectSymbolImpact(diff.files);
       if (symbolImpactResult.issues.length > 0) {
-        core91.info("Symbol impact: " + symbolImpactResult.issues.length + " symbol(s) with consumers");
+        core92.info("Symbol impact: " + symbolImpactResult.issues.length + " symbol(s) with consumers");
       }
     }
     let dependencyRiskResult = null;
     if (config2.dependencyRiskDetector) {
       dependencyRiskResult = detectDependencyRisk(diff.files);
       if (dependencyRiskResult.issues.length > 0) {
-        core91.info("Dependency risk: " + dependencyRiskResult.issues.length + " issue(s)");
+        core92.info("Dependency risk: " + dependencyRiskResult.issues.length + " issue(s)");
+      }
+    }
+    let lockfileIntegrityResult = null;
+    if (config2.lockfileIntegrityDetector) {
+      lockfileIntegrityResult = detectLockfileIntegrity(diff.files);
+      if (lockfileIntegrityResult.issues.length > 0) {
+        core92.info("Lockfile integrity: " + lockfileIntegrityResult.issues.length + " issue(s)");
       }
     }
     let learningResult = null;
@@ -109195,7 +109383,7 @@ async function run() {
       try {
         learningResult = runReviewLearning(workspace);
       } catch (e) {
-        core91.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let blastResult = null;
@@ -109203,7 +109391,7 @@ async function run() {
       try {
         blastResult = runBlastRadiusAnalysis(diff.files);
       } catch (e) {
-        core91.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let specComplianceResults = [];
@@ -109219,9 +109407,9 @@ async function run() {
           diff.files,
           config2
         );
-        if (specComplianceResults.length > 0) core91.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
+        if (specComplianceResults.length > 0) core92.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
       } catch (e) {
-        core91.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let businessContextResult = null;
@@ -109236,11 +109424,11 @@ async function run() {
             mcpEndpoints
           );
           if (businessContextResult.totalTickets > 0) {
-            core91.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
+            core92.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
           }
         }
       } catch (e) {
-        core91.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let orgMemoryResult = null;
@@ -109253,11 +109441,11 @@ async function run() {
           prNumber
         );
         if (orgMemoryResult.similarPRs.length > 0) {
-          core91.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
+          core92.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
         }
         pruneOldHistory(workspace, `${owner}/${repo}`, 180);
       } catch (e) {
-        core91.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let testGapResult = null;
@@ -109266,10 +109454,10 @@ async function run() {
         const _tgr = runTestGapDetection(diff.files, workspace);
         testGapResult = _tgr;
         if (_tgr.gaps.length > 0) {
-          core91.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
+          core92.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
         }
       } catch (e) {
-        core91.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let complexityResult = null;
@@ -109282,9 +109470,9 @@ async function run() {
           blastResult?.totalImpact ?? 0,
           taintResult?.traces.length ?? 0
         );
-        core91.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
+        core92.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
       } catch (e) {
-        core91.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let splitResult = null;
@@ -109292,10 +109480,10 @@ async function run() {
       try {
         splitResult = suggestPRSplits(diff.files, complexityResult.score, complexityResult.category);
         if (splitResult.shouldSplit) {
-          core91.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
+          core92.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
         }
       } catch (e) {
-        core91.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let lifecycleResult = null;
@@ -109305,10 +109493,10 @@ async function run() {
         const prev = loadPreviousFindings(workspace, owner, repo, prNumber);
         lifecyclePromptCtx = prev.promptContext;
         if (prev.previousSnapshot) {
-          core91.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
+          core92.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
         }
       } catch (e) {
-        core91.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let intentResult = null;
@@ -109316,10 +109504,10 @@ async function run() {
       try {
         intentResult = classifyIntents(diff.files);
         if (intentResult.fileIntents.length > 0) {
-          core91.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
+          core92.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
         }
       } catch (e) {
-        core91.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let depImpactResult = null;
@@ -109327,10 +109515,10 @@ async function run() {
       try {
         depImpactResult = analyzeDepImpact(diff.files);
         if (depImpactResult.changes.length > 0) {
-          core91.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
+          core92.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
         }
       } catch (e) {
-        core91.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let threadContinuityResult = null;
@@ -109341,11 +109529,11 @@ async function run() {
         if (prAuthor) {
           threadContinuityResult = await analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor);
           if (threadContinuityResult.dismissalCount > 0) {
-            core91.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
+            core92.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
           }
         }
       } catch (e) {
-        core91.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let authBoundaryResult = null;
@@ -109363,7 +109551,7 @@ async function run() {
           });
         }
       } catch (e) {
-        core91.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let fatigueDashboardBody = "";
@@ -109374,10 +109562,10 @@ async function run() {
         const fatigueResult = buildFatigueDashboard(workspace, suppressed);
         if (fatigueResult.categories.length > 0) {
           fatigueDashboardBody = formatFatigueDashboard(fatigueResult);
-          core91.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
+          core92.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
         }
       } catch (e) {
-        core91.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let entropyResult = null;
@@ -109395,24 +109583,24 @@ async function run() {
           });
         }
       } catch (e) {
-        core91.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let linterFindings = [];
     try {
       linterFindings = runLinters(workspace, diff.files.map((f) => f.path));
-      if (linterFindings.length > 0) core91.info(`Linters: ${linterFindings.length} finding(s)`);
+      if (linterFindings.length > 0) core92.info(`Linters: ${linterFindings.length} finding(s)`);
     } catch (e) {
-      core91.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+      core92.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const depFindings = runDependencyAudit(workspace);
       if (depFindings.length > 0) {
         linterFindings.push(...depFindings);
-        core91.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
+        core92.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
       }
     } catch (e) {
-      core91.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core92.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     const preFeedbackStore = readFeedbackStore(workspace);
@@ -109436,19 +109624,19 @@ ${manualInstructions}`;
         context3.rulesContent += `
 
 ` + projectIndex.contextText;
-        core91.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
+        core92.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
       }
     } catch (e) {
-      core91.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core92.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const repoHealth = computeRepoHealth(workspace, projectIndex ? projectIndex.keyFiles : []);
       if (repoHealth.contextText) {
         context3.rulesContent += "\n\n" + repoHealth.contextText;
-        core91.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
+        core92.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
       }
     } catch (e) {
-      core91.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core92.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     let chunkPlan;
     try {
@@ -109456,18 +109644,18 @@ ${manualInstructions}`;
         chunkPlan = planChunkedReview(diff.files);
         if (chunkPlan.contextText) {
           context3.rulesContent += "\n\n" + chunkPlan.contextText;
-          core91.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
+          core92.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
         }
       }
     } catch (e) {
-      core91.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core92.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const adrContextStr = buildADRContext(adrs);
     if (adrContextStr) {
       context3.rulesContent += String.raw`
 
 ${adrContextStr}`;
-      core91.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
+      core92.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
     }
     if (taintResult && taintResult.traces.length > 0) {
       const taintContextStr = buildTaintContext(taintResult);
@@ -109617,6 +109805,9 @@ ${taintContextStr}`;
       if (dependencyRiskResult && dependencyRiskResult.contextText) {
         context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dependencyRiskResult.contextText;
       }
+      if (lockfileIntegrityResult && lockfileIntegrityResult.contextText) {
+        context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lockfileIntegrityResult.contextText;
+      }
     }
     if (credExposureResult && credExposureResult.contextText) {
       context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -109710,7 +109901,7 @@ ${testGapResult.contextText}`;
     if (config2.adaptiveStrategy) {
       const strategyPrompt = buildStrategyPrompt(prClassification.category);
       context3.rulesContent += strategyPrompt;
-      core91.info(`Adaptive strategy: ${prClassification.category}`);
+      core92.info(`Adaptive strategy: ${prClassification.category}`);
     }
     if (config2.defenseFramework) {
       try {
@@ -109724,14 +109915,14 @@ ${testGapResult.contextText}`;
         if (context3.ghostContent) {
           context3.ghostContent = defendInput(context3.ghostContent, "retrieved", "ghost-context");
         }
-        core91.info("Defense framework: input provenance tags applied");
+        core92.info("Defense framework: input provenance tags applied");
       } catch (e) {
-        core91.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const guarded = guardContextWindow(context3.diffText, config2.provider);
     if (guarded.truncated) {
-      core91.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
+      core92.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
     }
     context3.diffText = guarded.text;
     if (slopResult.isSlop) {
@@ -109743,7 +109934,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let swarmResult = null;
     if (config2.swarmReview && classification.tier !== "light") {
       try {
-        core91.info("Running swarm review (3 specialist agents in parallel)...");
+        core92.info("Running swarm review (3 specialist agents in parallel)...");
         swarmResult = await runSwarmReview(
           context3.diffText,
           positionHint,
@@ -109751,16 +109942,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           classification
         );
         if (swarmResult.findings.length > 0) {
-          core91.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
+          core92.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
         }
       } catch (e) {
-        core91.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let agentContext = "";
     if (classification.tier !== "light") {
       try {
-        core91.info("Running agent context gathering...");
+        core92.info("Running agent context gathering...");
         agentContext = await runAgentContextGathering(
           context3.diffText,
           config2,
@@ -109774,7 +109965,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           context3.ghostContent += "\n\n## Agent-Explored Context\n" + agentContext;
         }
       } catch (e) {
-        core91.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (swarmResult && swarmResult.findings.length > 0) {
@@ -109790,16 +109981,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           content: f.hunks.flatMap((h) => h.changes).map((c) => c.content).join("\n")
         })));
         if (reviewPlan.cached.length > 0) {
-          core91.info(formatCacheStats(reviewPlan.stats));
+          core92.info(formatCacheStats(reviewPlan.stats));
         }
         if (reviewPlan.toReview.length < diff.files.length) {
-          core91.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
+          core92.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
         }
       } catch (e) {
-        core91.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
+        core92.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core91.info("Running review pass...");
+    core92.info("Running review pass...");
     const { output: review, usage: reviewUsage } = await runReview(
       context3.diffText,
       positionHint,
@@ -109810,7 +110001,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       classification,
       context3.learningContent
     );
-    core91.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
+    core92.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
     if (config2.reviewCache && review.comments.length > 0) {
       try {
         const filesByPath = new Map(diff.files.map((f) => [f.path, f]));
@@ -109830,16 +110021,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           cacheReviewResults(workspace, cacheInput);
         }
       } catch (e) {
-        core91.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
+        core92.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core91.info("Running self-critique pass...");
+    core92.info("Running self-critique pass...");
     await rateLimiter.acquire();
     const filtered = await runCritique(review, config2);
-    core91.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
+    core92.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
     const learningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     if (Object.keys(learningWeights).length > 0) {
-      core91.info("Learning weights: " + JSON.stringify(learningWeights));
+      core92.info("Learning weights: " + JSON.stringify(learningWeights));
       const adjusted = applyLearningWeights(filtered.comments, learningWeights);
       filtered.comments = adjusted;
     }
@@ -109847,13 +110038,13 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       const feedbackStore = readFeedbackStore(workspace);
       const suppressed = computeSuppressedPatterns(feedbackStore);
       if (suppressed.size > 0) {
-        core91.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
+        core92.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
         filtered.comments = applyNoiseReduction(filtered.comments, suppressed);
         if (learningResult && learningResult.newRules.length > 0) {
           filtered.comments = applyNegativeRules(filtered.comments, learningResult.newRules);
         }
         const reduced = filtered.comments.filter((c) => c.confidence < config2.confidenceThreshold).length;
-        if (reduced > 0) core91.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
+        if (reduced > 0) core92.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
       }
     } catch {
     }
@@ -109866,7 +110057,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let complianceResults = [];
     if (config2.confidenceCalibration || config2.complianceCheck) {
       const calibrationPromise = config2.confidenceCalibration ? calibrateConfidence(filtered, config2).catch((e) => {
-        core91.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
         return null;
       }) : Promise.resolve(null);
       const compliancePromise = config2.complianceCheck ? (async () => {
@@ -109884,7 +110075,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             config2
           );
         } catch (e) {
-          core91.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
           return [];
         }
       })() : Promise.resolve([]);
@@ -109892,12 +110083,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       if (calibrated) {
         const highCount = calibrated.filter((c) => c.calibratedConfidence === "high").length;
         const lowCount = calibrated.filter((c) => c.calibratedConfidence === "low").length;
-        core91.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
+        core92.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
         filtered.comments = calibrated;
       }
       complianceResults = compliance;
       if (complianceResults.length > 0) {
-        core91.info("Compliance: " + complianceResults.length + " issue(s) checked");
+        core92.info("Compliance: " + complianceResults.length + " issue(s) checked");
       }
     }
     const mergedComments = [
@@ -109944,10 +110135,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         mergedComments.length = 0;
         mergedComments.push(...supFiltered);
         if (supResult.suppressedCount > 0) {
-          core91.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
+          core92.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
         }
       } catch (e) {
-        core91.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const mergedReview = { ...filtered, comments: mergedComments };
@@ -109956,15 +110147,15 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         const { dedupFindings: dedup, formatDedupStats: fmtDedup } = await Promise.resolve().then(() => (init_finding_dedup(), finding_dedup_exports));
         const dedupResult = dedup([{ name: "merged", findings: mergedReview.comments }]);
         if (dedupResult.stats.duplicatesRemoved > 0 || dedupResult.stats.proximityMerges > 0) {
-          core91.info(fmtDedup(dedupResult.stats));
+          core92.info(fmtDedup(dedupResult.stats));
           mergedReview.comments = dedupResult.findings;
         }
       } catch (e) {
-        core91.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
+        core92.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (suppressionResult && suppressionResult.contextText) {
-      core91.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
+      core92.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
     }
     let ownershipBody = "";
     let crossPRResult = null;
@@ -109975,10 +110166,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           const ownership = matchOwnership(diff.files, ownershipRules);
           mergedReview.comments = applyOwnershipToFindings(mergedReview.comments, ownership);
           ownershipBody = buildOwnershipSummary(ownership);
-          if (ownershipBody) core91.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
+          if (ownershipBody) core92.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
         }
       } catch (e) {
-        core91.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let behavioralBody = "";
@@ -109986,9 +110177,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       try {
         const behavioralResult = await generateBehavioralSummary(diff.rawDiff, diff.files, config2);
         behavioralBody = formatBehavioralSummary(behavioralResult);
-        core91.info("Behavioral summary: " + behavioralResult.headline);
+        core92.info("Behavioral summary: " + behavioralResult.headline);
       } catch (e) {
-        core91.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const currentFindings = mergedReview.comments.map((c) => ({
@@ -110003,12 +110194,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       prNumber,
       currentFindings
     );
-    if (deletedCount > 0) core91.info(`Cleaned up ${deletedCount} outdated comment(s)`);
+    if (deletedCount > 0) core92.info(`Cleaned up ${deletedCount} outdated comment(s)`);
     if (config2.defenseFramework) {
       try {
         const defenseValidation = validateReviewOutput(mergedReview);
         if (!defenseValidation.valid) {
-          core91.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
+          core92.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
           for (const c of mergedReview.comments) {
             c.message = defendOutput(c.message);
           }
@@ -110017,21 +110208,21 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             c.message = defendOutput(c.message);
           }
         }
-        core91.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
+        core92.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
       } catch (e) {
-        core91.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.dryRun) {
-      core91.info("DRY RUN: Skipping review post. Findings:");
+      core92.info("DRY RUN: Skipping review post. Findings:");
       for (const c of mergedReview.comments) {
-        core91.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
+        core92.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
       }
-      core91.setOutput("review_id", 0);
-      core91.setOutput("finding_count", mergedReview.comments.length);
-      core91.setOutput("risk_score", mergedReview.riskScore);
+      core92.setOutput("review_id", 0);
+      core92.setOutput("finding_count", mergedReview.comments.length);
+      core92.setOutput("risk_score", mergedReview.riskScore);
     } else {
-      core91.info("Posting review...");
+      core92.info("Posting review...");
       const result = await postReview(
         octokit,
         owner,
@@ -110043,7 +110234,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         config2,
         diff.files
       );
-      core91.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+      core92.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
       if (config2.checksApi && !config2.dryRun) {
         try {
           const checkResult = await createCheckRun(
@@ -110054,9 +110245,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             mergedReview.comments,
             mergedReview.riskScore
           );
-          core91.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
+          core92.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
         } catch (e) {
-          core91.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (behavioralBody) {
@@ -110068,7 +110259,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: behavioralBody
           });
         } catch (e) {
-          core91.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (fatigueDashboardBody) {
@@ -110080,7 +110271,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: fatigueDashboardBody
           });
         } catch (e) {
-          core91.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (lifecycleResult) {
@@ -110096,7 +110287,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
                 body: lifecycleBody
               });
             } catch (e) {
-              core91.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
         }
@@ -110110,7 +110301,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: intentResult.bodySummary
           });
         } catch (e) {
-          core91.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (depImpactResult && depImpactResult.bodySummary) {
@@ -110122,7 +110313,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: depImpactResult.bodySummary
           });
         } catch (e) {
-          core91.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (threadContinuityResult && threadContinuityResult.bodySummary) {
@@ -110134,7 +110325,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: threadContinuityResult.bodySummary
           });
         } catch (e) {
-          core91.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (ownershipBody) {
@@ -110152,7 +110343,7 @@ ${ownershipBody}
             body: ownershipComment
           });
         } catch (e) {
-          core91.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (deltaBody) {
@@ -110170,22 +110361,22 @@ ${deltaBody}
             body: deltaComment
           });
         } catch (e) {
-          core91.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (config2.deltaReview) {
         try {
           recordReviewedSha(workspace, owner, repo, prNumber, headSha);
         } catch (e) {
-          core91.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
         }
       }
-      core91.setOutput("review_id", result.reviewId);
-      core91.setOutput("finding_count", result.findingCount);
-      core91.setOutput("risk_score", result.riskScore);
+      core92.setOutput("review_id", result.reviewId);
+      core92.setOutput("finding_count", result.findingCount);
+      core92.setOutput("risk_score", result.riskScore);
       if (complianceResults.length > 0) {
         const topCompliance = complianceResults[0].compliance;
-        core91.setOutput("compliance", topCompliance);
+        core92.setOutput("compliance", topCompliance);
         const complianceBody = formatCompliance(complianceResults);
         if (complianceBody) {
           await octokit.rest.issues.createComment({
@@ -110196,13 +110387,13 @@ ${deltaBody}
           });
         }
       } else {
-        core91.setOutput("compliance", "none");
+        core92.setOutput("compliance", "none");
       }
       if (config2.autoLabels) {
         try {
           await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
         } catch (e) {
-          core91.warning("Auto-labeling failed: " + (e?.message || String(e)));
+          core92.warning("Auto-labeling failed: " + (e?.message || String(e)));
         }
       }
     }
@@ -110219,9 +110410,9 @@ ${deltaBody}
           threshold: config2.gateThreshold,
           findingCount: mergedReview.comments.length
         });
-        core91.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
+        core92.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
       } catch (e) {
-        core91.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
       }
       if (config2.safetyScore && !config2.dryRun) {
         try {
@@ -110233,9 +110424,9 @@ ${deltaBody}
           };
           const safetyResult = computeSafetyScore(safetyInput);
           await postSafetyScore(octokit, owner, repo, headSha, prNumber, safetyResult.score);
-          core91.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
+          core92.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
         } catch (e) {
-          core91.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     }
@@ -110265,29 +110456,29 @@ ${digest}
 ---
 *Posted by Mizumi*`;
         await createOrUpdateSpendComment(octokit, owner, repo, prNumber, dashboardBody);
-        core91.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
+        core92.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
       } catch (e) {
-        core91.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.findingLifecycle) {
       try {
         lifecycleResult = trackFindings(workspace, owner, repo, prNumber, headSha, mergedReview.comments);
         if (lifecycleResult.currentIteration > 1) {
-          core91.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
+          core92.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
         }
       } catch (e) {
-        core91.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.crossPRPersistence) {
       try {
         crossPRResult = trackCrossPRFindings(workspace, `${owner}/${repo}#${prNumber}`, mergedReview.comments);
         if (crossPRResult.recurringFindings.length > 0) {
-          core91.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
+          core92.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
         }
       } catch (e) {
-        core91.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (assertionAuditResult && assertionAuditResult.bodySummary) {
@@ -110299,7 +110490,7 @@ ${digest}
           body: assertionAuditResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (breakingChangeResult && breakingChangeResult.bodySummary) {
@@ -110311,7 +110502,7 @@ ${digest}
           body: breakingChangeResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (importCycleResult && importCycleResult.bodySummary) {
@@ -110323,7 +110514,7 @@ ${digest}
           body: importCycleResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Import cycle detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Import cycle detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (deadCodeResult && deadCodeResult.bodySummary) {
@@ -110335,7 +110526,7 @@ ${digest}
           body: deadCodeResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Dead code detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Dead code detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (typeErosionResult && typeErosionResult.bodySummary) {
@@ -110347,7 +110538,7 @@ ${digest}
           body: typeErosionResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Type safety erosion comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Type safety erosion comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (techDebtResult && techDebtResult.bodySummary) {
@@ -110359,7 +110550,7 @@ ${digest}
           body: techDebtResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (magicNumberResult && magicNumberResult.bodySummary) {
@@ -110371,7 +110562,7 @@ ${digest}
           body: magicNumberResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (errorHandlingResult && errorHandlingResult.bodySummary) {
@@ -110383,7 +110574,7 @@ ${digest}
           body: errorHandlingResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Error handling gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Error handling gap comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (perfAntiPatternResult && perfAntiPatternResult.bodySummary) {
@@ -110395,7 +110586,7 @@ ${digest}
           body: perfAntiPatternResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Performance anti-pattern comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Performance anti-pattern comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (resourceLifecycleResult && resourceLifecycleResult.bodySummary) {
@@ -110407,7 +110598,7 @@ ${digest}
           body: resourceLifecycleResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Resource lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Resource lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (observabilityGapResult && observabilityGapResult.bodySummary) {
@@ -110419,7 +110610,7 @@ ${digest}
           body: observabilityGapResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Observability gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Observability gap comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (concurrencyHazardResult && concurrencyHazardResult.bodySummary) {
@@ -110431,7 +110622,7 @@ ${digest}
           body: concurrencyHazardResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Concurrency hazard comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Concurrency hazard comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (lifecycleProtocolResult && lifecycleProtocolResult.bodySummary) {
@@ -110443,7 +110634,7 @@ ${digest}
           body: lifecycleProtocolResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Lifecycle protocol comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Lifecycle protocol comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (semanticConfusionResult && semanticConfusionResult.bodySummary) {
@@ -110455,7 +110646,7 @@ ${digest}
           body: semanticConfusionResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Semantic type confusion comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Semantic type confusion comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (dataFlowBoundaryResult && dataFlowBoundaryResult.bodySummary) {
@@ -110467,7 +110658,7 @@ ${digest}
           body: dataFlowBoundaryResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Data flow boundary comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Data flow boundary comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (nullGuardResult && nullGuardResult.bodySummary) {
@@ -110479,7 +110670,7 @@ ${digest}
           body: nullGuardResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Null guard comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Null guard comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (aiPathologyResult && aiPathologyResult.bodySummary) {
@@ -110491,7 +110682,7 @@ ${digest}
           body: aiPathologyResult.bodySummary
         });
       } catch (e) {
-        core91.warning("AI code pathology comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("AI code pathology comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (ungatedReturnResult && ungatedReturnResult.bodySummary) {
@@ -110503,7 +110694,7 @@ ${digest}
           body: ungatedReturnResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Ungated critical return comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Ungated critical return comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (hardcodedConfigResult && hardcodedConfigResult.bodySummary) {
@@ -110515,7 +110706,7 @@ ${digest}
           body: hardcodedConfigResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Hardcoded config comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Hardcoded config comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (debugArtifactResult && debugArtifactResult.bodySummary) {
@@ -110527,7 +110718,7 @@ ${digest}
           body: debugArtifactResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Debug artifact comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Debug artifact comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (callbackMisuseResult && callbackMisuseResult.bodySummary) {
@@ -110539,7 +110730,7 @@ ${digest}
           body: callbackMisuseResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Callback misuse comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Callback misuse comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
       if (staleClosureResult && staleClosureResult.bodySummary) {
         try {
@@ -110550,7 +110741,7 @@ ${digest}
             body: staleClosureResult.bodySummary
           });
         } catch (e) {
-          core91.warning("Stale closure comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core92.warning("Stale closure comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
         if (hallucinatedDepResult && hallucinatedDepResult.bodySummary) {
           try {
@@ -110561,7 +110752,7 @@ ${digest}
               body: hallucinatedDepResult.bodySummary
             });
           } catch (e) {
-            core91.warning("Hallucinated dependency comment failed: " + (e instanceof Error ? e.message : String(e)));
+            core92.warning("Hallucinated dependency comment failed: " + (e instanceof Error ? e.message : String(e)));
           }
           if (tautologicalTestResult && tautologicalTestResult.bodySummary) {
             try {
@@ -110572,7 +110763,7 @@ ${digest}
                 body: tautologicalTestResult.bodySummary
               });
             } catch (e) {
-              core91.warning("Tautological test comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Tautological test comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
           if (contextAmplificationResult && contextAmplificationResult.bodySummary) {
@@ -110584,7 +110775,7 @@ ${digest}
                 body: contextAmplificationResult.bodySummary
               });
             } catch (e) {
-              core91.warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
           if (cargoCultResult && cargoCultResult.bodySummary) {
@@ -110596,7 +110787,7 @@ ${digest}
                 body: cargoCultResult.bodySummary
               });
             } catch (e) {
-              core91.warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
           if (confabulatedAPIResult && confabulatedAPIResult.bodySummary) {
@@ -110608,7 +110799,7 @@ ${digest}
                 body: confabulatedAPIResult.bodySummary
               });
             } catch (e) {
-              core91.warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
           if (partialSecurityResult && partialSecurityResult.bodySummary) {
@@ -110628,7 +110819,7 @@ ${digest}
                     body: paradigmClashResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (velocityRiskResult && velocityRiskResult.bodySummary) {
@@ -110640,7 +110831,7 @@ ${digest}
                     body: velocityRiskResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (rulesIntegrityResult && rulesIntegrityResult.bodySummary) {
@@ -110652,7 +110843,7 @@ ${digest}
                     body: rulesIntegrityResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (specDriftResult && specDriftResult.bodySummary) {
@@ -110664,7 +110855,7 @@ ${digest}
                     body: specDriftResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (iacVulnResult && iacVulnResult.bodySummary) {
@@ -110676,7 +110867,7 @@ ${digest}
                     body: iacVulnResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (illusoryResult && illusoryResult.bodySummary) {
@@ -110688,7 +110879,7 @@ ${digest}
                     body: illusoryResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post illusory validation summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post illusory validation summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (iterStrippingResult && iterStrippingResult.bodySummary) {
@@ -110700,7 +110891,7 @@ ${digest}
                     body: iterStrippingResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post iteration stripping summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post iteration stripping summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (secParadoxResult && secParadoxResult.bodySummary) {
@@ -110712,7 +110903,7 @@ ${digest}
                     body: secParadoxResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post security paradox summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post security paradox summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (trustBoundaryResult && trustBoundaryResult.bodySummary) {
@@ -110724,7 +110915,7 @@ ${digest}
                     body: trustBoundaryResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (aiConfigIntegrityResult && aiConfigIntegrityResult.bodySummary) {
@@ -110736,7 +110927,7 @@ ${digest}
                     body: aiConfigIntegrityResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
@@ -110748,7 +110939,7 @@ ${digest}
                     body: agentSafetyBypassResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (agencyEscalationResult && agencyEscalationResult.bodySummary) {
@@ -110760,7 +110951,7 @@ ${digest}
                     body: agencyEscalationResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post agency escalation summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post agency escalation summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (taintPathResult && taintPathResult.bodySummary) {
@@ -110772,7 +110963,7 @@ ${digest}
                     body: taintPathResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post taint path summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post taint path summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (symbolImpactResult && symbolImpactResult.bodySummary) {
@@ -110784,7 +110975,7 @@ ${digest}
                     body: symbolImpactResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post symbol impact summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post symbol impact summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (dependencyRiskResult && dependencyRiskResult.bodySummary) {
@@ -110796,7 +110987,19 @@ ${digest}
                     body: dependencyRiskResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post dependency risk summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post dependency risk summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (lockfileIntegrityResult && lockfileIntegrityResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: lockfileIntegrityResult.bodySummary
+                  });
+                } catch (e) {
+                  core92.warning("Failed to post lockfile integrity summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
               if (credExposureResult && credExposureResult.bodySummary) {
@@ -110808,11 +111011,11 @@ ${digest}
                     body: credExposureResult.bodySummary
                   });
                 } catch (e) {
-                  core91.warning("Failed to post credential exposure summary: " + (e instanceof Error ? e.message : String(e)));
+                  core92.warning("Failed to post credential exposure summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
             } catch (e) {
-              core91.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core92.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
         }
@@ -110827,7 +111030,7 @@ ${digest}
           body: driftResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
@@ -110839,7 +111042,7 @@ ${digest}
           body: crossPRConflictResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (crossPRResult && crossPRResult.bodySummary) {
@@ -110851,24 +111054,24 @@ ${digest}
           body: crossPRResult.bodySummary
         });
       } catch (e) {
-        core91.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.sarifExport && mergedReview.comments.length > 0) {
       try {
         const sarif = generateSARIF(mergedReview.comments, `https://github.com/${owner}/${repo}`);
         const sarifPath = writeSARIF(workspace, sarif);
-        core91.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
+        core92.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
         if (!config2.dryRun) {
           const uploadId = await uploadSARIF(octokit, owner, repo, headSha, sarifPath);
           if (uploadId) {
-            core91.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
+            core92.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
           } else {
-            core91.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
+            core92.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
           }
         }
       } catch (e) {
-        core91.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewPriority && mergedReview.comments.length > 0) {
@@ -110881,7 +111084,7 @@ ${digest}
           recurrenceCount: crossPRResult ? crossPRResult.recurringFindings.find((r) => r.inCurrentPR && r.category === c.category)?.prCount ?? 0 : 0
         }));
         const priorityResult = prioritizeFindings(priorityInputs);
-        core91.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
+        core92.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
         if (priorityResult.bodySummary) {
           try {
             await octokit.rest.issues.createComment({
@@ -110891,11 +111094,11 @@ ${digest}
               body: priorityResult.bodySummary
             });
           } catch (e) {
-            core91.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
+            core92.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
           }
         }
       } catch (e) {
-        core91.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     recordFindings(
@@ -110921,21 +111124,21 @@ ${digest}
           mergedReview.riskScore
         );
       } catch (e) {
-        core91.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     writeMemory(workspace, context3.memoryContent, memoryUpdate);
     const updatedMemory = readMemory(workspace);
     const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
-    if (generatedSkills.length > 0) core91.info(`Auto-generated ${generatedSkills.length} skill(s)`);
+    if (generatedSkills.length > 0) core92.info(`Auto-generated ${generatedSkills.length} skill(s)`);
     try {
       const defaultBranch = github.context.payload.repository?.default_branch || "main";
       const persistResult = await persistLearningData(octokit, owner, repo, defaultBranch, workspace);
       if (persistResult.committed) {
-        core91.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
+        core92.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
       }
     } catch (e) {
-      core91.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
+      core92.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
     }
     if (config2.auditTrail) {
       try {
@@ -110995,6 +111198,7 @@ ${digest}
         if (config2.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true);
         if (config2.symbolImpactDetector) auditBuilder.logStage("symbol-impact-detect", 0, true);
         if (config2.dependencyRiskDetector) auditBuilder.logStage("dependency-risk-detect", 0, true);
+        if (config2.lockfileIntegrityDetector) auditBuilder.logStage("lockfile-integrity-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
@@ -111004,9 +111208,9 @@ ${digest}
         auditBuilder.setConfigSnapshot(config2);
         const trail = auditBuilder.build();
         writeAuditTrail(workspace, trail);
-        core91.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
+        core92.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
       } catch (e) {
-        core91.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewDashboard) {
@@ -111014,9 +111218,9 @@ ${digest}
         const dashMetrics = collectDashboardMetrics({ workspace, repoId: owner + "/" + repo });
         const dashHtml = generateDashboardHTML(dashMetrics, owner + "/" + repo);
         writeDashboard(workspace, dashHtml);
-        core91.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
+        core92.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
       } catch (e) {
-        core91.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewReplay && config2.auditTrail) {
@@ -111038,18 +111242,18 @@ ${timelineBody}
 *Posted by Mizumi*`
             });
           }
-          core91.info("Review replay: posted timeline with " + prRuns.length + " runs");
+          core92.info("Review replay: posted timeline with " + prRuns.length + " runs");
         }
       } catch (e) {
-        core91.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
+        core92.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core91.info("Mizumi review complete");
+    core92.info("Mizumi review complete");
   } catch (error52) {
-    core91.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
-    core91.setOutput("review_id", 0);
-    core91.setOutput("finding_count", 0);
-    core91.setOutput("risk_score", -1);
+    core92.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
+    core92.setOutput("review_id", 0);
+    core92.setOutput("finding_count", 0);
+    core92.setOutput("risk_score", -1);
   }
 }
 function getPrNumber(ctx) {
@@ -111065,7 +111269,7 @@ function getPrNumber(ctx) {
   return null;
 }
 void run().catch((e) => {
-  core91.setFailed(`Fatal: ${e}`);
+  core92.setFailed(`Fatal: ${e}`);
   process.exit(0);
 });
 /*! Bundled license information:

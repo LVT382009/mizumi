@@ -336,6 +336,7 @@ nullGuardDetector: true,
     taintPathDetector: true,
     symbolImpactDetector: true,
     dependencyRiskDetector: true,
+    lockfileIntegrityDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

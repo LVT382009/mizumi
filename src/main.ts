@@ -125,6 +125,7 @@ import { detectAgencyEscalation } from "./agency-escalation-detector.js";
 import { detectTaintPaths } from "./taint-path-detector.js";
 import { detectSymbolImpact } from "./symbol-impact-detector.js";
 import { detectDependencyRisk } from "./dependency-risk-detector.js";
+import { detectLockfileIntegrity } from "./lockfile-integrity-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -947,6 +948,15 @@ if (config.dependencyRiskDetector) {
     core.info("Dependency risk: " + dependencyRiskResult.issues.length + " issue(s)");
   }
 }
+// 4a3zw. Lockfile integrity detector — missing lockfile updates, orphan changes, version drift
+let lockfileIntegrityResult: import("./lockfile-integrity-detector.js").LockfileResult | null = null;
+if (config.lockfileIntegrityDetector) {
+  lockfileIntegrityResult = detectLockfileIntegrity(diff.files);
+  if (lockfileIntegrityResult.issues.length > 0) {
+    core.info("Lockfile integrity: " + lockfileIntegrityResult.issues.length + " issue(s)");
+  }
+}
+
 
 
 
@@ -1456,6 +1466,9 @@ if (symbolImpactResult && symbolImpactResult.contextText) {
 }
 if (dependencyRiskResult && dependencyRiskResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dependencyRiskResult.contextText;
+}
+if (lockfileIntegrityResult && lockfileIntegrityResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lockfileIntegrityResult.contextText;
 }
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -2662,6 +2675,18 @@ if (dependencyRiskResult && dependencyRiskResult.bodySummary) {
     core.warning("Failed to post dependency risk summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (lockfileIntegrityResult && lockfileIntegrityResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: lockfileIntegrityResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post lockfile integrity summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2868,6 +2893,7 @@ if (config.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-de
 if (config.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true);
 if (config.symbolImpactDetector) auditBuilder.logStage("symbol-impact-detect", 0, true);
 if (config.dependencyRiskDetector) auditBuilder.logStage("dependency-risk-detect", 0, true);
+if (config.lockfileIntegrityDetector) auditBuilder.logStage("lockfile-integrity-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

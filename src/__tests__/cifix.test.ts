@@ -170,6 +170,7 @@ nullGuardDetector: true,
     taintPathDetector: true,
     symbolImpactDetector: true,
     dependencyRiskDetector: true,
+    lockfileIntegrityDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {
