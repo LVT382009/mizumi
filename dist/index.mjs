@@ -37,6 +37,137 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// node_modules/content-type/dist/index.js
+var require_dist = __commonJS({
+  "node_modules/content-type/dist/index.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.format = format;
+    exports.parse = parse5;
+    var TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
+    var TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+    var QUOTE_REGEXP = /[\\"]/g;
+    var TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+    var NullObject = /* @__PURE__ */ (() => {
+      const C = function() {
+      };
+      C.prototype = /* @__PURE__ */ Object.create(null);
+      return C;
+    })();
+    function format(obj) {
+      const { type, parameters } = obj;
+      if (!type || !TYPE_REGEXP.test(type)) {
+        throw new TypeError(`Invalid type: ${type}`);
+      }
+      let result = type;
+      if (parameters) {
+        for (const param of Object.keys(parameters)) {
+          if (!TOKEN_REGEXP.test(param)) {
+            throw new TypeError(`Invalid parameter name: ${param}`);
+          }
+          result += `; ${param}=${qstring(parameters[param])}`;
+        }
+      }
+      return result;
+    }
+    function parse5(header, options) {
+      const len = header.length;
+      let index = skipOWS(header, 0, len);
+      const valueStart = index;
+      index = skipValue(header, index, len);
+      const valueEnd = trailingOWS(header, valueStart, index);
+      const type = header.slice(valueStart, valueEnd).toLowerCase();
+      const parameters = options?.parameters === false ? new NullObject() : parseParameters(header, index, len);
+      return { type, parameters };
+    }
+    var SP = 32;
+    var HTAB = 9;
+    var SEMI = 59;
+    var EQ = 61;
+    var DQUOTE = 34;
+    var BSLASH = 92;
+    function parseParameters(header, index, len) {
+      const parameters = new NullObject();
+      parameter: while (index < len) {
+        index = skipOWS(header, index + 1, len);
+        const keyStart = index;
+        while (index < len) {
+          const code = header.charCodeAt(index);
+          if (code === SEMI)
+            continue parameter;
+          if (code === EQ) {
+            const keyEnd = trailingOWS(header, keyStart, index);
+            const key = header.slice(keyStart, keyEnd).toLowerCase();
+            index = skipOWS(header, index + 1, len);
+            if (index < len && header.charCodeAt(index) === DQUOTE) {
+              index++;
+              let value = "";
+              while (index < len) {
+                const code2 = header.charCodeAt(index++);
+                if (code2 === DQUOTE) {
+                  index = skipValue(header, index, len);
+                  if (parameters[key] === void 0)
+                    parameters[key] = value;
+                  break;
+                }
+                if (code2 === BSLASH && index < len) {
+                  value += header[index++];
+                  continue;
+                }
+                value += String.fromCharCode(code2);
+              }
+              continue parameter;
+            }
+            const valueStart = index;
+            index = skipValue(header, index, len);
+            if (parameters[key] === void 0) {
+              const valueEnd = trailingOWS(header, valueStart, index);
+              parameters[key] = header.slice(valueStart, valueEnd);
+            }
+            continue parameter;
+          }
+          index++;
+        }
+      }
+      return parameters;
+    }
+    function skipValue(str, index, len) {
+      while (index < len) {
+        const char = str.charCodeAt(index);
+        if (char === SEMI)
+          break;
+        index++;
+      }
+      return index;
+    }
+    function skipOWS(header, index, len) {
+      while (index < len) {
+        const char = header.charCodeAt(index);
+        if (char !== SP && char !== HTAB)
+          break;
+        index++;
+      }
+      return index;
+    }
+    function trailingOWS(header, start, end) {
+      while (end > start) {
+        const char = header.charCodeAt(end - 1);
+        if (char !== SP && char !== HTAB)
+          break;
+        end--;
+      }
+      return end;
+    }
+    function qstring(str) {
+      if (TOKEN_REGEXP.test(str))
+        return str;
+      if (TEXT_REGEXP.test(str))
+        return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
+      throw new TypeError(`Invalid parameter value: ${str}`);
+    }
+  }
+});
+
 // node_modules/bottleneck/light.js
 var require_light = __commonJS({
   "node_modules/bottleneck/light.js"(exports, module) {
@@ -48,19 +179,19 @@ var require_light = __commonJS({
       function getCjsExportFromNamespace(n) {
         return n && n["default"] || n;
       }
-      var load = function(received, defaults, onto = {}) {
+      var load = function(received, defaults2, onto = {}) {
         var k, ref, v;
-        for (k in defaults) {
-          v = defaults[k];
+        for (k in defaults2) {
+          v = defaults2[k];
           onto[k] = (ref = received[k]) != null ? ref : v;
         }
         return onto;
       };
-      var overwrite = function(received, defaults, onto = {}) {
+      var overwrite = function(received, defaults2, onto = {}) {
         var k, v;
         for (k in received) {
           v = received[k];
-          if (defaults[k] !== void 0) {
+          if (defaults2[k] !== void 0) {
             onto[k] = v;
           }
         }
@@ -1640,8 +1771,8 @@ var require_auth_config = __commonJS({
       writeAuthConfig: () => writeAuthConfig
     });
     module.exports = __toCommonJS(auth_config_exports);
-    var fs23 = __toESM2(__require("fs"));
-    var path25 = __toESM2(__require("path"));
+    var fs24 = __toESM2(__require("fs"));
+    var path27 = __toESM2(__require("path"));
     var import_token_util = require_token_util();
     function getAuthConfigPath() {
       const dataDir = (0, import_token_util.getVercelDataDir)();
@@ -1650,15 +1781,15 @@ var require_auth_config = __commonJS({
           `Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`
         );
       }
-      return path25.join(dataDir, "auth.json");
+      return path27.join(dataDir, "auth.json");
     }
     function readAuthConfig() {
       try {
         const authPath = getAuthConfigPath();
-        if (!fs23.existsSync(authPath)) {
+        if (!fs24.existsSync(authPath)) {
           return null;
         }
-        const content = fs23.readFileSync(authPath, "utf8");
+        const content = fs24.readFileSync(authPath, "utf8");
         if (!content) {
           return null;
         }
@@ -1669,11 +1800,11 @@ var require_auth_config = __commonJS({
     }
     function writeAuthConfig(config2) {
       const authPath = getAuthConfigPath();
-      const authDir = path25.dirname(authPath);
-      if (!fs23.existsSync(authDir)) {
-        fs23.mkdirSync(authDir, { mode: 504, recursive: true });
+      const authDir = path27.dirname(authPath);
+      if (!fs24.existsSync(authDir)) {
+        fs24.mkdirSync(authDir, { mode: 504, recursive: true });
       }
-      fs23.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
+      fs24.writeFileSync(authPath, JSON.stringify(config2, null, 2), { mode: 384 });
     }
     function isValidAccessToken(authConfig, expirationBufferMs = 0) {
       if (!authConfig.token)
@@ -1717,7 +1848,7 @@ var require_oauth = __commonJS({
     var import_os = __require("os");
     var VERCEL_ISSUER = "https://vercel.com";
     var VERCEL_CLI_CLIENT_ID = "cl_HYyOPBNtFMfHhaUn9L4QPfTZz6TP47bp";
-    var userAgent = `@vercel/oidc node-${process.version} ${(0, import_os.platform)()} (${(0, import_os.arch)()}) ${(0, import_os.hostname)()}`;
+    var userAgent2 = `@vercel/oidc node-${process.version} ${(0, import_os.platform)()} (${(0, import_os.arch)()}) ${(0, import_os.hostname)()}`;
     var _tokenEndpoint = null;
     async function getTokenEndpoint() {
       if (_tokenEndpoint) {
@@ -1725,7 +1856,7 @@ var require_oauth = __commonJS({
       }
       const discoveryUrl = `${VERCEL_ISSUER}/.well-known/openid-configuration`;
       const response = await fetch(discoveryUrl, {
-        headers: { "user-agent": userAgent }
+        headers: { "user-agent": userAgent2 }
       });
       if (!response.ok) {
         throw new Error("Failed to discover OAuth endpoints");
@@ -1734,9 +1865,9 @@ var require_oauth = __commonJS({
       if (!metadata || typeof metadata.token_endpoint !== "string") {
         throw new Error("Invalid OAuth discovery response");
       }
-      const endpoint = metadata.token_endpoint;
-      _tokenEndpoint = endpoint;
-      return endpoint;
+      const endpoint2 = metadata.token_endpoint;
+      _tokenEndpoint = endpoint2;
+      return endpoint2;
     }
     async function refreshTokenRequest(options) {
       const tokenEndpoint = await getTokenEndpoint();
@@ -1744,7 +1875,7 @@ var require_oauth = __commonJS({
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "user-agent": userAgent
+          "user-agent": userAgent2
         },
         body: new URLSearchParams({
           client_id: VERCEL_CLI_CLIENT_ID,
@@ -1864,8 +1995,8 @@ var require_token_util = __commonJS({
       saveToken: () => saveToken
     });
     module.exports = __toCommonJS(token_util_exports);
-    var path25 = __toESM2(__require("path"));
-    var fs23 = __toESM2(__require("fs"));
+    var path27 = __toESM2(__require("path"));
+    var fs24 = __toESM2(__require("fs"));
     var import_token_error = require_token_error();
     var import_token_io = require_token_io();
     var import_auth_config = require_auth_config();
@@ -1877,7 +2008,7 @@ var require_token_util = __commonJS({
       if (!dataDir) {
         return null;
       }
-      return path25.join(dataDir, vercelFolder);
+      return path27.join(dataDir, vercelFolder);
     }
     async function getVercelToken2(options) {
       const authConfig = (0, import_auth_config.readAuthConfig)();
@@ -1953,13 +2084,13 @@ var require_token_util = __commonJS({
           "Unable to find project root directory. Have you linked your project with `vc link?`"
         );
       }
-      const prjPath = path25.join(dir, ".vercel", "project.json");
-      if (!fs23.existsSync(prjPath)) {
+      const prjPath = path27.join(dir, ".vercel", "project.json");
+      if (!fs24.existsSync(prjPath)) {
         throw new import_token_error.VercelOidcTokenError(
           "project.json not found, have you linked your project with `vc link?`"
         );
       }
-      const prj = JSON.parse(fs23.readFileSync(prjPath, "utf8"));
+      const prj = JSON.parse(fs24.readFileSync(prjPath, "utf8"));
       if (typeof prj.projectId !== "string" && typeof prj.orgId !== "string") {
         throw new TypeError(
           "Expected a string-valued projectId property. Try running `vc link` to re-link your project."
@@ -1974,11 +2105,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path25.join(dir, "com.vercel.token", `${projectId}.json`);
+      const tokenPath = path27.join(dir, "com.vercel.token", `${projectId}.json`);
       const tokenJson = JSON.stringify(token);
-      fs23.mkdirSync(path25.dirname(tokenPath), { mode: 504, recursive: true });
-      fs23.writeFileSync(tokenPath, tokenJson);
-      fs23.chmodSync(tokenPath, 432);
+      fs24.mkdirSync(path27.dirname(tokenPath), { mode: 504, recursive: true });
+      fs24.writeFileSync(tokenPath, tokenJson);
+      fs24.chmodSync(tokenPath, 432);
       return;
     }
     function loadToken(projectId) {
@@ -1988,11 +2119,11 @@ var require_token_util = __commonJS({
           "Unable to find user data directory. Please reach out to Vercel support."
         );
       }
-      const tokenPath = path25.join(dir, "com.vercel.token", `${projectId}.json`);
-      if (!fs23.existsSync(tokenPath)) {
+      const tokenPath = path27.join(dir, "com.vercel.token", `${projectId}.json`);
+      if (!fs24.existsSync(tokenPath)) {
         return null;
       }
-      const token = JSON.parse(fs23.readFileSync(tokenPath, "utf8"));
+      const token = JSON.parse(fs24.readFileSync(tokenPath, "utf8"));
       assertVercelOidcTokenResponse(token);
       return token;
     }
@@ -2150,7 +2281,7 @@ ${error52.message}`;
 });
 
 // node_modules/@vercel/oidc/dist/index.js
-var require_dist = __commonJS({
+var require_dist2 = __commonJS({
   "node_modules/@vercel/oidc/dist/index.js"(exports, module) {
     "use strict";
     var __defProp3 = Object.defineProperty;
@@ -2188,7 +2319,7 @@ var require_dist = __commonJS({
 });
 
 // node_modules/@ai-sdk/provider/dist/index.js
-var require_dist2 = __commonJS({
+var require_dist3 = __commonJS({
   "node_modules/@ai-sdk/provider/dist/index.js"(exports, module) {
     "use strict";
     var __defProp3 = Object.defineProperty;
@@ -2269,9 +2400,9 @@ var require_dist2 = __commonJS({
     var name21 = "AI_APICallError";
     var marker24 = `vercel.ai.error.${name21}`;
     var symbol24 = Symbol.for(marker24);
-    var _a24;
+    var _a25;
     var _b23;
-    var APICallError2 = class extends (_b23 = AISDKError2, _a24 = symbol24, _b23) {
+    var APICallError2 = class extends (_b23 = AISDKError2, _a25 = symbol24, _b23) {
       constructor({
         message,
         url: url2,
@@ -2288,7 +2419,7 @@ var require_dist2 = __commonJS({
         data
       }) {
         super({ name: name21, message, cause });
-        this[_a24] = true;
+        this[_a25] = true;
         this.url = url2;
         this.requestBodyValues = requestBodyValues;
         this.statusCode = statusCode;
@@ -2642,10 +2773,10 @@ var require_core = __commonJS({
       }
       Object.defineProperty(Definition, "name", { value: name21 });
       function _(def) {
-        var _a24;
+        var _a25;
         const inst = params?.Parent ? new Definition() : this;
         init(inst, def);
-        (_a24 = inst._zod).deferred ?? (_a24.deferred = []);
+        (_a25 = inst._zod).deferred ?? (_a25.deferred = []);
         for (const fn of inst._zod.deferred) {
           fn();
         }
@@ -2715,20 +2846,20 @@ var require_util = __commonJS({
     exports.esc = esc3;
     exports.slugify = slugify2;
     exports.isObject = isObject2;
-    exports.isPlainObject = isPlainObject3;
+    exports.isPlainObject = isPlainObject5;
     exports.shallowClone = shallowClone2;
     exports.numKeys = numKeys2;
-    exports.escapeRegex = escapeRegex4;
+    exports.escapeRegex = escapeRegex5;
     exports.clone = clone2;
     exports.normalizeParams = normalizeParams2;
     exports.createTransparentProxy = createTransparentProxy2;
     exports.stringifyPrimitive = stringifyPrimitive2;
     exports.optionalKeys = optionalKeys2;
     exports.pick = pick2;
-    exports.omit = omit2;
+    exports.omit = omit3;
     exports.extend = extend2;
     exports.safeExtend = safeExtend2;
-    exports.merge = merge2;
+    exports.merge = merge3;
     exports.partial = partial2;
     exports.required = required2;
     exports.aborted = aborted2;
@@ -2848,10 +2979,10 @@ var require_util = __commonJS({
     function cloneDef2(schema) {
       return mergeDefs2(schema._zod.def);
     }
-    function getElementAtPath2(obj, path25) {
-      if (!path25)
+    function getElementAtPath2(obj, path27) {
+      if (!path27)
         return obj;
-      return path25.reduce((acc, key) => acc?.[key], obj);
+      return path27.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject2(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -2898,7 +3029,7 @@ var require_util = __commonJS({
         return false;
       }
     });
-    function isPlainObject3(o) {
+    function isPlainObject5(o) {
       if (isObject2(o) === false)
         return false;
       const ctor = o.constructor;
@@ -2915,7 +3046,7 @@ var require_util = __commonJS({
       return true;
     }
     function shallowClone2(o) {
-      if (isPlainObject3(o))
+      if (isPlainObject5(o))
         return { ...o };
       if (Array.isArray(o))
         return [...o];
@@ -2988,7 +3119,7 @@ var require_util = __commonJS({
       "symbol",
       "undefined"
     ]);
-    function escapeRegex4(str) {
+    function escapeRegex5(str) {
       return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
     function clone2(inst, def, params) {
@@ -3094,7 +3225,7 @@ var require_util = __commonJS({
       });
       return clone2(schema, def);
     }
-    function omit2(schema, mask) {
+    function omit3(schema, mask) {
       const currDef = schema._zod.def;
       const checks = currDef.checks;
       const hasChecks = checks && checks.length > 0;
@@ -3120,7 +3251,7 @@ var require_util = __commonJS({
       return clone2(schema, def);
     }
     function extend2(schema, shape) {
-      if (!isPlainObject3(shape)) {
+      if (!isPlainObject5(shape)) {
         throw new Error("Invalid input to extend: expected a plain object");
       }
       const checks = schema._zod.def.checks;
@@ -3143,7 +3274,7 @@ var require_util = __commonJS({
       return clone2(schema, def);
     }
     function safeExtend2(schema, shape) {
-      if (!isPlainObject3(shape)) {
+      if (!isPlainObject5(shape)) {
         throw new Error("Invalid input to safeExtend: expected a plain object");
       }
       const def = mergeDefs2(schema._zod.def, {
@@ -3155,7 +3286,7 @@ var require_util = __commonJS({
       });
       return clone2(schema, def);
     }
-    function merge2(a, b) {
+    function merge3(a, b) {
       if (a._zod.def.checks?.length) {
         throw new Error(".merge() cannot be used on object schemas containing refinements. Use .safeExtend() instead.");
       }
@@ -3261,11 +3392,11 @@ var require_util = __commonJS({
       }
       return false;
     }
-    function prefixIssues2(path25, issues) {
+    function prefixIssues2(path27, issues) {
       return issues.map((iss) => {
         var _a21;
         (_a21 = iss).path ?? (_a21.path = []);
-        iss.path.unshift(path25);
+        iss.path.unshift(path27);
         return iss;
       });
     }
@@ -3454,16 +3585,16 @@ var require_errors = __commonJS({
     }
     function formatError2(error52, mapper = (issue2) => issue2.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error53, path25 = []) => {
+      const processError = (error53, path27 = []) => {
         for (const issue2 of error53.issues) {
           if (issue2.code === "invalid_union" && issue2.errors.length) {
-            issue2.errors.map((issues) => processError({ issues }, [...path25, ...issue2.path]));
+            issue2.errors.map((issues) => processError({ issues }, [...path27, ...issue2.path]));
           } else if (issue2.code === "invalid_key") {
-            processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+            processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
           } else if (issue2.code === "invalid_element") {
-            processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+            processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
           } else {
-            const fullpath = [...path25, ...issue2.path];
+            const fullpath = [...path27, ...issue2.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue2));
             } else {
@@ -3490,17 +3621,17 @@ var require_errors = __commonJS({
     }
     function treeifyError2(error52, mapper = (issue2) => issue2.message) {
       const result = { errors: [] };
-      const processError = (error53, path25 = []) => {
+      const processError = (error53, path27 = []) => {
         var _a21, _b17;
         for (const issue2 of error53.issues) {
           if (issue2.code === "invalid_union" && issue2.errors.length) {
-            issue2.errors.map((issues) => processError({ issues }, [...path25, ...issue2.path]));
+            issue2.errors.map((issues) => processError({ issues }, [...path27, ...issue2.path]));
           } else if (issue2.code === "invalid_key") {
-            processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+            processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
           } else if (issue2.code === "invalid_element") {
-            processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+            processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
           } else {
-            const fullpath = [...path25, ...issue2.path];
+            const fullpath = [...path27, ...issue2.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue2));
               continue;
@@ -3532,8 +3663,8 @@ var require_errors = __commonJS({
     }
     function toDotPath2(_path) {
       const segs = [];
-      const path25 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path25) {
+      const path27 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path27) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -3594,17 +3725,17 @@ var require_parse = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports._safeDecodeAsync = exports.safeEncodeAsync = exports._safeEncodeAsync = exports.safeDecode = exports._safeDecode = exports.safeEncode = exports._safeEncode = exports.decodeAsync = exports._decodeAsync = exports.encodeAsync = exports._encodeAsync = exports.decode = exports._decode = exports.encode = exports._encode = exports.safeParseAsync = exports._safeParseAsync = exports.safeParse = exports._safeParse = exports.parseAsync = exports._parseAsync = exports.parse = exports._parse = void 0;
-    var core46 = __importStar(require_core());
+    var core82 = __importStar(require_core());
     var errors = __importStar(require_errors());
     var util2 = __importStar(require_util());
     var _parse3 = (_Err) => (schema, value, _ctx, _params) => {
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core46.$ZodAsyncError();
+        throw new core82.$ZodAsyncError();
       }
       if (result.issues.length) {
-        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())));
+        const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())));
         util2.captureStackTrace(e, _params?.callee);
         throw e;
       }
@@ -3618,7 +3749,7 @@ var require_parse = __commonJS({
       if (result instanceof Promise)
         result = await result;
       if (result.issues.length) {
-        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())));
+        const e = new (params?.Err ?? _Err)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())));
         util2.captureStackTrace(e, params?.callee);
         throw e;
       }
@@ -3630,11 +3761,11 @@ var require_parse = __commonJS({
       const ctx = _ctx ? { ..._ctx, async: false } : { async: false };
       const result = schema._zod.run({ value, issues: [] }, ctx);
       if (result instanceof Promise) {
-        throw new core46.$ZodAsyncError();
+        throw new core82.$ZodAsyncError();
       }
       return result.issues.length ? {
         success: false,
-        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())))
+        error: new (_Err ?? errors.$ZodError)(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParse = _safeParse2;
@@ -3646,7 +3777,7 @@ var require_parse = __commonJS({
         result = await result;
       return result.issues.length ? {
         success: false,
-        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())))
+        error: new _Err(result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())))
       } : { success: true, data: result.value };
     };
     exports._safeParseAsync = _safeParseAsync2;
@@ -3872,10 +4003,10 @@ var require_checks = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.$ZodCheckOverwrite = exports.$ZodCheckMimeType = exports.$ZodCheckProperty = exports.$ZodCheckEndsWith = exports.$ZodCheckStartsWith = exports.$ZodCheckIncludes = exports.$ZodCheckUpperCase = exports.$ZodCheckLowerCase = exports.$ZodCheckRegex = exports.$ZodCheckStringFormat = exports.$ZodCheckLengthEquals = exports.$ZodCheckMinLength = exports.$ZodCheckMaxLength = exports.$ZodCheckSizeEquals = exports.$ZodCheckMinSize = exports.$ZodCheckMaxSize = exports.$ZodCheckBigIntFormat = exports.$ZodCheckNumberFormat = exports.$ZodCheckMultipleOf = exports.$ZodCheckGreaterThan = exports.$ZodCheckLessThan = exports.$ZodCheck = void 0;
-    var core46 = __importStar(require_core());
+    var core82 = __importStar(require_core());
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
-    exports.$ZodCheck = core46.$constructor("$ZodCheck", (inst, def) => {
+    exports.$ZodCheck = core82.$constructor("$ZodCheck", (inst, def) => {
       var _a21;
       inst._zod ?? (inst._zod = {});
       inst._zod.def = def;
@@ -3886,7 +4017,7 @@ var require_checks = __commonJS({
       bigint: "bigint",
       object: "date"
     };
-    exports.$ZodCheckLessThan = core46.$constructor("$ZodCheckLessThan", (inst, def) => {
+    exports.$ZodCheckLessThan = core82.$constructor("$ZodCheckLessThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -3914,7 +4045,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckGreaterThan = core46.$constructor("$ZodCheckGreaterThan", (inst, def) => {
+    exports.$ZodCheckGreaterThan = core82.$constructor("$ZodCheckGreaterThan", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const origin = numericOriginMap2[typeof def.value];
       inst._zod.onattach.push((inst2) => {
@@ -3942,7 +4073,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core46.$constructor("$ZodCheckMultipleOf", (inst, def) => {
+    exports.$ZodCheckMultipleOf = /* @__PURE__ */ core82.$constructor("$ZodCheckMultipleOf", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
         var _a21;
@@ -3964,7 +4095,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckNumberFormat = core46.$constructor("$ZodCheckNumberFormat", (inst, def) => {
+    exports.$ZodCheckNumberFormat = core82.$constructor("$ZodCheckNumberFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       def.format = def.format || "float64";
       const isInt = def.format?.includes("int");
@@ -4043,7 +4174,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckBigIntFormat = core46.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
+    exports.$ZodCheckBigIntFormat = core82.$constructor("$ZodCheckBigIntFormat", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const [minimum, maximum] = util2.BIGINT_FORMAT_RANGES[def.format];
       inst._zod.onattach.push((inst2) => {
@@ -4078,7 +4209,7 @@ var require_checks = __commonJS({
         }
       };
     });
-    exports.$ZodCheckMaxSize = core46.$constructor("$ZodCheckMaxSize", (inst, def) => {
+    exports.$ZodCheckMaxSize = core82.$constructor("$ZodCheckMaxSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4106,7 +4237,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinSize = core46.$constructor("$ZodCheckMinSize", (inst, def) => {
+    exports.$ZodCheckMinSize = core82.$constructor("$ZodCheckMinSize", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4134,7 +4265,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckSizeEquals = core46.$constructor("$ZodCheckSizeEquals", (inst, def) => {
+    exports.$ZodCheckSizeEquals = core82.$constructor("$ZodCheckSizeEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4164,7 +4295,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMaxLength = core46.$constructor("$ZodCheckMaxLength", (inst, def) => {
+    exports.$ZodCheckMaxLength = core82.$constructor("$ZodCheckMaxLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4193,7 +4324,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckMinLength = core46.$constructor("$ZodCheckMinLength", (inst, def) => {
+    exports.$ZodCheckMinLength = core82.$constructor("$ZodCheckMinLength", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4222,7 +4353,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLengthEquals = core46.$constructor("$ZodCheckLengthEquals", (inst, def) => {
+    exports.$ZodCheckLengthEquals = core82.$constructor("$ZodCheckLengthEquals", (inst, def) => {
       var _a21;
       exports.$ZodCheck.init(inst, def);
       (_a21 = inst._zod.def).when ?? (_a21.when = (payload) => {
@@ -4253,7 +4384,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStringFormat = core46.$constructor("$ZodCheckStringFormat", (inst, def) => {
+    exports.$ZodCheckStringFormat = core82.$constructor("$ZodCheckStringFormat", (inst, def) => {
       var _a21, _b17;
       exports.$ZodCheck.init(inst, def);
       inst._zod.onattach.push((inst2) => {
@@ -4283,7 +4414,7 @@ var require_checks = __commonJS({
         (_b17 = inst._zod).check ?? (_b17.check = () => {
         });
     });
-    exports.$ZodCheckRegex = core46.$constructor("$ZodCheckRegex", (inst, def) => {
+    exports.$ZodCheckRegex = core82.$constructor("$ZodCheckRegex", (inst, def) => {
       exports.$ZodCheckStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         def.pattern.lastIndex = 0;
@@ -4300,15 +4431,15 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckLowerCase = core46.$constructor("$ZodCheckLowerCase", (inst, def) => {
+    exports.$ZodCheckLowerCase = core82.$constructor("$ZodCheckLowerCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.lowercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckUpperCase = core46.$constructor("$ZodCheckUpperCase", (inst, def) => {
+    exports.$ZodCheckUpperCase = core82.$constructor("$ZodCheckUpperCase", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.uppercase);
       exports.$ZodCheckStringFormat.init(inst, def);
     });
-    exports.$ZodCheckIncludes = core46.$constructor("$ZodCheckIncludes", (inst, def) => {
+    exports.$ZodCheckIncludes = core82.$constructor("$ZodCheckIncludes", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const escapedRegex = util2.escapeRegex(def.includes);
       const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position}}${escapedRegex}` : escapedRegex);
@@ -4332,7 +4463,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckStartsWith = core46.$constructor("$ZodCheckStartsWith", (inst, def) => {
+    exports.$ZodCheckStartsWith = core82.$constructor("$ZodCheckStartsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`^${util2.escapeRegex(def.prefix)}.*`);
       def.pattern ?? (def.pattern = pattern);
@@ -4355,7 +4486,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckEndsWith = core46.$constructor("$ZodCheckEndsWith", (inst, def) => {
+    exports.$ZodCheckEndsWith = core82.$constructor("$ZodCheckEndsWith", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const pattern = new RegExp(`.*${util2.escapeRegex(def.suffix)}$`);
       def.pattern ?? (def.pattern = pattern);
@@ -4383,7 +4514,7 @@ var require_checks = __commonJS({
         payload.issues.push(...util2.prefixIssues(property, result.issues));
       }
     }
-    exports.$ZodCheckProperty = core46.$constructor("$ZodCheckProperty", (inst, def) => {
+    exports.$ZodCheckProperty = core82.$constructor("$ZodCheckProperty", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         const result = def.schema._zod.run({
@@ -4397,7 +4528,7 @@ var require_checks = __commonJS({
         return;
       };
     });
-    exports.$ZodCheckMimeType = core46.$constructor("$ZodCheckMimeType", (inst, def) => {
+    exports.$ZodCheckMimeType = core82.$constructor("$ZodCheckMimeType", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       const mimeSet = new Set(def.mime);
       inst._zod.onattach.push((inst2) => {
@@ -4415,7 +4546,7 @@ var require_checks = __commonJS({
         });
       };
     });
-    exports.$ZodCheckOverwrite = core46.$constructor("$ZodCheckOverwrite", (inst, def) => {
+    exports.$ZodCheckOverwrite = core82.$constructor("$ZodCheckOverwrite", (inst, def) => {
       exports.$ZodCheck.init(inst, def);
       inst._zod.check = (payload) => {
         payload.value = def.tx(payload.value);
@@ -4520,13 +4651,13 @@ var require_schemas = __commonJS({
     exports.isValidBase64URL = isValidBase64URL2;
     exports.isValidJWT = isValidJWT3;
     var checks = __importStar(require_checks());
-    var core46 = __importStar(require_core());
+    var core82 = __importStar(require_core());
     var doc_js_1 = require_doc();
     var parse_js_1 = require_parse();
     var regexes = __importStar(require_regexes());
     var util2 = __importStar(require_util());
     var versions_js_1 = require_versions();
-    exports.$ZodType = core46.$constructor("$ZodType", (inst, def) => {
+    exports.$ZodType = core82.$constructor("$ZodType", (inst, def) => {
       var _a21;
       inst ?? (inst = {});
       inst._zod.def = def;
@@ -4563,7 +4694,7 @@ var require_schemas = __commonJS({
             const currLen = payload.issues.length;
             const _ = ch._zod.check(payload);
             if (_ instanceof Promise && ctx?.async === false) {
-              throw new core46.$ZodAsyncError();
+              throw new core82.$ZodAsyncError();
             }
             if (asyncResult || _ instanceof Promise) {
               asyncResult = (asyncResult ?? Promise.resolve()).then(async () => {
@@ -4597,7 +4728,7 @@ var require_schemas = __commonJS({
           const checkResult = runChecks(payload, checks2, ctx);
           if (checkResult instanceof Promise) {
             if (ctx.async === false)
-              throw new core46.$ZodAsyncError();
+              throw new core82.$ZodAsyncError();
             return checkResult.then((checkResult2) => inst._zod.parse(checkResult2, ctx));
           }
           return inst._zod.parse(checkResult, ctx);
@@ -4618,7 +4749,7 @@ var require_schemas = __commonJS({
           const result = inst._zod.parse(payload, ctx);
           if (result instanceof Promise) {
             if (ctx.async === false)
-              throw new core46.$ZodAsyncError();
+              throw new core82.$ZodAsyncError();
             return result.then((result2) => runChecks(result2, checks2, ctx));
           }
           return runChecks(result, checks2, ctx);
@@ -4641,7 +4772,7 @@ var require_schemas = __commonJS({
     Object.defineProperty(exports, "clone", { enumerable: true, get: function() {
       return util_js_1.clone;
     } });
-    exports.$ZodString = core46.$constructor("$ZodString", (inst, def) => {
+    exports.$ZodString = core82.$constructor("$ZodString", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? regexes.string(inst._zod.bag);
       inst._zod.parse = (payload, _) => {
@@ -4661,15 +4792,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodStringFormat = core46.$constructor("$ZodStringFormat", (inst, def) => {
+    exports.$ZodStringFormat = core82.$constructor("$ZodStringFormat", (inst, def) => {
       checks.$ZodCheckStringFormat.init(inst, def);
       exports.$ZodString.init(inst, def);
     });
-    exports.$ZodGUID = core46.$constructor("$ZodGUID", (inst, def) => {
+    exports.$ZodGUID = core82.$constructor("$ZodGUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.guid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodUUID = core46.$constructor("$ZodUUID", (inst, def) => {
+    exports.$ZodUUID = core82.$constructor("$ZodUUID", (inst, def) => {
       if (def.version) {
         const versionMap = {
           v1: 1,
@@ -4689,11 +4820,11 @@ var require_schemas = __commonJS({
         def.pattern ?? (def.pattern = regexes.uuid());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodEmail = core46.$constructor("$ZodEmail", (inst, def) => {
+    exports.$ZodEmail = core82.$constructor("$ZodEmail", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.email);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodURL = core46.$constructor("$ZodURL", (inst, def) => {
+    exports.$ZodURL = core82.$constructor("$ZodURL", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         try {
@@ -4757,56 +4888,56 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodEmoji = core46.$constructor("$ZodEmoji", (inst, def) => {
+    exports.$ZodEmoji = core82.$constructor("$ZodEmoji", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.emoji());
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodNanoID = core46.$constructor("$ZodNanoID", (inst, def) => {
+    exports.$ZodNanoID = core82.$constructor("$ZodNanoID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.nanoid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID = core46.$constructor("$ZodCUID", (inst, def) => {
+    exports.$ZodCUID = core82.$constructor("$ZodCUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCUID2 = core46.$constructor("$ZodCUID2", (inst, def) => {
+    exports.$ZodCUID2 = core82.$constructor("$ZodCUID2", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cuid2);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodULID = core46.$constructor("$ZodULID", (inst, def) => {
+    exports.$ZodULID = core82.$constructor("$ZodULID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ulid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodXID = core46.$constructor("$ZodXID", (inst, def) => {
+    exports.$ZodXID = core82.$constructor("$ZodXID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.xid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodKSUID = core46.$constructor("$ZodKSUID", (inst, def) => {
+    exports.$ZodKSUID = core82.$constructor("$ZodKSUID", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ksuid);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODateTime = core46.$constructor("$ZodISODateTime", (inst, def) => {
+    exports.$ZodISODateTime = core82.$constructor("$ZodISODateTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.datetime(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODate = core46.$constructor("$ZodISODate", (inst, def) => {
+    exports.$ZodISODate = core82.$constructor("$ZodISODate", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.date);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISOTime = core46.$constructor("$ZodISOTime", (inst, def) => {
+    exports.$ZodISOTime = core82.$constructor("$ZodISOTime", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.time(def));
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodISODuration = core46.$constructor("$ZodISODuration", (inst, def) => {
+    exports.$ZodISODuration = core82.$constructor("$ZodISODuration", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.duration);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodIPv4 = core46.$constructor("$ZodIPv4", (inst, def) => {
+    exports.$ZodIPv4 = core82.$constructor("$ZodIPv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv4);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv4`;
     });
-    exports.$ZodIPv6 = core46.$constructor("$ZodIPv6", (inst, def) => {
+    exports.$ZodIPv6 = core82.$constructor("$ZodIPv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.ipv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `ipv6`;
@@ -4824,16 +4955,16 @@ var require_schemas = __commonJS({
         }
       };
     });
-    exports.$ZodMAC = core46.$constructor("$ZodMAC", (inst, def) => {
+    exports.$ZodMAC = core82.$constructor("$ZodMAC", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.mac(def.delimiter));
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.format = `mac`;
     });
-    exports.$ZodCIDRv4 = core46.$constructor("$ZodCIDRv4", (inst, def) => {
+    exports.$ZodCIDRv4 = core82.$constructor("$ZodCIDRv4", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv4);
       exports.$ZodStringFormat.init(inst, def);
     });
-    exports.$ZodCIDRv6 = core46.$constructor("$ZodCIDRv6", (inst, def) => {
+    exports.$ZodCIDRv6 = core82.$constructor("$ZodCIDRv6", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.cidrv6);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
@@ -4875,7 +5006,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodBase64 = core46.$constructor("$ZodBase64", (inst, def) => {
+    exports.$ZodBase64 = core82.$constructor("$ZodBase64", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64";
@@ -4898,7 +5029,7 @@ var require_schemas = __commonJS({
       const padded = base643.padEnd(Math.ceil(base643.length / 4) * 4, "=");
       return isValidBase642(padded);
     }
-    exports.$ZodBase64URL = core46.$constructor("$ZodBase64URL", (inst, def) => {
+    exports.$ZodBase64URL = core82.$constructor("$ZodBase64URL", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.base64url);
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.bag.contentEncoding = "base64url";
@@ -4914,7 +5045,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodE164 = core46.$constructor("$ZodE164", (inst, def) => {
+    exports.$ZodE164 = core82.$constructor("$ZodE164", (inst, def) => {
       def.pattern ?? (def.pattern = regexes.e164);
       exports.$ZodStringFormat.init(inst, def);
     });
@@ -4938,7 +5069,7 @@ var require_schemas = __commonJS({
         return false;
       }
     }
-    exports.$ZodJWT = core46.$constructor("$ZodJWT", (inst, def) => {
+    exports.$ZodJWT = core82.$constructor("$ZodJWT", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (isValidJWT3(payload.value, def.alg))
@@ -4952,7 +5083,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodCustomStringFormat = core46.$constructor("$ZodCustomStringFormat", (inst, def) => {
+    exports.$ZodCustomStringFormat = core82.$constructor("$ZodCustomStringFormat", (inst, def) => {
       exports.$ZodStringFormat.init(inst, def);
       inst._zod.check = (payload) => {
         if (def.fn(payload.value))
@@ -4966,7 +5097,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodNumber = core46.$constructor("$ZodNumber", (inst, def) => {
+    exports.$ZodNumber = core82.$constructor("$ZodNumber", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = inst._zod.bag.pattern ?? regexes.number;
       inst._zod.parse = (payload, _ctx) => {
@@ -4990,11 +5121,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNumberFormat = core46.$constructor("$ZodNumberFormat", (inst, def) => {
+    exports.$ZodNumberFormat = core82.$constructor("$ZodNumberFormat", (inst, def) => {
       checks.$ZodCheckNumberFormat.init(inst, def);
       exports.$ZodNumber.init(inst, def);
     });
-    exports.$ZodBoolean = core46.$constructor("$ZodBoolean", (inst, def) => {
+    exports.$ZodBoolean = core82.$constructor("$ZodBoolean", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.boolean;
       inst._zod.parse = (payload, _ctx) => {
@@ -5015,7 +5146,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigInt = core46.$constructor("$ZodBigInt", (inst, def) => {
+    exports.$ZodBigInt = core82.$constructor("$ZodBigInt", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.bigint;
       inst._zod.parse = (payload, _ctx) => {
@@ -5035,11 +5166,11 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodBigIntFormat = core46.$constructor("$ZodBigIntFormat", (inst, def) => {
+    exports.$ZodBigIntFormat = core82.$constructor("$ZodBigIntFormat", (inst, def) => {
       checks.$ZodCheckBigIntFormat.init(inst, def);
       exports.$ZodBigInt.init(inst, def);
     });
-    exports.$ZodSymbol = core46.$constructor("$ZodSymbol", (inst, def) => {
+    exports.$ZodSymbol = core82.$constructor("$ZodSymbol", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -5054,7 +5185,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodUndefined = core46.$constructor("$ZodUndefined", (inst, def) => {
+    exports.$ZodUndefined = core82.$constructor("$ZodUndefined", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.undefined;
       inst._zod.values = /* @__PURE__ */ new Set([void 0]);
@@ -5071,7 +5202,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNull = core46.$constructor("$ZodNull", (inst, def) => {
+    exports.$ZodNull = core82.$constructor("$ZodNull", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.pattern = regexes.null;
       inst._zod.values = /* @__PURE__ */ new Set([null]);
@@ -5088,15 +5219,15 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodAny = core46.$constructor("$ZodAny", (inst, def) => {
+    exports.$ZodAny = core82.$constructor("$ZodAny", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodUnknown = core46.$constructor("$ZodUnknown", (inst, def) => {
+    exports.$ZodUnknown = core82.$constructor("$ZodUnknown", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload) => payload;
     });
-    exports.$ZodNever = core46.$constructor("$ZodNever", (inst, def) => {
+    exports.$ZodNever = core82.$constructor("$ZodNever", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         payload.issues.push({
@@ -5108,7 +5239,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodVoid = core46.$constructor("$ZodVoid", (inst, def) => {
+    exports.$ZodVoid = core82.$constructor("$ZodVoid", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -5123,7 +5254,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodDate = core46.$constructor("$ZodDate", (inst, def) => {
+    exports.$ZodDate = core82.$constructor("$ZodDate", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (def.coerce) {
@@ -5153,7 +5284,7 @@ var require_schemas = __commonJS({
       }
       final.value[index] = result.value;
     }
-    exports.$ZodArray = core46.$constructor("$ZodArray", (inst, def) => {
+    exports.$ZodArray = core82.$constructor("$ZodArray", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -5266,7 +5397,7 @@ var require_schemas = __commonJS({
         return payload;
       });
     }
-    exports.$ZodObject = core46.$constructor("$ZodObject", (inst, def) => {
+    exports.$ZodObject = core82.$constructor("$ZodObject", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const desc = Object.getOwnPropertyDescriptor(def, "shape");
       if (!desc?.get) {
@@ -5330,7 +5461,7 @@ var require_schemas = __commonJS({
         return handleCatchall2(proms, input, payload, ctx, _normalized.value, inst);
       };
     });
-    exports.$ZodObjectJIT = core46.$constructor("$ZodObjectJIT", (inst, def) => {
+    exports.$ZodObjectJIT = core82.$constructor("$ZodObjectJIT", (inst, def) => {
       exports.$ZodObject.init(inst, def);
       const superParse = inst._zod.parse;
       const _normalized = util2.cached(() => normalizeDef2(def));
@@ -5429,7 +5560,7 @@ var require_schemas = __commonJS({
       };
       let fastpass;
       const isObject2 = util2.isObject;
-      const jit = !core46.globalConfig.jitless;
+      const jit = !core82.globalConfig.jitless;
       const allowsEval2 = util2.allowsEval;
       const fastEnabled = jit && allowsEval2.value;
       const catchall = def.catchall;
@@ -5473,11 +5604,11 @@ var require_schemas = __commonJS({
         code: "invalid_union",
         input: final.value,
         inst,
-        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())))
+        errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())))
       });
       return final;
     }
-    exports.$ZodUnion = core46.$constructor("$ZodUnion", (inst, def) => {
+    exports.$ZodUnion = core82.$constructor("$ZodUnion", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.options.some((o) => o._zod.optin === "optional") ? "optional" : void 0);
       util2.defineLazy(inst._zod, "optout", () => def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
@@ -5533,7 +5664,7 @@ var require_schemas = __commonJS({
           code: "invalid_union",
           input: final.value,
           inst,
-          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())))
+          errors: results.map((result) => result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())))
         });
       } else {
         final.issues.push({
@@ -5546,7 +5677,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodXor = core46.$constructor("$ZodXor", (inst, def) => {
+    exports.$ZodXor = core82.$constructor("$ZodXor", (inst, def) => {
       exports.$ZodUnion.init(inst, def);
       def.inclusive = false;
       const first = def.options.length === 1 ? def.options[0]._zod.run : null;
@@ -5575,7 +5706,7 @@ var require_schemas = __commonJS({
         });
       };
     });
-    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core46.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
+    exports.$ZodDiscriminatedUnion = /* @__PURE__ */ core82.$constructor("$ZodDiscriminatedUnion", (inst, def) => {
       def.inclusive = false;
       exports.$ZodUnion.init(inst, def);
       const _super = inst._zod.parse;
@@ -5642,7 +5773,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodIntersection = core46.$constructor("$ZodIntersection", (inst, def) => {
+    exports.$ZodIntersection = core82.$constructor("$ZodIntersection", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -5740,7 +5871,7 @@ var require_schemas = __commonJS({
       result.value = merged.data;
       return result;
     }
-    exports.$ZodTuple = core46.$constructor("$ZodTuple", (inst, def) => {
+    exports.$ZodTuple = core82.$constructor("$ZodTuple", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const items = def.items;
       inst._zod.parse = (payload, ctx) => {
@@ -5846,7 +5977,7 @@ var require_schemas = __commonJS({
       }
       return final;
     }
-    exports.$ZodRecord = core46.$constructor("$ZodRecord", (inst, def) => {
+    exports.$ZodRecord = core82.$constructor("$ZodRecord", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -5875,7 +6006,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())),
                   input: key,
                   path: [key],
                   inst
@@ -5942,7 +6073,7 @@ var require_schemas = __commonJS({
                 payload.issues.push({
                   code: "invalid_key",
                   origin: "record",
-                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config())),
+                  issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config())),
                   input: key,
                   path: [key],
                   inst
@@ -5972,7 +6103,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodMap = core46.$constructor("$ZodMap", (inst, def) => {
+    exports.$ZodMap = core82.$constructor("$ZodMap", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -6013,7 +6144,7 @@ var require_schemas = __commonJS({
             origin: "map",
             input,
             inst,
-            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config()))
+            issues: keyResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config()))
           });
         }
       }
@@ -6027,13 +6158,13 @@ var require_schemas = __commonJS({
             input,
             inst,
             key,
-            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config()))
+            issues: valueResult.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config()))
           });
         }
       }
       final.value.set(keyResult.value, valueResult.value);
     }
-    exports.$ZodSet = core46.$constructor("$ZodSet", (inst, def) => {
+    exports.$ZodSet = core82.$constructor("$ZodSet", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         const input = payload.value;
@@ -6066,7 +6197,7 @@ var require_schemas = __commonJS({
       }
       final.value.add(result.value);
     }
-    exports.$ZodEnum = core46.$constructor("$ZodEnum", (inst, def) => {
+    exports.$ZodEnum = core82.$constructor("$ZodEnum", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const values = util2.getEnumValues(def.entries);
       const valuesSet = new Set(values);
@@ -6086,7 +6217,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodLiteral = core46.$constructor("$ZodLiteral", (inst, def) => {
+    exports.$ZodLiteral = core82.$constructor("$ZodLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       if (def.values.length === 0) {
         throw new Error("Cannot create literal schema with no valid values");
@@ -6108,7 +6239,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFile = core46.$constructor("$ZodFile", (inst, def) => {
+    exports.$ZodFile = core82.$constructor("$ZodFile", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -6123,12 +6254,12 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodTransform = core46.$constructor("$ZodTransform", (inst, def) => {
+    exports.$ZodTransform = core82.$constructor("$ZodTransform", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core46.$ZodEncodeError(inst.constructor.name);
+          throw new core82.$ZodEncodeError(inst.constructor.name);
         }
         const _out = def.transform(payload.value, payload);
         if (ctx.async) {
@@ -6140,7 +6271,7 @@ var require_schemas = __commonJS({
           });
         }
         if (_out instanceof Promise) {
-          throw new core46.$ZodAsyncError();
+          throw new core82.$ZodAsyncError();
         }
         payload.value = _out;
         payload.fallback = true;
@@ -6153,7 +6284,7 @@ var require_schemas = __commonJS({
       }
       return result;
     }
-    exports.$ZodOptional = core46.$constructor("$ZodOptional", (inst, def) => {
+    exports.$ZodOptional = core82.$constructor("$ZodOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       inst._zod.optout = "optional";
@@ -6178,7 +6309,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodExactOptional = core46.$constructor("$ZodExactOptional", (inst, def) => {
+    exports.$ZodExactOptional = core82.$constructor("$ZodExactOptional", (inst, def) => {
       exports.$ZodOptional.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
       util2.defineLazy(inst._zod, "pattern", () => def.innerType._zod.pattern);
@@ -6186,7 +6317,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNullable = core46.$constructor("$ZodNullable", (inst, def) => {
+    exports.$ZodNullable = core82.$constructor("$ZodNullable", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "optin", () => def.innerType._zod.optin);
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -6203,7 +6334,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodDefault = core46.$constructor("$ZodDefault", (inst, def) => {
+    exports.$ZodDefault = core82.$constructor("$ZodDefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6228,7 +6359,7 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodPrefault = core46.$constructor("$ZodPrefault", (inst, def) => {
+    exports.$ZodPrefault = core82.$constructor("$ZodPrefault", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6242,7 +6373,7 @@ var require_schemas = __commonJS({
         return def.innerType._zod.run(payload, ctx);
       };
     });
-    exports.$ZodNonOptional = core46.$constructor("$ZodNonOptional", (inst, def) => {
+    exports.$ZodNonOptional = core82.$constructor("$ZodNonOptional", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => {
         const v = def.innerType._zod.values;
@@ -6267,11 +6398,11 @@ var require_schemas = __commonJS({
       }
       return payload;
     }
-    exports.$ZodSuccess = core46.$constructor("$ZodSuccess", (inst, def) => {
+    exports.$ZodSuccess = core82.$constructor("$ZodSuccess", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         if (ctx.direction === "backward") {
-          throw new core46.$ZodEncodeError("ZodSuccess");
+          throw new core82.$ZodEncodeError("ZodSuccess");
         }
         const result = def.innerType._zod.run(payload, ctx);
         if (result instanceof Promise) {
@@ -6284,7 +6415,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodCatch = core46.$constructor("$ZodCatch", (inst, def) => {
+    exports.$ZodCatch = core82.$constructor("$ZodCatch", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.optin = "optional";
       util2.defineLazy(inst._zod, "optout", () => def.innerType._zod.optout);
@@ -6301,7 +6432,7 @@ var require_schemas = __commonJS({
               payload.value = def.catchValue({
                 ...payload,
                 error: {
-                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config()))
+                  issues: result2.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config()))
                 },
                 input: payload.value
               });
@@ -6316,7 +6447,7 @@ var require_schemas = __commonJS({
           payload.value = def.catchValue({
             ...payload,
             error: {
-              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core46.config()))
+              issues: result.issues.map((iss) => util2.finalizeIssue(iss, ctx, core82.config()))
             },
             input: payload.value
           });
@@ -6326,7 +6457,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodNaN = core46.$constructor("$ZodNaN", (inst, def) => {
+    exports.$ZodNaN = core82.$constructor("$ZodNaN", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _ctx) => {
         if (typeof payload.value !== "number" || !Number.isNaN(payload.value)) {
@@ -6341,7 +6472,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodPipe = core46.$constructor("$ZodPipe", (inst, def) => {
+    exports.$ZodPipe = core82.$constructor("$ZodPipe", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -6369,7 +6500,7 @@ var require_schemas = __commonJS({
       }
       return next._zod.run({ value: left.value, issues: left.issues, fallback: left.fallback }, ctx);
     }
-    exports.$ZodCodec = core46.$constructor("$ZodCodec", (inst, def) => {
+    exports.$ZodCodec = core82.$constructor("$ZodCodec", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "values", () => def.in._zod.values);
       util2.defineLazy(inst._zod, "optin", () => def.in._zod.optin);
@@ -6419,10 +6550,10 @@ var require_schemas = __commonJS({
       }
       return nextSchema._zod.run({ value, issues: left.issues }, ctx);
     }
-    exports.$ZodPreprocess = core46.$constructor("$ZodPreprocess", (inst, def) => {
+    exports.$ZodPreprocess = core82.$constructor("$ZodPreprocess", (inst, def) => {
       exports.$ZodPipe.init(inst, def);
     });
-    exports.$ZodReadonly = core46.$constructor("$ZodReadonly", (inst, def) => {
+    exports.$ZodReadonly = core82.$constructor("$ZodReadonly", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "propValues", () => def.innerType._zod.propValues);
       util2.defineLazy(inst._zod, "values", () => def.innerType._zod.values);
@@ -6443,7 +6574,7 @@ var require_schemas = __commonJS({
       payload.value = Object.freeze(payload.value);
       return payload;
     }
-    exports.$ZodTemplateLiteral = core46.$constructor("$ZodTemplateLiteral", (inst, def) => {
+    exports.$ZodTemplateLiteral = core82.$constructor("$ZodTemplateLiteral", (inst, def) => {
       exports.$ZodType.init(inst, def);
       const regexParts = [];
       for (const part of def.parts) {
@@ -6488,7 +6619,7 @@ var require_schemas = __commonJS({
         return payload;
       };
     });
-    exports.$ZodFunction = core46.$constructor("$ZodFunction", (inst, def) => {
+    exports.$ZodFunction = core82.$constructor("$ZodFunction", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._def = def;
       inst._zod.def = def;
@@ -6565,13 +6696,13 @@ var require_schemas = __commonJS({
       };
       return inst;
     });
-    exports.$ZodPromise = core46.$constructor("$ZodPromise", (inst, def) => {
+    exports.$ZodPromise = core82.$constructor("$ZodPromise", (inst, def) => {
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, ctx) => {
         return Promise.resolve(payload.value).then((inner) => def.innerType._zod.run({ value: inner, issues: [] }, ctx));
       };
     });
-    exports.$ZodLazy = core46.$constructor("$ZodLazy", (inst, def) => {
+    exports.$ZodLazy = core82.$constructor("$ZodLazy", (inst, def) => {
       exports.$ZodType.init(inst, def);
       util2.defineLazy(inst._zod, "innerType", () => {
         const d = def;
@@ -6588,7 +6719,7 @@ var require_schemas = __commonJS({
         return inner._zod.run(payload, ctx);
       };
     });
-    exports.$ZodCustom = core46.$constructor("$ZodCustom", (inst, def) => {
+    exports.$ZodCustom = core82.$constructor("$ZodCustom", (inst, def) => {
       checks.$ZodCheck.init(inst, def);
       exports.$ZodType.init(inst, def);
       inst._zod.parse = (payload, _) => {
@@ -15435,10 +15566,10 @@ var require_api = __commonJS({
       });
     }
     // @__NO_SIDE_EFFECTS__
-    function _mime2(types, params) {
+    function _mime2(types2, params) {
       return new checks.$ZodCheckMimeType({
         check: "mime_type",
-        mime: types,
+        mime: types2,
         ...util2.normalizeParams(params)
       });
     }
@@ -15976,8 +16107,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
           continue;
         }
         if (ctx.external) {
-          const ext = ctx.external.registry.get(entry[0])?.id;
-          if (schema !== entry[0] && ext) {
+          const ext2 = ctx.external.registry.get(entry[0])?.id;
+          if (schema !== entry[0] && ext2) {
             extractToDef(entry);
             continue;
           }
@@ -17077,35 +17208,35 @@ var require_iso = __commonJS({
     exports.date = date5;
     exports.time = time3;
     exports.duration = duration3;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
-    exports.ZodISODateTime = core46.$constructor("ZodISODateTime", (inst, def) => {
-      core46.$ZodISODateTime.init(inst, def);
+    exports.ZodISODateTime = core82.$constructor("ZodISODateTime", (inst, def) => {
+      core82.$ZodISODateTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function datetime3(params) {
-      return core46._isoDateTime(exports.ZodISODateTime, params);
+      return core82._isoDateTime(exports.ZodISODateTime, params);
     }
-    exports.ZodISODate = core46.$constructor("ZodISODate", (inst, def) => {
-      core46.$ZodISODate.init(inst, def);
+    exports.ZodISODate = core82.$constructor("ZodISODate", (inst, def) => {
+      core82.$ZodISODate.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function date5(params) {
-      return core46._isoDate(exports.ZodISODate, params);
+      return core82._isoDate(exports.ZodISODate, params);
     }
-    exports.ZodISOTime = core46.$constructor("ZodISOTime", (inst, def) => {
-      core46.$ZodISOTime.init(inst, def);
+    exports.ZodISOTime = core82.$constructor("ZodISOTime", (inst, def) => {
+      core82.$ZodISOTime.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function time3(params) {
-      return core46._isoTime(exports.ZodISOTime, params);
+      return core82._isoTime(exports.ZodISOTime, params);
     }
-    exports.ZodISODuration = core46.$constructor("ZodISODuration", (inst, def) => {
-      core46.$ZodISODuration.init(inst, def);
+    exports.ZodISODuration = core82.$constructor("ZodISODuration", (inst, def) => {
+      core82.$ZodISODuration.init(inst, def);
       schemas.ZodStringFormat.init(inst, def);
     });
     function duration3(params) {
-      return core46._isoDuration(exports.ZodISODuration, params);
+      return core82._isoDuration(exports.ZodISODuration, params);
     }
   }
 });
@@ -17143,7 +17274,7 @@ var require_errors2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ZodRealError = exports.ZodError = void 0;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var util2 = __importStar(require_util());
     var initializer3 = (inst, issues) => {
@@ -17151,11 +17282,11 @@ var require_errors2 = __commonJS({
       inst.name = "ZodError";
       Object.defineProperties(inst, {
         format: {
-          value: (mapper) => core46.formatError(inst, mapper)
+          value: (mapper) => core82.formatError(inst, mapper)
           // enumerable: false,
         },
         flatten: {
-          value: (mapper) => core46.flattenError(inst, mapper)
+          value: (mapper) => core82.flattenError(inst, mapper)
           // enumerable: false,
         },
         addIssue: {
@@ -17180,8 +17311,8 @@ var require_errors2 = __commonJS({
         }
       });
     };
-    exports.ZodError = core46.$constructor("ZodError", initializer3);
-    exports.ZodRealError = core46.$constructor("ZodError", initializer3, {
+    exports.ZodError = core82.$constructor("ZodError", initializer3);
+    exports.ZodRealError = core82.$constructor("ZodError", initializer3, {
       Parent: Error
     });
   }
@@ -17220,20 +17351,20 @@ var require_parse2 = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.safeDecodeAsync = exports.safeEncodeAsync = exports.safeDecode = exports.safeEncode = exports.decodeAsync = exports.encodeAsync = exports.decode = exports.encode = exports.safeParseAsync = exports.safeParse = exports.parseAsync = exports.parse = void 0;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     var errors_js_1 = require_errors2();
-    exports.parse = core46._parse(errors_js_1.ZodRealError);
-    exports.parseAsync = core46._parseAsync(errors_js_1.ZodRealError);
-    exports.safeParse = core46._safeParse(errors_js_1.ZodRealError);
-    exports.safeParseAsync = core46._safeParseAsync(errors_js_1.ZodRealError);
-    exports.encode = core46._encode(errors_js_1.ZodRealError);
-    exports.decode = core46._decode(errors_js_1.ZodRealError);
-    exports.encodeAsync = core46._encodeAsync(errors_js_1.ZodRealError);
-    exports.decodeAsync = core46._decodeAsync(errors_js_1.ZodRealError);
-    exports.safeEncode = core46._safeEncode(errors_js_1.ZodRealError);
-    exports.safeDecode = core46._safeDecode(errors_js_1.ZodRealError);
-    exports.safeEncodeAsync = core46._safeEncodeAsync(errors_js_1.ZodRealError);
-    exports.safeDecodeAsync = core46._safeDecodeAsync(errors_js_1.ZodRealError);
+    exports.parse = core82._parse(errors_js_1.ZodRealError);
+    exports.parseAsync = core82._parseAsync(errors_js_1.ZodRealError);
+    exports.safeParse = core82._safeParse(errors_js_1.ZodRealError);
+    exports.safeParseAsync = core82._safeParseAsync(errors_js_1.ZodRealError);
+    exports.encode = core82._encode(errors_js_1.ZodRealError);
+    exports.decode = core82._decode(errors_js_1.ZodRealError);
+    exports.encodeAsync = core82._encodeAsync(errors_js_1.ZodRealError);
+    exports.decodeAsync = core82._decodeAsync(errors_js_1.ZodRealError);
+    exports.safeEncode = core82._safeEncode(errors_js_1.ZodRealError);
+    exports.safeDecode = core82._safeDecode(errors_js_1.ZodRealError);
+    exports.safeEncodeAsync = core82._safeEncodeAsync(errors_js_1.ZodRealError);
+    exports.safeDecodeAsync = core82._safeDecodeAsync(errors_js_1.ZodRealError);
   }
 });
 
@@ -17366,13 +17497,13 @@ var require_schemas2 = __commonJS({
     exports.instanceof = _instanceof2;
     exports.json = json3;
     exports.preprocess = preprocess2;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     var index_js_1 = require_core2();
     var processors = __importStar(require_json_schema_processors());
     var to_json_schema_js_1 = require_to_json_schema();
     var checks = __importStar(require_checks2());
     var iso = __importStar(require_iso());
-    var parse3 = __importStar(require_parse2());
+    var parse5 = __importStar(require_parse2());
     var _installedGroups2 = /* @__PURE__ */ new WeakMap();
     function _installLazyMethods2(inst, group, methods) {
       const proto = Object.getPrototypeOf(inst);
@@ -17410,8 +17541,8 @@ var require_schemas2 = __commonJS({
         });
       }
     }
-    exports.ZodType = core46.$constructor("ZodType", (inst, def) => {
-      core46.$ZodType.init(inst, def);
+    exports.ZodType = core82.$constructor("ZodType", (inst, def) => {
+      core82.$ZodType.init(inst, def);
       Object.assign(inst["~standard"], {
         jsonSchema: {
           input: (0, to_json_schema_js_1.createStandardJSONSchemaMethod)(inst, "input"),
@@ -17422,19 +17553,19 @@ var require_schemas2 = __commonJS({
       inst.def = def;
       inst.type = def.type;
       Object.defineProperty(inst, "_def", { value: def });
-      inst.parse = (data, params) => parse3.parse(inst, data, params, { callee: inst.parse });
-      inst.safeParse = (data, params) => parse3.safeParse(inst, data, params);
-      inst.parseAsync = async (data, params) => parse3.parseAsync(inst, data, params, { callee: inst.parseAsync });
-      inst.safeParseAsync = async (data, params) => parse3.safeParseAsync(inst, data, params);
+      inst.parse = (data, params) => parse5.parse(inst, data, params, { callee: inst.parse });
+      inst.safeParse = (data, params) => parse5.safeParse(inst, data, params);
+      inst.parseAsync = async (data, params) => parse5.parseAsync(inst, data, params, { callee: inst.parseAsync });
+      inst.safeParseAsync = async (data, params) => parse5.safeParseAsync(inst, data, params);
       inst.spa = inst.safeParseAsync;
-      inst.encode = (data, params) => parse3.encode(inst, data, params);
-      inst.decode = (data, params) => parse3.decode(inst, data, params);
-      inst.encodeAsync = async (data, params) => parse3.encodeAsync(inst, data, params);
-      inst.decodeAsync = async (data, params) => parse3.decodeAsync(inst, data, params);
-      inst.safeEncode = (data, params) => parse3.safeEncode(inst, data, params);
-      inst.safeDecode = (data, params) => parse3.safeDecode(inst, data, params);
-      inst.safeEncodeAsync = async (data, params) => parse3.safeEncodeAsync(inst, data, params);
-      inst.safeDecodeAsync = async (data, params) => parse3.safeDecodeAsync(inst, data, params);
+      inst.encode = (data, params) => parse5.encode(inst, data, params);
+      inst.decode = (data, params) => parse5.decode(inst, data, params);
+      inst.encodeAsync = async (data, params) => parse5.encodeAsync(inst, data, params);
+      inst.decodeAsync = async (data, params) => parse5.decodeAsync(inst, data, params);
+      inst.safeEncode = (data, params) => parse5.safeEncode(inst, data, params);
+      inst.safeDecode = (data, params) => parse5.safeDecode(inst, data, params);
+      inst.safeEncodeAsync = async (data, params) => parse5.safeEncodeAsync(inst, data, params);
+      inst.safeDecodeAsync = async (data, params) => parse5.safeDecodeAsync(inst, data, params);
       _installLazyMethods2(inst, "ZodType", {
         check(...chks) {
           const def2 = this.def;
@@ -17449,7 +17580,7 @@ var require_schemas2 = __commonJS({
           return this.check(...chks);
         },
         clone(def2, params) {
-          return core46.clone(this, def2, params);
+          return core82.clone(this, def2, params);
         },
         brand() {
           return this;
@@ -17511,14 +17642,14 @@ var require_schemas2 = __commonJS({
         },
         describe(description) {
           const cl = this.clone();
-          core46.globalRegistry.add(cl, { description });
+          core82.globalRegistry.add(cl, { description });
           return cl;
         },
         meta(...args) {
           if (args.length === 0)
-            return core46.globalRegistry.get(this);
+            return core82.globalRegistry.get(this);
           const cl = this.clone();
-          core46.globalRegistry.add(cl, args[0]);
+          core82.globalRegistry.add(cl, args[0]);
           return cl;
         },
         isOptional() {
@@ -17533,14 +17664,14 @@ var require_schemas2 = __commonJS({
       });
       Object.defineProperty(inst, "description", {
         get() {
-          return core46.globalRegistry.get(inst)?.description;
+          return core82.globalRegistry.get(inst)?.description;
         },
         configurable: true
       });
       return inst;
     });
-    exports._ZodString = core46.$constructor("_ZodString", (inst, def) => {
-      core46.$ZodString.init(inst, def);
+    exports._ZodString = core82.$constructor("_ZodString", (inst, def) => {
+      core82.$ZodString.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.stringProcessor(inst, ctx, json4, params);
       const bag = inst._zod.bag;
@@ -17595,223 +17726,223 @@ var require_schemas2 = __commonJS({
         }
       });
     });
-    exports.ZodString = core46.$constructor("ZodString", (inst, def) => {
-      core46.$ZodString.init(inst, def);
+    exports.ZodString = core82.$constructor("ZodString", (inst, def) => {
+      core82.$ZodString.init(inst, def);
       exports._ZodString.init(inst, def);
-      inst.email = (params) => inst.check(core46._email(exports.ZodEmail, params));
-      inst.url = (params) => inst.check(core46._url(exports.ZodURL, params));
-      inst.jwt = (params) => inst.check(core46._jwt(exports.ZodJWT, params));
-      inst.emoji = (params) => inst.check(core46._emoji(exports.ZodEmoji, params));
-      inst.guid = (params) => inst.check(core46._guid(exports.ZodGUID, params));
-      inst.uuid = (params) => inst.check(core46._uuid(exports.ZodUUID, params));
-      inst.uuidv4 = (params) => inst.check(core46._uuidv4(exports.ZodUUID, params));
-      inst.uuidv6 = (params) => inst.check(core46._uuidv6(exports.ZodUUID, params));
-      inst.uuidv7 = (params) => inst.check(core46._uuidv7(exports.ZodUUID, params));
-      inst.nanoid = (params) => inst.check(core46._nanoid(exports.ZodNanoID, params));
-      inst.guid = (params) => inst.check(core46._guid(exports.ZodGUID, params));
-      inst.cuid = (params) => inst.check(core46._cuid(exports.ZodCUID, params));
-      inst.cuid2 = (params) => inst.check(core46._cuid2(exports.ZodCUID2, params));
-      inst.ulid = (params) => inst.check(core46._ulid(exports.ZodULID, params));
-      inst.base64 = (params) => inst.check(core46._base64(exports.ZodBase64, params));
-      inst.base64url = (params) => inst.check(core46._base64url(exports.ZodBase64URL, params));
-      inst.xid = (params) => inst.check(core46._xid(exports.ZodXID, params));
-      inst.ksuid = (params) => inst.check(core46._ksuid(exports.ZodKSUID, params));
-      inst.ipv4 = (params) => inst.check(core46._ipv4(exports.ZodIPv4, params));
-      inst.ipv6 = (params) => inst.check(core46._ipv6(exports.ZodIPv6, params));
-      inst.cidrv4 = (params) => inst.check(core46._cidrv4(exports.ZodCIDRv4, params));
-      inst.cidrv6 = (params) => inst.check(core46._cidrv6(exports.ZodCIDRv6, params));
-      inst.e164 = (params) => inst.check(core46._e164(exports.ZodE164, params));
+      inst.email = (params) => inst.check(core82._email(exports.ZodEmail, params));
+      inst.url = (params) => inst.check(core82._url(exports.ZodURL, params));
+      inst.jwt = (params) => inst.check(core82._jwt(exports.ZodJWT, params));
+      inst.emoji = (params) => inst.check(core82._emoji(exports.ZodEmoji, params));
+      inst.guid = (params) => inst.check(core82._guid(exports.ZodGUID, params));
+      inst.uuid = (params) => inst.check(core82._uuid(exports.ZodUUID, params));
+      inst.uuidv4 = (params) => inst.check(core82._uuidv4(exports.ZodUUID, params));
+      inst.uuidv6 = (params) => inst.check(core82._uuidv6(exports.ZodUUID, params));
+      inst.uuidv7 = (params) => inst.check(core82._uuidv7(exports.ZodUUID, params));
+      inst.nanoid = (params) => inst.check(core82._nanoid(exports.ZodNanoID, params));
+      inst.guid = (params) => inst.check(core82._guid(exports.ZodGUID, params));
+      inst.cuid = (params) => inst.check(core82._cuid(exports.ZodCUID, params));
+      inst.cuid2 = (params) => inst.check(core82._cuid2(exports.ZodCUID2, params));
+      inst.ulid = (params) => inst.check(core82._ulid(exports.ZodULID, params));
+      inst.base64 = (params) => inst.check(core82._base64(exports.ZodBase64, params));
+      inst.base64url = (params) => inst.check(core82._base64url(exports.ZodBase64URL, params));
+      inst.xid = (params) => inst.check(core82._xid(exports.ZodXID, params));
+      inst.ksuid = (params) => inst.check(core82._ksuid(exports.ZodKSUID, params));
+      inst.ipv4 = (params) => inst.check(core82._ipv4(exports.ZodIPv4, params));
+      inst.ipv6 = (params) => inst.check(core82._ipv6(exports.ZodIPv6, params));
+      inst.cidrv4 = (params) => inst.check(core82._cidrv4(exports.ZodCIDRv4, params));
+      inst.cidrv6 = (params) => inst.check(core82._cidrv6(exports.ZodCIDRv6, params));
+      inst.e164 = (params) => inst.check(core82._e164(exports.ZodE164, params));
       inst.datetime = (params) => inst.check(iso.datetime(params));
       inst.date = (params) => inst.check(iso.date(params));
       inst.time = (params) => inst.check(iso.time(params));
       inst.duration = (params) => inst.check(iso.duration(params));
     });
     function string4(params) {
-      return core46._string(exports.ZodString, params);
+      return core82._string(exports.ZodString, params);
     }
-    exports.ZodStringFormat = core46.$constructor("ZodStringFormat", (inst, def) => {
-      core46.$ZodStringFormat.init(inst, def);
+    exports.ZodStringFormat = core82.$constructor("ZodStringFormat", (inst, def) => {
+      core82.$ZodStringFormat.init(inst, def);
       exports._ZodString.init(inst, def);
     });
-    exports.ZodEmail = core46.$constructor("ZodEmail", (inst, def) => {
-      core46.$ZodEmail.init(inst, def);
+    exports.ZodEmail = core82.$constructor("ZodEmail", (inst, def) => {
+      core82.$ZodEmail.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function email3(params) {
-      return core46._email(exports.ZodEmail, params);
+      return core82._email(exports.ZodEmail, params);
     }
-    exports.ZodGUID = core46.$constructor("ZodGUID", (inst, def) => {
-      core46.$ZodGUID.init(inst, def);
+    exports.ZodGUID = core82.$constructor("ZodGUID", (inst, def) => {
+      core82.$ZodGUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function guid3(params) {
-      return core46._guid(exports.ZodGUID, params);
+      return core82._guid(exports.ZodGUID, params);
     }
-    exports.ZodUUID = core46.$constructor("ZodUUID", (inst, def) => {
-      core46.$ZodUUID.init(inst, def);
+    exports.ZodUUID = core82.$constructor("ZodUUID", (inst, def) => {
+      core82.$ZodUUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function uuid3(params) {
-      return core46._uuid(exports.ZodUUID, params);
+      return core82._uuid(exports.ZodUUID, params);
     }
     function uuidv42(params) {
-      return core46._uuidv4(exports.ZodUUID, params);
+      return core82._uuidv4(exports.ZodUUID, params);
     }
     function uuidv62(params) {
-      return core46._uuidv6(exports.ZodUUID, params);
+      return core82._uuidv6(exports.ZodUUID, params);
     }
     function uuidv72(params) {
-      return core46._uuidv7(exports.ZodUUID, params);
+      return core82._uuidv7(exports.ZodUUID, params);
     }
-    exports.ZodURL = core46.$constructor("ZodURL", (inst, def) => {
-      core46.$ZodURL.init(inst, def);
+    exports.ZodURL = core82.$constructor("ZodURL", (inst, def) => {
+      core82.$ZodURL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function url2(params) {
-      return core46._url(exports.ZodURL, params);
+      return core82._url(exports.ZodURL, params);
     }
     function httpUrl2(params) {
-      return core46._url(exports.ZodURL, {
-        protocol: core46.regexes.httpProtocol,
-        hostname: core46.regexes.domain,
+      return core82._url(exports.ZodURL, {
+        protocol: core82.regexes.httpProtocol,
+        hostname: core82.regexes.domain,
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEmoji = core46.$constructor("ZodEmoji", (inst, def) => {
-      core46.$ZodEmoji.init(inst, def);
+    exports.ZodEmoji = core82.$constructor("ZodEmoji", (inst, def) => {
+      core82.$ZodEmoji.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function emoji3(params) {
-      return core46._emoji(exports.ZodEmoji, params);
+      return core82._emoji(exports.ZodEmoji, params);
     }
-    exports.ZodNanoID = core46.$constructor("ZodNanoID", (inst, def) => {
-      core46.$ZodNanoID.init(inst, def);
+    exports.ZodNanoID = core82.$constructor("ZodNanoID", (inst, def) => {
+      core82.$ZodNanoID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function nanoid3(params) {
-      return core46._nanoid(exports.ZodNanoID, params);
+      return core82._nanoid(exports.ZodNanoID, params);
     }
-    exports.ZodCUID = core46.$constructor("ZodCUID", (inst, def) => {
-      core46.$ZodCUID.init(inst, def);
+    exports.ZodCUID = core82.$constructor("ZodCUID", (inst, def) => {
+      core82.$ZodCUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid4(params) {
-      return core46._cuid(exports.ZodCUID, params);
+      return core82._cuid(exports.ZodCUID, params);
     }
-    exports.ZodCUID2 = core46.$constructor("ZodCUID2", (inst, def) => {
-      core46.$ZodCUID2.init(inst, def);
+    exports.ZodCUID2 = core82.$constructor("ZodCUID2", (inst, def) => {
+      core82.$ZodCUID2.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cuid23(params) {
-      return core46._cuid2(exports.ZodCUID2, params);
+      return core82._cuid2(exports.ZodCUID2, params);
     }
-    exports.ZodULID = core46.$constructor("ZodULID", (inst, def) => {
-      core46.$ZodULID.init(inst, def);
+    exports.ZodULID = core82.$constructor("ZodULID", (inst, def) => {
+      core82.$ZodULID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ulid3(params) {
-      return core46._ulid(exports.ZodULID, params);
+      return core82._ulid(exports.ZodULID, params);
     }
-    exports.ZodXID = core46.$constructor("ZodXID", (inst, def) => {
-      core46.$ZodXID.init(inst, def);
+    exports.ZodXID = core82.$constructor("ZodXID", (inst, def) => {
+      core82.$ZodXID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function xid3(params) {
-      return core46._xid(exports.ZodXID, params);
+      return core82._xid(exports.ZodXID, params);
     }
-    exports.ZodKSUID = core46.$constructor("ZodKSUID", (inst, def) => {
-      core46.$ZodKSUID.init(inst, def);
+    exports.ZodKSUID = core82.$constructor("ZodKSUID", (inst, def) => {
+      core82.$ZodKSUID.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ksuid3(params) {
-      return core46._ksuid(exports.ZodKSUID, params);
+      return core82._ksuid(exports.ZodKSUID, params);
     }
-    exports.ZodIPv4 = core46.$constructor("ZodIPv4", (inst, def) => {
-      core46.$ZodIPv4.init(inst, def);
+    exports.ZodIPv4 = core82.$constructor("ZodIPv4", (inst, def) => {
+      core82.$ZodIPv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv43(params) {
-      return core46._ipv4(exports.ZodIPv4, params);
+      return core82._ipv4(exports.ZodIPv4, params);
     }
-    exports.ZodMAC = core46.$constructor("ZodMAC", (inst, def) => {
-      core46.$ZodMAC.init(inst, def);
+    exports.ZodMAC = core82.$constructor("ZodMAC", (inst, def) => {
+      core82.$ZodMAC.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function mac3(params) {
-      return core46._mac(exports.ZodMAC, params);
+      return core82._mac(exports.ZodMAC, params);
     }
-    exports.ZodIPv6 = core46.$constructor("ZodIPv6", (inst, def) => {
-      core46.$ZodIPv6.init(inst, def);
+    exports.ZodIPv6 = core82.$constructor("ZodIPv6", (inst, def) => {
+      core82.$ZodIPv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function ipv63(params) {
-      return core46._ipv6(exports.ZodIPv6, params);
+      return core82._ipv6(exports.ZodIPv6, params);
     }
-    exports.ZodCIDRv4 = core46.$constructor("ZodCIDRv4", (inst, def) => {
-      core46.$ZodCIDRv4.init(inst, def);
+    exports.ZodCIDRv4 = core82.$constructor("ZodCIDRv4", (inst, def) => {
+      core82.$ZodCIDRv4.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv43(params) {
-      return core46._cidrv4(exports.ZodCIDRv4, params);
+      return core82._cidrv4(exports.ZodCIDRv4, params);
     }
-    exports.ZodCIDRv6 = core46.$constructor("ZodCIDRv6", (inst, def) => {
-      core46.$ZodCIDRv6.init(inst, def);
+    exports.ZodCIDRv6 = core82.$constructor("ZodCIDRv6", (inst, def) => {
+      core82.$ZodCIDRv6.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function cidrv63(params) {
-      return core46._cidrv6(exports.ZodCIDRv6, params);
+      return core82._cidrv6(exports.ZodCIDRv6, params);
     }
-    exports.ZodBase64 = core46.$constructor("ZodBase64", (inst, def) => {
-      core46.$ZodBase64.init(inst, def);
+    exports.ZodBase64 = core82.$constructor("ZodBase64", (inst, def) => {
+      core82.$ZodBase64.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base643(params) {
-      return core46._base64(exports.ZodBase64, params);
+      return core82._base64(exports.ZodBase64, params);
     }
-    exports.ZodBase64URL = core46.$constructor("ZodBase64URL", (inst, def) => {
-      core46.$ZodBase64URL.init(inst, def);
+    exports.ZodBase64URL = core82.$constructor("ZodBase64URL", (inst, def) => {
+      core82.$ZodBase64URL.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function base64url3(params) {
-      return core46._base64url(exports.ZodBase64URL, params);
+      return core82._base64url(exports.ZodBase64URL, params);
     }
-    exports.ZodE164 = core46.$constructor("ZodE164", (inst, def) => {
-      core46.$ZodE164.init(inst, def);
+    exports.ZodE164 = core82.$constructor("ZodE164", (inst, def) => {
+      core82.$ZodE164.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function e1643(params) {
-      return core46._e164(exports.ZodE164, params);
+      return core82._e164(exports.ZodE164, params);
     }
-    exports.ZodJWT = core46.$constructor("ZodJWT", (inst, def) => {
-      core46.$ZodJWT.init(inst, def);
+    exports.ZodJWT = core82.$constructor("ZodJWT", (inst, def) => {
+      core82.$ZodJWT.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function jwt2(params) {
-      return core46._jwt(exports.ZodJWT, params);
+      return core82._jwt(exports.ZodJWT, params);
     }
-    exports.ZodCustomStringFormat = core46.$constructor("ZodCustomStringFormat", (inst, def) => {
-      core46.$ZodCustomStringFormat.init(inst, def);
+    exports.ZodCustomStringFormat = core82.$constructor("ZodCustomStringFormat", (inst, def) => {
+      core82.$ZodCustomStringFormat.init(inst, def);
       exports.ZodStringFormat.init(inst, def);
     });
     function stringFormat2(format, fnOrRegex, _params = {}) {
-      return core46._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
+      return core82._stringFormat(exports.ZodCustomStringFormat, format, fnOrRegex, _params);
     }
     function hostname3(_params) {
-      return core46._stringFormat(exports.ZodCustomStringFormat, "hostname", core46.regexes.hostname, _params);
+      return core82._stringFormat(exports.ZodCustomStringFormat, "hostname", core82.regexes.hostname, _params);
     }
     function hex3(_params) {
-      return core46._stringFormat(exports.ZodCustomStringFormat, "hex", core46.regexes.hex, _params);
+      return core82._stringFormat(exports.ZodCustomStringFormat, "hex", core82.regexes.hex, _params);
     }
     function hash2(alg, params) {
       const enc = params?.enc ?? "hex";
       const format = `${alg}_${enc}`;
-      const regex2 = core46.regexes[format];
+      const regex2 = core82.regexes[format];
       if (!regex2)
         throw new Error(`Unrecognized hash format: ${format}`);
-      return core46._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
+      return core82._stringFormat(exports.ZodCustomStringFormat, format, regex2, params);
     }
-    exports.ZodNumber = core46.$constructor("ZodNumber", (inst, def) => {
-      core46.$ZodNumber.init(inst, def);
+    exports.ZodNumber = core82.$constructor("ZodNumber", (inst, def) => {
+      core82.$ZodNumber.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.numberProcessor(inst, ctx, json4, params);
       _installLazyMethods2(inst, "ZodNumber", {
@@ -17869,37 +18000,37 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function number4(params) {
-      return core46._number(exports.ZodNumber, params);
+      return core82._number(exports.ZodNumber, params);
     }
-    exports.ZodNumberFormat = core46.$constructor("ZodNumberFormat", (inst, def) => {
-      core46.$ZodNumberFormat.init(inst, def);
+    exports.ZodNumberFormat = core82.$constructor("ZodNumberFormat", (inst, def) => {
+      core82.$ZodNumberFormat.init(inst, def);
       exports.ZodNumber.init(inst, def);
     });
     function int2(params) {
-      return core46._int(exports.ZodNumberFormat, params);
+      return core82._int(exports.ZodNumberFormat, params);
     }
     function float322(params) {
-      return core46._float32(exports.ZodNumberFormat, params);
+      return core82._float32(exports.ZodNumberFormat, params);
     }
     function float642(params) {
-      return core46._float64(exports.ZodNumberFormat, params);
+      return core82._float64(exports.ZodNumberFormat, params);
     }
     function int322(params) {
-      return core46._int32(exports.ZodNumberFormat, params);
+      return core82._int32(exports.ZodNumberFormat, params);
     }
     function uint322(params) {
-      return core46._uint32(exports.ZodNumberFormat, params);
+      return core82._uint32(exports.ZodNumberFormat, params);
     }
-    exports.ZodBoolean = core46.$constructor("ZodBoolean", (inst, def) => {
-      core46.$ZodBoolean.init(inst, def);
+    exports.ZodBoolean = core82.$constructor("ZodBoolean", (inst, def) => {
+      core82.$ZodBoolean.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.booleanProcessor(inst, ctx, json4, params);
     });
     function boolean4(params) {
-      return core46._boolean(exports.ZodBoolean, params);
+      return core82._boolean(exports.ZodBoolean, params);
     }
-    exports.ZodBigInt = core46.$constructor("ZodBigInt", (inst, def) => {
-      core46.$ZodBigInt.init(inst, def);
+    exports.ZodBigInt = core82.$constructor("ZodBigInt", (inst, def) => {
+      core82.$ZodBigInt.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.bigintProcessor(inst, ctx, json4, params);
       inst.gte = (value, params) => inst.check(checks.gte(value, params));
@@ -17921,76 +18052,76 @@ var require_schemas2 = __commonJS({
       inst.format = bag.format ?? null;
     });
     function bigint4(params) {
-      return core46._bigint(exports.ZodBigInt, params);
+      return core82._bigint(exports.ZodBigInt, params);
     }
-    exports.ZodBigIntFormat = core46.$constructor("ZodBigIntFormat", (inst, def) => {
-      core46.$ZodBigIntFormat.init(inst, def);
+    exports.ZodBigIntFormat = core82.$constructor("ZodBigIntFormat", (inst, def) => {
+      core82.$ZodBigIntFormat.init(inst, def);
       exports.ZodBigInt.init(inst, def);
     });
     function int642(params) {
-      return core46._int64(exports.ZodBigIntFormat, params);
+      return core82._int64(exports.ZodBigIntFormat, params);
     }
     function uint642(params) {
-      return core46._uint64(exports.ZodBigIntFormat, params);
+      return core82._uint64(exports.ZodBigIntFormat, params);
     }
-    exports.ZodSymbol = core46.$constructor("ZodSymbol", (inst, def) => {
-      core46.$ZodSymbol.init(inst, def);
+    exports.ZodSymbol = core82.$constructor("ZodSymbol", (inst, def) => {
+      core82.$ZodSymbol.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.symbolProcessor(inst, ctx, json4, params);
     });
     function symbol21(params) {
-      return core46._symbol(exports.ZodSymbol, params);
+      return core82._symbol(exports.ZodSymbol, params);
     }
-    exports.ZodUndefined = core46.$constructor("ZodUndefined", (inst, def) => {
-      core46.$ZodUndefined.init(inst, def);
+    exports.ZodUndefined = core82.$constructor("ZodUndefined", (inst, def) => {
+      core82.$ZodUndefined.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.undefinedProcessor(inst, ctx, json4, params);
     });
     function _undefined4(params) {
-      return core46._undefined(exports.ZodUndefined, params);
+      return core82._undefined(exports.ZodUndefined, params);
     }
-    exports.ZodNull = core46.$constructor("ZodNull", (inst, def) => {
-      core46.$ZodNull.init(inst, def);
+    exports.ZodNull = core82.$constructor("ZodNull", (inst, def) => {
+      core82.$ZodNull.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullProcessor(inst, ctx, json4, params);
     });
     function _null4(params) {
-      return core46._null(exports.ZodNull, params);
+      return core82._null(exports.ZodNull, params);
     }
-    exports.ZodAny = core46.$constructor("ZodAny", (inst, def) => {
-      core46.$ZodAny.init(inst, def);
+    exports.ZodAny = core82.$constructor("ZodAny", (inst, def) => {
+      core82.$ZodAny.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.anyProcessor(inst, ctx, json4, params);
     });
     function any2() {
-      return core46._any(exports.ZodAny);
+      return core82._any(exports.ZodAny);
     }
-    exports.ZodUnknown = core46.$constructor("ZodUnknown", (inst, def) => {
-      core46.$ZodUnknown.init(inst, def);
+    exports.ZodUnknown = core82.$constructor("ZodUnknown", (inst, def) => {
+      core82.$ZodUnknown.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unknownProcessor(inst, ctx, json4, params);
     });
     function unknown2() {
-      return core46._unknown(exports.ZodUnknown);
+      return core82._unknown(exports.ZodUnknown);
     }
-    exports.ZodNever = core46.$constructor("ZodNever", (inst, def) => {
-      core46.$ZodNever.init(inst, def);
+    exports.ZodNever = core82.$constructor("ZodNever", (inst, def) => {
+      core82.$ZodNever.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.neverProcessor(inst, ctx, json4, params);
     });
     function never2(params) {
-      return core46._never(exports.ZodNever, params);
+      return core82._never(exports.ZodNever, params);
     }
-    exports.ZodVoid = core46.$constructor("ZodVoid", (inst, def) => {
-      core46.$ZodVoid.init(inst, def);
+    exports.ZodVoid = core82.$constructor("ZodVoid", (inst, def) => {
+      core82.$ZodVoid.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.voidProcessor(inst, ctx, json4, params);
     });
     function _void3(params) {
-      return core46._void(exports.ZodVoid, params);
+      return core82._void(exports.ZodVoid, params);
     }
-    exports.ZodDate = core46.$constructor("ZodDate", (inst, def) => {
-      core46.$ZodDate.init(inst, def);
+    exports.ZodDate = core82.$constructor("ZodDate", (inst, def) => {
+      core82.$ZodDate.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.dateProcessor(inst, ctx, json4, params);
       inst.min = (value, params) => inst.check(checks.gte(value, params));
@@ -18000,10 +18131,10 @@ var require_schemas2 = __commonJS({
       inst.maxDate = c.maximum ? new Date(c.maximum) : null;
     });
     function date5(params) {
-      return core46._date(exports.ZodDate, params);
+      return core82._date(exports.ZodDate, params);
     }
-    exports.ZodArray = core46.$constructor("ZodArray", (inst, def) => {
-      core46.$ZodArray.init(inst, def);
+    exports.ZodArray = core82.$constructor("ZodArray", (inst, def) => {
+      core82.$ZodArray.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.arrayProcessor(inst, ctx, json4, params);
       inst.element = def.element;
@@ -18026,14 +18157,14 @@ var require_schemas2 = __commonJS({
       });
     });
     function array3(element, params) {
-      return core46._array(exports.ZodArray, element, params);
+      return core82._array(exports.ZodArray, element, params);
     }
     function keyof2(schema) {
       const shape = schema._zod.def.shape;
       return _enum3(Object.keys(shape));
     }
-    exports.ZodObject = core46.$constructor("ZodObject", (inst, def) => {
-      core46.$ZodObjectJIT.init(inst, def);
+    exports.ZodObject = core82.$constructor("ZodObject", (inst, def) => {
+      core82.$ZodObjectJIT.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.objectProcessor(inst, ctx, json4, params);
       index_js_1.util.defineLazy(inst, "shape", () => {
@@ -18105,8 +18236,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodUnion = core46.$constructor("ZodUnion", (inst, def) => {
-      core46.$ZodUnion.init(inst, def);
+    exports.ZodUnion = core82.$constructor("ZodUnion", (inst, def) => {
+      core82.$ZodUnion.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
@@ -18118,9 +18249,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodXor = core46.$constructor("ZodXor", (inst, def) => {
+    exports.ZodXor = core82.$constructor("ZodXor", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core46.$ZodXor.init(inst, def);
+      core82.$ZodXor.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.unionProcessor(inst, ctx, json4, params);
       inst.options = def.options;
     });
@@ -18132,9 +18263,9 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodDiscriminatedUnion = core46.$constructor("ZodDiscriminatedUnion", (inst, def) => {
+    exports.ZodDiscriminatedUnion = core82.$constructor("ZodDiscriminatedUnion", (inst, def) => {
       exports.ZodUnion.init(inst, def);
-      core46.$ZodDiscriminatedUnion.init(inst, def);
+      core82.$ZodDiscriminatedUnion.init(inst, def);
     });
     function discriminatedUnion2(discriminator, options, params) {
       return new exports.ZodDiscriminatedUnion({
@@ -18144,8 +18275,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodIntersection = core46.$constructor("ZodIntersection", (inst, def) => {
-      core46.$ZodIntersection.init(inst, def);
+    exports.ZodIntersection = core82.$constructor("ZodIntersection", (inst, def) => {
+      core82.$ZodIntersection.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.intersectionProcessor(inst, ctx, json4, params);
     });
@@ -18156,8 +18287,8 @@ var require_schemas2 = __commonJS({
         right
       });
     }
-    exports.ZodTuple = core46.$constructor("ZodTuple", (inst, def) => {
-      core46.$ZodTuple.init(inst, def);
+    exports.ZodTuple = core82.$constructor("ZodTuple", (inst, def) => {
+      core82.$ZodTuple.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.tupleProcessor(inst, ctx, json4, params);
       inst.rest = (rest) => inst.clone({
@@ -18166,7 +18297,7 @@ var require_schemas2 = __commonJS({
       });
     });
     function tuple2(items, _paramsOrRest, _params) {
-      const hasRest = _paramsOrRest instanceof core46.$ZodType;
+      const hasRest = _paramsOrRest instanceof core82.$ZodType;
       const params = hasRest ? _params : _paramsOrRest;
       const rest = hasRest ? _paramsOrRest : null;
       return new exports.ZodTuple({
@@ -18176,8 +18307,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodRecord = core46.$constructor("ZodRecord", (inst, def) => {
-      core46.$ZodRecord.init(inst, def);
+    exports.ZodRecord = core82.$constructor("ZodRecord", (inst, def) => {
+      core82.$ZodRecord.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.recordProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
@@ -18200,7 +18331,7 @@ var require_schemas2 = __commonJS({
       });
     }
     function partialRecord2(keyType, valueType, params) {
-      const k = core46.clone(keyType);
+      const k = core82.clone(keyType);
       k._zod.values = void 0;
       return new exports.ZodRecord({
         type: "record",
@@ -18218,16 +18349,16 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodMap = core46.$constructor("ZodMap", (inst, def) => {
-      core46.$ZodMap.init(inst, def);
+    exports.ZodMap = core82.$constructor("ZodMap", (inst, def) => {
+      core82.$ZodMap.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.mapProcessor(inst, ctx, json4, params);
       inst.keyType = def.keyType;
       inst.valueType = def.valueType;
-      inst.min = (...args) => inst.check(core46._minSize(...args));
-      inst.nonempty = (params) => inst.check(core46._minSize(1, params));
-      inst.max = (...args) => inst.check(core46._maxSize(...args));
-      inst.size = (...args) => inst.check(core46._size(...args));
+      inst.min = (...args) => inst.check(core82._minSize(...args));
+      inst.nonempty = (params) => inst.check(core82._minSize(1, params));
+      inst.max = (...args) => inst.check(core82._maxSize(...args));
+      inst.size = (...args) => inst.check(core82._size(...args));
     });
     function map2(keyType, valueType, params) {
       return new exports.ZodMap({
@@ -18237,14 +18368,14 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSet = core46.$constructor("ZodSet", (inst, def) => {
-      core46.$ZodSet.init(inst, def);
+    exports.ZodSet = core82.$constructor("ZodSet", (inst, def) => {
+      core82.$ZodSet.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.setProcessor(inst, ctx, json4, params);
-      inst.min = (...args) => inst.check(core46._minSize(...args));
-      inst.nonempty = (params) => inst.check(core46._minSize(1, params));
-      inst.max = (...args) => inst.check(core46._maxSize(...args));
-      inst.size = (...args) => inst.check(core46._size(...args));
+      inst.min = (...args) => inst.check(core82._minSize(...args));
+      inst.nonempty = (params) => inst.check(core82._minSize(1, params));
+      inst.max = (...args) => inst.check(core82._maxSize(...args));
+      inst.size = (...args) => inst.check(core82._size(...args));
     });
     function set2(valueType, params) {
       return new exports.ZodSet({
@@ -18253,8 +18384,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodEnum = core46.$constructor("ZodEnum", (inst, def) => {
-      core46.$ZodEnum.init(inst, def);
+    exports.ZodEnum = core82.$constructor("ZodEnum", (inst, def) => {
+      core82.$ZodEnum.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.enumProcessor(inst, ctx, json4, params);
       inst.enum = def.entries;
@@ -18306,8 +18437,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLiteral = core46.$constructor("ZodLiteral", (inst, def) => {
-      core46.$ZodLiteral.init(inst, def);
+    exports.ZodLiteral = core82.$constructor("ZodLiteral", (inst, def) => {
+      core82.$ZodLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.literalProcessor(inst, ctx, json4, params);
       inst.values = new Set(def.values);
@@ -18327,24 +18458,24 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodFile = core46.$constructor("ZodFile", (inst, def) => {
-      core46.$ZodFile.init(inst, def);
+    exports.ZodFile = core82.$constructor("ZodFile", (inst, def) => {
+      core82.$ZodFile.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.fileProcessor(inst, ctx, json4, params);
-      inst.min = (size, params) => inst.check(core46._minSize(size, params));
-      inst.max = (size, params) => inst.check(core46._maxSize(size, params));
-      inst.mime = (types, params) => inst.check(core46._mime(Array.isArray(types) ? types : [types], params));
+      inst.min = (size, params) => inst.check(core82._minSize(size, params));
+      inst.max = (size, params) => inst.check(core82._maxSize(size, params));
+      inst.mime = (types2, params) => inst.check(core82._mime(Array.isArray(types2) ? types2 : [types2], params));
     });
     function file2(params) {
-      return core46._file(exports.ZodFile, params);
+      return core82._file(exports.ZodFile, params);
     }
-    exports.ZodTransform = core46.$constructor("ZodTransform", (inst, def) => {
-      core46.$ZodTransform.init(inst, def);
+    exports.ZodTransform = core82.$constructor("ZodTransform", (inst, def) => {
+      core82.$ZodTransform.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.transformProcessor(inst, ctx, json4, params);
       inst._zod.parse = (payload, _ctx) => {
         if (_ctx.direction === "backward") {
-          throw new core46.$ZodEncodeError(inst.constructor.name);
+          throw new core82.$ZodEncodeError(inst.constructor.name);
         }
         payload.addIssue = (issue2) => {
           if (typeof issue2 === "string") {
@@ -18378,8 +18509,8 @@ var require_schemas2 = __commonJS({
         transform: fn
       });
     }
-    exports.ZodOptional = core46.$constructor("ZodOptional", (inst, def) => {
-      core46.$ZodOptional.init(inst, def);
+    exports.ZodOptional = core82.$constructor("ZodOptional", (inst, def) => {
+      core82.$ZodOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18390,8 +18521,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodExactOptional = core46.$constructor("ZodExactOptional", (inst, def) => {
-      core46.$ZodExactOptional.init(inst, def);
+    exports.ZodExactOptional = core82.$constructor("ZodExactOptional", (inst, def) => {
+      core82.$ZodExactOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.optionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18402,8 +18533,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodNullable = core46.$constructor("ZodNullable", (inst, def) => {
-      core46.$ZodNullable.init(inst, def);
+    exports.ZodNullable = core82.$constructor("ZodNullable", (inst, def) => {
+      core82.$ZodNullable.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nullableProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18417,8 +18548,8 @@ var require_schemas2 = __commonJS({
     function nullish3(innerType) {
       return optional2(nullable2(innerType));
     }
-    exports.ZodDefault = core46.$constructor("ZodDefault", (inst, def) => {
-      core46.$ZodDefault.init(inst, def);
+    exports.ZodDefault = core82.$constructor("ZodDefault", (inst, def) => {
+      core82.$ZodDefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.defaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18433,8 +18564,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodPrefault = core46.$constructor("ZodPrefault", (inst, def) => {
-      core46.$ZodPrefault.init(inst, def);
+    exports.ZodPrefault = core82.$constructor("ZodPrefault", (inst, def) => {
+      core82.$ZodPrefault.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.prefaultProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18448,8 +18579,8 @@ var require_schemas2 = __commonJS({
         }
       });
     }
-    exports.ZodNonOptional = core46.$constructor("ZodNonOptional", (inst, def) => {
-      core46.$ZodNonOptional.init(inst, def);
+    exports.ZodNonOptional = core82.$constructor("ZodNonOptional", (inst, def) => {
+      core82.$ZodNonOptional.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nonoptionalProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18461,8 +18592,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodSuccess = core46.$constructor("ZodSuccess", (inst, def) => {
-      core46.$ZodSuccess.init(inst, def);
+    exports.ZodSuccess = core82.$constructor("ZodSuccess", (inst, def) => {
+      core82.$ZodSuccess.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.successProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18473,8 +18604,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodCatch = core46.$constructor("ZodCatch", (inst, def) => {
-      core46.$ZodCatch.init(inst, def);
+    exports.ZodCatch = core82.$constructor("ZodCatch", (inst, def) => {
+      core82.$ZodCatch.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.catchProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18487,16 +18618,16 @@ var require_schemas2 = __commonJS({
         catchValue: typeof catchValue === "function" ? catchValue : () => catchValue
       });
     }
-    exports.ZodNaN = core46.$constructor("ZodNaN", (inst, def) => {
-      core46.$ZodNaN.init(inst, def);
+    exports.ZodNaN = core82.$constructor("ZodNaN", (inst, def) => {
+      core82.$ZodNaN.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.nanProcessor(inst, ctx, json4, params);
     });
     function nan2(params) {
-      return core46._nan(exports.ZodNaN, params);
+      return core82._nan(exports.ZodNaN, params);
     }
-    exports.ZodPipe = core46.$constructor("ZodPipe", (inst, def) => {
-      core46.$ZodPipe.init(inst, def);
+    exports.ZodPipe = core82.$constructor("ZodPipe", (inst, def) => {
+      core82.$ZodPipe.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.pipeProcessor(inst, ctx, json4, params);
       inst.in = def.in;
@@ -18510,9 +18641,9 @@ var require_schemas2 = __commonJS({
         // ...util.normalizeParams(params),
       });
     }
-    exports.ZodCodec = core46.$constructor("ZodCodec", (inst, def) => {
+    exports.ZodCodec = core82.$constructor("ZodCodec", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core46.$ZodCodec.init(inst, def);
+      core82.$ZodCodec.init(inst, def);
     });
     function codec2(in_, out, params) {
       return new exports.ZodCodec({
@@ -18533,12 +18664,12 @@ var require_schemas2 = __commonJS({
         reverseTransform: def.transform
       });
     }
-    exports.ZodPreprocess = core46.$constructor("ZodPreprocess", (inst, def) => {
+    exports.ZodPreprocess = core82.$constructor("ZodPreprocess", (inst, def) => {
       exports.ZodPipe.init(inst, def);
-      core46.$ZodPreprocess.init(inst, def);
+      core82.$ZodPreprocess.init(inst, def);
     });
-    exports.ZodReadonly = core46.$constructor("ZodReadonly", (inst, def) => {
-      core46.$ZodReadonly.init(inst, def);
+    exports.ZodReadonly = core82.$constructor("ZodReadonly", (inst, def) => {
+      core82.$ZodReadonly.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.readonlyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18549,8 +18680,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodTemplateLiteral = core46.$constructor("ZodTemplateLiteral", (inst, def) => {
-      core46.$ZodTemplateLiteral.init(inst, def);
+    exports.ZodTemplateLiteral = core82.$constructor("ZodTemplateLiteral", (inst, def) => {
+      core82.$ZodTemplateLiteral.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.templateLiteralProcessor(inst, ctx, json4, params);
     });
@@ -18561,8 +18692,8 @@ var require_schemas2 = __commonJS({
         ...index_js_1.util.normalizeParams(params)
       });
     }
-    exports.ZodLazy = core46.$constructor("ZodLazy", (inst, def) => {
-      core46.$ZodLazy.init(inst, def);
+    exports.ZodLazy = core82.$constructor("ZodLazy", (inst, def) => {
+      core82.$ZodLazy.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.lazyProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.getter();
@@ -18573,8 +18704,8 @@ var require_schemas2 = __commonJS({
         getter
       });
     }
-    exports.ZodPromise = core46.$constructor("ZodPromise", (inst, def) => {
-      core46.$ZodPromise.init(inst, def);
+    exports.ZodPromise = core82.$constructor("ZodPromise", (inst, def) => {
+      core82.$ZodPromise.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.promiseProcessor(inst, ctx, json4, params);
       inst.unwrap = () => inst._zod.def.innerType;
@@ -18585,8 +18716,8 @@ var require_schemas2 = __commonJS({
         innerType
       });
     }
-    exports.ZodFunction = core46.$constructor("ZodFunction", (inst, def) => {
-      core46.$ZodFunction.init(inst, def);
+    exports.ZodFunction = core82.$constructor("ZodFunction", (inst, def) => {
+      core82.$ZodFunction.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.functionProcessor(inst, ctx, json4, params);
     });
@@ -18597,13 +18728,13 @@ var require_schemas2 = __commonJS({
         output: params?.output ?? unknown2()
       });
     }
-    exports.ZodCustom = core46.$constructor("ZodCustom", (inst, def) => {
-      core46.$ZodCustom.init(inst, def);
+    exports.ZodCustom = core82.$constructor("ZodCustom", (inst, def) => {
+      core82.$ZodCustom.init(inst, def);
       exports.ZodType.init(inst, def);
       inst._zod.processJSONSchema = (ctx, json4, params) => processors.customProcessor(inst, ctx, json4, params);
     });
     function check2(fn) {
-      const ch = new core46.$ZodCheck({
+      const ch = new core82.$ZodCheck({
         check: "custom"
         // ...util.normalizeParams(params),
       });
@@ -18611,16 +18742,16 @@ var require_schemas2 = __commonJS({
       return ch;
     }
     function custom2(fn, _params) {
-      return core46._custom(exports.ZodCustom, fn ?? (() => true), _params);
+      return core82._custom(exports.ZodCustom, fn ?? (() => true), _params);
     }
     function refine2(fn, _params = {}) {
-      return core46._refine(exports.ZodCustom, fn, _params);
+      return core82._refine(exports.ZodCustom, fn, _params);
     }
     function superRefine2(fn, params) {
-      return core46._superRefine(fn, params);
+      return core82._superRefine(fn, params);
     }
-    exports.describe = core46.describe;
-    exports.meta = core46.meta;
+    exports.describe = core82.describe;
+    exports.meta = core82.meta;
     function _instanceof2(cls, params = {}) {
       const inst = new exports.ZodCustom({
         type: "custom",
@@ -18643,7 +18774,7 @@ var require_schemas2 = __commonJS({
       };
       return inst;
     }
-    var stringbool2 = (...args) => core46._stringbool({
+    var stringbool2 = (...args) => core82._stringbool({
       Codec: exports.ZodCodec,
       Boolean: exports.ZodBoolean,
       String: exports.ZodString
@@ -18700,7 +18831,7 @@ var require_compat = __commonJS({
     exports.ZodFirstPartyTypeKind = exports.config = exports.$brand = exports.ZodIssueCode = void 0;
     exports.setErrorMap = setErrorMap2;
     exports.getErrorMap = getErrorMap3;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     exports.ZodIssueCode = {
       invalid_type: "invalid_type",
       too_big: "too_big",
@@ -18722,12 +18853,12 @@ var require_compat = __commonJS({
       return index_js_1.config;
     } });
     function setErrorMap2(map2) {
-      core46.config({
+      core82.config({
         customError: map2
       });
     }
     function getErrorMap3() {
-      return core46.config().customError;
+      return core82.config().customError;
     }
     var ZodFirstPartyTypeKind3;
     /* @__PURE__ */ (function(ZodFirstPartyTypeKind4) {
@@ -18865,13 +18996,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path25 = ref.slice(1).split("/").filter(Boolean);
-      if (path25.length === 0) {
+      const path27 = ref.slice(1).split("/").filter(Boolean);
+      if (path27.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path25[0] === defsKey) {
-        const key = path25[1];
+      if (path27[0] === defsKey) {
+        const key = path27[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -19290,22 +19421,22 @@ var require_coerce = __commonJS({
     exports.boolean = boolean4;
     exports.bigint = bigint4;
     exports.date = date5;
-    var core46 = __importStar(require_core2());
+    var core82 = __importStar(require_core2());
     var schemas = __importStar(require_schemas2());
     function string4(params) {
-      return core46._coercedString(schemas.ZodString, params);
+      return core82._coercedString(schemas.ZodString, params);
     }
     function number4(params) {
-      return core46._coercedNumber(schemas.ZodNumber, params);
+      return core82._coercedNumber(schemas.ZodNumber, params);
     }
     function boolean4(params) {
-      return core46._coercedBoolean(schemas.ZodBoolean, params);
+      return core82._coercedBoolean(schemas.ZodBoolean, params);
     }
     function bigint4(params) {
-      return core46._coercedBigint(schemas.ZodBigInt, params);
+      return core82._coercedBigint(schemas.ZodBigInt, params);
     }
     function date5(params) {
-      return core46._coercedDate(schemas.ZodDate, params);
+      return core82._coercedDate(schemas.ZodDate, params);
     }
   }
 });
@@ -19922,8 +20053,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors3();
     var en_js_1 = __importDefault(require_en2());
     var makeIssue2 = (params) => {
-      const { data, path: path25, errorMaps, issueData } = params;
-      const fullPath = [...path25, ...issueData.path || []];
+      const { data, path: path27, errorMaps, issueData } = params;
+      const fullPath = [...path27, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -20077,11 +20208,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util2();
     var ParseInputLazyPath2 = class {
-      constructor(parent, value, path25, key) {
+      constructor(parent, value, path27, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path25;
+        this._path = path27;
         this._key = key;
       }
       get path() {
@@ -22290,9 +22421,9 @@ var require_types = __commonJS({
       }
     };
     exports.ZodUnion = ZodUnion3;
-    ZodUnion3.create = (types, params) => {
+    ZodUnion3.create = (types2, params) => {
       return new ZodUnion3({
-        options: types,
+        options: types2,
         typeName: ZodFirstPartyTypeKind3.ZodUnion,
         ...processCreateParams2(params)
       });
@@ -23678,7 +23809,7 @@ var require_v3 = __commonJS({
 });
 
 // node_modules/eventsource-parser/dist/index.cjs
-var require_dist3 = __commonJS({
+var require_dist4 = __commonJS({
   "node_modules/eventsource-parser/dist/index.cjs"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -23690,14 +23821,14 @@ var require_dist3 = __commonJS({
     var LF2 = 10;
     var CR2 = 13;
     var SPACE2 = 32;
-    function noop2(_arg) {
+    function noop4(_arg) {
     }
     function createParser2(callbacks) {
       if (typeof callbacks == "function")
         throw new TypeError(
           "`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?"
         );
-      const { onEvent = noop2, onError = noop2, onRetry = noop2, onComment } = callbacks, pendingFragments = [];
+      const { onEvent = noop4, onError = noop4, onRetry = noop4, onComment } = callbacks, pendingFragments = [];
       let isFirstChunk = true, id, data = "", dataLines = 0, eventType;
       function feed(chunk) {
         if (isFirstChunk && (isFirstChunk = false, chunk.charCodeAt(0) === 239 && chunk.charCodeAt(1) === 187 && chunk.charCodeAt(2) === 191 && (chunk = chunk.slice(3))), pendingFragments.length === 0) {
@@ -23855,7 +23986,7 @@ var require_stream = __commonJS({
   "node_modules/eventsource-parser/dist/stream.cjs"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var index = require_dist3();
+    var index = require_dist4();
     var EventSourceParserStream3 = class extends TransformStream {
       constructor({ onError, onRetry, onComment } = {}) {
         let parser;
@@ -23884,7 +24015,7 @@ var require_stream = __commonJS({
 });
 
 // node_modules/@ai-sdk/provider-utils/dist/index.js
-var require_dist4 = __commonJS({
+var require_dist5 = __commonJS({
   "node_modules/@ai-sdk/provider-utils/dist/index.js"(exports, module) {
     "use strict";
     var __create2 = Object.create;
@@ -23920,7 +24051,7 @@ var require_dist4 = __commonJS({
       DelayedPromise: () => DelayedPromise2,
       DownloadError: () => DownloadError2,
       EventSourceParserStream: () => import_stream22.EventSourceParserStream,
-      VERSION: () => VERSION9,
+      VERSION: () => VERSION17,
       asSchema: () => asSchema2,
       combineHeaders: () => combineHeaders2,
       convertAsyncIteratorToReadableStream: () => convertAsyncIteratorToReadableStream,
@@ -23988,7 +24119,7 @@ var require_dist4 = __commonJS({
         {}
       );
     }
-    function convertAsyncIteratorToReadableStream(iterator) {
+    function convertAsyncIteratorToReadableStream(iterator2) {
       let cancelled = false;
       return new ReadableStream({
         /**
@@ -24000,7 +24131,7 @@ var require_dist4 = __commonJS({
         async pull(controller) {
           if (cancelled) return;
           try {
-            const { value, done } = await iterator.next();
+            const { value, done } = await iterator2.next();
             if (done) {
               controller.close();
             } else {
@@ -24015,9 +24146,9 @@ var require_dist4 = __commonJS({
          */
         async cancel(reason) {
           cancelled = true;
-          if (iterator.return) {
+          if (iterator2.return) {
             try {
-              await iterator.return(reason);
+              await iterator2.return(reason);
             } catch (e) {
             }
           }
@@ -24029,12 +24160,12 @@ var require_dist4 = __commonJS({
       providerToolNames,
       resolveProviderToolName
     }) {
-      var _a24;
+      var _a25;
       const customToolNameToProviderToolName = {};
       const providerToolNameToCustomToolName = {};
       for (const tool22 of tools) {
         if (tool22.type === "provider") {
-          const providerToolName = (_a24 = resolveProviderToolName == null ? void 0 : resolveProviderToolName(tool22)) != null ? _a24 : tool22.id in providerToolNames ? providerToolNames[tool22.id] : void 0;
+          const providerToolName = (_a25 = resolveProviderToolName == null ? void 0 : resolveProviderToolName(tool22)) != null ? _a25 : tool22.id in providerToolNames ? providerToolNames[tool22.id] : void 0;
           if (providerToolName == null) {
             continue;
           }
@@ -24103,17 +24234,17 @@ var require_dist4 = __commonJS({
         return this._promise;
       }
       resolve(value) {
-        var _a24;
+        var _a25;
         this.status = { type: "resolved", value };
         if (this._promise) {
-          (_a24 = this._resolve) == null ? void 0 : _a24.call(this, value);
+          (_a25 = this._resolve) == null ? void 0 : _a25.call(this, value);
         }
       }
       reject(error52) {
-        var _a24;
+        var _a25;
         this.status = { type: "rejected", error: error52 };
         if (this._promise) {
-          (_a24 = this._reject) == null ? void 0 : _a24.call(this, error52);
+          (_a25 = this._reject) == null ? void 0 : _a25.call(this, error52);
         }
       }
       isResolved() {
@@ -24171,7 +24302,7 @@ var require_dist4 = __commonJS({
       }
       return formData;
     }
-    var import_provider50 = require_dist2();
+    var import_provider50 = require_dist3();
     var name21 = "AI_DownloadError";
     var marker21 = `vercel.ai.error.${name21}`;
     var symbol21 = Symbol.for(marker21);
@@ -24346,7 +24477,7 @@ var require_dist4 = __commonJS({
       return false;
     }
     async function downloadBlob2(url2, options) {
-      var _a24, _b23;
+      var _a25, _b23;
       validateDownloadUrl2(url2);
       try {
         const response = await fetch(url2, {
@@ -24365,7 +24496,7 @@ var require_dist4 = __commonJS({
         const data = await readResponseWithSizeLimit2({
           response,
           url: url2,
-          maxBytes: (_a24 = options == null ? void 0 : options.maxBytes) != null ? _a24 : DEFAULT_MAX_DOWNLOAD_SIZE2
+          maxBytes: (_a25 = options == null ? void 0 : options.maxBytes) != null ? _a25 : DEFAULT_MAX_DOWNLOAD_SIZE2
         });
         const contentType = (_b23 = response.headers.get("content-type")) != null ? _b23 : void 0;
         return new Blob([data], contentType ? { type: contentType } : void 0);
@@ -24376,7 +24507,7 @@ var require_dist4 = __commonJS({
         throw new DownloadError2({ url: url2, cause: error52 });
       }
     }
-    var import_provider210 = require_dist2();
+    var import_provider210 = require_dist3();
     var createIdGenerator2 = ({
       prefix,
       size = 16,
@@ -24415,8 +24546,8 @@ var require_dist4 = __commonJS({
       }
       return JSON.stringify(error52);
     }
-    var import_provider410 = require_dist2();
-    var import_provider310 = require_dist2();
+    var import_provider410 = require_dist3();
+    var import_provider310 = require_dist3();
     function isAbortError2(error52) {
       return (error52 instanceof Error || error52 instanceof DOMException) && (error52.name === "AbortError" || error52.name === "ResponseAborted" || // Next.js
       error52.name === "TimeoutError");
@@ -24474,11 +24605,11 @@ var require_dist4 = __commonJS({
       return error52;
     }
     function getRuntimeEnvironmentUserAgent2(globalThisAny = globalThis) {
-      var _a24, _b23, _c;
+      var _a25, _b23, _c;
       if (globalThisAny.window) {
         return `runtime/browser`;
       }
-      if ((_a24 = globalThisAny.navigator) == null ? void 0 : _a24.userAgent) {
+      if ((_a25 = globalThisAny.navigator) == null ? void 0 : _a25.userAgent) {
         return `runtime/${globalThisAny.navigator.userAgent.toLowerCase()}`;
       }
       if ((_c = (_b23 = globalThisAny.process) == null ? void 0 : _b23.versions) == null ? void 0 : _c.node) {
@@ -24519,7 +24650,7 @@ var require_dist4 = __commonJS({
       );
       return Object.fromEntries(normalizedHeaders.entries());
     }
-    var VERSION9 = true ? "4.0.27" : "0.0.0-test";
+    var VERSION17 = true ? "4.0.27" : "0.0.0-test";
     var getOriginalFetch4 = () => globalThis.fetch;
     var getFromApi2 = async ({
       url: url2,
@@ -24534,7 +24665,7 @@ var require_dist4 = __commonJS({
           method: "GET",
           headers: withUserAgentSuffix2(
             headers,
-            `ai-sdk/provider-utils/${VERSION9}`,
+            `ai-sdk/provider-utils/${VERSION17}`,
             getRuntimeEnvironmentUserAgent2()
           ),
           signal: abortSignal
@@ -24612,8 +24743,8 @@ var require_dist4 = __commonJS({
       schemaPrefix,
       schemaSuffix
     }) {
-      var _a24, _b23;
-      const systemMessage = ((_a24 = messages[0]) == null ? void 0 : _a24.role) === "system" ? { ...messages[0] } : { role: "system", content: "" };
+      var _a25, _b23;
+      const systemMessage = ((_a25 = messages[0]) == null ? void 0 : _a25.role) === "system" ? { ...messages[0] } : { role: "system", content: "" };
       systemMessage.content = injectJsonInstruction({
         prompt: systemMessage.content,
         schema,
@@ -24640,7 +24771,7 @@ var require_dist4 = __commonJS({
         return mediaType2 === "*" || mediaType2 === "*/*" ? { mediaTypePrefix: "", regexes: value } : { mediaTypePrefix: mediaType2.replace(/\*/, ""), regexes: value };
       }).filter(({ mediaTypePrefix }) => mediaType.startsWith(mediaTypePrefix)).flatMap(({ regexes }) => regexes).some((pattern) => pattern.test(url2));
     }
-    var import_provider52 = require_dist2();
+    var import_provider52 = require_dist3();
     function loadApiKey2({
       apiKey,
       environmentVariableName,
@@ -24689,7 +24820,7 @@ var require_dist4 = __commonJS({
       }
       return settingValue;
     }
-    var import_provider62 = require_dist2();
+    var import_provider62 = require_dist3();
     function loadSetting({
       settingValue,
       environmentVariableName,
@@ -24723,17 +24854,17 @@ var require_dist4 = __commonJS({
       return settingValue;
     }
     function mediaTypeToExtension2(mediaType) {
-      var _a24;
+      var _a25;
       const [_type, subtype = ""] = mediaType.toLowerCase().split("/");
-      return (_a24 = {
+      return (_a25 = {
         mpeg: "mp3",
         "x-wav": "wav",
         opus: "ogg",
         mp4: "m4a",
         "x-m4a": "m4a"
-      }[subtype]) != null ? _a24 : subtype;
+      }[subtype]) != null ? _a25 : subtype;
     }
-    var import_provider92 = require_dist2();
+    var import_provider92 = require_dist3();
     var suspectProtoRx2 = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
     var suspectConstructorRx2 = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
     function _parse3(text2) {
@@ -24744,9 +24875,9 @@ var require_dist4 = __commonJS({
       if (suspectProtoRx2.test(text2) === false && suspectConstructorRx2.test(text2) === false) {
         return obj;
       }
-      return filter2(obj);
+      return filter3(obj);
     }
-    function filter2(obj) {
+    function filter3(obj) {
       let next = [obj];
       while (next.length) {
         const nodes = next;
@@ -24781,8 +24912,8 @@ var require_dist4 = __commonJS({
         Error.stackTraceLimit = stackTraceLimit;
       }
     }
-    var import_provider82 = require_dist2();
-    var import_provider72 = require_dist2();
+    var import_provider82 = require_dist3();
+    var import_provider72 = require_dist3();
     var z4 = __toESM2(require_v4());
     function addAdditionalPropertiesToJsonSchema2(jsonSchema22) {
       if (jsonSchema22.type === "object" || Array.isArray(jsonSchema22.type) && jsonSchema22.type.includes("object")) {
@@ -24855,11 +24986,11 @@ var require_dist4 = __commonJS({
     }
     var import_v34 = require_v3();
     function parseArrayDef2(def, refs) {
-      var _a24, _b23, _c;
+      var _a25, _b23, _c;
       const res = {
         type: "array"
       };
-      if (((_a24 = def.type) == null ? void 0 : _a24._def) && ((_c = (_b23 = def.type) == null ? void 0 : _b23._def) == null ? void 0 : _c.typeName) !== import_v34.ZodFirstPartyTypeKind.ZodAny) {
+      if (((_a25 = def.type) == null ? void 0 : _a25._def) && ((_c = (_b23 = def.type) == null ? void 0 : _b23._def) == null ? void 0 : _c.typeName) !== import_v34.ZodFirstPartyTypeKind.ZodAny) {
         res.items = parseDef2(def.type._def, {
           ...refs,
           currentPath: [...refs.currentPath, "items"]
@@ -25226,8 +25357,8 @@ var require_dist4 = __commonJS({
       return result;
     }
     function addFormat2(schema, value, message, refs) {
-      var _a24;
-      if (schema.format || ((_a24 = schema.anyOf) == null ? void 0 : _a24.some((x) => x.format))) {
+      var _a25;
+      if (schema.format || ((_a25 = schema.anyOf) == null ? void 0 : _a25.some((x) => x.format))) {
         if (!schema.anyOf) {
           schema.anyOf = [];
         }
@@ -25246,8 +25377,8 @@ var require_dist4 = __commonJS({
       }
     }
     function addPattern2(schema, regex2, message, refs) {
-      var _a24;
-      if (schema.pattern || ((_a24 = schema.allOf) == null ? void 0 : _a24.some((x) => x.pattern))) {
+      var _a25;
+      if (schema.pattern || ((_a25 = schema.allOf) == null ? void 0 : _a25.some((x) => x.pattern))) {
         if (!schema.allOf) {
           schema.allOf = [];
         }
@@ -25266,7 +25397,7 @@ var require_dist4 = __commonJS({
       }
     }
     function stringifyRegExpWithFlags2(regex2, refs) {
-      var _a24;
+      var _a25;
       if (!refs.applyRegexFlags || !regex2.flags) {
         return regex2.source;
       }
@@ -25296,7 +25427,7 @@ var require_dist4 = __commonJS({
                 pattern += source[i];
                 pattern += `${source[i - 2]}-${source[i]}`.toUpperCase();
                 inCharRange = false;
-              } else if (source[i + 1] === "-" && ((_a24 = source[i + 2]) == null ? void 0 : _a24.match(/[a-z]/))) {
+              } else if (source[i + 1] === "-" && ((_a25 = source[i + 2]) == null ? void 0 : _a25.match(/[a-z]/))) {
                 pattern += source[i];
                 inCharRange = true;
               } else {
@@ -25348,13 +25479,13 @@ var require_dist4 = __commonJS({
       return pattern;
     }
     function parseRecordDef2(def, refs) {
-      var _a24, _b23, _c, _d, _e, _f;
+      var _a25, _b23, _c, _d, _e, _f;
       const schema = {
         type: "object",
-        additionalProperties: (_a24 = parseDef2(def.valueType._def, {
+        additionalProperties: (_a25 = parseDef2(def.valueType._def, {
           ...refs,
           currentPath: [...refs.currentPath, "additionalProperties"]
-        })) != null ? _a24 : refs.allowedAdditionalProperties
+        })) != null ? _a25 : refs.allowedAdditionalProperties
       };
       if (((_b23 = def.keyType) == null ? void 0 : _b23._def.typeName) === import_v322.ZodFirstPartyTypeKind.ZodString && ((_c = def.keyType._def.checks) == null ? void 0 : _c.length)) {
         const { type, ...keyType } = parseStringDef2(def.keyType._def, refs);
@@ -25438,15 +25569,15 @@ var require_dist4 = __commonJS({
       if (options.every(
         (x) => x._def.typeName in primitiveMappings2 && (!x._def.checks || !x._def.checks.length)
       )) {
-        const types = options.reduce((types2, x) => {
+        const types2 = options.reduce((types22, x) => {
           const type = primitiveMappings2[x._def.typeName];
-          return type && !types2.includes(type) ? [...types2, type] : types2;
+          return type && !types22.includes(type) ? [...types22, type] : types22;
         }, []);
         return {
-          type: types.length > 1 ? types : types[0]
+          type: types2.length > 1 ? types2 : types2[0]
         };
       } else if (options.every((x) => x._def.typeName === "ZodLiteral" && !x.description)) {
-        const types = options.reduce(
+        const types2 = options.reduce(
           (acc, x) => {
             const type = typeof x._def.value;
             switch (type) {
@@ -25467,8 +25598,8 @@ var require_dist4 = __commonJS({
           },
           []
         );
-        if (types.length === options.length) {
-          const uniqueTypes = types.filter((x, i, a) => a.indexOf(x) === i);
+        if (types2.length === options.length) {
+          const uniqueTypes = types2.filter((x, i, a) => a.indexOf(x) === i);
           return {
             type: uniqueTypes.length > 1 ? uniqueTypes : uniqueTypes[0],
             enum: options.reduce(
@@ -25611,8 +25742,8 @@ var require_dist4 = __commonJS({
       }
     }
     var parseOptionalDef2 = (def, refs) => {
-      var _a24;
-      if (refs.currentPath.toString() === ((_a24 = refs.propertyPath) == null ? void 0 : _a24.toString())) {
+      var _a25;
+      if (refs.currentPath.toString() === ((_a25 = refs.propertyPath) == null ? void 0 : _a25.toString())) {
         return parseDef2(def.innerType._def, refs);
       }
       const innerSchema = parseDef2(def.innerType._def, {
@@ -25789,10 +25920,10 @@ var require_dist4 = __commonJS({
       return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
     };
     function parseDef2(def, refs, forceResolution = false) {
-      var _a24;
+      var _a25;
       const seenItem = refs.seen.get(def);
       if (refs.override) {
-        const overrideResult = (_a24 = refs.override) == null ? void 0 : _a24.call(
+        const overrideResult = (_a25 = refs.override) == null ? void 0 : _a25.call(
           refs,
           def,
           refs,
@@ -25871,7 +26002,7 @@ var require_dist4 = __commonJS({
       };
     };
     var zod3ToJsonSchema2 = (schema, options) => {
-      var _a24;
+      var _a25;
       const refs = getRefs2(options);
       let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce(
         (acc, [name34, schema2]) => {
@@ -25891,14 +26022,14 @@ var require_dist4 = __commonJS({
         {}
       ) : void 0;
       const name24 = typeof options === "string" ? options : (options == null ? void 0 : options.nameStrategy) === "title" ? void 0 : options == null ? void 0 : options.name;
-      const main = (_a24 = parseDef2(
+      const main = (_a25 = parseDef2(
         schema._def,
         name24 === void 0 ? refs : {
           ...refs,
           currentPath: [...refs.basePath, refs.definitionPath, name24]
         },
         false
-      )) != null ? _a24 : parseAnyDef2();
+      )) != null ? _a25 : parseAnyDef2();
       const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
       if (title !== void 0) {
         main.title = title;
@@ -25974,8 +26105,8 @@ var require_dist4 = __commonJS({
       );
     }
     function zod3Schema2(zodSchema22, options) {
-      var _a24;
-      const useReferences = (_a24 = options == null ? void 0 : options.useReferences) != null ? _a24 : false;
+      var _a25;
+      const useReferences = (_a25 = options == null ? void 0 : options.useReferences) != null ? _a25 : false;
       return jsonSchema2(
         // defer json schema creation to avoid unnecessary computation when only validation is needed
         () => zod3ToJsonSchema2(zodSchema22, {
@@ -25990,8 +26121,8 @@ var require_dist4 = __commonJS({
       );
     }
     function zod4Schema2(zodSchema22, options) {
-      var _a24;
-      const useReferences = (_a24 = options == null ? void 0 : options.useReferences) != null ? _a24 : false;
+      var _a25;
+      const useReferences = (_a25 = options == null ? void 0 : options.useReferences) != null ? _a25 : false;
       return jsonSchema2(
         // defer json schema creation to avoid unnecessary computation when only validation is needed
         () => addAdditionalPropertiesToJsonSchema2(
@@ -26116,7 +26247,7 @@ var require_dist4 = __commonJS({
         })
       );
     }
-    var import_provider102 = require_dist2();
+    var import_provider102 = require_dist3();
     async function parseProviderOptions2({
       provider,
       providerOptions,
@@ -26138,7 +26269,7 @@ var require_dist4 = __commonJS({
       }
       return parsedProviderOptions.value;
     }
-    var import_provider112 = require_dist2();
+    var import_provider112 = require_dist3();
     var getOriginalFetch22 = () => globalThis.fetch;
     var postJsonToApi2 = async ({
       url: url2,
@@ -26197,7 +26328,7 @@ var require_dist4 = __commonJS({
           method: "POST",
           headers: withUserAgentSuffix2(
             headers,
-            `ai-sdk/provider-utils/${VERSION9}`,
+            `ai-sdk/provider-utils/${VERSION17}`,
             getRuntimeEnvironmentUserAgent2()
           ),
           body: body.content,
@@ -26325,7 +26456,7 @@ var require_dist4 = __commonJS({
       }
       return Promise.resolve(value);
     }
-    var import_provider122 = require_dist2();
+    var import_provider122 = require_dist3();
     var createJsonErrorResponseHandler2 = ({
       errorSchema,
       errorToMessage,
@@ -26494,7 +26625,7 @@ var require_dist4 = __commonJS({
 });
 
 // node_modules/@ai-sdk/google/dist/index.js
-var require_dist5 = __commonJS({
+var require_dist6 = __commonJS({
   "node_modules/@ai-sdk/google/dist/index.js"(exports, module) {
     "use strict";
     var __defProp3 = Object.defineProperty;
@@ -26516,17 +26647,17 @@ var require_dist5 = __commonJS({
     var __toCommonJS = (mod) => __copyProps2(__defProp3({}, "__esModule", { value: true }), mod);
     var index_exports = {};
     __export3(index_exports, {
-      VERSION: () => VERSION9,
+      VERSION: () => VERSION17,
       createGoogleGenerativeAI: () => createGoogleGenerativeAI2,
       google: () => google2
     });
     module.exports = __toCommonJS(index_exports);
-    var import_provider_utils232 = require_dist4();
-    var VERSION9 = true ? "3.0.79" : "0.0.0-test";
-    var import_provider50 = require_dist2();
-    var import_provider_utils310 = require_dist4();
+    var import_provider_utils232 = require_dist5();
+    var VERSION17 = true ? "3.0.79" : "0.0.0-test";
+    var import_provider50 = require_dist3();
+    var import_provider_utils310 = require_dist5();
     var import_v4310 = require_v4();
-    var import_provider_utils121 = require_dist4();
+    var import_provider_utils121 = require_dist5();
     var import_v485 = require_v4();
     var googleErrorDataSchema2 = (0, import_provider_utils121.lazySchema)(
       () => (0, import_provider_utils121.zodSchema)(
@@ -26543,7 +26674,7 @@ var require_dist5 = __commonJS({
       errorSchema: googleErrorDataSchema2,
       errorToMessage: (data) => data.error.message
     });
-    var import_provider_utils210 = require_dist4();
+    var import_provider_utils210 = require_dist5();
     var import_v4210 = require_v4();
     var googleEmbeddingContentPartSchema2 = import_v4210.z.union([
       import_v4210.z.object({ text: import_v4210.z.string() }),
@@ -26727,7 +26858,7 @@ var require_dist5 = __commonJS({
         })
       )
     );
-    var import_provider_utils610 = require_dist4();
+    var import_provider_utils610 = require_dist5();
     var import_v4510 = require_v4();
     function convertGoogleGenerativeAIUsage2(usage) {
       var _a21, _b17, _c, _d;
@@ -26880,17 +27011,17 @@ var require_dist5 = __commonJS({
     function isEmptyObjectSchema2(jsonSchema2) {
       return jsonSchema2 != null && typeof jsonSchema2 === "object" && jsonSchema2.type === "object" && (jsonSchema2.properties == null || Object.keys(jsonSchema2.properties).length === 0) && !jsonSchema2.additionalProperties;
     }
-    var import_provider210 = require_dist2();
-    var import_provider_utils410 = require_dist4();
+    var import_provider210 = require_dist3();
+    var import_provider_utils410 = require_dist5();
     var dataUrlRegex2 = /^data:([^;,]+);base64,(.+)$/s;
     function parseBase64DataUrl2(value) {
-      const match = dataUrlRegex2.exec(value);
-      if (match == null) {
+      const match2 = dataUrlRegex2.exec(value);
+      if (match2 == null) {
         return void 0;
       }
       return {
-        mediaType: match[1],
-        data: match[2]
+        mediaType: match2[1],
+        data: match2[2]
       };
     }
     function convertUrlToolResultPart2(url2) {
@@ -27043,8 +27174,8 @@ var require_dist5 = __commonJS({
             contents.push({
               role: "model",
               parts: content.map((part) => {
-                var _a24, _b23, _c2, _d2;
-                const providerOpts = (_d2 = (_a24 = part.providerOptions) == null ? void 0 : _a24[providerOptionsName]) != null ? _d2 : providerOptionsName !== "google" ? (_b23 = part.providerOptions) == null ? void 0 : _b23.google : (_c2 = part.providerOptions) == null ? void 0 : _c2.vertex;
+                var _a25, _b23, _c2, _d2;
+                const providerOpts = (_d2 = (_a25 = part.providerOptions) == null ? void 0 : _a25[providerOptionsName]) != null ? _d2 : providerOptionsName !== "google" ? (_b23 = part.providerOptions) == null ? void 0 : _b23.google : (_c2 = part.providerOptions) == null ? void 0 : _c2.vertex;
                 const thoughtSignature = (providerOpts == null ? void 0 : providerOpts.thoughtSignature) != null ? String(providerOpts.thoughtSignature) : void 0;
                 switch (part.type) {
                   case "text": {
@@ -27194,7 +27325,7 @@ var require_dist5 = __commonJS({
     function getModelPath2(modelId) {
       return modelId.includes("/") ? modelId : `models/${modelId}`;
     }
-    var import_provider_utils510 = require_dist4();
+    var import_provider_utils510 = require_dist5();
     var import_v4410 = require_v4();
     var googleLanguageModelOptions2 = (0, import_provider_utils510.lazySchema)(
       () => (0, import_provider_utils510.zodSchema)(
@@ -27349,7 +27480,7 @@ var require_dist5 = __commonJS({
         })
       )
     );
-    var import_provider310 = require_dist2();
+    var import_provider310 = require_dist3();
     function prepareTools3({
       tools,
       toolChoice,
@@ -28882,7 +29013,7 @@ var require_dist5 = __commonJS({
         })
       )
     );
-    var import_provider_utils710 = require_dist4();
+    var import_provider_utils710 = require_dist5();
     var import_v4610 = require_v4();
     var codeExecution2 = (0, import_provider_utils710.createProviderToolFactoryWithOutputSchema)({
       id: "google.code_execution",
@@ -28895,13 +29026,13 @@ var require_dist5 = __commonJS({
         output: import_v4610.z.string().describe("The output from the code execution.")
       })
     });
-    var import_provider_utils810 = require_dist4();
+    var import_provider_utils810 = require_dist5();
     var import_v4710 = require_v4();
     var enterpriseWebSearch2 = (0, import_provider_utils810.createProviderToolFactory)({
       id: "google.enterprise_web_search",
       inputSchema: (0, import_provider_utils810.lazySchema)(() => (0, import_provider_utils810.zodSchema)(import_v4710.z.object({})))
     });
-    var import_provider_utils910 = require_dist4();
+    var import_provider_utils910 = require_dist5();
     var import_v486 = require_v4();
     var fileSearchArgsBaseSchema2 = import_v486.z.object({
       /** The names of the file_search_stores to retrieve from.
@@ -28926,13 +29057,13 @@ var require_dist5 = __commonJS({
       id: "google.file_search",
       inputSchema: fileSearchArgsSchema3
     });
-    var import_provider_utils1010 = require_dist4();
+    var import_provider_utils1010 = require_dist5();
     var import_v492 = require_v4();
     var googleMaps2 = (0, import_provider_utils1010.createProviderToolFactory)({
       id: "google.google_maps",
       inputSchema: (0, import_provider_utils1010.lazySchema)(() => (0, import_provider_utils1010.zodSchema)(import_v492.z.object({})))
     });
-    var import_provider_utils1110 = require_dist4();
+    var import_provider_utils1110 = require_dist5();
     var import_v4102 = require_v4();
     var googleSearchToolArgsBaseSchema2 = import_v4102.z.object({
       searchTypes: import_v4102.z.object({
@@ -28953,13 +29084,13 @@ var require_dist5 = __commonJS({
         inputSchema: googleSearchToolArgsSchema2
       }
     );
-    var import_provider_utils122 = require_dist4();
+    var import_provider_utils122 = require_dist5();
     var import_v4112 = require_v4();
     var urlContext2 = (0, import_provider_utils122.createProviderToolFactory)({
       id: "google.url_context",
       inputSchema: (0, import_provider_utils122.lazySchema)(() => (0, import_provider_utils122.zodSchema)(import_v4112.z.object({})))
     });
-    var import_provider_utils132 = require_dist4();
+    var import_provider_utils132 = require_dist5();
     var import_v4122 = require_v4();
     var vertexRagStore2 = (0, import_provider_utils132.createProviderToolFactory)({
       id: "google.vertex_rag_store",
@@ -29026,7 +29157,7 @@ var require_dist5 = __commonJS({
        */
       vertexRagStore: vertexRagStore2
     };
-    var import_provider_utils142 = require_dist4();
+    var import_provider_utils142 = require_dist5();
     var import_v4132 = require_v4();
     var GoogleGenerativeAIImageModel2 = class {
       constructor(modelId, settings, config2) {
@@ -29299,8 +29430,8 @@ var require_dist5 = __commonJS({
         })
       )
     );
-    var import_provider410 = require_dist2();
-    var import_provider_utils152 = require_dist4();
+    var import_provider410 = require_dist3();
+    var import_provider_utils152 = require_dist5();
     var import_v4142 = require_v4();
     var GoogleGenerativeAIVideoModel2 = class {
       constructor(modelId, config2) {
@@ -29549,7 +29680,7 @@ var require_dist5 = __commonJS({
         }).passthrough()
       )
     );
-    var import_provider_utils222 = require_dist4();
+    var import_provider_utils222 = require_dist5();
     function convertGoogleInteractionsUsage2(usage) {
       var _a21, _b17, _c, _d, _e, _f, _g, _h;
       if (usage == null) {
@@ -29597,8 +29728,8 @@ var require_dist5 = __commonJS({
     };
     function inferDocMediaType2(uriOrName) {
       const lower = uriOrName.toLowerCase();
-      for (const [ext, media] of Object.entries(KNOWN_DOC_EXTENSIONS2)) {
-        if (lower.endsWith(`.${ext}`)) return media;
+      for (const [ext2, media] of Object.entries(KNOWN_DOC_EXTENSIONS2)) {
+        if (lower.endsWith(`.${ext2}`)) return media;
       }
       return "application/octet-stream";
     }
@@ -30262,7 +30393,7 @@ var require_dist5 = __commonJS({
         }
       });
     }
-    var import_provider_utils162 = require_dist4();
+    var import_provider_utils162 = require_dist5();
     function getTopLevelMediaType2(mediaType) {
       const slashIndex = mediaType.indexOf("/");
       return slashIndex === -1 ? mediaType : mediaType.substring(0, slashIndex);
@@ -30650,7 +30781,7 @@ ${block.text}`
       }
       return result;
     }
-    var import_provider_utils172 = require_dist4();
+    var import_provider_utils172 = require_dist5();
     var import_v4152 = require_v4();
     var tokenByModalitySchema2 = () => import_v4152.z.object({
       modality: import_v4152.z.string().nullish(),
@@ -30977,7 +31108,7 @@ ${block.text}`
         })()
       )
     );
-    var import_provider_utils182 = require_dist4();
+    var import_provider_utils182 = require_dist5();
     var import_v4162 = require_v4();
     var googleInteractionsLanguageModelOptions2 = (0, import_provider_utils182.lazySchema)(
       () => (0, import_provider_utils182.zodSchema)(
@@ -31313,8 +31444,8 @@ ${block.text}`
       }
       return { content, hasFunctionCall };
     }
-    var import_provider_utils202 = require_dist4();
-    var import_provider_utils192 = require_dist4();
+    var import_provider_utils202 = require_dist5();
+    var import_provider_utils192 = require_dist5();
     var getOriginalFetch4 = () => globalThis.fetch;
     async function cancelGoogleInteraction2({
       baseURL,
@@ -31552,7 +31683,7 @@ ${block.text}`
         toolWarnings
       };
     }
-    var import_provider_utils212 = require_dist4();
+    var import_provider_utils212 = require_dist5();
     var DEFAULT_MAX_RETRIES2 = 3;
     var DEFAULT_RETRY_DELAY_MS2 = 500;
     function streamGoogleInteractionEvents2({
@@ -32055,7 +32186,7 @@ ${block.text}`
           } else {
             const env = opts.environment;
             const sources = (_u = env.sources) == null ? void 0 : _u.map((s) => {
-              var _a24;
+              var _a25;
               if (s.type === "inline") {
                 return {
                   type: "inline",
@@ -32066,7 +32197,7 @@ ${block.text}`
               return pruneUndefined2({
                 type: s.type,
                 source: s.source,
-                target: (_a24 = s.target) != null ? _a24 : void 0
+                target: (_a25 = s.target) != null ? _a25 : void 0
               });
             });
             let network;
@@ -32076,10 +32207,10 @@ ${block.text}`
               network = {
                 allowlist: env.network.allowlist.map(
                   (entry) => {
-                    var _a24;
+                    var _a25;
                     return pruneUndefined2({
                       domain: entry.domain,
-                      transform: (_a24 = entry.transform) != null ? _a24 : void 0
+                      transform: (_a25 = entry.transform) != null ? _a25 : void 0
                     });
                   }
                 )
@@ -32345,15 +32476,15 @@ ${block.text}`
           }),
           ...options.headers
         },
-        `ai-sdk/google/${VERSION9}`
+        `ai-sdk/google/${VERSION17}`
       );
       const createChatModel = (modelId) => {
-        var _a24;
+        var _a25;
         return new GoogleGenerativeAILanguageModel2(modelId, {
           provider: providerName,
           baseURL,
           headers: getHeaders,
-          generateId: (_a24 = options.generateId) != null ? _a24 : import_provider_utils232.generateId,
+          generateId: (_a25 = options.generateId) != null ? _a25 : import_provider_utils232.generateId,
           supportedUrls: () => ({
             "*": [
               // Google Generative Language "files" endpoint
@@ -32382,24 +32513,24 @@ ${block.text}`
         fetch: options.fetch
       });
       const createVideoModel = (modelId) => {
-        var _a24;
+        var _a25;
         return new GoogleGenerativeAIVideoModel2(modelId, {
           provider: providerName,
           baseURL,
           headers: getHeaders,
           fetch: options.fetch,
-          generateId: (_a24 = options.generateId) != null ? _a24 : import_provider_utils232.generateId
+          generateId: (_a25 = options.generateId) != null ? _a25 : import_provider_utils232.generateId
         });
       };
       const createInteractionsModel = (modelIdOrAgent) => {
-        var _a24;
+        var _a25;
         return new GoogleInteractionsLanguageModel2(
           modelIdOrAgent,
           {
             provider: `${providerName}.interactions`,
             baseURL,
             headers: getHeaders,
-            generateId: (_a24 = options.generateId) != null ? _a24 : import_provider_utils232.generateId,
+            generateId: (_a25 = options.generateId) != null ? _a25 : import_provider_utils232.generateId,
             fetch: options.fetch
           }
         );
@@ -32604,12 +32735,544 @@ var init_finding_dedup = __esm({
 });
 
 // src/main.ts
-import * as core45 from "@actions/core";
+import * as core81 from "@actions/core";
 import * as github from "@actions/github";
-import { Octokit } from "@octokit/rest";
 
-// node_modules/@octokit/plugin-retry/dist-bundle/index.js
-var import_light = __toESM(require_light(), 1);
+// node_modules/universal-user-agent/index.js
+function getUserAgent() {
+  if (typeof navigator === "object" && "userAgent" in navigator) {
+    return navigator.userAgent;
+  }
+  if (typeof process === "object" && process.version !== void 0) {
+    return `Node.js/${process.version.substr(1)} (${process.platform}; ${process.arch})`;
+  }
+  return "<environment undetectable>";
+}
+
+// node_modules/before-after-hook/lib/register.js
+function register(state, name21, method, options) {
+  if (typeof method !== "function") {
+    throw new Error("method for before hook must be a function");
+  }
+  if (!options) {
+    options = {};
+  }
+  if (Array.isArray(name21)) {
+    return name21.reverse().reduce((callback, name24) => {
+      return register.bind(null, state, name24, callback, options);
+    }, method)();
+  }
+  return Promise.resolve().then(() => {
+    if (!state.registry[name21]) {
+      return method(options);
+    }
+    return state.registry[name21].reduce((method2, registered) => {
+      return registered.hook.bind(null, method2, options);
+    }, method)();
+  });
+}
+
+// node_modules/before-after-hook/lib/add.js
+function addHook(state, kind, name21, hook2) {
+  const orig = hook2;
+  if (!state.registry[name21]) {
+    state.registry[name21] = [];
+  }
+  if (kind === "before") {
+    hook2 = (method, options) => {
+      return Promise.resolve().then(orig.bind(null, options)).then(method.bind(null, options));
+    };
+  }
+  if (kind === "after") {
+    hook2 = (method, options) => {
+      let result;
+      return Promise.resolve().then(method.bind(null, options)).then((result_) => {
+        result = result_;
+        return orig(result, options);
+      }).then(() => {
+        return result;
+      });
+    };
+  }
+  if (kind === "error") {
+    hook2 = (method, options) => {
+      return Promise.resolve().then(method.bind(null, options)).catch((error52) => {
+        return orig(error52, options);
+      });
+    };
+  }
+  state.registry[name21].push({
+    hook: hook2,
+    orig
+  });
+}
+
+// node_modules/before-after-hook/lib/remove.js
+function removeHook(state, name21, method) {
+  if (!state.registry[name21]) {
+    return;
+  }
+  const index = state.registry[name21].map((registered) => {
+    return registered.orig;
+  }).indexOf(method);
+  if (index === -1) {
+    return;
+  }
+  state.registry[name21].splice(index, 1);
+}
+
+// node_modules/before-after-hook/index.js
+var bind = Function.bind;
+var bindable = bind.bind(bind);
+function bindApi(hook2, state, name21) {
+  const removeHookRef = bindable(removeHook, null).apply(
+    null,
+    name21 ? [state, name21] : [state]
+  );
+  hook2.api = { remove: removeHookRef };
+  hook2.remove = removeHookRef;
+  ["before", "error", "after", "wrap"].forEach((kind) => {
+    const args = name21 ? [state, kind, name21] : [state, kind];
+    hook2[kind] = hook2.api[kind] = bindable(addHook, null).apply(null, args);
+  });
+}
+function Singular() {
+  const singularHookName = /* @__PURE__ */ Symbol("Singular");
+  const singularHookState = {
+    registry: {}
+  };
+  const singularHook = register.bind(null, singularHookState, singularHookName);
+  bindApi(singularHook, singularHookState, singularHookName);
+  return singularHook;
+}
+function Collection() {
+  const state = {
+    registry: {}
+  };
+  const hook2 = register.bind(null, state);
+  bindApi(hook2, state);
+  return hook2;
+}
+var before_after_hook_default = { Singular, Collection };
+
+// node_modules/@octokit/endpoint/dist-bundle/index.js
+var VERSION = "0.0.0-development";
+var userAgent = `octokit-endpoint.js/${VERSION} ${getUserAgent()}`;
+var DEFAULTS = {
+  method: "GET",
+  baseUrl: "https://api.github.com",
+  headers: {
+    accept: "application/vnd.github.v3+json",
+    "user-agent": userAgent
+  },
+  mediaType: {
+    format: ""
+  }
+};
+function lowercaseKeys(object3) {
+  if (!object3) {
+    return {};
+  }
+  return Object.keys(object3).reduce((newObj, key) => {
+    newObj[key.toLowerCase()] = object3[key];
+    return newObj;
+  }, {});
+}
+function isPlainObject(value) {
+  if (typeof value !== "object" || value === null) return false;
+  if (Object.prototype.toString.call(value) !== "[object Object]") return false;
+  const proto = Object.getPrototypeOf(value);
+  if (proto === null) return true;
+  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
+}
+function mergeDeep(defaults2, options) {
+  const result = Object.assign({}, defaults2);
+  Object.keys(options).forEach((key) => {
+    if (isPlainObject(options[key])) {
+      if (!(key in defaults2)) Object.assign(result, { [key]: options[key] });
+      else result[key] = mergeDeep(defaults2[key], options[key]);
+    } else {
+      Object.assign(result, { [key]: options[key] });
+    }
+  });
+  return result;
+}
+function removeUndefinedProperties(obj) {
+  for (const key in obj) {
+    if (obj[key] === void 0) {
+      delete obj[key];
+    }
+  }
+  return obj;
+}
+function merge(defaults2, route, options) {
+  if (typeof route === "string") {
+    let [method, url2] = route.split(" ");
+    options = Object.assign(url2 ? { method, url: url2 } : { url: method }, options);
+  } else {
+    options = Object.assign({}, route);
+  }
+  options.headers = lowercaseKeys(options.headers);
+  removeUndefinedProperties(options);
+  removeUndefinedProperties(options.headers);
+  const mergedOptions = mergeDeep(defaults2 || {}, options);
+  if (options.url === "/graphql") {
+    if (defaults2 && defaults2.mediaType.previews?.length) {
+      mergedOptions.mediaType.previews = defaults2.mediaType.previews.filter(
+        (preview) => !mergedOptions.mediaType.previews.includes(preview)
+      ).concat(mergedOptions.mediaType.previews);
+    }
+    mergedOptions.mediaType.previews = (mergedOptions.mediaType.previews || []).map((preview) => preview.replace(/-preview/, ""));
+  }
+  return mergedOptions;
+}
+function addQueryParameters(url2, parameters) {
+  const separator = /\?/.test(url2) ? "&" : "?";
+  const names = Object.keys(parameters);
+  if (names.length === 0) {
+    return url2;
+  }
+  return url2 + separator + names.map((name21) => {
+    if (name21 === "q") {
+      return "q=" + parameters.q.split("+").map(encodeURIComponent).join("+");
+    }
+    return `${name21}=${encodeURIComponent(parameters[name21])}`;
+  }).join("&");
+}
+var urlVariableRegex = /\{[^{}}]+\}/g;
+function removeNonChars(variableName) {
+  return variableName.replace(/(?:^\W+)|(?:(?<!\W)\W+$)/g, "").split(/,/);
+}
+function extractUrlVariableNames(url2) {
+  const matches = url2.match(urlVariableRegex);
+  if (!matches) {
+    return [];
+  }
+  return matches.map(removeNonChars).reduce((a, b) => a.concat(b), []);
+}
+function omit(object3, keysToOmit) {
+  const result = { __proto__: null };
+  for (const key of Object.keys(object3)) {
+    if (keysToOmit.indexOf(key) === -1) {
+      result[key] = object3[key];
+    }
+  }
+  return result;
+}
+function encodeReserved(str) {
+  return str.split(/(%[0-9A-Fa-f]{2})/g).map(function(part) {
+    if (!/%[0-9A-Fa-f]/.test(part)) {
+      part = encodeURI(part).replace(/%5B/g, "[").replace(/%5D/g, "]");
+    }
+    return part;
+  }).join("");
+}
+function encodeUnreserved(str) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+    return "%" + c.charCodeAt(0).toString(16).toUpperCase();
+  });
+}
+function encodeValue(operator, value, key) {
+  value = operator === "+" || operator === "#" ? encodeReserved(value) : encodeUnreserved(value);
+  if (key) {
+    return encodeUnreserved(key) + "=" + value;
+  } else {
+    return value;
+  }
+}
+function isDefined(value) {
+  return value !== void 0 && value !== null;
+}
+function isKeyOperator(operator) {
+  return operator === ";" || operator === "&" || operator === "?";
+}
+function getValues(context3, operator, key, modifier) {
+  var value = context3[key], result = [];
+  if (isDefined(value) && value !== "") {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+      value = value.toString();
+      if (modifier && modifier !== "*") {
+        value = value.substring(0, parseInt(modifier, 10));
+      }
+      result.push(
+        encodeValue(operator, value, isKeyOperator(operator) ? key : "")
+      );
+    } else {
+      if (modifier === "*") {
+        if (Array.isArray(value)) {
+          value.filter(isDefined).forEach(function(value2) {
+            result.push(
+              encodeValue(operator, value2, isKeyOperator(operator) ? key : "")
+            );
+          });
+        } else {
+          Object.keys(value).forEach(function(k) {
+            if (isDefined(value[k])) {
+              result.push(encodeValue(operator, value[k], k));
+            }
+          });
+        }
+      } else {
+        const tmp = [];
+        if (Array.isArray(value)) {
+          value.filter(isDefined).forEach(function(value2) {
+            tmp.push(encodeValue(operator, value2));
+          });
+        } else {
+          Object.keys(value).forEach(function(k) {
+            if (isDefined(value[k])) {
+              tmp.push(encodeUnreserved(k));
+              tmp.push(encodeValue(operator, value[k].toString()));
+            }
+          });
+        }
+        if (isKeyOperator(operator)) {
+          result.push(encodeUnreserved(key) + "=" + tmp.join(","));
+        } else if (tmp.length !== 0) {
+          result.push(tmp.join(","));
+        }
+      }
+    }
+  } else {
+    if (operator === ";") {
+      if (isDefined(value)) {
+        result.push(encodeUnreserved(key));
+      }
+    } else if (value === "" && (operator === "&" || operator === "?")) {
+      result.push(encodeUnreserved(key) + "=");
+    } else if (value === "") {
+      result.push("");
+    }
+  }
+  return result;
+}
+function parseUrl(template) {
+  return {
+    expand: expand.bind(null, template)
+  };
+}
+function expand(template, context3) {
+  var operators = ["+", "#", ".", "/", ";", "?", "&"];
+  template = template.replace(
+    /\{([^\{\}]+)\}|([^\{\}]+)/g,
+    function(_, expression, literal2) {
+      if (expression) {
+        let operator = "";
+        const values = [];
+        if (operators.indexOf(expression.charAt(0)) !== -1) {
+          operator = expression.charAt(0);
+          expression = expression.substr(1);
+        }
+        expression.split(/,/g).forEach(function(variable) {
+          var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
+          values.push(getValues(context3, operator, tmp[1], tmp[2] || tmp[3]));
+        });
+        if (operator && operator !== "+") {
+          var separator = ",";
+          if (operator === "?") {
+            separator = "&";
+          } else if (operator !== "#") {
+            separator = operator;
+          }
+          return (values.length !== 0 ? operator : "") + values.join(separator);
+        } else {
+          return values.join(",");
+        }
+      } else {
+        return encodeReserved(literal2);
+      }
+    }
+  );
+  if (template === "/") {
+    return template;
+  } else {
+    return template.replace(/\/$/, "");
+  }
+}
+function parse(options) {
+  let method = options.method.toUpperCase();
+  let url2 = (options.url || "/").replace(/:([a-z]\w+)/g, "{$1}");
+  let headers = Object.assign({}, options.headers);
+  let body;
+  let parameters = omit(options, [
+    "method",
+    "baseUrl",
+    "url",
+    "headers",
+    "request",
+    "mediaType"
+  ]);
+  const urlVariableNames = extractUrlVariableNames(url2);
+  url2 = parseUrl(url2).expand(parameters);
+  if (!/^http/.test(url2)) {
+    url2 = options.baseUrl + url2;
+  }
+  const omittedParameters = Object.keys(options).filter((option) => urlVariableNames.includes(option)).concat("baseUrl");
+  const remainingParameters = omit(parameters, omittedParameters);
+  const isBinaryRequest = /application\/octet-stream/i.test(headers.accept);
+  if (!isBinaryRequest) {
+    if (options.mediaType.format) {
+      headers.accept = headers.accept.split(/,/).map(
+        (format) => format.replace(
+          /application\/vnd(\.\w+)(\.v3)?(\.\w+)?(\+json)?$/,
+          `application/vnd$1$2.${options.mediaType.format}`
+        )
+      ).join(",");
+    }
+    if (url2.endsWith("/graphql")) {
+      if (options.mediaType.previews?.length) {
+        const previewsFromAcceptHeader = headers.accept.match(/(?<![\w-])[\w-]+(?=-preview)/g) || [];
+        headers.accept = previewsFromAcceptHeader.concat(options.mediaType.previews).map((preview) => {
+          const format = options.mediaType.format ? `.${options.mediaType.format}` : "+json";
+          return `application/vnd.github.${preview}-preview${format}`;
+        }).join(",");
+      }
+    }
+  }
+  if (["GET", "HEAD"].includes(method)) {
+    url2 = addQueryParameters(url2, remainingParameters);
+  } else {
+    if ("data" in remainingParameters) {
+      body = remainingParameters.data;
+    } else {
+      if (Object.keys(remainingParameters).length) {
+        body = remainingParameters;
+      }
+    }
+  }
+  if (!headers["content-type"] && typeof body !== "undefined") {
+    headers["content-type"] = "application/json; charset=utf-8";
+  }
+  if (["PATCH", "PUT"].includes(method) && typeof body === "undefined") {
+    body = "";
+  }
+  return Object.assign(
+    { method, url: url2, headers },
+    typeof body !== "undefined" ? { body } : null,
+    options.request ? { request: options.request } : null
+  );
+}
+function endpointWithDefaults(defaults2, route, options) {
+  return parse(merge(defaults2, route, options));
+}
+function withDefaults(oldDefaults, newDefaults) {
+  const DEFAULTS2 = merge(oldDefaults, newDefaults);
+  const endpoint2 = endpointWithDefaults.bind(null, DEFAULTS2);
+  return Object.assign(endpoint2, {
+    DEFAULTS: DEFAULTS2,
+    defaults: withDefaults.bind(null, DEFAULTS2),
+    merge: merge.bind(null, DEFAULTS2),
+    parse
+  });
+}
+var endpoint = withDefaults(null, DEFAULTS);
+
+// node_modules/@octokit/request/dist-bundle/index.js
+var import_content_type = __toESM(require_dist(), 1);
+
+// node_modules/json-with-bigint/json-with-bigint.js
+var intRegex = /^-?\d+$/;
+var noiseValue = /^-?\d+n+$/;
+var originalStringify = JSON.stringify;
+var originalParse = JSON.parse;
+var customFormat = /^-?\d+n$/;
+var bigIntsStringify = /([\[:])?"(-?\d+)n"($|([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
+var noiseStringify = /([\[:])?("-?\d+n+)n("$|"([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
+var JSONStringify = (value, replacer, space) => {
+  if ("rawJSON" in JSON) {
+    return originalStringify(
+      value,
+      (key, value2) => {
+        if (typeof value2 === "bigint") return JSON.rawJSON(value2.toString());
+        if (typeof replacer === "function") return replacer(key, value2);
+        if (Array.isArray(replacer) && replacer.includes(key)) return value2;
+        return value2;
+      },
+      space
+    );
+  }
+  if (!value) return originalStringify(value, replacer, space);
+  const convertedToCustomJSON = originalStringify(
+    value,
+    (key, value2) => {
+      const isNoise = typeof value2 === "string" && noiseValue.test(value2);
+      if (isNoise) return value2.toString() + "n";
+      if (typeof value2 === "bigint") return value2.toString() + "n";
+      if (typeof replacer === "function") return replacer(key, value2);
+      if (Array.isArray(replacer) && replacer.includes(key)) return value2;
+      return value2;
+    },
+    space
+  );
+  const processedJSON = convertedToCustomJSON.replace(
+    bigIntsStringify,
+    "$1$2$3"
+  );
+  const denoisedJSON = processedJSON.replace(noiseStringify, "$1$2$3");
+  return denoisedJSON;
+};
+var featureCache = /* @__PURE__ */ new Map();
+var isContextSourceSupported = () => {
+  const parseFingerprint = JSON.parse.toString();
+  if (featureCache.has(parseFingerprint)) {
+    return featureCache.get(parseFingerprint);
+  }
+  try {
+    const result = JSON.parse(
+      "1",
+      (_, __, context3) => !!context3?.source && context3.source === "1"
+    );
+    featureCache.set(parseFingerprint, result);
+    return result;
+  } catch {
+    featureCache.set(parseFingerprint, false);
+    return false;
+  }
+};
+var convertMarkedBigIntsReviver = (key, value, context3, userReviver) => {
+  const isCustomFormatBigInt = typeof value === "string" && customFormat.test(value);
+  if (isCustomFormatBigInt) return BigInt(value.slice(0, -1));
+  const isNoiseValue = typeof value === "string" && noiseValue.test(value);
+  if (isNoiseValue) return value.slice(0, -1);
+  if (typeof userReviver !== "function") return value;
+  return userReviver(key, value, context3);
+};
+var JSONParseV2 = (text2, reviver) => {
+  return JSON.parse(text2, (key, value, context3) => {
+    const isBigNumber = typeof value === "number" && (value > Number.MAX_SAFE_INTEGER || value < Number.MIN_SAFE_INTEGER);
+    const isInt = context3 && intRegex.test(context3.source);
+    const isBigInt = isBigNumber && isInt;
+    if (isBigInt) return BigInt(context3.source);
+    if (typeof reviver !== "function") return value;
+    return reviver(key, value, context3);
+  });
+};
+var MAX_INT = Number.MAX_SAFE_INTEGER.toString();
+var MAX_DIGITS = MAX_INT.length;
+var stringsOrLargeNumbers = /"(?:\\.|[^"])*"|-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/g;
+var noiseValueWithQuotes = /^"-?\d+n+"$/;
+var JSONParse = (text2, reviver) => {
+  if (!text2) return originalParse(text2, reviver);
+  if (isContextSourceSupported()) return JSONParseV2(text2, reviver);
+  const serializedData = text2.replace(
+    stringsOrLargeNumbers,
+    (text3, digits, fractional, exponential) => {
+      const isString = text3[0] === '"';
+      const isNoise = isString && noiseValueWithQuotes.test(text3);
+      if (isNoise) return text3.substring(0, text3.length - 1) + 'n"';
+      const isFractionalOrExponential = fractional || exponential;
+      const isLessThanMaxSafeInt = digits && (digits.length < MAX_DIGITS || digits.length === MAX_DIGITS && digits <= MAX_INT);
+      if (isString || isFractionalOrExponential || isLessThanMaxSafeInt)
+        return text3;
+      return '"' + text3 + 'n"';
+    }
+  );
+  return originalParse(
+    serializedData,
+    (key, value, context3) => convertMarkedBigIntsReviver(key, value, context3, reviver)
+  );
+};
 
 // node_modules/@octokit/request-error/dist-src/index.js
 var RequestError = class extends Error {
@@ -32650,8 +33313,3064 @@ var RequestError = class extends Error {
   }
 };
 
+// node_modules/@octokit/request/dist-bundle/index.js
+var VERSION2 = "10.0.9";
+var defaults_default = {
+  headers: {
+    "user-agent": `octokit-request.js/${VERSION2} ${getUserAgent()}`
+  }
+};
+function isPlainObject2(value) {
+  if (typeof value !== "object" || value === null) return false;
+  if (Object.prototype.toString.call(value) !== "[object Object]") return false;
+  const proto = Object.getPrototypeOf(value);
+  if (proto === null) return true;
+  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
+}
+var noop = () => "";
+async function fetchWrapper(requestOptions) {
+  const fetch2 = requestOptions.request?.fetch || globalThis.fetch;
+  if (!fetch2) {
+    throw new Error(
+      "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
+    );
+  }
+  const log = requestOptions.request?.log || console;
+  const parseSuccessResponseBody = requestOptions.request?.parseSuccessResponseBody !== false;
+  const body = isPlainObject2(requestOptions.body) || Array.isArray(requestOptions.body) ? JSONStringify(requestOptions.body) : requestOptions.body;
+  const requestHeaders = Object.fromEntries(
+    Object.entries(requestOptions.headers).map(([name21, value]) => [
+      name21,
+      String(value)
+    ])
+  );
+  let fetchResponse;
+  try {
+    fetchResponse = await fetch2(requestOptions.url, {
+      method: requestOptions.method,
+      body,
+      redirect: requestOptions.request?.redirect,
+      headers: requestHeaders,
+      signal: requestOptions.request?.signal,
+      // duplex must be set if request.body is ReadableStream or Async Iterables.
+      // See https://fetch.spec.whatwg.org/#dom-requestinit-duplex.
+      ...requestOptions.body && { duplex: "half" }
+    });
+  } catch (error52) {
+    let message = "Unknown Error";
+    if (error52 instanceof Error) {
+      if (error52.name === "AbortError") {
+        error52.status = 500;
+        throw error52;
+      }
+      message = error52.message;
+      if (error52.name === "TypeError" && "cause" in error52) {
+        if (error52.cause instanceof Error) {
+          message = error52.cause.message;
+        } else if (typeof error52.cause === "string") {
+          message = error52.cause;
+        }
+      }
+    }
+    const requestError = new RequestError(message, 500, {
+      request: requestOptions
+    });
+    requestError.cause = error52;
+    throw requestError;
+  }
+  const status = fetchResponse.status;
+  const url2 = fetchResponse.url;
+  const responseHeaders = {};
+  for (const [key, value] of fetchResponse.headers) {
+    responseHeaders[key] = value;
+  }
+  const octokitResponse = {
+    url: url2,
+    status,
+    headers: responseHeaders,
+    data: ""
+  };
+  if ("deprecation" in responseHeaders) {
+    const matches = responseHeaders.link && responseHeaders.link.match(/<([^<>]+)>; rel="deprecation"/);
+    const deprecationLink = matches && matches.pop();
+    log.warn(
+      `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
+    );
+  }
+  if (status === 204 || status === 205) {
+    return octokitResponse;
+  }
+  if (requestOptions.method === "HEAD") {
+    if (status < 400) {
+      return octokitResponse;
+    }
+    throw new RequestError(fetchResponse.statusText, status, {
+      response: octokitResponse,
+      request: requestOptions
+    });
+  }
+  if (status === 304) {
+    octokitResponse.data = await getResponseData(fetchResponse);
+    throw new RequestError("Not modified", status, {
+      response: octokitResponse,
+      request: requestOptions
+    });
+  }
+  if (status >= 400) {
+    octokitResponse.data = await getResponseData(fetchResponse);
+    throw new RequestError(toErrorMessage(octokitResponse.data), status, {
+      response: octokitResponse,
+      request: requestOptions
+    });
+  }
+  octokitResponse.data = parseSuccessResponseBody ? await getResponseData(fetchResponse) : fetchResponse.body;
+  return octokitResponse;
+}
+async function getResponseData(response) {
+  const contentType = response.headers.get("content-type");
+  if (!contentType) {
+    return response.text().catch(noop);
+  }
+  const mimetype = (0, import_content_type.parse)(contentType);
+  if (isJSONResponse(mimetype)) {
+    let text2 = "";
+    try {
+      text2 = await response.text();
+      return JSONParse(text2);
+    } catch (err) {
+      return text2;
+    }
+  } else if (mimetype.type.startsWith("text/") || mimetype.parameters.charset?.toLowerCase() === "utf-8") {
+    return response.text().catch(noop);
+  } else {
+    return response.arrayBuffer().catch(
+      /* v8 ignore next -- @preserve */
+      () => new ArrayBuffer(0)
+    );
+  }
+}
+function isJSONResponse(mimetype) {
+  return mimetype.type === "application/json" || mimetype.type === "application/scim+json";
+}
+function toErrorMessage(data) {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (data instanceof ArrayBuffer) {
+    return "Unknown error";
+  }
+  if ("message" in data) {
+    const suffix = "documentation_url" in data ? ` - ${data.documentation_url}` : "";
+    return Array.isArray(data.errors) ? `${data.message}: ${data.errors.map((v) => JSON.stringify(v)).join(", ")}${suffix}` : `${data.message}${suffix}`;
+  }
+  return `Unknown error: ${JSON.stringify(data)}`;
+}
+function withDefaults2(oldEndpoint, newDefaults) {
+  const endpoint2 = oldEndpoint.defaults(newDefaults);
+  const newApi = function(route, parameters) {
+    const endpointOptions = endpoint2.merge(route, parameters);
+    if (!endpointOptions.request || !endpointOptions.request.hook) {
+      return fetchWrapper(endpoint2.parse(endpointOptions));
+    }
+    const request2 = (route2, parameters2) => {
+      return fetchWrapper(
+        endpoint2.parse(endpoint2.merge(route2, parameters2))
+      );
+    };
+    Object.assign(request2, {
+      endpoint: endpoint2,
+      defaults: withDefaults2.bind(null, endpoint2)
+    });
+    return endpointOptions.request.hook(request2, endpointOptions);
+  };
+  return Object.assign(newApi, {
+    endpoint: endpoint2,
+    defaults: withDefaults2.bind(null, endpoint2)
+  });
+}
+var request = withDefaults2(endpoint, defaults_default);
+
+// node_modules/@octokit/graphql/dist-bundle/index.js
+var VERSION3 = "0.0.0-development";
+function _buildMessageForResponseErrors(data) {
+  return `Request failed due to following response errors:
+` + data.errors.map((e) => ` - ${e.message}`).join("\n");
+}
+var GraphqlResponseError = class extends Error {
+  constructor(request2, headers, response) {
+    super(_buildMessageForResponseErrors(response));
+    this.request = request2;
+    this.headers = headers;
+    this.response = response;
+    this.errors = response.errors;
+    this.data = response.data;
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+  name = "GraphqlResponseError";
+  errors;
+  data;
+};
+var NON_VARIABLE_OPTIONS = [
+  "method",
+  "baseUrl",
+  "url",
+  "headers",
+  "request",
+  "query",
+  "mediaType",
+  "operationName"
+];
+var FORBIDDEN_VARIABLE_OPTIONS = ["query", "method", "url"];
+var GHES_V3_SUFFIX_REGEX = /\/api\/v3\/?$/;
+function graphql(request2, query, options) {
+  if (options) {
+    if (typeof query === "string" && "query" in options) {
+      return Promise.reject(
+        new Error(`[@octokit/graphql] "query" cannot be used as variable name`)
+      );
+    }
+    for (const key in options) {
+      if (!FORBIDDEN_VARIABLE_OPTIONS.includes(key)) continue;
+      return Promise.reject(
+        new Error(
+          `[@octokit/graphql] "${key}" cannot be used as variable name`
+        )
+      );
+    }
+  }
+  const parsedOptions = typeof query === "string" ? Object.assign({ query }, options) : query;
+  const requestOptions = Object.keys(
+    parsedOptions
+  ).reduce((result, key) => {
+    if (NON_VARIABLE_OPTIONS.includes(key)) {
+      result[key] = parsedOptions[key];
+      return result;
+    }
+    if (!result.variables) {
+      result.variables = {};
+    }
+    result.variables[key] = parsedOptions[key];
+    return result;
+  }, {});
+  const baseUrl = parsedOptions.baseUrl || request2.endpoint.DEFAULTS.baseUrl;
+  if (GHES_V3_SUFFIX_REGEX.test(baseUrl)) {
+    requestOptions.url = baseUrl.replace(GHES_V3_SUFFIX_REGEX, "/api/graphql");
+  }
+  return request2(requestOptions).then((response) => {
+    if (response.data.errors) {
+      const headers = {};
+      for (const key of Object.keys(response.headers)) {
+        headers[key] = response.headers[key];
+      }
+      throw new GraphqlResponseError(
+        requestOptions,
+        headers,
+        response.data
+      );
+    }
+    return response.data.data;
+  });
+}
+function withDefaults3(request2, newDefaults) {
+  const newRequest = request2.defaults(newDefaults);
+  const newApi = (query, options) => {
+    return graphql(newRequest, query, options);
+  };
+  return Object.assign(newApi, {
+    defaults: withDefaults3.bind(null, newRequest),
+    endpoint: newRequest.endpoint
+  });
+}
+var graphql2 = withDefaults3(request, {
+  headers: {
+    "user-agent": `octokit-graphql.js/${VERSION3} ${getUserAgent()}`
+  },
+  method: "POST",
+  url: "/graphql"
+});
+function withCustomRequest(customRequest) {
+  return withDefaults3(customRequest, {
+    method: "POST",
+    url: "/graphql"
+  });
+}
+
+// node_modules/@octokit/auth-token/dist-bundle/index.js
+var b64url = "(?:[a-zA-Z0-9_-]+)";
+var sep = "\\.";
+var jwtRE = new RegExp(`^${b64url}${sep}${b64url}${sep}${b64url}$`);
+var isJWT = jwtRE.test.bind(jwtRE);
+async function auth(token) {
+  const isApp = isJWT(token);
+  const isInstallation = token.startsWith("v1.") || token.startsWith("ghs_");
+  const isUserToServer = token.startsWith("ghu_");
+  const tokenType = isApp ? "app" : isInstallation ? "installation" : isUserToServer ? "user-to-server" : "oauth";
+  return {
+    type: "token",
+    token,
+    tokenType
+  };
+}
+function withAuthorizationPrefix(token) {
+  if (token.split(/\./).length === 3) {
+    return `bearer ${token}`;
+  }
+  return `token ${token}`;
+}
+async function hook(token, request2, route, parameters) {
+  const endpoint2 = request2.endpoint.merge(
+    route,
+    parameters
+  );
+  endpoint2.headers.authorization = withAuthorizationPrefix(token);
+  return request2(endpoint2);
+}
+var createTokenAuth = function createTokenAuth2(token) {
+  if (!token) {
+    throw new Error("[@octokit/auth-token] No token passed to createTokenAuth");
+  }
+  if (typeof token !== "string") {
+    throw new Error(
+      "[@octokit/auth-token] Token passed to createTokenAuth is not a string"
+    );
+  }
+  token = token.replace(/^(token|bearer) +/i, "");
+  return Object.assign(auth.bind(null, token), {
+    hook: hook.bind(null, token)
+  });
+};
+
+// node_modules/@octokit/core/dist-src/version.js
+var VERSION4 = "7.0.6";
+
+// node_modules/@octokit/core/dist-src/index.js
+var noop2 = () => {
+};
+var consoleWarn = console.warn.bind(console);
+var consoleError = console.error.bind(console);
+function createLogger(logger = {}) {
+  if (typeof logger.debug !== "function") {
+    logger.debug = noop2;
+  }
+  if (typeof logger.info !== "function") {
+    logger.info = noop2;
+  }
+  if (typeof logger.warn !== "function") {
+    logger.warn = consoleWarn;
+  }
+  if (typeof logger.error !== "function") {
+    logger.error = consoleError;
+  }
+  return logger;
+}
+var userAgentTrail = `octokit-core.js/${VERSION4} ${getUserAgent()}`;
+var Octokit = class {
+  static VERSION = VERSION4;
+  static defaults(defaults2) {
+    const OctokitWithDefaults = class extends this {
+      constructor(...args) {
+        const options = args[0] || {};
+        if (typeof defaults2 === "function") {
+          super(defaults2(options));
+          return;
+        }
+        super(
+          Object.assign(
+            {},
+            defaults2,
+            options,
+            options.userAgent && defaults2.userAgent ? {
+              userAgent: `${options.userAgent} ${defaults2.userAgent}`
+            } : null
+          )
+        );
+      }
+    };
+    return OctokitWithDefaults;
+  }
+  static plugins = [];
+  /**
+   * Attach a plugin (or many) to your Octokit instance.
+   *
+   * @example
+   * const API = Octokit.plugin(plugin1, plugin2, plugin3, ...)
+   */
+  static plugin(...newPlugins) {
+    const currentPlugins = this.plugins;
+    const NewOctokit = class extends this {
+      static plugins = currentPlugins.concat(
+        newPlugins.filter((plugin) => !currentPlugins.includes(plugin))
+      );
+    };
+    return NewOctokit;
+  }
+  constructor(options = {}) {
+    const hook2 = new before_after_hook_default.Collection();
+    const requestDefaults = {
+      baseUrl: request.endpoint.DEFAULTS.baseUrl,
+      headers: {},
+      request: Object.assign({}, options.request, {
+        // @ts-ignore internal usage only, no need to type
+        hook: hook2.bind(null, "request")
+      }),
+      mediaType: {
+        previews: [],
+        format: ""
+      }
+    };
+    requestDefaults.headers["user-agent"] = options.userAgent ? `${options.userAgent} ${userAgentTrail}` : userAgentTrail;
+    if (options.baseUrl) {
+      requestDefaults.baseUrl = options.baseUrl;
+    }
+    if (options.previews) {
+      requestDefaults.mediaType.previews = options.previews;
+    }
+    if (options.timeZone) {
+      requestDefaults.headers["time-zone"] = options.timeZone;
+    }
+    this.request = request.defaults(requestDefaults);
+    this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
+    this.log = createLogger(options.log);
+    this.hook = hook2;
+    if (!options.authStrategy) {
+      if (!options.auth) {
+        this.auth = async () => ({
+          type: "unauthenticated"
+        });
+      } else {
+        const auth2 = createTokenAuth(options.auth);
+        hook2.wrap("request", auth2.hook);
+        this.auth = auth2;
+      }
+    } else {
+      const { authStrategy, ...otherOptions } = options;
+      const auth2 = authStrategy(
+        Object.assign(
+          {
+            request: this.request,
+            log: this.log,
+            // we pass the current octokit instance as well as its constructor options
+            // to allow for authentication strategies that return a new octokit instance
+            // that shares the same internal state as the current one. The original
+            // requirement for this was the "event-octokit" authentication strategy
+            // of https://github.com/probot/octokit-auth-probot.
+            octokit: this,
+            octokitOptions: otherOptions
+          },
+          options.auth
+        )
+      );
+      hook2.wrap("request", auth2.hook);
+      this.auth = auth2;
+    }
+    const classConstructor = this.constructor;
+    for (let i = 0; i < classConstructor.plugins.length; ++i) {
+      Object.assign(this, classConstructor.plugins[i](this, options));
+    }
+  }
+  // assigned during constructor
+  request;
+  graphql;
+  log;
+  hook;
+  // TODO: type `octokit.auth` based on passed options.authStrategy
+  auth;
+};
+
+// node_modules/@octokit/plugin-request-log/dist-src/version.js
+var VERSION5 = "6.0.0";
+
+// node_modules/@octokit/plugin-request-log/dist-src/index.js
+function requestLog(octokit) {
+  octokit.hook.wrap("request", (request2, options) => {
+    octokit.log.debug("request", options);
+    const start = Date.now();
+    const requestOptions = octokit.request.endpoint.parse(options);
+    const path27 = requestOptions.url.replace(options.baseUrl, "");
+    return request2(options).then((response) => {
+      const requestId = response.headers["x-github-request-id"];
+      octokit.log.info(
+        `${requestOptions.method} ${path27} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      return response;
+    }).catch((error52) => {
+      const requestId = error52.response?.headers["x-github-request-id"] || "UNKNOWN";
+      octokit.log.error(
+        `${requestOptions.method} ${path27} - ${error52.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      throw error52;
+    });
+  });
+}
+requestLog.VERSION = VERSION5;
+
+// node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
+var VERSION6 = "0.0.0-development";
+function normalizePaginatedListResponse(response) {
+  if (!response.data) {
+    return {
+      ...response,
+      data: []
+    };
+  }
+  const responseNeedsNormalization = ("total_count" in response.data || "total_commits" in response.data) && !("url" in response.data);
+  if (!responseNeedsNormalization) return response;
+  const incompleteResults = response.data.incomplete_results;
+  const repositorySelection = response.data.repository_selection;
+  const totalCount = response.data.total_count;
+  const totalCommits = response.data.total_commits;
+  delete response.data.incomplete_results;
+  delete response.data.repository_selection;
+  delete response.data.total_count;
+  delete response.data.total_commits;
+  const namespaceKey = Object.keys(response.data)[0];
+  const data = response.data[namespaceKey];
+  response.data = data;
+  if (typeof incompleteResults !== "undefined") {
+    response.data.incomplete_results = incompleteResults;
+  }
+  if (typeof repositorySelection !== "undefined") {
+    response.data.repository_selection = repositorySelection;
+  }
+  response.data.total_count = totalCount;
+  response.data.total_commits = totalCommits;
+  return response;
+}
+function iterator(octokit, route, parameters) {
+  const options = typeof route === "function" ? route.endpoint(parameters) : octokit.request.endpoint(route, parameters);
+  const requestMethod = typeof route === "function" ? route : octokit.request;
+  const method = options.method;
+  const headers = options.headers;
+  let url2 = options.url;
+  return {
+    [Symbol.asyncIterator]: () => ({
+      async next() {
+        if (!url2) return { done: true };
+        try {
+          const response = await requestMethod({ method, url: url2, headers });
+          const normalizedResponse = normalizePaginatedListResponse(response);
+          url2 = ((normalizedResponse.headers.link || "").match(
+            /<([^<>]+)>;\s*rel="next"/
+          ) || [])[1];
+          if (!url2 && "total_commits" in normalizedResponse.data) {
+            const parsedUrl = new URL(normalizedResponse.url);
+            const params = parsedUrl.searchParams;
+            const page = parseInt(params.get("page") || "1", 10);
+            const per_page = parseInt(params.get("per_page") || "250", 10);
+            if (page * per_page < normalizedResponse.data.total_commits) {
+              params.set("page", String(page + 1));
+              url2 = parsedUrl.toString();
+            }
+          }
+          return { value: normalizedResponse };
+        } catch (error52) {
+          if (error52.status !== 409) throw error52;
+          url2 = "";
+          return {
+            value: {
+              status: 200,
+              headers: {},
+              data: []
+            }
+          };
+        }
+      }
+    })
+  };
+}
+function paginate(octokit, route, parameters, mapFn) {
+  if (typeof parameters === "function") {
+    mapFn = parameters;
+    parameters = void 0;
+  }
+  return gather(
+    octokit,
+    [],
+    iterator(octokit, route, parameters)[Symbol.asyncIterator](),
+    mapFn
+  );
+}
+function gather(octokit, results, iterator2, mapFn) {
+  return iterator2.next().then((result) => {
+    if (result.done) {
+      return results;
+    }
+    let earlyExit = false;
+    function done() {
+      earlyExit = true;
+    }
+    results = results.concat(
+      mapFn ? mapFn(result.value, done) : result.value.data
+    );
+    if (earlyExit) {
+      return results;
+    }
+    return gather(octokit, results, iterator2, mapFn);
+  });
+}
+var composePaginateRest = Object.assign(paginate, {
+  iterator
+});
+function paginateRest(octokit) {
+  return {
+    paginate: Object.assign(paginate.bind(null, octokit), {
+      iterator: iterator.bind(null, octokit)
+    })
+  };
+}
+paginateRest.VERSION = VERSION6;
+
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/version.js
+var VERSION7 = "17.0.0";
+
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/generated/endpoints.js
+var Endpoints = {
+  actions: {
+    addCustomLabelsToSelfHostedRunnerForOrg: [
+      "POST /orgs/{org}/actions/runners/{runner_id}/labels"
+    ],
+    addCustomLabelsToSelfHostedRunnerForRepo: [
+      "POST /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
+    ],
+    addRepoAccessToSelfHostedRunnerGroupInOrg: [
+      "PUT /orgs/{org}/actions/runner-groups/{runner_group_id}/repositories/{repository_id}"
+    ],
+    addSelectedRepoToOrgSecret: [
+      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    addSelectedRepoToOrgVariable: [
+      "PUT /orgs/{org}/actions/variables/{name}/repositories/{repository_id}"
+    ],
+    approveWorkflowRun: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/approve"
+    ],
+    cancelWorkflowRun: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/cancel"
+    ],
+    createEnvironmentVariable: [
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/variables"
+    ],
+    createHostedRunnerForOrg: ["POST /orgs/{org}/actions/hosted-runners"],
+    createOrUpdateEnvironmentSecret: [
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
+    ],
+    createOrUpdateOrgSecret: ["PUT /orgs/{org}/actions/secrets/{secret_name}"],
+    createOrUpdateRepoSecret: [
+      "PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}"
+    ],
+    createOrgVariable: ["POST /orgs/{org}/actions/variables"],
+    createRegistrationTokenForOrg: [
+      "POST /orgs/{org}/actions/runners/registration-token"
+    ],
+    createRegistrationTokenForRepo: [
+      "POST /repos/{owner}/{repo}/actions/runners/registration-token"
+    ],
+    createRemoveTokenForOrg: ["POST /orgs/{org}/actions/runners/remove-token"],
+    createRemoveTokenForRepo: [
+      "POST /repos/{owner}/{repo}/actions/runners/remove-token"
+    ],
+    createRepoVariable: ["POST /repos/{owner}/{repo}/actions/variables"],
+    createWorkflowDispatch: [
+      "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches"
+    ],
+    deleteActionsCacheById: [
+      "DELETE /repos/{owner}/{repo}/actions/caches/{cache_id}"
+    ],
+    deleteActionsCacheByKey: [
+      "DELETE /repos/{owner}/{repo}/actions/caches{?key,ref}"
+    ],
+    deleteArtifact: [
+      "DELETE /repos/{owner}/{repo}/actions/artifacts/{artifact_id}"
+    ],
+    deleteCustomImageFromOrg: [
+      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}"
+    ],
+    deleteCustomImageVersionFromOrg: [
+      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}"
+    ],
+    deleteEnvironmentSecret: [
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
+    ],
+    deleteEnvironmentVariable: [
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
+    ],
+    deleteHostedRunnerForOrg: [
+      "DELETE /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
+    ],
+    deleteOrgSecret: ["DELETE /orgs/{org}/actions/secrets/{secret_name}"],
+    deleteOrgVariable: ["DELETE /orgs/{org}/actions/variables/{name}"],
+    deleteRepoSecret: [
+      "DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}"
+    ],
+    deleteRepoVariable: [
+      "DELETE /repos/{owner}/{repo}/actions/variables/{name}"
+    ],
+    deleteSelfHostedRunnerFromOrg: [
+      "DELETE /orgs/{org}/actions/runners/{runner_id}"
+    ],
+    deleteSelfHostedRunnerFromRepo: [
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}"
+    ],
+    deleteWorkflowRun: ["DELETE /repos/{owner}/{repo}/actions/runs/{run_id}"],
+    deleteWorkflowRunLogs: [
+      "DELETE /repos/{owner}/{repo}/actions/runs/{run_id}/logs"
+    ],
+    disableSelectedRepositoryGithubActionsOrganization: [
+      "DELETE /orgs/{org}/actions/permissions/repositories/{repository_id}"
+    ],
+    disableWorkflow: [
+      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/disable"
+    ],
+    downloadArtifact: [
+      "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}"
+    ],
+    downloadJobLogsForWorkflowRun: [
+      "GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
+    ],
+    downloadWorkflowRunAttemptLogs: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/logs"
+    ],
+    downloadWorkflowRunLogs: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/logs"
+    ],
+    enableSelectedRepositoryGithubActionsOrganization: [
+      "PUT /orgs/{org}/actions/permissions/repositories/{repository_id}"
+    ],
+    enableWorkflow: [
+      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/enable"
+    ],
+    forceCancelWorkflowRun: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel"
+    ],
+    generateRunnerJitconfigForOrg: [
+      "POST /orgs/{org}/actions/runners/generate-jitconfig"
+    ],
+    generateRunnerJitconfigForRepo: [
+      "POST /repos/{owner}/{repo}/actions/runners/generate-jitconfig"
+    ],
+    getActionsCacheList: ["GET /repos/{owner}/{repo}/actions/caches"],
+    getActionsCacheUsage: ["GET /repos/{owner}/{repo}/actions/cache/usage"],
+    getActionsCacheUsageByRepoForOrg: [
+      "GET /orgs/{org}/actions/cache/usage-by-repository"
+    ],
+    getActionsCacheUsageForOrg: ["GET /orgs/{org}/actions/cache/usage"],
+    getAllowedActionsOrganization: [
+      "GET /orgs/{org}/actions/permissions/selected-actions"
+    ],
+    getAllowedActionsRepository: [
+      "GET /repos/{owner}/{repo}/actions/permissions/selected-actions"
+    ],
+    getArtifact: ["GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}"],
+    getCustomImageForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}"
+    ],
+    getCustomImageVersionForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}"
+    ],
+    getCustomOidcSubClaimForRepo: [
+      "GET /repos/{owner}/{repo}/actions/oidc/customization/sub"
+    ],
+    getEnvironmentPublicKey: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/public-key"
+    ],
+    getEnvironmentSecret: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
+    ],
+    getEnvironmentVariable: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
+    ],
+    getGithubActionsDefaultWorkflowPermissionsOrganization: [
+      "GET /orgs/{org}/actions/permissions/workflow"
+    ],
+    getGithubActionsDefaultWorkflowPermissionsRepository: [
+      "GET /repos/{owner}/{repo}/actions/permissions/workflow"
+    ],
+    getGithubActionsPermissionsOrganization: [
+      "GET /orgs/{org}/actions/permissions"
+    ],
+    getGithubActionsPermissionsRepository: [
+      "GET /repos/{owner}/{repo}/actions/permissions"
+    ],
+    getHostedRunnerForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
+    ],
+    getHostedRunnersGithubOwnedImagesForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/github-owned"
+    ],
+    getHostedRunnersLimitsForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/limits"
+    ],
+    getHostedRunnersMachineSpecsForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/machine-sizes"
+    ],
+    getHostedRunnersPartnerImagesForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/partner"
+    ],
+    getHostedRunnersPlatformsForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/platforms"
+    ],
+    getJobForWorkflowRun: ["GET /repos/{owner}/{repo}/actions/jobs/{job_id}"],
+    getOrgPublicKey: ["GET /orgs/{org}/actions/secrets/public-key"],
+    getOrgSecret: ["GET /orgs/{org}/actions/secrets/{secret_name}"],
+    getOrgVariable: ["GET /orgs/{org}/actions/variables/{name}"],
+    getPendingDeploymentsForRun: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments"
+    ],
+    getRepoPermissions: [
+      "GET /repos/{owner}/{repo}/actions/permissions",
+      {},
+      { renamed: ["actions", "getGithubActionsPermissionsRepository"] }
+    ],
+    getRepoPublicKey: ["GET /repos/{owner}/{repo}/actions/secrets/public-key"],
+    getRepoSecret: ["GET /repos/{owner}/{repo}/actions/secrets/{secret_name}"],
+    getRepoVariable: ["GET /repos/{owner}/{repo}/actions/variables/{name}"],
+    getReviewsForRun: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals"
+    ],
+    getSelfHostedRunnerForOrg: ["GET /orgs/{org}/actions/runners/{runner_id}"],
+    getSelfHostedRunnerForRepo: [
+      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}"
+    ],
+    getWorkflow: ["GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}"],
+    getWorkflowAccessToRepository: [
+      "GET /repos/{owner}/{repo}/actions/permissions/access"
+    ],
+    getWorkflowRun: ["GET /repos/{owner}/{repo}/actions/runs/{run_id}"],
+    getWorkflowRunAttempt: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}"
+    ],
+    getWorkflowRunUsage: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/timing"
+    ],
+    getWorkflowUsage: [
+      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/timing"
+    ],
+    listArtifactsForRepo: ["GET /repos/{owner}/{repo}/actions/artifacts"],
+    listCustomImageVersionsForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions"
+    ],
+    listCustomImagesForOrg: [
+      "GET /orgs/{org}/actions/hosted-runners/images/custom"
+    ],
+    listEnvironmentSecrets: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets"
+    ],
+    listEnvironmentVariables: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables"
+    ],
+    listGithubHostedRunnersInGroupForOrg: [
+      "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/hosted-runners"
+    ],
+    listHostedRunnersForOrg: ["GET /orgs/{org}/actions/hosted-runners"],
+    listJobsForWorkflowRun: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
+    ],
+    listJobsForWorkflowRunAttempt: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs"
+    ],
+    listLabelsForSelfHostedRunnerForOrg: [
+      "GET /orgs/{org}/actions/runners/{runner_id}/labels"
+    ],
+    listLabelsForSelfHostedRunnerForRepo: [
+      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
+    ],
+    listOrgSecrets: ["GET /orgs/{org}/actions/secrets"],
+    listOrgVariables: ["GET /orgs/{org}/actions/variables"],
+    listRepoOrganizationSecrets: [
+      "GET /repos/{owner}/{repo}/actions/organization-secrets"
+    ],
+    listRepoOrganizationVariables: [
+      "GET /repos/{owner}/{repo}/actions/organization-variables"
+    ],
+    listRepoSecrets: ["GET /repos/{owner}/{repo}/actions/secrets"],
+    listRepoVariables: ["GET /repos/{owner}/{repo}/actions/variables"],
+    listRepoWorkflows: ["GET /repos/{owner}/{repo}/actions/workflows"],
+    listRunnerApplicationsForOrg: ["GET /orgs/{org}/actions/runners/downloads"],
+    listRunnerApplicationsForRepo: [
+      "GET /repos/{owner}/{repo}/actions/runners/downloads"
+    ],
+    listSelectedReposForOrgSecret: [
+      "GET /orgs/{org}/actions/secrets/{secret_name}/repositories"
+    ],
+    listSelectedReposForOrgVariable: [
+      "GET /orgs/{org}/actions/variables/{name}/repositories"
+    ],
+    listSelectedRepositoriesEnabledGithubActionsOrganization: [
+      "GET /orgs/{org}/actions/permissions/repositories"
+    ],
+    listSelfHostedRunnersForOrg: ["GET /orgs/{org}/actions/runners"],
+    listSelfHostedRunnersForRepo: ["GET /repos/{owner}/{repo}/actions/runners"],
+    listWorkflowRunArtifacts: [
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts"
+    ],
+    listWorkflowRuns: [
+      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs"
+    ],
+    listWorkflowRunsForRepo: ["GET /repos/{owner}/{repo}/actions/runs"],
+    reRunJobForWorkflowRun: [
+      "POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun"
+    ],
+    reRunWorkflow: ["POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun"],
+    reRunWorkflowFailedJobs: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs"
+    ],
+    removeAllCustomLabelsFromSelfHostedRunnerForOrg: [
+      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels"
+    ],
+    removeAllCustomLabelsFromSelfHostedRunnerForRepo: [
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
+    ],
+    removeCustomLabelFromSelfHostedRunnerForOrg: [
+      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels/{name}"
+    ],
+    removeCustomLabelFromSelfHostedRunnerForRepo: [
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels/{name}"
+    ],
+    removeSelectedRepoFromOrgSecret: [
+      "DELETE /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    removeSelectedRepoFromOrgVariable: [
+      "DELETE /orgs/{org}/actions/variables/{name}/repositories/{repository_id}"
+    ],
+    reviewCustomGatesForRun: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/deployment_protection_rule"
+    ],
+    reviewPendingDeploymentsForRun: [
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments"
+    ],
+    setAllowedActionsOrganization: [
+      "PUT /orgs/{org}/actions/permissions/selected-actions"
+    ],
+    setAllowedActionsRepository: [
+      "PUT /repos/{owner}/{repo}/actions/permissions/selected-actions"
+    ],
+    setCustomLabelsForSelfHostedRunnerForOrg: [
+      "PUT /orgs/{org}/actions/runners/{runner_id}/labels"
+    ],
+    setCustomLabelsForSelfHostedRunnerForRepo: [
+      "PUT /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
+    ],
+    setCustomOidcSubClaimForRepo: [
+      "PUT /repos/{owner}/{repo}/actions/oidc/customization/sub"
+    ],
+    setGithubActionsDefaultWorkflowPermissionsOrganization: [
+      "PUT /orgs/{org}/actions/permissions/workflow"
+    ],
+    setGithubActionsDefaultWorkflowPermissionsRepository: [
+      "PUT /repos/{owner}/{repo}/actions/permissions/workflow"
+    ],
+    setGithubActionsPermissionsOrganization: [
+      "PUT /orgs/{org}/actions/permissions"
+    ],
+    setGithubActionsPermissionsRepository: [
+      "PUT /repos/{owner}/{repo}/actions/permissions"
+    ],
+    setSelectedReposForOrgSecret: [
+      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories"
+    ],
+    setSelectedReposForOrgVariable: [
+      "PUT /orgs/{org}/actions/variables/{name}/repositories"
+    ],
+    setSelectedRepositoriesEnabledGithubActionsOrganization: [
+      "PUT /orgs/{org}/actions/permissions/repositories"
+    ],
+    setWorkflowAccessToRepository: [
+      "PUT /repos/{owner}/{repo}/actions/permissions/access"
+    ],
+    updateEnvironmentVariable: [
+      "PATCH /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
+    ],
+    updateHostedRunnerForOrg: [
+      "PATCH /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
+    ],
+    updateOrgVariable: ["PATCH /orgs/{org}/actions/variables/{name}"],
+    updateRepoVariable: [
+      "PATCH /repos/{owner}/{repo}/actions/variables/{name}"
+    ]
+  },
+  activity: {
+    checkRepoIsStarredByAuthenticatedUser: ["GET /user/starred/{owner}/{repo}"],
+    deleteRepoSubscription: ["DELETE /repos/{owner}/{repo}/subscription"],
+    deleteThreadSubscription: [
+      "DELETE /notifications/threads/{thread_id}/subscription"
+    ],
+    getFeeds: ["GET /feeds"],
+    getRepoSubscription: ["GET /repos/{owner}/{repo}/subscription"],
+    getThread: ["GET /notifications/threads/{thread_id}"],
+    getThreadSubscriptionForAuthenticatedUser: [
+      "GET /notifications/threads/{thread_id}/subscription"
+    ],
+    listEventsForAuthenticatedUser: ["GET /users/{username}/events"],
+    listNotificationsForAuthenticatedUser: ["GET /notifications"],
+    listOrgEventsForAuthenticatedUser: [
+      "GET /users/{username}/events/orgs/{org}"
+    ],
+    listPublicEvents: ["GET /events"],
+    listPublicEventsForRepoNetwork: ["GET /networks/{owner}/{repo}/events"],
+    listPublicEventsForUser: ["GET /users/{username}/events/public"],
+    listPublicOrgEvents: ["GET /orgs/{org}/events"],
+    listReceivedEventsForUser: ["GET /users/{username}/received_events"],
+    listReceivedPublicEventsForUser: [
+      "GET /users/{username}/received_events/public"
+    ],
+    listRepoEvents: ["GET /repos/{owner}/{repo}/events"],
+    listRepoNotificationsForAuthenticatedUser: [
+      "GET /repos/{owner}/{repo}/notifications"
+    ],
+    listReposStarredByAuthenticatedUser: ["GET /user/starred"],
+    listReposStarredByUser: ["GET /users/{username}/starred"],
+    listReposWatchedByUser: ["GET /users/{username}/subscriptions"],
+    listStargazersForRepo: ["GET /repos/{owner}/{repo}/stargazers"],
+    listWatchedReposForAuthenticatedUser: ["GET /user/subscriptions"],
+    listWatchersForRepo: ["GET /repos/{owner}/{repo}/subscribers"],
+    markNotificationsAsRead: ["PUT /notifications"],
+    markRepoNotificationsAsRead: ["PUT /repos/{owner}/{repo}/notifications"],
+    markThreadAsDone: ["DELETE /notifications/threads/{thread_id}"],
+    markThreadAsRead: ["PATCH /notifications/threads/{thread_id}"],
+    setRepoSubscription: ["PUT /repos/{owner}/{repo}/subscription"],
+    setThreadSubscription: [
+      "PUT /notifications/threads/{thread_id}/subscription"
+    ],
+    starRepoForAuthenticatedUser: ["PUT /user/starred/{owner}/{repo}"],
+    unstarRepoForAuthenticatedUser: ["DELETE /user/starred/{owner}/{repo}"]
+  },
+  apps: {
+    addRepoToInstallation: [
+      "PUT /user/installations/{installation_id}/repositories/{repository_id}",
+      {},
+      { renamed: ["apps", "addRepoToInstallationForAuthenticatedUser"] }
+    ],
+    addRepoToInstallationForAuthenticatedUser: [
+      "PUT /user/installations/{installation_id}/repositories/{repository_id}"
+    ],
+    checkToken: ["POST /applications/{client_id}/token"],
+    createFromManifest: ["POST /app-manifests/{code}/conversions"],
+    createInstallationAccessToken: [
+      "POST /app/installations/{installation_id}/access_tokens"
+    ],
+    deleteAuthorization: ["DELETE /applications/{client_id}/grant"],
+    deleteInstallation: ["DELETE /app/installations/{installation_id}"],
+    deleteToken: ["DELETE /applications/{client_id}/token"],
+    getAuthenticated: ["GET /app"],
+    getBySlug: ["GET /apps/{app_slug}"],
+    getInstallation: ["GET /app/installations/{installation_id}"],
+    getOrgInstallation: ["GET /orgs/{org}/installation"],
+    getRepoInstallation: ["GET /repos/{owner}/{repo}/installation"],
+    getSubscriptionPlanForAccount: [
+      "GET /marketplace_listing/accounts/{account_id}"
+    ],
+    getSubscriptionPlanForAccountStubbed: [
+      "GET /marketplace_listing/stubbed/accounts/{account_id}"
+    ],
+    getUserInstallation: ["GET /users/{username}/installation"],
+    getWebhookConfigForApp: ["GET /app/hook/config"],
+    getWebhookDelivery: ["GET /app/hook/deliveries/{delivery_id}"],
+    listAccountsForPlan: ["GET /marketplace_listing/plans/{plan_id}/accounts"],
+    listAccountsForPlanStubbed: [
+      "GET /marketplace_listing/stubbed/plans/{plan_id}/accounts"
+    ],
+    listInstallationReposForAuthenticatedUser: [
+      "GET /user/installations/{installation_id}/repositories"
+    ],
+    listInstallationRequestsForAuthenticatedApp: [
+      "GET /app/installation-requests"
+    ],
+    listInstallations: ["GET /app/installations"],
+    listInstallationsForAuthenticatedUser: ["GET /user/installations"],
+    listPlans: ["GET /marketplace_listing/plans"],
+    listPlansStubbed: ["GET /marketplace_listing/stubbed/plans"],
+    listReposAccessibleToInstallation: ["GET /installation/repositories"],
+    listSubscriptionsForAuthenticatedUser: ["GET /user/marketplace_purchases"],
+    listSubscriptionsForAuthenticatedUserStubbed: [
+      "GET /user/marketplace_purchases/stubbed"
+    ],
+    listWebhookDeliveries: ["GET /app/hook/deliveries"],
+    redeliverWebhookDelivery: [
+      "POST /app/hook/deliveries/{delivery_id}/attempts"
+    ],
+    removeRepoFromInstallation: [
+      "DELETE /user/installations/{installation_id}/repositories/{repository_id}",
+      {},
+      { renamed: ["apps", "removeRepoFromInstallationForAuthenticatedUser"] }
+    ],
+    removeRepoFromInstallationForAuthenticatedUser: [
+      "DELETE /user/installations/{installation_id}/repositories/{repository_id}"
+    ],
+    resetToken: ["PATCH /applications/{client_id}/token"],
+    revokeInstallationAccessToken: ["DELETE /installation/token"],
+    scopeToken: ["POST /applications/{client_id}/token/scoped"],
+    suspendInstallation: ["PUT /app/installations/{installation_id}/suspended"],
+    unsuspendInstallation: [
+      "DELETE /app/installations/{installation_id}/suspended"
+    ],
+    updateWebhookConfigForApp: ["PATCH /app/hook/config"]
+  },
+  billing: {
+    getGithubActionsBillingOrg: ["GET /orgs/{org}/settings/billing/actions"],
+    getGithubActionsBillingUser: [
+      "GET /users/{username}/settings/billing/actions"
+    ],
+    getGithubBillingPremiumRequestUsageReportOrg: [
+      "GET /organizations/{org}/settings/billing/premium_request/usage"
+    ],
+    getGithubBillingPremiumRequestUsageReportUser: [
+      "GET /users/{username}/settings/billing/premium_request/usage"
+    ],
+    getGithubBillingUsageReportOrg: [
+      "GET /organizations/{org}/settings/billing/usage"
+    ],
+    getGithubBillingUsageReportUser: [
+      "GET /users/{username}/settings/billing/usage"
+    ],
+    getGithubPackagesBillingOrg: ["GET /orgs/{org}/settings/billing/packages"],
+    getGithubPackagesBillingUser: [
+      "GET /users/{username}/settings/billing/packages"
+    ],
+    getSharedStorageBillingOrg: [
+      "GET /orgs/{org}/settings/billing/shared-storage"
+    ],
+    getSharedStorageBillingUser: [
+      "GET /users/{username}/settings/billing/shared-storage"
+    ]
+  },
+  campaigns: {
+    createCampaign: ["POST /orgs/{org}/campaigns"],
+    deleteCampaign: ["DELETE /orgs/{org}/campaigns/{campaign_number}"],
+    getCampaignSummary: ["GET /orgs/{org}/campaigns/{campaign_number}"],
+    listOrgCampaigns: ["GET /orgs/{org}/campaigns"],
+    updateCampaign: ["PATCH /orgs/{org}/campaigns/{campaign_number}"]
+  },
+  checks: {
+    create: ["POST /repos/{owner}/{repo}/check-runs"],
+    createSuite: ["POST /repos/{owner}/{repo}/check-suites"],
+    get: ["GET /repos/{owner}/{repo}/check-runs/{check_run_id}"],
+    getSuite: ["GET /repos/{owner}/{repo}/check-suites/{check_suite_id}"],
+    listAnnotations: [
+      "GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations"
+    ],
+    listForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/check-runs"],
+    listForSuite: [
+      "GET /repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs"
+    ],
+    listSuitesForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/check-suites"],
+    rerequestRun: [
+      "POST /repos/{owner}/{repo}/check-runs/{check_run_id}/rerequest"
+    ],
+    rerequestSuite: [
+      "POST /repos/{owner}/{repo}/check-suites/{check_suite_id}/rerequest"
+    ],
+    setSuitesPreferences: [
+      "PATCH /repos/{owner}/{repo}/check-suites/preferences"
+    ],
+    update: ["PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}"]
+  },
+  codeScanning: {
+    commitAutofix: [
+      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix/commits"
+    ],
+    createAutofix: [
+      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix"
+    ],
+    createVariantAnalysis: [
+      "POST /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses"
+    ],
+    deleteAnalysis: [
+      "DELETE /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}{?confirm_delete}"
+    ],
+    deleteCodeqlDatabase: [
+      "DELETE /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}"
+    ],
+    getAlert: [
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}",
+      {},
+      { renamedParameters: { alert_id: "alert_number" } }
+    ],
+    getAnalysis: [
+      "GET /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}"
+    ],
+    getAutofix: [
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix"
+    ],
+    getCodeqlDatabase: [
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}"
+    ],
+    getDefaultSetup: ["GET /repos/{owner}/{repo}/code-scanning/default-setup"],
+    getSarif: ["GET /repos/{owner}/{repo}/code-scanning/sarifs/{sarif_id}"],
+    getVariantAnalysis: [
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}"
+    ],
+    getVariantAnalysisRepoTask: [
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}/repos/{repo_owner}/{repo_name}"
+    ],
+    listAlertInstances: [
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances"
+    ],
+    listAlertsForOrg: ["GET /orgs/{org}/code-scanning/alerts"],
+    listAlertsForRepo: ["GET /repos/{owner}/{repo}/code-scanning/alerts"],
+    listAlertsInstances: [
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances",
+      {},
+      { renamed: ["codeScanning", "listAlertInstances"] }
+    ],
+    listCodeqlDatabases: [
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases"
+    ],
+    listRecentAnalyses: ["GET /repos/{owner}/{repo}/code-scanning/analyses"],
+    updateAlert: [
+      "PATCH /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}"
+    ],
+    updateDefaultSetup: [
+      "PATCH /repos/{owner}/{repo}/code-scanning/default-setup"
+    ],
+    uploadSarif: ["POST /repos/{owner}/{repo}/code-scanning/sarifs"]
+  },
+  codeSecurity: {
+    attachConfiguration: [
+      "POST /orgs/{org}/code-security/configurations/{configuration_id}/attach"
+    ],
+    attachEnterpriseConfiguration: [
+      "POST /enterprises/{enterprise}/code-security/configurations/{configuration_id}/attach"
+    ],
+    createConfiguration: ["POST /orgs/{org}/code-security/configurations"],
+    createConfigurationForEnterprise: [
+      "POST /enterprises/{enterprise}/code-security/configurations"
+    ],
+    deleteConfiguration: [
+      "DELETE /orgs/{org}/code-security/configurations/{configuration_id}"
+    ],
+    deleteConfigurationForEnterprise: [
+      "DELETE /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
+    ],
+    detachConfiguration: [
+      "DELETE /orgs/{org}/code-security/configurations/detach"
+    ],
+    getConfiguration: [
+      "GET /orgs/{org}/code-security/configurations/{configuration_id}"
+    ],
+    getConfigurationForRepository: [
+      "GET /repos/{owner}/{repo}/code-security-configuration"
+    ],
+    getConfigurationsForEnterprise: [
+      "GET /enterprises/{enterprise}/code-security/configurations"
+    ],
+    getConfigurationsForOrg: ["GET /orgs/{org}/code-security/configurations"],
+    getDefaultConfigurations: [
+      "GET /orgs/{org}/code-security/configurations/defaults"
+    ],
+    getDefaultConfigurationsForEnterprise: [
+      "GET /enterprises/{enterprise}/code-security/configurations/defaults"
+    ],
+    getRepositoriesForConfiguration: [
+      "GET /orgs/{org}/code-security/configurations/{configuration_id}/repositories"
+    ],
+    getRepositoriesForEnterpriseConfiguration: [
+      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}/repositories"
+    ],
+    getSingleConfigurationForEnterprise: [
+      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
+    ],
+    setConfigurationAsDefault: [
+      "PUT /orgs/{org}/code-security/configurations/{configuration_id}/defaults"
+    ],
+    setConfigurationAsDefaultForEnterprise: [
+      "PUT /enterprises/{enterprise}/code-security/configurations/{configuration_id}/defaults"
+    ],
+    updateConfiguration: [
+      "PATCH /orgs/{org}/code-security/configurations/{configuration_id}"
+    ],
+    updateEnterpriseConfiguration: [
+      "PATCH /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
+    ]
+  },
+  codesOfConduct: {
+    getAllCodesOfConduct: ["GET /codes_of_conduct"],
+    getConductCode: ["GET /codes_of_conduct/{key}"]
+  },
+  codespaces: {
+    addRepositoryForSecretForAuthenticatedUser: [
+      "PUT /user/codespaces/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    addSelectedRepoToOrgSecret: [
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    checkPermissionsForDevcontainer: [
+      "GET /repos/{owner}/{repo}/codespaces/permissions_check"
+    ],
+    codespaceMachinesForAuthenticatedUser: [
+      "GET /user/codespaces/{codespace_name}/machines"
+    ],
+    createForAuthenticatedUser: ["POST /user/codespaces"],
+    createOrUpdateOrgSecret: [
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}"
+    ],
+    createOrUpdateRepoSecret: [
+      "PUT /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
+    ],
+    createOrUpdateSecretForAuthenticatedUser: [
+      "PUT /user/codespaces/secrets/{secret_name}"
+    ],
+    createWithPrForAuthenticatedUser: [
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/codespaces"
+    ],
+    createWithRepoForAuthenticatedUser: [
+      "POST /repos/{owner}/{repo}/codespaces"
+    ],
+    deleteForAuthenticatedUser: ["DELETE /user/codespaces/{codespace_name}"],
+    deleteFromOrganization: [
+      "DELETE /orgs/{org}/members/{username}/codespaces/{codespace_name}"
+    ],
+    deleteOrgSecret: ["DELETE /orgs/{org}/codespaces/secrets/{secret_name}"],
+    deleteRepoSecret: [
+      "DELETE /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
+    ],
+    deleteSecretForAuthenticatedUser: [
+      "DELETE /user/codespaces/secrets/{secret_name}"
+    ],
+    exportForAuthenticatedUser: [
+      "POST /user/codespaces/{codespace_name}/exports"
+    ],
+    getCodespacesForUserInOrg: [
+      "GET /orgs/{org}/members/{username}/codespaces"
+    ],
+    getExportDetailsForAuthenticatedUser: [
+      "GET /user/codespaces/{codespace_name}/exports/{export_id}"
+    ],
+    getForAuthenticatedUser: ["GET /user/codespaces/{codespace_name}"],
+    getOrgPublicKey: ["GET /orgs/{org}/codespaces/secrets/public-key"],
+    getOrgSecret: ["GET /orgs/{org}/codespaces/secrets/{secret_name}"],
+    getPublicKeyForAuthenticatedUser: [
+      "GET /user/codespaces/secrets/public-key"
+    ],
+    getRepoPublicKey: [
+      "GET /repos/{owner}/{repo}/codespaces/secrets/public-key"
+    ],
+    getRepoSecret: [
+      "GET /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
+    ],
+    getSecretForAuthenticatedUser: [
+      "GET /user/codespaces/secrets/{secret_name}"
+    ],
+    listDevcontainersInRepositoryForAuthenticatedUser: [
+      "GET /repos/{owner}/{repo}/codespaces/devcontainers"
+    ],
+    listForAuthenticatedUser: ["GET /user/codespaces"],
+    listInOrganization: [
+      "GET /orgs/{org}/codespaces",
+      {},
+      { renamedParameters: { org_id: "org" } }
+    ],
+    listInRepositoryForAuthenticatedUser: [
+      "GET /repos/{owner}/{repo}/codespaces"
+    ],
+    listOrgSecrets: ["GET /orgs/{org}/codespaces/secrets"],
+    listRepoSecrets: ["GET /repos/{owner}/{repo}/codespaces/secrets"],
+    listRepositoriesForSecretForAuthenticatedUser: [
+      "GET /user/codespaces/secrets/{secret_name}/repositories"
+    ],
+    listSecretsForAuthenticatedUser: ["GET /user/codespaces/secrets"],
+    listSelectedReposForOrgSecret: [
+      "GET /orgs/{org}/codespaces/secrets/{secret_name}/repositories"
+    ],
+    preFlightWithRepoForAuthenticatedUser: [
+      "GET /repos/{owner}/{repo}/codespaces/new"
+    ],
+    publishForAuthenticatedUser: [
+      "POST /user/codespaces/{codespace_name}/publish"
+    ],
+    removeRepositoryForSecretForAuthenticatedUser: [
+      "DELETE /user/codespaces/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    removeSelectedRepoFromOrgSecret: [
+      "DELETE /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    repoMachinesForAuthenticatedUser: [
+      "GET /repos/{owner}/{repo}/codespaces/machines"
+    ],
+    setRepositoriesForSecretForAuthenticatedUser: [
+      "PUT /user/codespaces/secrets/{secret_name}/repositories"
+    ],
+    setSelectedReposForOrgSecret: [
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories"
+    ],
+    startForAuthenticatedUser: ["POST /user/codespaces/{codespace_name}/start"],
+    stopForAuthenticatedUser: ["POST /user/codespaces/{codespace_name}/stop"],
+    stopInOrganization: [
+      "POST /orgs/{org}/members/{username}/codespaces/{codespace_name}/stop"
+    ],
+    updateForAuthenticatedUser: ["PATCH /user/codespaces/{codespace_name}"]
+  },
+  copilot: {
+    addCopilotSeatsForTeams: [
+      "POST /orgs/{org}/copilot/billing/selected_teams"
+    ],
+    addCopilotSeatsForUsers: [
+      "POST /orgs/{org}/copilot/billing/selected_users"
+    ],
+    cancelCopilotSeatAssignmentForTeams: [
+      "DELETE /orgs/{org}/copilot/billing/selected_teams"
+    ],
+    cancelCopilotSeatAssignmentForUsers: [
+      "DELETE /orgs/{org}/copilot/billing/selected_users"
+    ],
+    copilotMetricsForOrganization: ["GET /orgs/{org}/copilot/metrics"],
+    copilotMetricsForTeam: ["GET /orgs/{org}/team/{team_slug}/copilot/metrics"],
+    getCopilotOrganizationDetails: ["GET /orgs/{org}/copilot/billing"],
+    getCopilotSeatDetailsForUser: [
+      "GET /orgs/{org}/members/{username}/copilot"
+    ],
+    listCopilotSeats: ["GET /orgs/{org}/copilot/billing/seats"]
+  },
+  credentials: { revoke: ["POST /credentials/revoke"] },
+  dependabot: {
+    addSelectedRepoToOrgSecret: [
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    createOrUpdateOrgSecret: [
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}"
+    ],
+    createOrUpdateRepoSecret: [
+      "PUT /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
+    ],
+    deleteOrgSecret: ["DELETE /orgs/{org}/dependabot/secrets/{secret_name}"],
+    deleteRepoSecret: [
+      "DELETE /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
+    ],
+    getAlert: ["GET /repos/{owner}/{repo}/dependabot/alerts/{alert_number}"],
+    getOrgPublicKey: ["GET /orgs/{org}/dependabot/secrets/public-key"],
+    getOrgSecret: ["GET /orgs/{org}/dependabot/secrets/{secret_name}"],
+    getRepoPublicKey: [
+      "GET /repos/{owner}/{repo}/dependabot/secrets/public-key"
+    ],
+    getRepoSecret: [
+      "GET /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
+    ],
+    listAlertsForEnterprise: [
+      "GET /enterprises/{enterprise}/dependabot/alerts"
+    ],
+    listAlertsForOrg: ["GET /orgs/{org}/dependabot/alerts"],
+    listAlertsForRepo: ["GET /repos/{owner}/{repo}/dependabot/alerts"],
+    listOrgSecrets: ["GET /orgs/{org}/dependabot/secrets"],
+    listRepoSecrets: ["GET /repos/{owner}/{repo}/dependabot/secrets"],
+    listSelectedReposForOrgSecret: [
+      "GET /orgs/{org}/dependabot/secrets/{secret_name}/repositories"
+    ],
+    removeSelectedRepoFromOrgSecret: [
+      "DELETE /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}"
+    ],
+    repositoryAccessForOrg: [
+      "GET /organizations/{org}/dependabot/repository-access"
+    ],
+    setRepositoryAccessDefaultLevel: [
+      "PUT /organizations/{org}/dependabot/repository-access/default-level"
+    ],
+    setSelectedReposForOrgSecret: [
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories"
+    ],
+    updateAlert: [
+      "PATCH /repos/{owner}/{repo}/dependabot/alerts/{alert_number}"
+    ],
+    updateRepositoryAccessForOrg: [
+      "PATCH /organizations/{org}/dependabot/repository-access"
+    ]
+  },
+  dependencyGraph: {
+    createRepositorySnapshot: [
+      "POST /repos/{owner}/{repo}/dependency-graph/snapshots"
+    ],
+    diffRange: [
+      "GET /repos/{owner}/{repo}/dependency-graph/compare/{basehead}"
+    ],
+    exportSbom: ["GET /repos/{owner}/{repo}/dependency-graph/sbom"]
+  },
+  emojis: { get: ["GET /emojis"] },
+  enterpriseTeamMemberships: {
+    add: [
+      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
+    ],
+    bulkAdd: [
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/add"
+    ],
+    bulkRemove: [
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/remove"
+    ],
+    get: [
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
+    ],
+    list: ["GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships"],
+    remove: [
+      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
+    ]
+  },
+  enterpriseTeamOrganizations: {
+    add: [
+      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
+    ],
+    bulkAdd: [
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/add"
+    ],
+    bulkRemove: [
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/remove"
+    ],
+    delete: [
+      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
+    ],
+    getAssignment: [
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
+    ],
+    getAssignments: [
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations"
+    ]
+  },
+  enterpriseTeams: {
+    create: ["POST /enterprises/{enterprise}/teams"],
+    delete: ["DELETE /enterprises/{enterprise}/teams/{team_slug}"],
+    get: ["GET /enterprises/{enterprise}/teams/{team_slug}"],
+    list: ["GET /enterprises/{enterprise}/teams"],
+    update: ["PATCH /enterprises/{enterprise}/teams/{team_slug}"]
+  },
+  gists: {
+    checkIsStarred: ["GET /gists/{gist_id}/star"],
+    create: ["POST /gists"],
+    createComment: ["POST /gists/{gist_id}/comments"],
+    delete: ["DELETE /gists/{gist_id}"],
+    deleteComment: ["DELETE /gists/{gist_id}/comments/{comment_id}"],
+    fork: ["POST /gists/{gist_id}/forks"],
+    get: ["GET /gists/{gist_id}"],
+    getComment: ["GET /gists/{gist_id}/comments/{comment_id}"],
+    getRevision: ["GET /gists/{gist_id}/{sha}"],
+    list: ["GET /gists"],
+    listComments: ["GET /gists/{gist_id}/comments"],
+    listCommits: ["GET /gists/{gist_id}/commits"],
+    listForUser: ["GET /users/{username}/gists"],
+    listForks: ["GET /gists/{gist_id}/forks"],
+    listPublic: ["GET /gists/public"],
+    listStarred: ["GET /gists/starred"],
+    star: ["PUT /gists/{gist_id}/star"],
+    unstar: ["DELETE /gists/{gist_id}/star"],
+    update: ["PATCH /gists/{gist_id}"],
+    updateComment: ["PATCH /gists/{gist_id}/comments/{comment_id}"]
+  },
+  git: {
+    createBlob: ["POST /repos/{owner}/{repo}/git/blobs"],
+    createCommit: ["POST /repos/{owner}/{repo}/git/commits"],
+    createRef: ["POST /repos/{owner}/{repo}/git/refs"],
+    createTag: ["POST /repos/{owner}/{repo}/git/tags"],
+    createTree: ["POST /repos/{owner}/{repo}/git/trees"],
+    deleteRef: ["DELETE /repos/{owner}/{repo}/git/refs/{ref}"],
+    getBlob: ["GET /repos/{owner}/{repo}/git/blobs/{file_sha}"],
+    getCommit: ["GET /repos/{owner}/{repo}/git/commits/{commit_sha}"],
+    getRef: ["GET /repos/{owner}/{repo}/git/ref/{ref}"],
+    getTag: ["GET /repos/{owner}/{repo}/git/tags/{tag_sha}"],
+    getTree: ["GET /repos/{owner}/{repo}/git/trees/{tree_sha}"],
+    listMatchingRefs: ["GET /repos/{owner}/{repo}/git/matching-refs/{ref}"],
+    updateRef: ["PATCH /repos/{owner}/{repo}/git/refs/{ref}"]
+  },
+  gitignore: {
+    getAllTemplates: ["GET /gitignore/templates"],
+    getTemplate: ["GET /gitignore/templates/{name}"]
+  },
+  hostedCompute: {
+    createNetworkConfigurationForOrg: [
+      "POST /orgs/{org}/settings/network-configurations"
+    ],
+    deleteNetworkConfigurationFromOrg: [
+      "DELETE /orgs/{org}/settings/network-configurations/{network_configuration_id}"
+    ],
+    getNetworkConfigurationForOrg: [
+      "GET /orgs/{org}/settings/network-configurations/{network_configuration_id}"
+    ],
+    getNetworkSettingsForOrg: [
+      "GET /orgs/{org}/settings/network-settings/{network_settings_id}"
+    ],
+    listNetworkConfigurationsForOrg: [
+      "GET /orgs/{org}/settings/network-configurations"
+    ],
+    updateNetworkConfigurationForOrg: [
+      "PATCH /orgs/{org}/settings/network-configurations/{network_configuration_id}"
+    ]
+  },
+  interactions: {
+    getRestrictionsForAuthenticatedUser: ["GET /user/interaction-limits"],
+    getRestrictionsForOrg: ["GET /orgs/{org}/interaction-limits"],
+    getRestrictionsForRepo: ["GET /repos/{owner}/{repo}/interaction-limits"],
+    getRestrictionsForYourPublicRepos: [
+      "GET /user/interaction-limits",
+      {},
+      { renamed: ["interactions", "getRestrictionsForAuthenticatedUser"] }
+    ],
+    removeRestrictionsForAuthenticatedUser: ["DELETE /user/interaction-limits"],
+    removeRestrictionsForOrg: ["DELETE /orgs/{org}/interaction-limits"],
+    removeRestrictionsForRepo: [
+      "DELETE /repos/{owner}/{repo}/interaction-limits"
+    ],
+    removeRestrictionsForYourPublicRepos: [
+      "DELETE /user/interaction-limits",
+      {},
+      { renamed: ["interactions", "removeRestrictionsForAuthenticatedUser"] }
+    ],
+    setRestrictionsForAuthenticatedUser: ["PUT /user/interaction-limits"],
+    setRestrictionsForOrg: ["PUT /orgs/{org}/interaction-limits"],
+    setRestrictionsForRepo: ["PUT /repos/{owner}/{repo}/interaction-limits"],
+    setRestrictionsForYourPublicRepos: [
+      "PUT /user/interaction-limits",
+      {},
+      { renamed: ["interactions", "setRestrictionsForAuthenticatedUser"] }
+    ]
+  },
+  issues: {
+    addAssignees: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees"
+    ],
+    addBlockedByDependency: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
+    ],
+    addLabels: ["POST /repos/{owner}/{repo}/issues/{issue_number}/labels"],
+    addSubIssue: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues"
+    ],
+    checkUserCanBeAssigned: ["GET /repos/{owner}/{repo}/assignees/{assignee}"],
+    checkUserCanBeAssignedToIssue: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}"
+    ],
+    create: ["POST /repos/{owner}/{repo}/issues"],
+    createComment: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments"
+    ],
+    createLabel: ["POST /repos/{owner}/{repo}/labels"],
+    createMilestone: ["POST /repos/{owner}/{repo}/milestones"],
+    deleteComment: [
+      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}"
+    ],
+    deleteLabel: ["DELETE /repos/{owner}/{repo}/labels/{name}"],
+    deleteMilestone: [
+      "DELETE /repos/{owner}/{repo}/milestones/{milestone_number}"
+    ],
+    get: ["GET /repos/{owner}/{repo}/issues/{issue_number}"],
+    getComment: ["GET /repos/{owner}/{repo}/issues/comments/{comment_id}"],
+    getEvent: ["GET /repos/{owner}/{repo}/issues/events/{event_id}"],
+    getLabel: ["GET /repos/{owner}/{repo}/labels/{name}"],
+    getMilestone: ["GET /repos/{owner}/{repo}/milestones/{milestone_number}"],
+    getParent: ["GET /repos/{owner}/{repo}/issues/{issue_number}/parent"],
+    list: ["GET /issues"],
+    listAssignees: ["GET /repos/{owner}/{repo}/assignees"],
+    listComments: ["GET /repos/{owner}/{repo}/issues/{issue_number}/comments"],
+    listCommentsForRepo: ["GET /repos/{owner}/{repo}/issues/comments"],
+    listDependenciesBlockedBy: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
+    ],
+    listDependenciesBlocking: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking"
+    ],
+    listEvents: ["GET /repos/{owner}/{repo}/issues/{issue_number}/events"],
+    listEventsForRepo: ["GET /repos/{owner}/{repo}/issues/events"],
+    listEventsForTimeline: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline"
+    ],
+    listForAuthenticatedUser: ["GET /user/issues"],
+    listForOrg: ["GET /orgs/{org}/issues"],
+    listForRepo: ["GET /repos/{owner}/{repo}/issues"],
+    listLabelsForMilestone: [
+      "GET /repos/{owner}/{repo}/milestones/{milestone_number}/labels"
+    ],
+    listLabelsForRepo: ["GET /repos/{owner}/{repo}/labels"],
+    listLabelsOnIssue: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/labels"
+    ],
+    listMilestones: ["GET /repos/{owner}/{repo}/milestones"],
+    listSubIssues: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues"
+    ],
+    lock: ["PUT /repos/{owner}/{repo}/issues/{issue_number}/lock"],
+    removeAllLabels: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels"
+    ],
+    removeAssignees: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees"
+    ],
+    removeDependencyBlockedBy: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by/{issue_id}"
+    ],
+    removeLabel: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}"
+    ],
+    removeSubIssue: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/sub_issue"
+    ],
+    reprioritizeSubIssue: [
+      "PATCH /repos/{owner}/{repo}/issues/{issue_number}/sub_issues/priority"
+    ],
+    setLabels: ["PUT /repos/{owner}/{repo}/issues/{issue_number}/labels"],
+    unlock: ["DELETE /repos/{owner}/{repo}/issues/{issue_number}/lock"],
+    update: ["PATCH /repos/{owner}/{repo}/issues/{issue_number}"],
+    updateComment: ["PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}"],
+    updateLabel: ["PATCH /repos/{owner}/{repo}/labels/{name}"],
+    updateMilestone: [
+      "PATCH /repos/{owner}/{repo}/milestones/{milestone_number}"
+    ]
+  },
+  licenses: {
+    get: ["GET /licenses/{license}"],
+    getAllCommonlyUsed: ["GET /licenses"],
+    getForRepo: ["GET /repos/{owner}/{repo}/license"]
+  },
+  markdown: {
+    render: ["POST /markdown"],
+    renderRaw: [
+      "POST /markdown/raw",
+      { headers: { "content-type": "text/plain; charset=utf-8" } }
+    ]
+  },
+  meta: {
+    get: ["GET /meta"],
+    getAllVersions: ["GET /versions"],
+    getOctocat: ["GET /octocat"],
+    getZen: ["GET /zen"],
+    root: ["GET /"]
+  },
+  migrations: {
+    deleteArchiveForAuthenticatedUser: [
+      "DELETE /user/migrations/{migration_id}/archive"
+    ],
+    deleteArchiveForOrg: [
+      "DELETE /orgs/{org}/migrations/{migration_id}/archive"
+    ],
+    downloadArchiveForOrg: [
+      "GET /orgs/{org}/migrations/{migration_id}/archive"
+    ],
+    getArchiveForAuthenticatedUser: [
+      "GET /user/migrations/{migration_id}/archive"
+    ],
+    getStatusForAuthenticatedUser: ["GET /user/migrations/{migration_id}"],
+    getStatusForOrg: ["GET /orgs/{org}/migrations/{migration_id}"],
+    listForAuthenticatedUser: ["GET /user/migrations"],
+    listForOrg: ["GET /orgs/{org}/migrations"],
+    listReposForAuthenticatedUser: [
+      "GET /user/migrations/{migration_id}/repositories"
+    ],
+    listReposForOrg: ["GET /orgs/{org}/migrations/{migration_id}/repositories"],
+    listReposForUser: [
+      "GET /user/migrations/{migration_id}/repositories",
+      {},
+      { renamed: ["migrations", "listReposForAuthenticatedUser"] }
+    ],
+    startForAuthenticatedUser: ["POST /user/migrations"],
+    startForOrg: ["POST /orgs/{org}/migrations"],
+    unlockRepoForAuthenticatedUser: [
+      "DELETE /user/migrations/{migration_id}/repos/{repo_name}/lock"
+    ],
+    unlockRepoForOrg: [
+      "DELETE /orgs/{org}/migrations/{migration_id}/repos/{repo_name}/lock"
+    ]
+  },
+  oidc: {
+    getOidcCustomSubTemplateForOrg: [
+      "GET /orgs/{org}/actions/oidc/customization/sub"
+    ],
+    updateOidcCustomSubTemplateForOrg: [
+      "PUT /orgs/{org}/actions/oidc/customization/sub"
+    ]
+  },
+  orgs: {
+    addSecurityManagerTeam: [
+      "PUT /orgs/{org}/security-managers/teams/{team_slug}",
+      {},
+      {
+        deprecated: "octokit.rest.orgs.addSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#add-a-security-manager-team"
+      }
+    ],
+    assignTeamToOrgRole: [
+      "PUT /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}"
+    ],
+    assignUserToOrgRole: [
+      "PUT /orgs/{org}/organization-roles/users/{username}/{role_id}"
+    ],
+    blockUser: ["PUT /orgs/{org}/blocks/{username}"],
+    cancelInvitation: ["DELETE /orgs/{org}/invitations/{invitation_id}"],
+    checkBlockedUser: ["GET /orgs/{org}/blocks/{username}"],
+    checkMembershipForUser: ["GET /orgs/{org}/members/{username}"],
+    checkPublicMembershipForUser: ["GET /orgs/{org}/public_members/{username}"],
+    convertMemberToOutsideCollaborator: [
+      "PUT /orgs/{org}/outside_collaborators/{username}"
+    ],
+    createArtifactStorageRecord: [
+      "POST /orgs/{org}/artifacts/metadata/storage-record"
+    ],
+    createInvitation: ["POST /orgs/{org}/invitations"],
+    createIssueType: ["POST /orgs/{org}/issue-types"],
+    createWebhook: ["POST /orgs/{org}/hooks"],
+    customPropertiesForOrgsCreateOrUpdateOrganizationValues: [
+      "PATCH /organizations/{org}/org-properties/values"
+    ],
+    customPropertiesForOrgsGetOrganizationValues: [
+      "GET /organizations/{org}/org-properties/values"
+    ],
+    customPropertiesForReposCreateOrUpdateOrganizationDefinition: [
+      "PUT /orgs/{org}/properties/schema/{custom_property_name}"
+    ],
+    customPropertiesForReposCreateOrUpdateOrganizationDefinitions: [
+      "PATCH /orgs/{org}/properties/schema"
+    ],
+    customPropertiesForReposCreateOrUpdateOrganizationValues: [
+      "PATCH /orgs/{org}/properties/values"
+    ],
+    customPropertiesForReposDeleteOrganizationDefinition: [
+      "DELETE /orgs/{org}/properties/schema/{custom_property_name}"
+    ],
+    customPropertiesForReposGetOrganizationDefinition: [
+      "GET /orgs/{org}/properties/schema/{custom_property_name}"
+    ],
+    customPropertiesForReposGetOrganizationDefinitions: [
+      "GET /orgs/{org}/properties/schema"
+    ],
+    customPropertiesForReposGetOrganizationValues: [
+      "GET /orgs/{org}/properties/values"
+    ],
+    delete: ["DELETE /orgs/{org}"],
+    deleteAttestationsBulk: ["POST /orgs/{org}/attestations/delete-request"],
+    deleteAttestationsById: [
+      "DELETE /orgs/{org}/attestations/{attestation_id}"
+    ],
+    deleteAttestationsBySubjectDigest: [
+      "DELETE /orgs/{org}/attestations/digest/{subject_digest}"
+    ],
+    deleteIssueType: ["DELETE /orgs/{org}/issue-types/{issue_type_id}"],
+    deleteWebhook: ["DELETE /orgs/{org}/hooks/{hook_id}"],
+    disableSelectedRepositoryImmutableReleasesOrganization: [
+      "DELETE /orgs/{org}/settings/immutable-releases/repositories/{repository_id}"
+    ],
+    enableSelectedRepositoryImmutableReleasesOrganization: [
+      "PUT /orgs/{org}/settings/immutable-releases/repositories/{repository_id}"
+    ],
+    get: ["GET /orgs/{org}"],
+    getImmutableReleasesSettings: [
+      "GET /orgs/{org}/settings/immutable-releases"
+    ],
+    getImmutableReleasesSettingsRepositories: [
+      "GET /orgs/{org}/settings/immutable-releases/repositories"
+    ],
+    getMembershipForAuthenticatedUser: ["GET /user/memberships/orgs/{org}"],
+    getMembershipForUser: ["GET /orgs/{org}/memberships/{username}"],
+    getOrgRole: ["GET /orgs/{org}/organization-roles/{role_id}"],
+    getOrgRulesetHistory: ["GET /orgs/{org}/rulesets/{ruleset_id}/history"],
+    getOrgRulesetVersion: [
+      "GET /orgs/{org}/rulesets/{ruleset_id}/history/{version_id}"
+    ],
+    getWebhook: ["GET /orgs/{org}/hooks/{hook_id}"],
+    getWebhookConfigForOrg: ["GET /orgs/{org}/hooks/{hook_id}/config"],
+    getWebhookDelivery: [
+      "GET /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}"
+    ],
+    list: ["GET /organizations"],
+    listAppInstallations: ["GET /orgs/{org}/installations"],
+    listArtifactStorageRecords: [
+      "GET /orgs/{org}/artifacts/{subject_digest}/metadata/storage-records"
+    ],
+    listAttestationRepositories: ["GET /orgs/{org}/attestations/repositories"],
+    listAttestations: ["GET /orgs/{org}/attestations/{subject_digest}"],
+    listAttestationsBulk: [
+      "POST /orgs/{org}/attestations/bulk-list{?per_page,before,after}"
+    ],
+    listBlockedUsers: ["GET /orgs/{org}/blocks"],
+    listFailedInvitations: ["GET /orgs/{org}/failed_invitations"],
+    listForAuthenticatedUser: ["GET /user/orgs"],
+    listForUser: ["GET /users/{username}/orgs"],
+    listInvitationTeams: ["GET /orgs/{org}/invitations/{invitation_id}/teams"],
+    listIssueTypes: ["GET /orgs/{org}/issue-types"],
+    listMembers: ["GET /orgs/{org}/members"],
+    listMembershipsForAuthenticatedUser: ["GET /user/memberships/orgs"],
+    listOrgRoleTeams: ["GET /orgs/{org}/organization-roles/{role_id}/teams"],
+    listOrgRoleUsers: ["GET /orgs/{org}/organization-roles/{role_id}/users"],
+    listOrgRoles: ["GET /orgs/{org}/organization-roles"],
+    listOrganizationFineGrainedPermissions: [
+      "GET /orgs/{org}/organization-fine-grained-permissions"
+    ],
+    listOutsideCollaborators: ["GET /orgs/{org}/outside_collaborators"],
+    listPatGrantRepositories: [
+      "GET /orgs/{org}/personal-access-tokens/{pat_id}/repositories"
+    ],
+    listPatGrantRequestRepositories: [
+      "GET /orgs/{org}/personal-access-token-requests/{pat_request_id}/repositories"
+    ],
+    listPatGrantRequests: ["GET /orgs/{org}/personal-access-token-requests"],
+    listPatGrants: ["GET /orgs/{org}/personal-access-tokens"],
+    listPendingInvitations: ["GET /orgs/{org}/invitations"],
+    listPublicMembers: ["GET /orgs/{org}/public_members"],
+    listSecurityManagerTeams: [
+      "GET /orgs/{org}/security-managers",
+      {},
+      {
+        deprecated: "octokit.rest.orgs.listSecurityManagerTeams() is deprecated, see https://docs.github.com/rest/orgs/security-managers#list-security-manager-teams"
+      }
+    ],
+    listWebhookDeliveries: ["GET /orgs/{org}/hooks/{hook_id}/deliveries"],
+    listWebhooks: ["GET /orgs/{org}/hooks"],
+    pingWebhook: ["POST /orgs/{org}/hooks/{hook_id}/pings"],
+    redeliverWebhookDelivery: [
+      "POST /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}/attempts"
+    ],
+    removeMember: ["DELETE /orgs/{org}/members/{username}"],
+    removeMembershipForUser: ["DELETE /orgs/{org}/memberships/{username}"],
+    removeOutsideCollaborator: [
+      "DELETE /orgs/{org}/outside_collaborators/{username}"
+    ],
+    removePublicMembershipForAuthenticatedUser: [
+      "DELETE /orgs/{org}/public_members/{username}"
+    ],
+    removeSecurityManagerTeam: [
+      "DELETE /orgs/{org}/security-managers/teams/{team_slug}",
+      {},
+      {
+        deprecated: "octokit.rest.orgs.removeSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#remove-a-security-manager-team"
+      }
+    ],
+    reviewPatGrantRequest: [
+      "POST /orgs/{org}/personal-access-token-requests/{pat_request_id}"
+    ],
+    reviewPatGrantRequestsInBulk: [
+      "POST /orgs/{org}/personal-access-token-requests"
+    ],
+    revokeAllOrgRolesTeam: [
+      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}"
+    ],
+    revokeAllOrgRolesUser: [
+      "DELETE /orgs/{org}/organization-roles/users/{username}"
+    ],
+    revokeOrgRoleTeam: [
+      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}"
+    ],
+    revokeOrgRoleUser: [
+      "DELETE /orgs/{org}/organization-roles/users/{username}/{role_id}"
+    ],
+    setImmutableReleasesSettings: [
+      "PUT /orgs/{org}/settings/immutable-releases"
+    ],
+    setImmutableReleasesSettingsRepositories: [
+      "PUT /orgs/{org}/settings/immutable-releases/repositories"
+    ],
+    setMembershipForUser: ["PUT /orgs/{org}/memberships/{username}"],
+    setPublicMembershipForAuthenticatedUser: [
+      "PUT /orgs/{org}/public_members/{username}"
+    ],
+    unblockUser: ["DELETE /orgs/{org}/blocks/{username}"],
+    update: ["PATCH /orgs/{org}"],
+    updateIssueType: ["PUT /orgs/{org}/issue-types/{issue_type_id}"],
+    updateMembershipForAuthenticatedUser: [
+      "PATCH /user/memberships/orgs/{org}"
+    ],
+    updatePatAccess: ["POST /orgs/{org}/personal-access-tokens/{pat_id}"],
+    updatePatAccesses: ["POST /orgs/{org}/personal-access-tokens"],
+    updateWebhook: ["PATCH /orgs/{org}/hooks/{hook_id}"],
+    updateWebhookConfigForOrg: ["PATCH /orgs/{org}/hooks/{hook_id}/config"]
+  },
+  packages: {
+    deletePackageForAuthenticatedUser: [
+      "DELETE /user/packages/{package_type}/{package_name}"
+    ],
+    deletePackageForOrg: [
+      "DELETE /orgs/{org}/packages/{package_type}/{package_name}"
+    ],
+    deletePackageForUser: [
+      "DELETE /users/{username}/packages/{package_type}/{package_name}"
+    ],
+    deletePackageVersionForAuthenticatedUser: [
+      "DELETE /user/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    deletePackageVersionForOrg: [
+      "DELETE /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    deletePackageVersionForUser: [
+      "DELETE /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    getAllPackageVersionsForAPackageOwnedByAnOrg: [
+      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions",
+      {},
+      { renamed: ["packages", "getAllPackageVersionsForPackageOwnedByOrg"] }
+    ],
+    getAllPackageVersionsForAPackageOwnedByTheAuthenticatedUser: [
+      "GET /user/packages/{package_type}/{package_name}/versions",
+      {},
+      {
+        renamed: [
+          "packages",
+          "getAllPackageVersionsForPackageOwnedByAuthenticatedUser"
+        ]
+      }
+    ],
+    getAllPackageVersionsForPackageOwnedByAuthenticatedUser: [
+      "GET /user/packages/{package_type}/{package_name}/versions"
+    ],
+    getAllPackageVersionsForPackageOwnedByOrg: [
+      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions"
+    ],
+    getAllPackageVersionsForPackageOwnedByUser: [
+      "GET /users/{username}/packages/{package_type}/{package_name}/versions"
+    ],
+    getPackageForAuthenticatedUser: [
+      "GET /user/packages/{package_type}/{package_name}"
+    ],
+    getPackageForOrganization: [
+      "GET /orgs/{org}/packages/{package_type}/{package_name}"
+    ],
+    getPackageForUser: [
+      "GET /users/{username}/packages/{package_type}/{package_name}"
+    ],
+    getPackageVersionForAuthenticatedUser: [
+      "GET /user/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    getPackageVersionForOrganization: [
+      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    getPackageVersionForUser: [
+      "GET /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}"
+    ],
+    listDockerMigrationConflictingPackagesForAuthenticatedUser: [
+      "GET /user/docker/conflicts"
+    ],
+    listDockerMigrationConflictingPackagesForOrganization: [
+      "GET /orgs/{org}/docker/conflicts"
+    ],
+    listDockerMigrationConflictingPackagesForUser: [
+      "GET /users/{username}/docker/conflicts"
+    ],
+    listPackagesForAuthenticatedUser: ["GET /user/packages"],
+    listPackagesForOrganization: ["GET /orgs/{org}/packages"],
+    listPackagesForUser: ["GET /users/{username}/packages"],
+    restorePackageForAuthenticatedUser: [
+      "POST /user/packages/{package_type}/{package_name}/restore{?token}"
+    ],
+    restorePackageForOrg: [
+      "POST /orgs/{org}/packages/{package_type}/{package_name}/restore{?token}"
+    ],
+    restorePackageForUser: [
+      "POST /users/{username}/packages/{package_type}/{package_name}/restore{?token}"
+    ],
+    restorePackageVersionForAuthenticatedUser: [
+      "POST /user/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
+    ],
+    restorePackageVersionForOrg: [
+      "POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
+    ],
+    restorePackageVersionForUser: [
+      "POST /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
+    ]
+  },
+  privateRegistries: {
+    createOrgPrivateRegistry: ["POST /orgs/{org}/private-registries"],
+    deleteOrgPrivateRegistry: [
+      "DELETE /orgs/{org}/private-registries/{secret_name}"
+    ],
+    getOrgPrivateRegistry: ["GET /orgs/{org}/private-registries/{secret_name}"],
+    getOrgPublicKey: ["GET /orgs/{org}/private-registries/public-key"],
+    listOrgPrivateRegistries: ["GET /orgs/{org}/private-registries"],
+    updateOrgPrivateRegistry: [
+      "PATCH /orgs/{org}/private-registries/{secret_name}"
+    ]
+  },
+  projects: {
+    addItemForOrg: ["POST /orgs/{org}/projectsV2/{project_number}/items"],
+    addItemForUser: [
+      "POST /users/{username}/projectsV2/{project_number}/items"
+    ],
+    deleteItemForOrg: [
+      "DELETE /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    deleteItemForUser: [
+      "DELETE /users/{username}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    getFieldForOrg: [
+      "GET /orgs/{org}/projectsV2/{project_number}/fields/{field_id}"
+    ],
+    getFieldForUser: [
+      "GET /users/{username}/projectsV2/{project_number}/fields/{field_id}"
+    ],
+    getForOrg: ["GET /orgs/{org}/projectsV2/{project_number}"],
+    getForUser: ["GET /users/{username}/projectsV2/{project_number}"],
+    getOrgItem: ["GET /orgs/{org}/projectsV2/{project_number}/items/{item_id}"],
+    getUserItem: [
+      "GET /users/{username}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    listFieldsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/fields"],
+    listFieldsForUser: [
+      "GET /users/{username}/projectsV2/{project_number}/fields"
+    ],
+    listForOrg: ["GET /orgs/{org}/projectsV2"],
+    listForUser: ["GET /users/{username}/projectsV2"],
+    listItemsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/items"],
+    listItemsForUser: [
+      "GET /users/{username}/projectsV2/{project_number}/items"
+    ],
+    updateItemForOrg: [
+      "PATCH /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    updateItemForUser: [
+      "PATCH /users/{username}/projectsV2/{project_number}/items/{item_id}"
+    ]
+  },
+  pulls: {
+    checkIfMerged: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/merge"],
+    create: ["POST /repos/{owner}/{repo}/pulls"],
+    createReplyForReviewComment: [
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies"
+    ],
+    createReview: ["POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews"],
+    createReviewComment: [
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments"
+    ],
+    deletePendingReview: [
+      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
+    ],
+    deleteReviewComment: [
+      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}"
+    ],
+    dismissReview: [
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals"
+    ],
+    get: ["GET /repos/{owner}/{repo}/pulls/{pull_number}"],
+    getReview: [
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
+    ],
+    getReviewComment: ["GET /repos/{owner}/{repo}/pulls/comments/{comment_id}"],
+    list: ["GET /repos/{owner}/{repo}/pulls"],
+    listCommentsForReview: [
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments"
+    ],
+    listCommits: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/commits"],
+    listFiles: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/files"],
+    listRequestedReviewers: [
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
+    ],
+    listReviewComments: [
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments"
+    ],
+    listReviewCommentsForRepo: ["GET /repos/{owner}/{repo}/pulls/comments"],
+    listReviews: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews"],
+    merge: ["PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge"],
+    removeRequestedReviewers: [
+      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
+    ],
+    requestReviewers: [
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
+    ],
+    submitReview: [
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/events"
+    ],
+    update: ["PATCH /repos/{owner}/{repo}/pulls/{pull_number}"],
+    updateBranch: [
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch"
+    ],
+    updateReview: [
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
+    ],
+    updateReviewComment: [
+      "PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}"
+    ]
+  },
+  rateLimit: { get: ["GET /rate_limit"] },
+  reactions: {
+    createForCommitComment: [
+      "POST /repos/{owner}/{repo}/comments/{comment_id}/reactions"
+    ],
+    createForIssue: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions"
+    ],
+    createForIssueComment: [
+      "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
+    ],
+    createForPullRequestReviewComment: [
+      "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions"
+    ],
+    createForRelease: [
+      "POST /repos/{owner}/{repo}/releases/{release_id}/reactions"
+    ],
+    createForTeamDiscussionCommentInOrg: [
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions"
+    ],
+    createForTeamDiscussionInOrg: [
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions"
+    ],
+    deleteForCommitComment: [
+      "DELETE /repos/{owner}/{repo}/comments/{comment_id}/reactions/{reaction_id}"
+    ],
+    deleteForIssue: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}"
+    ],
+    deleteForIssueComment: [
+      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}"
+    ],
+    deleteForPullRequestComment: [
+      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}"
+    ],
+    deleteForRelease: [
+      "DELETE /repos/{owner}/{repo}/releases/{release_id}/reactions/{reaction_id}"
+    ],
+    deleteForTeamDiscussion: [
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions/{reaction_id}"
+    ],
+    deleteForTeamDiscussionComment: [
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions/{reaction_id}"
+    ],
+    listForCommitComment: [
+      "GET /repos/{owner}/{repo}/comments/{comment_id}/reactions"
+    ],
+    listForIssue: ["GET /repos/{owner}/{repo}/issues/{issue_number}/reactions"],
+    listForIssueComment: [
+      "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
+    ],
+    listForPullRequestReviewComment: [
+      "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions"
+    ],
+    listForRelease: [
+      "GET /repos/{owner}/{repo}/releases/{release_id}/reactions"
+    ],
+    listForTeamDiscussionCommentInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions"
+    ],
+    listForTeamDiscussionInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions"
+    ]
+  },
+  repos: {
+    acceptInvitation: [
+      "PATCH /user/repository_invitations/{invitation_id}",
+      {},
+      { renamed: ["repos", "acceptInvitationForAuthenticatedUser"] }
+    ],
+    acceptInvitationForAuthenticatedUser: [
+      "PATCH /user/repository_invitations/{invitation_id}"
+    ],
+    addAppAccessRestrictions: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
+      {},
+      { mapToData: "apps" }
+    ],
+    addCollaborator: ["PUT /repos/{owner}/{repo}/collaborators/{username}"],
+    addStatusCheckContexts: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
+      {},
+      { mapToData: "contexts" }
+    ],
+    addTeamAccessRestrictions: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
+      {},
+      { mapToData: "teams" }
+    ],
+    addUserAccessRestrictions: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
+      {},
+      { mapToData: "users" }
+    ],
+    cancelPagesDeployment: [
+      "POST /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}/cancel"
+    ],
+    checkAutomatedSecurityFixes: [
+      "GET /repos/{owner}/{repo}/automated-security-fixes"
+    ],
+    checkCollaborator: ["GET /repos/{owner}/{repo}/collaborators/{username}"],
+    checkImmutableReleases: ["GET /repos/{owner}/{repo}/immutable-releases"],
+    checkPrivateVulnerabilityReporting: [
+      "GET /repos/{owner}/{repo}/private-vulnerability-reporting"
+    ],
+    checkVulnerabilityAlerts: [
+      "GET /repos/{owner}/{repo}/vulnerability-alerts"
+    ],
+    codeownersErrors: ["GET /repos/{owner}/{repo}/codeowners/errors"],
+    compareCommits: ["GET /repos/{owner}/{repo}/compare/{base}...{head}"],
+    compareCommitsWithBasehead: [
+      "GET /repos/{owner}/{repo}/compare/{basehead}"
+    ],
+    createAttestation: ["POST /repos/{owner}/{repo}/attestations"],
+    createAutolink: ["POST /repos/{owner}/{repo}/autolinks"],
+    createCommitComment: [
+      "POST /repos/{owner}/{repo}/commits/{commit_sha}/comments"
+    ],
+    createCommitSignatureProtection: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
+    ],
+    createCommitStatus: ["POST /repos/{owner}/{repo}/statuses/{sha}"],
+    createDeployKey: ["POST /repos/{owner}/{repo}/keys"],
+    createDeployment: ["POST /repos/{owner}/{repo}/deployments"],
+    createDeploymentBranchPolicy: [
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies"
+    ],
+    createDeploymentProtectionRule: [
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules"
+    ],
+    createDeploymentStatus: [
+      "POST /repos/{owner}/{repo}/deployments/{deployment_id}/statuses"
+    ],
+    createDispatchEvent: ["POST /repos/{owner}/{repo}/dispatches"],
+    createForAuthenticatedUser: ["POST /user/repos"],
+    createFork: ["POST /repos/{owner}/{repo}/forks"],
+    createInOrg: ["POST /orgs/{org}/repos"],
+    createOrUpdateEnvironment: [
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}"
+    ],
+    createOrUpdateFileContents: ["PUT /repos/{owner}/{repo}/contents/{path}"],
+    createOrgRuleset: ["POST /orgs/{org}/rulesets"],
+    createPagesDeployment: ["POST /repos/{owner}/{repo}/pages/deployments"],
+    createPagesSite: ["POST /repos/{owner}/{repo}/pages"],
+    createRelease: ["POST /repos/{owner}/{repo}/releases"],
+    createRepoRuleset: ["POST /repos/{owner}/{repo}/rulesets"],
+    createUsingTemplate: [
+      "POST /repos/{template_owner}/{template_repo}/generate"
+    ],
+    createWebhook: ["POST /repos/{owner}/{repo}/hooks"],
+    customPropertiesForReposCreateOrUpdateRepositoryValues: [
+      "PATCH /repos/{owner}/{repo}/properties/values"
+    ],
+    customPropertiesForReposGetRepositoryValues: [
+      "GET /repos/{owner}/{repo}/properties/values"
+    ],
+    declineInvitation: [
+      "DELETE /user/repository_invitations/{invitation_id}",
+      {},
+      { renamed: ["repos", "declineInvitationForAuthenticatedUser"] }
+    ],
+    declineInvitationForAuthenticatedUser: [
+      "DELETE /user/repository_invitations/{invitation_id}"
+    ],
+    delete: ["DELETE /repos/{owner}/{repo}"],
+    deleteAccessRestrictions: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions"
+    ],
+    deleteAdminBranchProtection: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
+    ],
+    deleteAnEnvironment: [
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}"
+    ],
+    deleteAutolink: ["DELETE /repos/{owner}/{repo}/autolinks/{autolink_id}"],
+    deleteBranchProtection: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection"
+    ],
+    deleteCommitComment: ["DELETE /repos/{owner}/{repo}/comments/{comment_id}"],
+    deleteCommitSignatureProtection: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
+    ],
+    deleteDeployKey: ["DELETE /repos/{owner}/{repo}/keys/{key_id}"],
+    deleteDeployment: [
+      "DELETE /repos/{owner}/{repo}/deployments/{deployment_id}"
+    ],
+    deleteDeploymentBranchPolicy: [
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
+    ],
+    deleteFile: ["DELETE /repos/{owner}/{repo}/contents/{path}"],
+    deleteInvitation: [
+      "DELETE /repos/{owner}/{repo}/invitations/{invitation_id}"
+    ],
+    deleteOrgRuleset: ["DELETE /orgs/{org}/rulesets/{ruleset_id}"],
+    deletePagesSite: ["DELETE /repos/{owner}/{repo}/pages"],
+    deletePullRequestReviewProtection: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
+    ],
+    deleteRelease: ["DELETE /repos/{owner}/{repo}/releases/{release_id}"],
+    deleteReleaseAsset: [
+      "DELETE /repos/{owner}/{repo}/releases/assets/{asset_id}"
+    ],
+    deleteRepoRuleset: ["DELETE /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
+    deleteWebhook: ["DELETE /repos/{owner}/{repo}/hooks/{hook_id}"],
+    disableAutomatedSecurityFixes: [
+      "DELETE /repos/{owner}/{repo}/automated-security-fixes"
+    ],
+    disableDeploymentProtectionRule: [
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}"
+    ],
+    disableImmutableReleases: [
+      "DELETE /repos/{owner}/{repo}/immutable-releases"
+    ],
+    disablePrivateVulnerabilityReporting: [
+      "DELETE /repos/{owner}/{repo}/private-vulnerability-reporting"
+    ],
+    disableVulnerabilityAlerts: [
+      "DELETE /repos/{owner}/{repo}/vulnerability-alerts"
+    ],
+    downloadArchive: [
+      "GET /repos/{owner}/{repo}/zipball/{ref}",
+      {},
+      { renamed: ["repos", "downloadZipballArchive"] }
+    ],
+    downloadTarballArchive: ["GET /repos/{owner}/{repo}/tarball/{ref}"],
+    downloadZipballArchive: ["GET /repos/{owner}/{repo}/zipball/{ref}"],
+    enableAutomatedSecurityFixes: [
+      "PUT /repos/{owner}/{repo}/automated-security-fixes"
+    ],
+    enableImmutableReleases: ["PUT /repos/{owner}/{repo}/immutable-releases"],
+    enablePrivateVulnerabilityReporting: [
+      "PUT /repos/{owner}/{repo}/private-vulnerability-reporting"
+    ],
+    enableVulnerabilityAlerts: [
+      "PUT /repos/{owner}/{repo}/vulnerability-alerts"
+    ],
+    generateReleaseNotes: [
+      "POST /repos/{owner}/{repo}/releases/generate-notes"
+    ],
+    get: ["GET /repos/{owner}/{repo}"],
+    getAccessRestrictions: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions"
+    ],
+    getAdminBranchProtection: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
+    ],
+    getAllDeploymentProtectionRules: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules"
+    ],
+    getAllEnvironments: ["GET /repos/{owner}/{repo}/environments"],
+    getAllStatusCheckContexts: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts"
+    ],
+    getAllTopics: ["GET /repos/{owner}/{repo}/topics"],
+    getAppsWithAccessToProtectedBranch: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps"
+    ],
+    getAutolink: ["GET /repos/{owner}/{repo}/autolinks/{autolink_id}"],
+    getBranch: ["GET /repos/{owner}/{repo}/branches/{branch}"],
+    getBranchProtection: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection"
+    ],
+    getBranchRules: ["GET /repos/{owner}/{repo}/rules/branches/{branch}"],
+    getClones: ["GET /repos/{owner}/{repo}/traffic/clones"],
+    getCodeFrequencyStats: ["GET /repos/{owner}/{repo}/stats/code_frequency"],
+    getCollaboratorPermissionLevel: [
+      "GET /repos/{owner}/{repo}/collaborators/{username}/permission"
+    ],
+    getCombinedStatusForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/status"],
+    getCommit: ["GET /repos/{owner}/{repo}/commits/{ref}"],
+    getCommitActivityStats: ["GET /repos/{owner}/{repo}/stats/commit_activity"],
+    getCommitComment: ["GET /repos/{owner}/{repo}/comments/{comment_id}"],
+    getCommitSignatureProtection: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
+    ],
+    getCommunityProfileMetrics: ["GET /repos/{owner}/{repo}/community/profile"],
+    getContent: ["GET /repos/{owner}/{repo}/contents/{path}"],
+    getContributorsStats: ["GET /repos/{owner}/{repo}/stats/contributors"],
+    getCustomDeploymentProtectionRule: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}"
+    ],
+    getDeployKey: ["GET /repos/{owner}/{repo}/keys/{key_id}"],
+    getDeployment: ["GET /repos/{owner}/{repo}/deployments/{deployment_id}"],
+    getDeploymentBranchPolicy: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
+    ],
+    getDeploymentStatus: [
+      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses/{status_id}"
+    ],
+    getEnvironment: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}"
+    ],
+    getLatestPagesBuild: ["GET /repos/{owner}/{repo}/pages/builds/latest"],
+    getLatestRelease: ["GET /repos/{owner}/{repo}/releases/latest"],
+    getOrgRuleSuite: ["GET /orgs/{org}/rulesets/rule-suites/{rule_suite_id}"],
+    getOrgRuleSuites: ["GET /orgs/{org}/rulesets/rule-suites"],
+    getOrgRuleset: ["GET /orgs/{org}/rulesets/{ruleset_id}"],
+    getOrgRulesets: ["GET /orgs/{org}/rulesets"],
+    getPages: ["GET /repos/{owner}/{repo}/pages"],
+    getPagesBuild: ["GET /repos/{owner}/{repo}/pages/builds/{build_id}"],
+    getPagesDeployment: [
+      "GET /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}"
+    ],
+    getPagesHealthCheck: ["GET /repos/{owner}/{repo}/pages/health"],
+    getParticipationStats: ["GET /repos/{owner}/{repo}/stats/participation"],
+    getPullRequestReviewProtection: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
+    ],
+    getPunchCardStats: ["GET /repos/{owner}/{repo}/stats/punch_card"],
+    getReadme: ["GET /repos/{owner}/{repo}/readme"],
+    getReadmeInDirectory: ["GET /repos/{owner}/{repo}/readme/{dir}"],
+    getRelease: ["GET /repos/{owner}/{repo}/releases/{release_id}"],
+    getReleaseAsset: ["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"],
+    getReleaseByTag: ["GET /repos/{owner}/{repo}/releases/tags/{tag}"],
+    getRepoRuleSuite: [
+      "GET /repos/{owner}/{repo}/rulesets/rule-suites/{rule_suite_id}"
+    ],
+    getRepoRuleSuites: ["GET /repos/{owner}/{repo}/rulesets/rule-suites"],
+    getRepoRuleset: ["GET /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
+    getRepoRulesetHistory: [
+      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history"
+    ],
+    getRepoRulesetVersion: [
+      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history/{version_id}"
+    ],
+    getRepoRulesets: ["GET /repos/{owner}/{repo}/rulesets"],
+    getStatusChecksProtection: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
+    ],
+    getTeamsWithAccessToProtectedBranch: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams"
+    ],
+    getTopPaths: ["GET /repos/{owner}/{repo}/traffic/popular/paths"],
+    getTopReferrers: ["GET /repos/{owner}/{repo}/traffic/popular/referrers"],
+    getUsersWithAccessToProtectedBranch: [
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users"
+    ],
+    getViews: ["GET /repos/{owner}/{repo}/traffic/views"],
+    getWebhook: ["GET /repos/{owner}/{repo}/hooks/{hook_id}"],
+    getWebhookConfigForRepo: [
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/config"
+    ],
+    getWebhookDelivery: [
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}"
+    ],
+    listActivities: ["GET /repos/{owner}/{repo}/activity"],
+    listAttestations: [
+      "GET /repos/{owner}/{repo}/attestations/{subject_digest}"
+    ],
+    listAutolinks: ["GET /repos/{owner}/{repo}/autolinks"],
+    listBranches: ["GET /repos/{owner}/{repo}/branches"],
+    listBranchesForHeadCommit: [
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/branches-where-head"
+    ],
+    listCollaborators: ["GET /repos/{owner}/{repo}/collaborators"],
+    listCommentsForCommit: [
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/comments"
+    ],
+    listCommitCommentsForRepo: ["GET /repos/{owner}/{repo}/comments"],
+    listCommitStatusesForRef: [
+      "GET /repos/{owner}/{repo}/commits/{ref}/statuses"
+    ],
+    listCommits: ["GET /repos/{owner}/{repo}/commits"],
+    listContributors: ["GET /repos/{owner}/{repo}/contributors"],
+    listCustomDeploymentRuleIntegrations: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/apps"
+    ],
+    listDeployKeys: ["GET /repos/{owner}/{repo}/keys"],
+    listDeploymentBranchPolicies: [
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies"
+    ],
+    listDeploymentStatuses: [
+      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses"
+    ],
+    listDeployments: ["GET /repos/{owner}/{repo}/deployments"],
+    listForAuthenticatedUser: ["GET /user/repos"],
+    listForOrg: ["GET /orgs/{org}/repos"],
+    listForUser: ["GET /users/{username}/repos"],
+    listForks: ["GET /repos/{owner}/{repo}/forks"],
+    listInvitations: ["GET /repos/{owner}/{repo}/invitations"],
+    listInvitationsForAuthenticatedUser: ["GET /user/repository_invitations"],
+    listLanguages: ["GET /repos/{owner}/{repo}/languages"],
+    listPagesBuilds: ["GET /repos/{owner}/{repo}/pages/builds"],
+    listPublic: ["GET /repositories"],
+    listPullRequestsAssociatedWithCommit: [
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls"
+    ],
+    listReleaseAssets: [
+      "GET /repos/{owner}/{repo}/releases/{release_id}/assets"
+    ],
+    listReleases: ["GET /repos/{owner}/{repo}/releases"],
+    listTags: ["GET /repos/{owner}/{repo}/tags"],
+    listTeams: ["GET /repos/{owner}/{repo}/teams"],
+    listWebhookDeliveries: [
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries"
+    ],
+    listWebhooks: ["GET /repos/{owner}/{repo}/hooks"],
+    merge: ["POST /repos/{owner}/{repo}/merges"],
+    mergeUpstream: ["POST /repos/{owner}/{repo}/merge-upstream"],
+    pingWebhook: ["POST /repos/{owner}/{repo}/hooks/{hook_id}/pings"],
+    redeliverWebhookDelivery: [
+      "POST /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}/attempts"
+    ],
+    removeAppAccessRestrictions: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
+      {},
+      { mapToData: "apps" }
+    ],
+    removeCollaborator: [
+      "DELETE /repos/{owner}/{repo}/collaborators/{username}"
+    ],
+    removeStatusCheckContexts: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
+      {},
+      { mapToData: "contexts" }
+    ],
+    removeStatusCheckProtection: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
+    ],
+    removeTeamAccessRestrictions: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
+      {},
+      { mapToData: "teams" }
+    ],
+    removeUserAccessRestrictions: [
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
+      {},
+      { mapToData: "users" }
+    ],
+    renameBranch: ["POST /repos/{owner}/{repo}/branches/{branch}/rename"],
+    replaceAllTopics: ["PUT /repos/{owner}/{repo}/topics"],
+    requestPagesBuild: ["POST /repos/{owner}/{repo}/pages/builds"],
+    setAdminBranchProtection: [
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
+    ],
+    setAppAccessRestrictions: [
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
+      {},
+      { mapToData: "apps" }
+    ],
+    setStatusCheckContexts: [
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
+      {},
+      { mapToData: "contexts" }
+    ],
+    setTeamAccessRestrictions: [
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
+      {},
+      { mapToData: "teams" }
+    ],
+    setUserAccessRestrictions: [
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
+      {},
+      { mapToData: "users" }
+    ],
+    testPushWebhook: ["POST /repos/{owner}/{repo}/hooks/{hook_id}/tests"],
+    transfer: ["POST /repos/{owner}/{repo}/transfer"],
+    update: ["PATCH /repos/{owner}/{repo}"],
+    updateBranchProtection: [
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection"
+    ],
+    updateCommitComment: ["PATCH /repos/{owner}/{repo}/comments/{comment_id}"],
+    updateDeploymentBranchPolicy: [
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
+    ],
+    updateInformationAboutPagesSite: ["PUT /repos/{owner}/{repo}/pages"],
+    updateInvitation: [
+      "PATCH /repos/{owner}/{repo}/invitations/{invitation_id}"
+    ],
+    updateOrgRuleset: ["PUT /orgs/{org}/rulesets/{ruleset_id}"],
+    updatePullRequestReviewProtection: [
+      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
+    ],
+    updateRelease: ["PATCH /repos/{owner}/{repo}/releases/{release_id}"],
+    updateReleaseAsset: [
+      "PATCH /repos/{owner}/{repo}/releases/assets/{asset_id}"
+    ],
+    updateRepoRuleset: ["PUT /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
+    updateStatusCheckPotection: [
+      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
+      {},
+      { renamed: ["repos", "updateStatusCheckProtection"] }
+    ],
+    updateStatusCheckProtection: [
+      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
+    ],
+    updateWebhook: ["PATCH /repos/{owner}/{repo}/hooks/{hook_id}"],
+    updateWebhookConfigForRepo: [
+      "PATCH /repos/{owner}/{repo}/hooks/{hook_id}/config"
+    ],
+    uploadReleaseAsset: [
+      "POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}",
+      { baseUrl: "https://uploads.github.com" }
+    ]
+  },
+  search: {
+    code: ["GET /search/code"],
+    commits: ["GET /search/commits"],
+    issuesAndPullRequests: ["GET /search/issues"],
+    labels: ["GET /search/labels"],
+    repos: ["GET /search/repositories"],
+    topics: ["GET /search/topics"],
+    users: ["GET /search/users"]
+  },
+  secretScanning: {
+    createPushProtectionBypass: [
+      "POST /repos/{owner}/{repo}/secret-scanning/push-protection-bypasses"
+    ],
+    getAlert: [
+      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}"
+    ],
+    getScanHistory: ["GET /repos/{owner}/{repo}/secret-scanning/scan-history"],
+    listAlertsForOrg: ["GET /orgs/{org}/secret-scanning/alerts"],
+    listAlertsForRepo: ["GET /repos/{owner}/{repo}/secret-scanning/alerts"],
+    listLocationsForAlert: [
+      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations"
+    ],
+    listOrgPatternConfigs: [
+      "GET /orgs/{org}/secret-scanning/pattern-configurations"
+    ],
+    updateAlert: [
+      "PATCH /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}"
+    ],
+    updateOrgPatternConfigs: [
+      "PATCH /orgs/{org}/secret-scanning/pattern-configurations"
+    ]
+  },
+  securityAdvisories: {
+    createFork: [
+      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/forks"
+    ],
+    createPrivateVulnerabilityReport: [
+      "POST /repos/{owner}/{repo}/security-advisories/reports"
+    ],
+    createRepositoryAdvisory: [
+      "POST /repos/{owner}/{repo}/security-advisories"
+    ],
+    createRepositoryAdvisoryCveRequest: [
+      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/cve"
+    ],
+    getGlobalAdvisory: ["GET /advisories/{ghsa_id}"],
+    getRepositoryAdvisory: [
+      "GET /repos/{owner}/{repo}/security-advisories/{ghsa_id}"
+    ],
+    listGlobalAdvisories: ["GET /advisories"],
+    listOrgRepositoryAdvisories: ["GET /orgs/{org}/security-advisories"],
+    listRepositoryAdvisories: ["GET /repos/{owner}/{repo}/security-advisories"],
+    updateRepositoryAdvisory: [
+      "PATCH /repos/{owner}/{repo}/security-advisories/{ghsa_id}"
+    ]
+  },
+  teams: {
+    addOrUpdateMembershipForUserInOrg: [
+      "PUT /orgs/{org}/teams/{team_slug}/memberships/{username}"
+    ],
+    addOrUpdateRepoPermissionsInOrg: [
+      "PUT /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
+    ],
+    checkPermissionsForRepoInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
+    ],
+    create: ["POST /orgs/{org}/teams"],
+    createDiscussionCommentInOrg: [
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments"
+    ],
+    createDiscussionInOrg: ["POST /orgs/{org}/teams/{team_slug}/discussions"],
+    deleteDiscussionCommentInOrg: [
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
+    ],
+    deleteDiscussionInOrg: [
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
+    ],
+    deleteInOrg: ["DELETE /orgs/{org}/teams/{team_slug}"],
+    getByName: ["GET /orgs/{org}/teams/{team_slug}"],
+    getDiscussionCommentInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
+    ],
+    getDiscussionInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
+    ],
+    getMembershipForUserInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/memberships/{username}"
+    ],
+    list: ["GET /orgs/{org}/teams"],
+    listChildInOrg: ["GET /orgs/{org}/teams/{team_slug}/teams"],
+    listDiscussionCommentsInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments"
+    ],
+    listDiscussionsInOrg: ["GET /orgs/{org}/teams/{team_slug}/discussions"],
+    listForAuthenticatedUser: ["GET /user/teams"],
+    listMembersInOrg: ["GET /orgs/{org}/teams/{team_slug}/members"],
+    listPendingInvitationsInOrg: [
+      "GET /orgs/{org}/teams/{team_slug}/invitations"
+    ],
+    listReposInOrg: ["GET /orgs/{org}/teams/{team_slug}/repos"],
+    removeMembershipForUserInOrg: [
+      "DELETE /orgs/{org}/teams/{team_slug}/memberships/{username}"
+    ],
+    removeRepoInOrg: [
+      "DELETE /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
+    ],
+    updateDiscussionCommentInOrg: [
+      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
+    ],
+    updateDiscussionInOrg: [
+      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
+    ],
+    updateInOrg: ["PATCH /orgs/{org}/teams/{team_slug}"]
+  },
+  users: {
+    addEmailForAuthenticated: [
+      "POST /user/emails",
+      {},
+      { renamed: ["users", "addEmailForAuthenticatedUser"] }
+    ],
+    addEmailForAuthenticatedUser: ["POST /user/emails"],
+    addSocialAccountForAuthenticatedUser: ["POST /user/social_accounts"],
+    block: ["PUT /user/blocks/{username}"],
+    checkBlocked: ["GET /user/blocks/{username}"],
+    checkFollowingForUser: ["GET /users/{username}/following/{target_user}"],
+    checkPersonIsFollowedByAuthenticated: ["GET /user/following/{username}"],
+    createGpgKeyForAuthenticated: [
+      "POST /user/gpg_keys",
+      {},
+      { renamed: ["users", "createGpgKeyForAuthenticatedUser"] }
+    ],
+    createGpgKeyForAuthenticatedUser: ["POST /user/gpg_keys"],
+    createPublicSshKeyForAuthenticated: [
+      "POST /user/keys",
+      {},
+      { renamed: ["users", "createPublicSshKeyForAuthenticatedUser"] }
+    ],
+    createPublicSshKeyForAuthenticatedUser: ["POST /user/keys"],
+    createSshSigningKeyForAuthenticatedUser: ["POST /user/ssh_signing_keys"],
+    deleteAttestationsBulk: [
+      "POST /users/{username}/attestations/delete-request"
+    ],
+    deleteAttestationsById: [
+      "DELETE /users/{username}/attestations/{attestation_id}"
+    ],
+    deleteAttestationsBySubjectDigest: [
+      "DELETE /users/{username}/attestations/digest/{subject_digest}"
+    ],
+    deleteEmailForAuthenticated: [
+      "DELETE /user/emails",
+      {},
+      { renamed: ["users", "deleteEmailForAuthenticatedUser"] }
+    ],
+    deleteEmailForAuthenticatedUser: ["DELETE /user/emails"],
+    deleteGpgKeyForAuthenticated: [
+      "DELETE /user/gpg_keys/{gpg_key_id}",
+      {},
+      { renamed: ["users", "deleteGpgKeyForAuthenticatedUser"] }
+    ],
+    deleteGpgKeyForAuthenticatedUser: ["DELETE /user/gpg_keys/{gpg_key_id}"],
+    deletePublicSshKeyForAuthenticated: [
+      "DELETE /user/keys/{key_id}",
+      {},
+      { renamed: ["users", "deletePublicSshKeyForAuthenticatedUser"] }
+    ],
+    deletePublicSshKeyForAuthenticatedUser: ["DELETE /user/keys/{key_id}"],
+    deleteSocialAccountForAuthenticatedUser: ["DELETE /user/social_accounts"],
+    deleteSshSigningKeyForAuthenticatedUser: [
+      "DELETE /user/ssh_signing_keys/{ssh_signing_key_id}"
+    ],
+    follow: ["PUT /user/following/{username}"],
+    getAuthenticated: ["GET /user"],
+    getById: ["GET /user/{account_id}"],
+    getByUsername: ["GET /users/{username}"],
+    getContextForUser: ["GET /users/{username}/hovercard"],
+    getGpgKeyForAuthenticated: [
+      "GET /user/gpg_keys/{gpg_key_id}",
+      {},
+      { renamed: ["users", "getGpgKeyForAuthenticatedUser"] }
+    ],
+    getGpgKeyForAuthenticatedUser: ["GET /user/gpg_keys/{gpg_key_id}"],
+    getPublicSshKeyForAuthenticated: [
+      "GET /user/keys/{key_id}",
+      {},
+      { renamed: ["users", "getPublicSshKeyForAuthenticatedUser"] }
+    ],
+    getPublicSshKeyForAuthenticatedUser: ["GET /user/keys/{key_id}"],
+    getSshSigningKeyForAuthenticatedUser: [
+      "GET /user/ssh_signing_keys/{ssh_signing_key_id}"
+    ],
+    list: ["GET /users"],
+    listAttestations: ["GET /users/{username}/attestations/{subject_digest}"],
+    listAttestationsBulk: [
+      "POST /users/{username}/attestations/bulk-list{?per_page,before,after}"
+    ],
+    listBlockedByAuthenticated: [
+      "GET /user/blocks",
+      {},
+      { renamed: ["users", "listBlockedByAuthenticatedUser"] }
+    ],
+    listBlockedByAuthenticatedUser: ["GET /user/blocks"],
+    listEmailsForAuthenticated: [
+      "GET /user/emails",
+      {},
+      { renamed: ["users", "listEmailsForAuthenticatedUser"] }
+    ],
+    listEmailsForAuthenticatedUser: ["GET /user/emails"],
+    listFollowedByAuthenticated: [
+      "GET /user/following",
+      {},
+      { renamed: ["users", "listFollowedByAuthenticatedUser"] }
+    ],
+    listFollowedByAuthenticatedUser: ["GET /user/following"],
+    listFollowersForAuthenticatedUser: ["GET /user/followers"],
+    listFollowersForUser: ["GET /users/{username}/followers"],
+    listFollowingForUser: ["GET /users/{username}/following"],
+    listGpgKeysForAuthenticated: [
+      "GET /user/gpg_keys",
+      {},
+      { renamed: ["users", "listGpgKeysForAuthenticatedUser"] }
+    ],
+    listGpgKeysForAuthenticatedUser: ["GET /user/gpg_keys"],
+    listGpgKeysForUser: ["GET /users/{username}/gpg_keys"],
+    listPublicEmailsForAuthenticated: [
+      "GET /user/public_emails",
+      {},
+      { renamed: ["users", "listPublicEmailsForAuthenticatedUser"] }
+    ],
+    listPublicEmailsForAuthenticatedUser: ["GET /user/public_emails"],
+    listPublicKeysForUser: ["GET /users/{username}/keys"],
+    listPublicSshKeysForAuthenticated: [
+      "GET /user/keys",
+      {},
+      { renamed: ["users", "listPublicSshKeysForAuthenticatedUser"] }
+    ],
+    listPublicSshKeysForAuthenticatedUser: ["GET /user/keys"],
+    listSocialAccountsForAuthenticatedUser: ["GET /user/social_accounts"],
+    listSocialAccountsForUser: ["GET /users/{username}/social_accounts"],
+    listSshSigningKeysForAuthenticatedUser: ["GET /user/ssh_signing_keys"],
+    listSshSigningKeysForUser: ["GET /users/{username}/ssh_signing_keys"],
+    setPrimaryEmailVisibilityForAuthenticated: [
+      "PATCH /user/email/visibility",
+      {},
+      { renamed: ["users", "setPrimaryEmailVisibilityForAuthenticatedUser"] }
+    ],
+    setPrimaryEmailVisibilityForAuthenticatedUser: [
+      "PATCH /user/email/visibility"
+    ],
+    unblock: ["DELETE /user/blocks/{username}"],
+    unfollow: ["DELETE /user/following/{username}"],
+    updateAuthenticated: ["PATCH /user"]
+  }
+};
+var endpoints_default = Endpoints;
+
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/endpoints-to-methods.js
+var endpointMethodsMap = /* @__PURE__ */ new Map();
+for (const [scope, endpoints] of Object.entries(endpoints_default)) {
+  for (const [methodName, endpoint2] of Object.entries(endpoints)) {
+    const [route, defaults2, decorations] = endpoint2;
+    const [method, url2] = route.split(/ /);
+    const endpointDefaults = Object.assign(
+      {
+        method,
+        url: url2
+      },
+      defaults2
+    );
+    if (!endpointMethodsMap.has(scope)) {
+      endpointMethodsMap.set(scope, /* @__PURE__ */ new Map());
+    }
+    endpointMethodsMap.get(scope).set(methodName, {
+      scope,
+      methodName,
+      endpointDefaults,
+      decorations
+    });
+  }
+}
+var handler = {
+  has({ scope }, methodName) {
+    return endpointMethodsMap.get(scope).has(methodName);
+  },
+  getOwnPropertyDescriptor(target, methodName) {
+    return {
+      value: this.get(target, methodName),
+      // ensures method is in the cache
+      configurable: true,
+      writable: true,
+      enumerable: true
+    };
+  },
+  defineProperty(target, methodName, descriptor) {
+    Object.defineProperty(target.cache, methodName, descriptor);
+    return true;
+  },
+  deleteProperty(target, methodName) {
+    delete target.cache[methodName];
+    return true;
+  },
+  ownKeys({ scope }) {
+    return [...endpointMethodsMap.get(scope).keys()];
+  },
+  set(target, methodName, value) {
+    return target.cache[methodName] = value;
+  },
+  get({ octokit, scope, cache }, methodName) {
+    if (cache[methodName]) {
+      return cache[methodName];
+    }
+    const method = endpointMethodsMap.get(scope).get(methodName);
+    if (!method) {
+      return void 0;
+    }
+    const { endpointDefaults, decorations } = method;
+    if (decorations) {
+      cache[methodName] = decorate(
+        octokit,
+        scope,
+        methodName,
+        endpointDefaults,
+        decorations
+      );
+    } else {
+      cache[methodName] = octokit.request.defaults(endpointDefaults);
+    }
+    return cache[methodName];
+  }
+};
+function endpointsToMethods(octokit) {
+  const newMethods = {};
+  for (const scope of endpointMethodsMap.keys()) {
+    newMethods[scope] = new Proxy({ octokit, scope, cache: {} }, handler);
+  }
+  return newMethods;
+}
+function decorate(octokit, scope, methodName, defaults2, decorations) {
+  const requestWithDefaults = octokit.request.defaults(defaults2);
+  function withDecorations(...args) {
+    let options = requestWithDefaults.endpoint.merge(...args);
+    if (decorations.mapToData) {
+      options = Object.assign({}, options, {
+        data: options[decorations.mapToData],
+        [decorations.mapToData]: void 0
+      });
+      return requestWithDefaults(options);
+    }
+    if (decorations.renamed) {
+      const [newScope, newMethodName] = decorations.renamed;
+      octokit.log.warn(
+        `octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`
+      );
+    }
+    if (decorations.deprecated) {
+      octokit.log.warn(decorations.deprecated);
+    }
+    if (decorations.renamedParameters) {
+      const options2 = requestWithDefaults.endpoint.merge(...args);
+      for (const [name21, alias] of Object.entries(
+        decorations.renamedParameters
+      )) {
+        if (name21 in options2) {
+          octokit.log.warn(
+            `"${name21}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`
+          );
+          if (!(alias in options2)) {
+            options2[alias] = options2[name21];
+          }
+          delete options2[name21];
+        }
+      }
+      return requestWithDefaults(options2);
+    }
+    return requestWithDefaults(...args);
+  }
+  return Object.assign(withDecorations, requestWithDefaults);
+}
+
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js
+function restEndpointMethods(octokit) {
+  const api = endpointsToMethods(octokit);
+  return {
+    rest: api
+  };
+}
+restEndpointMethods.VERSION = VERSION7;
+function legacyRestEndpointMethods(octokit) {
+  const api = endpointsToMethods(octokit);
+  return {
+    ...api,
+    rest: api
+  };
+}
+legacyRestEndpointMethods.VERSION = VERSION7;
+
+// node_modules/@octokit/rest/dist-src/version.js
+var VERSION8 = "22.0.1";
+
+// node_modules/@octokit/rest/dist-src/index.js
+var Octokit2 = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRest).defaults(
+  {
+    userAgent: `octokit-rest.js/${VERSION8}`
+  }
+);
+
 // node_modules/@octokit/plugin-retry/dist-bundle/index.js
-var VERSION = "0.0.0-development";
+var import_light = __toESM(require_light(), 1);
+var VERSION9 = "0.0.0-development";
 function isRequestError(error52) {
   return error52.request !== void 0;
 }
@@ -32666,23 +36385,23 @@ async function errorRequest(state, octokit, error52, options) {
   }
   throw error52;
 }
-async function wrapRequest(state, octokit, request, options) {
+async function wrapRequest(state, octokit, request2, options) {
   const limiter = new import_light.default();
-  limiter.on("failed", function(error52, info40) {
+  limiter.on("failed", function(error52, info76) {
     const maxRetries = ~~error52.request.request?.retries;
     const after = ~~error52.request.request?.retryAfter;
-    options.request.retryCount = info40.retryCount + 1;
-    if (maxRetries > info40.retryCount) {
+    options.request.retryCount = info76.retryCount + 1;
+    if (maxRetries > info76.retryCount) {
       return after * state.retryAfterBaseValue;
     }
   });
   return limiter.schedule(
-    requestWithGraphqlErrorHandling.bind(null, state, octokit, request),
+    requestWithGraphqlErrorHandling.bind(null, state, octokit, request2),
     options
   );
 }
-async function requestWithGraphqlErrorHandling(state, octokit, request, options) {
-  const response = await request(options);
+async function requestWithGraphqlErrorHandling(state, octokit, request2, options) {
+  const response = await request2(options);
   if (response.data && response.data.errors && response.data.errors.length > 0 && /Something went wrong while executing your query/.test(
     response.data.errors[0].message
   )) {
@@ -32721,7 +36440,7 @@ function retry(octokit, octokitOptions) {
   }
   return retryPlugin;
 }
-retry.VERSION = VERSION;
+retry.VERSION = VERSION9;
 
 // src/config.ts
 import * as core from "@actions/core";
@@ -32817,6 +36536,42 @@ function loadConfig() {
   const auditTrail = core.getInput("audit_trail") !== "false";
   const reviewReplay = core.getInput("review_replay") !== "false";
   const concurrencyAnalysis = core.getInput("concurrency_analysis") !== "false";
+  const crossprConflictDetection = core.getInput("crosspr_conflict_detection") !== "false";
+  const architectureDriftDetection = core.getInput("architecture_drift_detection") !== "false";
+  const testAssertionAudit = core.getInput("test_assertion_audit") !== "false";
+  const breakingChangeRadar = core.getInput("breaking_change_radar") !== "false";
+  const importCycleDetector = core.getInput("import_cycle_detector") !== "false";
+  const deadCodeDetector = core.getInput("dead_code_detector") !== "false";
+  const typeSafetyErosion = core.getInput("type_safety_erosion") !== "false";
+  const todoDebtDetector = core.getInput("todo_debt_detector") !== "false";
+  const magicNumberDetector = core.getInput("magic_number_detector") !== "false";
+  const errorHandlingDetector = core.getInput("error_handling_detector") !== "false";
+  const performanceAntipatternDetector = core.getInput("performance_antipattern_detector") !== "false";
+  const resourceLifecycleDetector = core.getInput("resource_lifecycle_detector") !== "false";
+  const observabilityGapDetector = core.getInput("observability_gap_detector") !== "false";
+  const concurrencyHazardDetector = core.getInput("concurrency_hazard_detector") !== "false";
+  const lifecycleProtocolDetector = core.getInput("lifecycle_protocol_detector") !== "false";
+  const semanticTypeConfusionDetector = core.getInput("semantic_type_confusion_detector") !== "false";
+  const dataFlowBoundaryDetector = core.getInput("data_flow_boundary_detector") !== "false";
+  const nullGuardDetector = core.getInput("null_guard_detector") !== "false";
+  const aiCodePathologyDetector = core.getInput("ai_code_pathology_detector") !== "false";
+  const ungatedCriticalReturnDetector = core.getInput("ungated_critical_return_detector") !== "false";
+  const hardcodedConfigDetector = core.getInput("hardcoded_config_detector") !== "false";
+  const debugArtifactDetector = core.getInput("debug_artifact_detector") !== "false";
+  const callbackMisuseDetector = core.getInput("callback_misuse_detector") !== "false";
+  const staleClosureDetector = core.getInput("stale_closure_detector") !== "false";
+  const hallucinatedDependencyDetector = core.getInput("hallucinated_dependency_detector") !== "false";
+  const tautologicalTestDetector = core.getInput("tautological_test_detector") !== "false";
+  const contextAmplificationDetector = core.getInput("context_amplification_detector") !== "false";
+  const cargoCultArchitectureDetector = core.getInput("cargo_cult_architecture_detector") !== "false";
+  const confabulatedAPIDetector = core.getInput("confabulated_api_detector") !== "false";
+  const partialSecurityControlDetector = core.getInput("partial_security_control_detector") !== "false";
+  const paradigmClashDetector = core.getInput("paradigm_clash_detector") !== "false";
+  const velocityRiskDetector = core.getInput("velocity_risk_detector") !== "false";
+  const rulesFileIntegrityDetector = core.getInput("rules_file_integrity_detector") !== "false";
+  const specDriftDetector = core.getInput("spec_drift_detector") !== "false";
+  const iacVulnerabilityDetector = core.getInput("iac_vulnerability_detector") !== "false";
+  const credentialExposureDetector = core.getInput("credential_exposure_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -32929,7 +36684,43 @@ function loadConfig() {
     reviewDashboard,
     auditTrail,
     reviewReplay,
-    concurrencyAnalysis
+    concurrencyAnalysis,
+    crossprConflictDetection,
+    architectureDriftDetection,
+    testAssertionAudit,
+    breakingChangeRadar,
+    importCycleDetector,
+    deadCodeDetector,
+    typeSafetyErosion,
+    todoDebtDetector,
+    magicNumberDetector,
+    errorHandlingDetector,
+    performanceAntipatternDetector,
+    resourceLifecycleDetector,
+    observabilityGapDetector,
+    concurrencyHazardDetector,
+    lifecycleProtocolDetector,
+    semanticTypeConfusionDetector,
+    dataFlowBoundaryDetector,
+    nullGuardDetector,
+    aiCodePathologyDetector,
+    ungatedCriticalReturnDetector,
+    hardcodedConfigDetector,
+    debugArtifactDetector,
+    callbackMisuseDetector,
+    staleClosureDetector,
+    hallucinatedDependencyDetector,
+    tautologicalTestDetector,
+    contextAmplificationDetector,
+    cargoCultArchitectureDetector,
+    confabulatedAPIDetector,
+    partialSecurityControlDetector,
+    paradigmClashDetector,
+    velocityRiskDetector,
+    rulesFileIntegrityDetector,
+    specDriftDetector,
+    iacVulnerabilityDetector,
+    credentialExposureDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -33007,8 +36798,1809 @@ function requireApiKey(provider) {
   return key || "dummy";
 }
 
+// node_modules/balanced-match/dist/esm/index.js
+var balanced = (a, b, str) => {
+  const ma = a instanceof RegExp ? maybeMatch(a, str) : a;
+  const mb = b instanceof RegExp ? maybeMatch(b, str) : b;
+  const r = ma !== null && mb != null && range(ma, mb, str);
+  return r && {
+    start: r[0],
+    end: r[1],
+    pre: str.slice(0, r[0]),
+    body: str.slice(r[0] + ma.length, r[1]),
+    post: str.slice(r[1] + mb.length)
+  };
+};
+var maybeMatch = (reg, str) => {
+  const m = str.match(reg);
+  return m ? m[0] : null;
+};
+var range = (a, b, str) => {
+  let begs, beg, left, right = void 0, result;
+  let ai = str.indexOf(a);
+  let bi = str.indexOf(b, ai + 1);
+  let i = ai;
+  if (ai >= 0 && bi > 0) {
+    if (a === b) {
+      return [ai, bi];
+    }
+    begs = [];
+    left = str.length;
+    while (i >= 0 && !result) {
+      if (i === ai) {
+        begs.push(i);
+        ai = str.indexOf(a, i + 1);
+      } else if (begs.length === 1) {
+        const r = begs.pop();
+        if (r !== void 0)
+          result = [r, bi];
+      } else {
+        beg = begs.pop();
+        if (beg !== void 0 && beg < left) {
+          left = beg;
+          right = bi;
+        }
+        bi = str.indexOf(b, i + 1);
+      }
+      i = ai < bi && ai >= 0 ? ai : bi;
+    }
+    if (begs.length && right !== void 0) {
+      result = [left, right];
+    }
+  }
+  return result;
+};
+
+// node_modules/brace-expansion/dist/esm/index.js
+var escSlash = "\0SLASH" + Math.random() + "\0";
+var escOpen = "\0OPEN" + Math.random() + "\0";
+var escClose = "\0CLOSE" + Math.random() + "\0";
+var escComma = "\0COMMA" + Math.random() + "\0";
+var escPeriod = "\0PERIOD" + Math.random() + "\0";
+var escSlashPattern = new RegExp(escSlash, "g");
+var escOpenPattern = new RegExp(escOpen, "g");
+var escClosePattern = new RegExp(escClose, "g");
+var escCommaPattern = new RegExp(escComma, "g");
+var escPeriodPattern = new RegExp(escPeriod, "g");
+var slashPattern = /\\\\/g;
+var openPattern = /\\{/g;
+var closePattern = /\\}/g;
+var commaPattern = /\\,/g;
+var periodPattern = /\\\./g;
+var EXPANSION_MAX = 1e5;
+function numeric(str) {
+  return !isNaN(str) ? parseInt(str, 10) : str.charCodeAt(0);
+}
+function escapeBraces(str) {
+  return str.replace(slashPattern, escSlash).replace(openPattern, escOpen).replace(closePattern, escClose).replace(commaPattern, escComma).replace(periodPattern, escPeriod);
+}
+function unescapeBraces(str) {
+  return str.replace(escSlashPattern, "\\").replace(escOpenPattern, "{").replace(escClosePattern, "}").replace(escCommaPattern, ",").replace(escPeriodPattern, ".");
+}
+function parseCommaParts(str) {
+  if (!str) {
+    return [""];
+  }
+  const parts = [];
+  const m = balanced("{", "}", str);
+  if (!m) {
+    return str.split(",");
+  }
+  const { pre, body, post } = m;
+  const p = pre.split(",");
+  p[p.length - 1] += "{" + body + "}";
+  const postParts = parseCommaParts(post);
+  if (post.length) {
+    ;
+    p[p.length - 1] += postParts.shift();
+    p.push.apply(p, postParts);
+  }
+  parts.push.apply(parts, p);
+  return parts;
+}
+function expand2(str, options = {}) {
+  if (!str) {
+    return [];
+  }
+  const { max = EXPANSION_MAX } = options;
+  if (str.slice(0, 2) === "{}") {
+    str = "\\{\\}" + str.slice(2);
+  }
+  return expand_(escapeBraces(str), max, true).map(unescapeBraces);
+}
+function embrace(str) {
+  return "{" + str + "}";
+}
+function isPadded(el) {
+  return /^-?0\d/.test(el);
+}
+function lte(i, y) {
+  return i <= y;
+}
+function gte(i, y) {
+  return i >= y;
+}
+function expand_(str, max, isTop) {
+  const expansions = [];
+  const m = balanced("{", "}", str);
+  if (!m)
+    return [str];
+  const pre = m.pre;
+  const post = m.post.length ? expand_(m.post, max, false) : [""];
+  if (/\$$/.test(m.pre)) {
+    for (let k = 0; k < post.length && k < max; k++) {
+      const expansion = pre + "{" + m.body + "}" + post[k];
+      expansions.push(expansion);
+    }
+  } else {
+    const isNumericSequence = /^-?\d+\.\.-?\d+(?:\.\.-?\d+)?$/.test(m.body);
+    const isAlphaSequence = /^[a-zA-Z]\.\.[a-zA-Z](?:\.\.-?\d+)?$/.test(m.body);
+    const isSequence = isNumericSequence || isAlphaSequence;
+    const isOptions = m.body.indexOf(",") >= 0;
+    if (!isSequence && !isOptions) {
+      if (m.post.match(/,(?!,).*\}/)) {
+        str = m.pre + "{" + m.body + escClose + m.post;
+        return expand_(str, max, true);
+      }
+      return [str];
+    }
+    let n;
+    if (isSequence) {
+      n = m.body.split(/\.\./);
+    } else {
+      n = parseCommaParts(m.body);
+      if (n.length === 1 && n[0] !== void 0) {
+        n = expand_(n[0], max, false).map(embrace);
+        if (n.length === 1) {
+          return post.map((p) => m.pre + n[0] + p);
+        }
+      }
+    }
+    let N;
+    if (isSequence && n[0] !== void 0 && n[1] !== void 0) {
+      const x = numeric(n[0]);
+      const y = numeric(n[1]);
+      const width = Math.max(n[0].length, n[1].length);
+      let incr = n.length === 3 && n[2] !== void 0 ? Math.max(Math.abs(numeric(n[2])), 1) : 1;
+      let test = lte;
+      const reverse = y < x;
+      if (reverse) {
+        incr *= -1;
+        test = gte;
+      }
+      const pad = n.some(isPadded);
+      N = [];
+      for (let i = x; test(i, y) && N.length < max; i += incr) {
+        let c;
+        if (isAlphaSequence) {
+          c = String.fromCharCode(i);
+          if (c === "\\") {
+            c = "";
+          }
+        } else {
+          c = String(i);
+          if (pad) {
+            const need = width - c.length;
+            if (need > 0) {
+              const z2 = new Array(need + 1).join("0");
+              if (i < 0) {
+                c = "-" + z2 + c.slice(1);
+              } else {
+                c = z2 + c;
+              }
+            }
+          }
+        }
+        N.push(c);
+      }
+    } else {
+      N = [];
+      for (let j = 0; j < n.length; j++) {
+        N.push.apply(N, expand_(n[j], max, false));
+      }
+    }
+    for (let j = 0; j < N.length; j++) {
+      for (let k = 0; k < post.length && expansions.length < max; k++) {
+        const expansion = pre + N[j] + post[k];
+        if (!isTop || isSequence || expansion) {
+          expansions.push(expansion);
+        }
+      }
+    }
+  }
+  return expansions;
+}
+
+// node_modules/minimatch/dist/esm/assert-valid-pattern.js
+var MAX_PATTERN_LENGTH = 1024 * 64;
+var assertValidPattern = (pattern) => {
+  if (typeof pattern !== "string") {
+    throw new TypeError("invalid pattern");
+  }
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    throw new TypeError("pattern is too long");
+  }
+};
+
+// node_modules/minimatch/dist/esm/brace-expressions.js
+var posixClasses = {
+  "[:alnum:]": ["\\p{L}\\p{Nl}\\p{Nd}", true],
+  "[:alpha:]": ["\\p{L}\\p{Nl}", true],
+  "[:ascii:]": ["\\x00-\\x7f", false],
+  "[:blank:]": ["\\p{Zs}\\t", true],
+  "[:cntrl:]": ["\\p{Cc}", true],
+  "[:digit:]": ["\\p{Nd}", true],
+  "[:graph:]": ["\\p{Z}\\p{C}", true, true],
+  "[:lower:]": ["\\p{Ll}", true],
+  "[:print:]": ["\\p{C}", true],
+  "[:punct:]": ["\\p{P}", true],
+  "[:space:]": ["\\p{Z}\\t\\r\\n\\v\\f", true],
+  "[:upper:]": ["\\p{Lu}", true],
+  "[:word:]": ["\\p{L}\\p{Nl}\\p{Nd}\\p{Pc}", true],
+  "[:xdigit:]": ["A-Fa-f0-9", false]
+};
+var braceEscape = (s) => s.replace(/[[\]\\-]/g, "\\$&");
+var regexpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+var rangesToString = (ranges) => ranges.join("");
+var parseClass = (glob, position) => {
+  const pos = position;
+  if (glob.charAt(pos) !== "[") {
+    throw new Error("not in a brace expression");
+  }
+  const ranges = [];
+  const negs = [];
+  let i = pos + 1;
+  let sawStart = false;
+  let uflag = false;
+  let escaping = false;
+  let negate = false;
+  let endPos = pos;
+  let rangeStart = "";
+  WHILE: while (i < glob.length) {
+    const c = glob.charAt(i);
+    if ((c === "!" || c === "^") && i === pos + 1) {
+      negate = true;
+      i++;
+      continue;
+    }
+    if (c === "]" && sawStart && !escaping) {
+      endPos = i + 1;
+      break;
+    }
+    sawStart = true;
+    if (c === "\\") {
+      if (!escaping) {
+        escaping = true;
+        i++;
+        continue;
+      }
+    }
+    if (c === "[" && !escaping) {
+      for (const [cls, [unip, u, neg]] of Object.entries(posixClasses)) {
+        if (glob.startsWith(cls, i)) {
+          if (rangeStart) {
+            return ["$.", false, glob.length - pos, true];
+          }
+          i += cls.length;
+          if (neg)
+            negs.push(unip);
+          else
+            ranges.push(unip);
+          uflag = uflag || u;
+          continue WHILE;
+        }
+      }
+    }
+    escaping = false;
+    if (rangeStart) {
+      if (c > rangeStart) {
+        ranges.push(braceEscape(rangeStart) + "-" + braceEscape(c));
+      } else if (c === rangeStart) {
+        ranges.push(braceEscape(c));
+      }
+      rangeStart = "";
+      i++;
+      continue;
+    }
+    if (glob.startsWith("-]", i + 1)) {
+      ranges.push(braceEscape(c + "-"));
+      i += 2;
+      continue;
+    }
+    if (glob.startsWith("-", i + 1)) {
+      rangeStart = c;
+      i += 2;
+      continue;
+    }
+    ranges.push(braceEscape(c));
+    i++;
+  }
+  if (endPos < i) {
+    return ["", false, 0, false];
+  }
+  if (!ranges.length && !negs.length) {
+    return ["$.", false, glob.length - pos, true];
+  }
+  if (negs.length === 0 && ranges.length === 1 && /^\\?.$/.test(ranges[0]) && !negate) {
+    const r = ranges[0].length === 2 ? ranges[0].slice(-1) : ranges[0];
+    return [regexpEscape(r), false, endPos - pos, false];
+  }
+  const sranges = "[" + (negate ? "^" : "") + rangesToString(ranges) + "]";
+  const snegs = "[" + (negate ? "" : "^") + rangesToString(negs) + "]";
+  const comb = ranges.length && negs.length ? "(" + sranges + "|" + snegs + ")" : ranges.length ? sranges : snegs;
+  return [comb, uflag, endPos - pos, true];
+};
+
+// node_modules/minimatch/dist/esm/unescape.js
+var unescape = (s, { windowsPathsNoEscape = false, magicalBraces = true } = {}) => {
+  if (magicalBraces) {
+    return windowsPathsNoEscape ? s.replace(/\[([^/\\])\]/g, "$1") : s.replace(/((?!\\).|^)\[([^/\\])\]/g, "$1$2").replace(/\\([^/])/g, "$1");
+  }
+  return windowsPathsNoEscape ? s.replace(/\[([^/\\{}])\]/g, "$1") : s.replace(/((?!\\).|^)\[([^/\\{}])\]/g, "$1$2").replace(/\\([^/{}])/g, "$1");
+};
+
+// node_modules/minimatch/dist/esm/ast.js
+var _a;
+var types = /* @__PURE__ */ new Set(["!", "?", "+", "*", "@"]);
+var isExtglobType = (c) => types.has(c);
+var isExtglobAST = (c) => isExtglobType(c.type);
+var adoptionMap = /* @__PURE__ */ new Map([
+  ["!", ["@"]],
+  ["?", ["?", "@"]],
+  ["@", ["@"]],
+  ["*", ["*", "+", "?", "@"]],
+  ["+", ["+", "@"]]
+]);
+var adoptionWithSpaceMap = /* @__PURE__ */ new Map([
+  ["!", ["?"]],
+  ["@", ["?"]],
+  ["+", ["?", "*"]]
+]);
+var adoptionAnyMap = /* @__PURE__ */ new Map([
+  ["!", ["?", "@"]],
+  ["?", ["?", "@"]],
+  ["@", ["?", "@"]],
+  ["*", ["*", "+", "?", "@"]],
+  ["+", ["+", "@", "?", "*"]]
+]);
+var usurpMap = /* @__PURE__ */ new Map([
+  ["!", /* @__PURE__ */ new Map([["!", "@"]])],
+  [
+    "?",
+    /* @__PURE__ */ new Map([
+      ["*", "*"],
+      ["+", "*"]
+    ])
+  ],
+  [
+    "@",
+    /* @__PURE__ */ new Map([
+      ["!", "!"],
+      ["?", "?"],
+      ["@", "@"],
+      ["*", "*"],
+      ["+", "+"]
+    ])
+  ],
+  [
+    "+",
+    /* @__PURE__ */ new Map([
+      ["?", "*"],
+      ["*", "*"]
+    ])
+  ]
+]);
+var startNoTraversal = "(?!(?:^|/)\\.\\.?(?:$|/))";
+var startNoDot = "(?!\\.)";
+var addPatternStart = /* @__PURE__ */ new Set(["[", "."]);
+var justDots = /* @__PURE__ */ new Set(["..", "."]);
+var reSpecials = new Set("().*{}+?[]^$\\!");
+var regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+var qmark = "[^/]";
+var star = qmark + "*?";
+var starNoEmpty = qmark + "+?";
+var ID = 0;
+var AST = class {
+  type;
+  #root;
+  #hasMagic;
+  #uflag = false;
+  #parts = [];
+  #parent;
+  #parentIndex;
+  #negs;
+  #filledNegs = false;
+  #options;
+  #toString;
+  // set to true if it's an extglob with no children
+  // (which really means one child of '')
+  #emptyExt = false;
+  id = ++ID;
+  get depth() {
+    return (this.#parent?.depth ?? -1) + 1;
+  }
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+    return {
+      "@@type": "AST",
+      id: this.id,
+      type: this.type,
+      root: this.#root.id,
+      parent: this.#parent?.id,
+      depth: this.depth,
+      partsLength: this.#parts.length,
+      parts: this.#parts
+    };
+  }
+  constructor(type, parent, options = {}) {
+    this.type = type;
+    if (type)
+      this.#hasMagic = true;
+    this.#parent = parent;
+    this.#root = this.#parent ? this.#parent.#root : this;
+    this.#options = this.#root === this ? options : this.#root.#options;
+    this.#negs = this.#root === this ? [] : this.#root.#negs;
+    if (type === "!" && !this.#root.#filledNegs)
+      this.#negs.push(this);
+    this.#parentIndex = this.#parent ? this.#parent.#parts.length : 0;
+  }
+  get hasMagic() {
+    if (this.#hasMagic !== void 0)
+      return this.#hasMagic;
+    for (const p of this.#parts) {
+      if (typeof p === "string")
+        continue;
+      if (p.type || p.hasMagic)
+        return this.#hasMagic = true;
+    }
+    return this.#hasMagic;
+  }
+  // reconstructs the pattern
+  toString() {
+    return this.#toString !== void 0 ? this.#toString : !this.type ? this.#toString = this.#parts.map((p) => String(p)).join("") : this.#toString = this.type + "(" + this.#parts.map((p) => String(p)).join("|") + ")";
+  }
+  #fillNegs() {
+    if (this !== this.#root)
+      throw new Error("should only call on root");
+    if (this.#filledNegs)
+      return this;
+    this.toString();
+    this.#filledNegs = true;
+    let n;
+    while (n = this.#negs.pop()) {
+      if (n.type !== "!")
+        continue;
+      let p = n;
+      let pp = p.#parent;
+      while (pp) {
+        for (let i = p.#parentIndex + 1; !pp.type && i < pp.#parts.length; i++) {
+          for (const part of n.#parts) {
+            if (typeof part === "string") {
+              throw new Error("string part in extglob AST??");
+            }
+            part.copyIn(pp.#parts[i]);
+          }
+        }
+        p = pp;
+        pp = p.#parent;
+      }
+    }
+    return this;
+  }
+  push(...parts) {
+    for (const p of parts) {
+      if (p === "")
+        continue;
+      if (typeof p !== "string" && !(p instanceof _a && p.#parent === this)) {
+        throw new Error("invalid part: " + p);
+      }
+      this.#parts.push(p);
+    }
+  }
+  toJSON() {
+    const ret = this.type === null ? this.#parts.slice().map((p) => typeof p === "string" ? p : p.toJSON()) : [this.type, ...this.#parts.map((p) => p.toJSON())];
+    if (this.isStart() && !this.type)
+      ret.unshift([]);
+    if (this.isEnd() && (this === this.#root || this.#root.#filledNegs && this.#parent?.type === "!")) {
+      ret.push({});
+    }
+    return ret;
+  }
+  isStart() {
+    if (this.#root === this)
+      return true;
+    if (!this.#parent?.isStart())
+      return false;
+    if (this.#parentIndex === 0)
+      return true;
+    const p = this.#parent;
+    for (let i = 0; i < this.#parentIndex; i++) {
+      const pp = p.#parts[i];
+      if (!(pp instanceof _a && pp.type === "!")) {
+        return false;
+      }
+    }
+    return true;
+  }
+  isEnd() {
+    if (this.#root === this)
+      return true;
+    if (this.#parent?.type === "!")
+      return true;
+    if (!this.#parent?.isEnd())
+      return false;
+    if (!this.type)
+      return this.#parent?.isEnd();
+    const pl = this.#parent ? this.#parent.#parts.length : 0;
+    return this.#parentIndex === pl - 1;
+  }
+  copyIn(part) {
+    if (typeof part === "string")
+      this.push(part);
+    else
+      this.push(part.clone(this));
+  }
+  clone(parent) {
+    const c = new _a(this.type, parent);
+    for (const p of this.#parts) {
+      c.copyIn(p);
+    }
+    return c;
+  }
+  static #parseAST(str, ast, pos, opt, extDepth) {
+    const maxDepth = opt.maxExtglobRecursion ?? 2;
+    let escaping = false;
+    let inBrace = false;
+    let braceStart = -1;
+    let braceNeg = false;
+    if (ast.type === null) {
+      let i2 = pos;
+      let acc2 = "";
+      while (i2 < str.length) {
+        const c = str.charAt(i2++);
+        if (escaping || c === "\\") {
+          escaping = !escaping;
+          acc2 += c;
+          continue;
+        }
+        if (inBrace) {
+          if (i2 === braceStart + 1) {
+            if (c === "^" || c === "!") {
+              braceNeg = true;
+            }
+          } else if (c === "]" && !(i2 === braceStart + 2 && braceNeg)) {
+            inBrace = false;
+          }
+          acc2 += c;
+          continue;
+        } else if (c === "[") {
+          inBrace = true;
+          braceStart = i2;
+          braceNeg = false;
+          acc2 += c;
+          continue;
+        }
+        const doRecurse = !opt.noext && isExtglobType(c) && str.charAt(i2) === "(" && extDepth <= maxDepth;
+        if (doRecurse) {
+          ast.push(acc2);
+          acc2 = "";
+          const ext2 = new _a(c, ast);
+          i2 = _a.#parseAST(str, ext2, i2, opt, extDepth + 1);
+          ast.push(ext2);
+          continue;
+        }
+        acc2 += c;
+      }
+      ast.push(acc2);
+      return i2;
+    }
+    let i = pos + 1;
+    let part = new _a(null, ast);
+    const parts = [];
+    let acc = "";
+    while (i < str.length) {
+      const c = str.charAt(i++);
+      if (escaping || c === "\\") {
+        escaping = !escaping;
+        acc += c;
+        continue;
+      }
+      if (inBrace) {
+        if (i === braceStart + 1) {
+          if (c === "^" || c === "!") {
+            braceNeg = true;
+          }
+        } else if (c === "]" && !(i === braceStart + 2 && braceNeg)) {
+          inBrace = false;
+        }
+        acc += c;
+        continue;
+      } else if (c === "[") {
+        inBrace = true;
+        braceStart = i;
+        braceNeg = false;
+        acc += c;
+        continue;
+      }
+      const doRecurse = !opt.noext && isExtglobType(c) && str.charAt(i) === "(" && /* c8 ignore start - the maxDepth is sufficient here */
+      (extDepth <= maxDepth || ast && ast.#canAdoptType(c));
+      if (doRecurse) {
+        const depthAdd = ast && ast.#canAdoptType(c) ? 0 : 1;
+        part.push(acc);
+        acc = "";
+        const ext2 = new _a(c, part);
+        part.push(ext2);
+        i = _a.#parseAST(str, ext2, i, opt, extDepth + depthAdd);
+        continue;
+      }
+      if (c === "|") {
+        part.push(acc);
+        acc = "";
+        parts.push(part);
+        part = new _a(null, ast);
+        continue;
+      }
+      if (c === ")") {
+        if (acc === "" && ast.#parts.length === 0) {
+          ast.#emptyExt = true;
+        }
+        part.push(acc);
+        acc = "";
+        ast.push(...parts, part);
+        return i;
+      }
+      acc += c;
+    }
+    ast.type = null;
+    ast.#hasMagic = void 0;
+    ast.#parts = [str.substring(pos - 1)];
+    return i;
+  }
+  #canAdoptWithSpace(child) {
+    return this.#canAdopt(child, adoptionWithSpaceMap);
+  }
+  #canAdopt(child, map2 = adoptionMap) {
+    if (!child || typeof child !== "object" || child.type !== null || child.#parts.length !== 1 || this.type === null) {
+      return false;
+    }
+    const gc = child.#parts[0];
+    if (!gc || typeof gc !== "object" || gc.type === null) {
+      return false;
+    }
+    return this.#canAdoptType(gc.type, map2);
+  }
+  #canAdoptType(c, map2 = adoptionAnyMap) {
+    return !!map2.get(this.type)?.includes(c);
+  }
+  #adoptWithSpace(child, index) {
+    const gc = child.#parts[0];
+    const blank = new _a(null, gc, this.options);
+    blank.#parts.push("");
+    gc.push(blank);
+    this.#adopt(child, index);
+  }
+  #adopt(child, index) {
+    const gc = child.#parts[0];
+    this.#parts.splice(index, 1, ...gc.#parts);
+    for (const p of gc.#parts) {
+      if (typeof p === "object")
+        p.#parent = this;
+    }
+    this.#toString = void 0;
+  }
+  #canUsurpType(c) {
+    const m = usurpMap.get(this.type);
+    return !!m?.has(c);
+  }
+  #canUsurp(child) {
+    if (!child || typeof child !== "object" || child.type !== null || child.#parts.length !== 1 || this.type === null || this.#parts.length !== 1) {
+      return false;
+    }
+    const gc = child.#parts[0];
+    if (!gc || typeof gc !== "object" || gc.type === null) {
+      return false;
+    }
+    return this.#canUsurpType(gc.type);
+  }
+  #usurp(child) {
+    const m = usurpMap.get(this.type);
+    const gc = child.#parts[0];
+    const nt = m?.get(gc.type);
+    if (!nt)
+      return false;
+    this.#parts = gc.#parts;
+    for (const p of this.#parts) {
+      if (typeof p === "object") {
+        p.#parent = this;
+      }
+    }
+    this.type = nt;
+    this.#toString = void 0;
+    this.#emptyExt = false;
+  }
+  static fromGlob(pattern, options = {}) {
+    const ast = new _a(null, void 0, options);
+    _a.#parseAST(pattern, ast, 0, options, 0);
+    return ast;
+  }
+  // returns the regular expression if there's magic, or the unescaped
+  // string if not.
+  toMMPattern() {
+    if (this !== this.#root)
+      return this.#root.toMMPattern();
+    const glob = this.toString();
+    const [re2, body, hasMagic, uflag] = this.toRegExpSource();
+    const anyMagic = hasMagic || this.#hasMagic || this.#options.nocase && !this.#options.nocaseMagicOnly && glob.toUpperCase() !== glob.toLowerCase();
+    if (!anyMagic) {
+      return body;
+    }
+    const flags = (this.#options.nocase ? "i" : "") + (uflag ? "u" : "");
+    return Object.assign(new RegExp(`^${re2}$`, flags), {
+      _src: re2,
+      _glob: glob
+    });
+  }
+  get options() {
+    return this.#options;
+  }
+  // returns the string match, the regexp source, whether there's magic
+  // in the regexp (so a regular expression is required) and whether or
+  // not the uflag is needed for the regular expression (for posix classes)
+  // TODO: instead of injecting the start/end at this point, just return
+  // the BODY of the regexp, along with the start/end portions suitable
+  // for binding the start/end in either a joined full-path makeRe context
+  // (where we bind to (^|/), or a standalone matchPart context (where
+  // we bind to ^, and not /).  Otherwise slashes get duped!
+  //
+  // In part-matching mode, the start is:
+  // - if not isStart: nothing
+  // - if traversal possible, but not allowed: ^(?!\.\.?$)
+  // - if dots allowed or not possible: ^
+  // - if dots possible and not allowed: ^(?!\.)
+  // end is:
+  // - if not isEnd(): nothing
+  // - else: $
+  //
+  // In full-path matching mode, we put the slash at the START of the
+  // pattern, so start is:
+  // - if first pattern: same as part-matching mode
+  // - if not isStart(): nothing
+  // - if traversal possible, but not allowed: /(?!\.\.?(?:$|/))
+  // - if dots allowed or not possible: /
+  // - if dots possible and not allowed: /(?!\.)
+  // end is:
+  // - if last pattern, same as part-matching mode
+  // - else nothing
+  //
+  // Always put the (?:$|/) on negated tails, though, because that has to be
+  // there to bind the end of the negated pattern portion, and it's easier to
+  // just stick it in now rather than try to inject it later in the middle of
+  // the pattern.
+  //
+  // We can just always return the same end, and leave it up to the caller
+  // to know whether it's going to be used joined or in parts.
+  // And, if the start is adjusted slightly, can do the same there:
+  // - if not isStart: nothing
+  // - if traversal possible, but not allowed: (?:/|^)(?!\.\.?$)
+  // - if dots allowed or not possible: (?:/|^)
+  // - if dots possible and not allowed: (?:/|^)(?!\.)
+  //
+  // But it's better to have a simpler binding without a conditional, for
+  // performance, so probably better to return both start options.
+  //
+  // Then the caller just ignores the end if it's not the first pattern,
+  // and the start always gets applied.
+  //
+  // But that's always going to be $ if it's the ending pattern, or nothing,
+  // so the caller can just attach $ at the end of the pattern when building.
+  //
+  // So the todo is:
+  // - better detect what kind of start is needed
+  // - return both flavors of starting pattern
+  // - attach $ at the end of the pattern when creating the actual RegExp
+  //
+  // Ah, but wait, no, that all only applies to the root when the first pattern
+  // is not an extglob. If the first pattern IS an extglob, then we need all
+  // that dot prevention biz to live in the extglob portions, because eg
+  // +(*|.x*) can match .xy but not .yx.
+  //
+  // So, return the two flavors if it's #root and the first child is not an
+  // AST, otherwise leave it to the child AST to handle it, and there,
+  // use the (?:^|/) style of start binding.
+  //
+  // Even simplified further:
+  // - Since the start for a join is eg /(?!\.) and the start for a part
+  // is ^(?!\.), we can just prepend (?!\.) to the pattern (either root
+  // or start or whatever) and prepend ^ or / at the Regexp construction.
+  toRegExpSource(allowDot) {
+    const dot = allowDot ?? !!this.#options.dot;
+    if (this.#root === this) {
+      this.#flatten();
+      this.#fillNegs();
+    }
+    if (!isExtglobAST(this)) {
+      const noEmpty = this.isStart() && this.isEnd() && !this.#parts.some((s) => typeof s !== "string");
+      const src = this.#parts.map((p) => {
+        const [re2, _, hasMagic, uflag] = typeof p === "string" ? _a.#parseGlob(p, this.#hasMagic, noEmpty) : p.toRegExpSource(allowDot);
+        this.#hasMagic = this.#hasMagic || hasMagic;
+        this.#uflag = this.#uflag || uflag;
+        return re2;
+      }).join("");
+      let start2 = "";
+      if (this.isStart()) {
+        if (typeof this.#parts[0] === "string") {
+          const dotTravAllowed = this.#parts.length === 1 && justDots.has(this.#parts[0]);
+          if (!dotTravAllowed) {
+            const aps = addPatternStart;
+            const needNoTrav = (
+              // dots are allowed, and the pattern starts with [ or .
+              dot && aps.has(src.charAt(0)) || // the pattern starts with \., and then [ or .
+              src.startsWith("\\.") && aps.has(src.charAt(2)) || // the pattern starts with \.\., and then [ or .
+              src.startsWith("\\.\\.") && aps.has(src.charAt(4))
+            );
+            const needNoDot = !dot && !allowDot && aps.has(src.charAt(0));
+            start2 = needNoTrav ? startNoTraversal : needNoDot ? startNoDot : "";
+          }
+        }
+      }
+      let end = "";
+      if (this.isEnd() && this.#root.#filledNegs && this.#parent?.type === "!") {
+        end = "(?:$|\\/)";
+      }
+      const final2 = start2 + src + end;
+      return [
+        final2,
+        unescape(src),
+        this.#hasMagic = !!this.#hasMagic,
+        this.#uflag
+      ];
+    }
+    const repeated = this.type === "*" || this.type === "+";
+    const start = this.type === "!" ? "(?:(?!(?:" : "(?:";
+    let body = this.#partsToRegExp(dot);
+    if (this.isStart() && this.isEnd() && !body && this.type !== "!") {
+      const s = this.toString();
+      const me = this;
+      me.#parts = [s];
+      me.type = null;
+      me.#hasMagic = void 0;
+      return [s, unescape(this.toString()), false, false];
+    }
+    let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : this.#partsToRegExp(true);
+    if (bodyDotAllowed === body) {
+      bodyDotAllowed = "";
+    }
+    if (bodyDotAllowed) {
+      body = `(?:${body})(?:${bodyDotAllowed})*?`;
+    }
+    let final = "";
+    if (this.type === "!" && this.#emptyExt) {
+      final = (this.isStart() && !dot ? startNoDot : "") + starNoEmpty;
+    } else {
+      const close = this.type === "!" ? (
+        // !() must match something,but !(x) can match ''
+        "))" + (this.isStart() && !dot && !allowDot ? startNoDot : "") + star + ")"
+      ) : this.type === "@" ? ")" : this.type === "?" ? ")?" : this.type === "+" && bodyDotAllowed ? ")" : this.type === "*" && bodyDotAllowed ? `)?` : `)${this.type}`;
+      final = start + body + close;
+    }
+    return [
+      final,
+      unescape(body),
+      this.#hasMagic = !!this.#hasMagic,
+      this.#uflag
+    ];
+  }
+  #flatten() {
+    if (!isExtglobAST(this)) {
+      for (const p of this.#parts) {
+        if (typeof p === "object") {
+          p.#flatten();
+        }
+      }
+    } else {
+      let iterations = 0;
+      let done = false;
+      do {
+        done = true;
+        for (let i = 0; i < this.#parts.length; i++) {
+          const c = this.#parts[i];
+          if (typeof c === "object") {
+            c.#flatten();
+            if (this.#canAdopt(c)) {
+              done = false;
+              this.#adopt(c, i);
+            } else if (this.#canAdoptWithSpace(c)) {
+              done = false;
+              this.#adoptWithSpace(c, i);
+            } else if (this.#canUsurp(c)) {
+              done = false;
+              this.#usurp(c);
+            }
+          }
+        }
+      } while (!done && ++iterations < 10);
+    }
+    this.#toString = void 0;
+  }
+  #partsToRegExp(dot) {
+    return this.#parts.map((p) => {
+      if (typeof p === "string") {
+        throw new Error("string type in extglob ast??");
+      }
+      const [re2, _, _hasMagic, uflag] = p.toRegExpSource(dot);
+      this.#uflag = this.#uflag || uflag;
+      return re2;
+    }).filter((p) => !(this.isStart() && this.isEnd()) || !!p).join("|");
+  }
+  static #parseGlob(glob, hasMagic, noEmpty = false) {
+    let escaping = false;
+    let re2 = "";
+    let uflag = false;
+    let inStar = false;
+    for (let i = 0; i < glob.length; i++) {
+      const c = glob.charAt(i);
+      if (escaping) {
+        escaping = false;
+        re2 += (reSpecials.has(c) ? "\\" : "") + c;
+        continue;
+      }
+      if (c === "*") {
+        if (inStar)
+          continue;
+        inStar = true;
+        re2 += noEmpty && /^[*]+$/.test(glob) ? starNoEmpty : star;
+        hasMagic = true;
+        continue;
+      } else {
+        inStar = false;
+      }
+      if (c === "\\") {
+        if (i === glob.length - 1) {
+          re2 += "\\\\";
+        } else {
+          escaping = true;
+        }
+        continue;
+      }
+      if (c === "[") {
+        const [src, needUflag, consumed, magic] = parseClass(glob, i);
+        if (consumed) {
+          re2 += src;
+          uflag = uflag || needUflag;
+          i += consumed - 1;
+          hasMagic = hasMagic || magic;
+          continue;
+        }
+      }
+      if (c === "?") {
+        re2 += qmark;
+        hasMagic = true;
+        continue;
+      }
+      re2 += regExpEscape(c);
+    }
+    return [re2, unescape(glob), !!hasMagic, uflag];
+  }
+};
+_a = AST;
+
+// node_modules/minimatch/dist/esm/escape.js
+var escape = (s, { windowsPathsNoEscape = false, magicalBraces = false } = {}) => {
+  if (magicalBraces) {
+    return windowsPathsNoEscape ? s.replace(/[?*()[\]{}]/g, "[$&]") : s.replace(/[?*()[\]\\{}]/g, "\\$&");
+  }
+  return windowsPathsNoEscape ? s.replace(/[?*()[\]]/g, "[$&]") : s.replace(/[?*()[\]\\]/g, "\\$&");
+};
+
+// node_modules/minimatch/dist/esm/index.js
+var minimatch = (p, pattern, options = {}) => {
+  assertValidPattern(pattern);
+  if (!options.nocomment && pattern.charAt(0) === "#") {
+    return false;
+  }
+  return new Minimatch(pattern, options).match(p);
+};
+var starDotExtRE = /^\*+([^+@!?*[(]*)$/;
+var starDotExtTest = (ext2) => (f) => !f.startsWith(".") && f.endsWith(ext2);
+var starDotExtTestDot = (ext2) => (f) => f.endsWith(ext2);
+var starDotExtTestNocase = (ext2) => {
+  ext2 = ext2.toLowerCase();
+  return (f) => !f.startsWith(".") && f.toLowerCase().endsWith(ext2);
+};
+var starDotExtTestNocaseDot = (ext2) => {
+  ext2 = ext2.toLowerCase();
+  return (f) => f.toLowerCase().endsWith(ext2);
+};
+var starDotStarRE = /^\*+\.\*+$/;
+var starDotStarTest = (f) => !f.startsWith(".") && f.includes(".");
+var starDotStarTestDot = (f) => f !== "." && f !== ".." && f.includes(".");
+var dotStarRE = /^\.\*+$/;
+var dotStarTest = (f) => f !== "." && f !== ".." && f.startsWith(".");
+var starRE = /^\*+$/;
+var starTest = (f) => f.length !== 0 && !f.startsWith(".");
+var starTestDot = (f) => f.length !== 0 && f !== "." && f !== "..";
+var qmarksRE = /^\?+([^+@!?*[(]*)?$/;
+var qmarksTestNocase = ([$0, ext2 = ""]) => {
+  const noext = qmarksTestNoExt([$0]);
+  if (!ext2)
+    return noext;
+  ext2 = ext2.toLowerCase();
+  return (f) => noext(f) && f.toLowerCase().endsWith(ext2);
+};
+var qmarksTestNocaseDot = ([$0, ext2 = ""]) => {
+  const noext = qmarksTestNoExtDot([$0]);
+  if (!ext2)
+    return noext;
+  ext2 = ext2.toLowerCase();
+  return (f) => noext(f) && f.toLowerCase().endsWith(ext2);
+};
+var qmarksTestDot = ([$0, ext2 = ""]) => {
+  const noext = qmarksTestNoExtDot([$0]);
+  return !ext2 ? noext : (f) => noext(f) && f.endsWith(ext2);
+};
+var qmarksTest = ([$0, ext2 = ""]) => {
+  const noext = qmarksTestNoExt([$0]);
+  return !ext2 ? noext : (f) => noext(f) && f.endsWith(ext2);
+};
+var qmarksTestNoExt = ([$0]) => {
+  const len = $0.length;
+  return (f) => f.length === len && !f.startsWith(".");
+};
+var qmarksTestNoExtDot = ([$0]) => {
+  const len = $0.length;
+  return (f) => f.length === len && f !== "." && f !== "..";
+};
+var defaultPlatform = typeof process === "object" && process ? typeof process.env === "object" && process.env && process.env.__MINIMATCH_TESTING_PLATFORM__ || process.platform : "posix";
+var path2 = {
+  win32: { sep: "\\" },
+  posix: { sep: "/" }
+};
+var sep2 = defaultPlatform === "win32" ? path2.win32.sep : path2.posix.sep;
+minimatch.sep = sep2;
+var GLOBSTAR = /* @__PURE__ */ Symbol("globstar **");
+minimatch.GLOBSTAR = GLOBSTAR;
+var qmark2 = "[^/]";
+var star2 = qmark2 + "*?";
+var twoStarDot = "(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?";
+var twoStarNoDot = "(?:(?!(?:\\/|^)\\.).)*?";
+var filter = (pattern, options = {}) => (p) => minimatch(p, pattern, options);
+minimatch.filter = filter;
+var ext = (a, b = {}) => Object.assign({}, a, b);
+var defaults = (def) => {
+  if (!def || typeof def !== "object" || !Object.keys(def).length) {
+    return minimatch;
+  }
+  const orig = minimatch;
+  const m = (p, pattern, options = {}) => orig(p, pattern, ext(def, options));
+  return Object.assign(m, {
+    Minimatch: class Minimatch extends orig.Minimatch {
+      constructor(pattern, options = {}) {
+        super(pattern, ext(def, options));
+      }
+      static defaults(options) {
+        return orig.defaults(ext(def, options)).Minimatch;
+      }
+    },
+    AST: class AST extends orig.AST {
+      /* c8 ignore start */
+      constructor(type, parent, options = {}) {
+        super(type, parent, ext(def, options));
+      }
+      /* c8 ignore stop */
+      static fromGlob(pattern, options = {}) {
+        return orig.AST.fromGlob(pattern, ext(def, options));
+      }
+    },
+    unescape: (s, options = {}) => orig.unescape(s, ext(def, options)),
+    escape: (s, options = {}) => orig.escape(s, ext(def, options)),
+    filter: (pattern, options = {}) => orig.filter(pattern, ext(def, options)),
+    defaults: (options) => orig.defaults(ext(def, options)),
+    makeRe: (pattern, options = {}) => orig.makeRe(pattern, ext(def, options)),
+    braceExpand: (pattern, options = {}) => orig.braceExpand(pattern, ext(def, options)),
+    match: (list, pattern, options = {}) => orig.match(list, pattern, ext(def, options)),
+    sep: orig.sep,
+    GLOBSTAR
+  });
+};
+minimatch.defaults = defaults;
+var braceExpand = (pattern, options = {}) => {
+  assertValidPattern(pattern);
+  if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
+    return [pattern];
+  }
+  return expand2(pattern, { max: options.braceExpandMax });
+};
+minimatch.braceExpand = braceExpand;
+var makeRe = (pattern, options = {}) => new Minimatch(pattern, options).makeRe();
+minimatch.makeRe = makeRe;
+var match = (list, pattern, options = {}) => {
+  const mm = new Minimatch(pattern, options);
+  list = list.filter((f) => mm.match(f));
+  if (mm.options.nonull && !list.length) {
+    list.push(pattern);
+  }
+  return list;
+};
+minimatch.match = match;
+var globMagic = /[?*]|[+@!]\(.*?\)|\[|\]/;
+var regExpEscape2 = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+var Minimatch = class {
+  options;
+  set;
+  pattern;
+  windowsPathsNoEscape;
+  nonegate;
+  negate;
+  comment;
+  empty;
+  preserveMultipleSlashes;
+  partial;
+  globSet;
+  globParts;
+  nocase;
+  isWindows;
+  platform;
+  windowsNoMagicRoot;
+  maxGlobstarRecursion;
+  regexp;
+  constructor(pattern, options = {}) {
+    assertValidPattern(pattern);
+    options = options || {};
+    this.options = options;
+    this.maxGlobstarRecursion = options.maxGlobstarRecursion ?? 200;
+    this.pattern = pattern;
+    this.platform = options.platform || defaultPlatform;
+    this.isWindows = this.platform === "win32";
+    const awe = "allowWindowsEscape";
+    this.windowsPathsNoEscape = !!options.windowsPathsNoEscape || options[awe] === false;
+    if (this.windowsPathsNoEscape) {
+      this.pattern = this.pattern.replace(/\\/g, "/");
+    }
+    this.preserveMultipleSlashes = !!options.preserveMultipleSlashes;
+    this.regexp = null;
+    this.negate = false;
+    this.nonegate = !!options.nonegate;
+    this.comment = false;
+    this.empty = false;
+    this.partial = !!options.partial;
+    this.nocase = !!this.options.nocase;
+    this.windowsNoMagicRoot = options.windowsNoMagicRoot !== void 0 ? options.windowsNoMagicRoot : !!(this.isWindows && this.nocase);
+    this.globSet = [];
+    this.globParts = [];
+    this.set = [];
+    this.make();
+  }
+  hasMagic() {
+    if (this.options.magicalBraces && this.set.length > 1) {
+      return true;
+    }
+    for (const pattern of this.set) {
+      for (const part of pattern) {
+        if (typeof part !== "string")
+          return true;
+      }
+    }
+    return false;
+  }
+  debug(..._) {
+  }
+  make() {
+    const pattern = this.pattern;
+    const options = this.options;
+    if (!options.nocomment && pattern.charAt(0) === "#") {
+      this.comment = true;
+      return;
+    }
+    if (!pattern) {
+      this.empty = true;
+      return;
+    }
+    this.parseNegate();
+    this.globSet = [...new Set(this.braceExpand())];
+    if (options.debug) {
+      this.debug = (...args) => console.error(...args);
+    }
+    this.debug(this.pattern, this.globSet);
+    const rawGlobParts = this.globSet.map((s) => this.slashSplit(s));
+    this.globParts = this.preprocess(rawGlobParts);
+    this.debug(this.pattern, this.globParts);
+    let set2 = this.globParts.map((s, _, __) => {
+      if (this.isWindows && this.windowsNoMagicRoot) {
+        const isUNC = s[0] === "" && s[1] === "" && (s[2] === "?" || !globMagic.test(s[2])) && !globMagic.test(s[3]);
+        const isDrive = /^[a-z]:/i.test(s[0]);
+        if (isUNC) {
+          return [
+            ...s.slice(0, 4),
+            ...s.slice(4).map((ss) => this.parse(ss))
+          ];
+        } else if (isDrive) {
+          return [s[0], ...s.slice(1).map((ss) => this.parse(ss))];
+        }
+      }
+      return s.map((ss) => this.parse(ss));
+    });
+    this.debug(this.pattern, set2);
+    this.set = set2.filter((s) => s.indexOf(false) === -1);
+    if (this.isWindows) {
+      for (let i = 0; i < this.set.length; i++) {
+        const p = this.set[i];
+        if (p[0] === "" && p[1] === "" && this.globParts[i][2] === "?" && typeof p[3] === "string" && /^[a-z]:$/i.test(p[3])) {
+          p[2] = "?";
+        }
+      }
+    }
+    this.debug(this.pattern, this.set);
+  }
+  // various transforms to equivalent pattern sets that are
+  // faster to process in a filesystem walk.  The goal is to
+  // eliminate what we can, and push all ** patterns as far
+  // to the right as possible, even if it increases the number
+  // of patterns that we have to process.
+  preprocess(globParts) {
+    if (this.options.noglobstar) {
+      for (const partset of globParts) {
+        for (let j = 0; j < partset.length; j++) {
+          if (partset[j] === "**") {
+            partset[j] = "*";
+          }
+        }
+      }
+    }
+    const { optimizationLevel = 1 } = this.options;
+    if (optimizationLevel >= 2) {
+      globParts = this.firstPhasePreProcess(globParts);
+      globParts = this.secondPhasePreProcess(globParts);
+    } else if (optimizationLevel >= 1) {
+      globParts = this.levelOneOptimize(globParts);
+    } else {
+      globParts = this.adjascentGlobstarOptimize(globParts);
+    }
+    return globParts;
+  }
+  // just get rid of adjascent ** portions
+  adjascentGlobstarOptimize(globParts) {
+    return globParts.map((parts) => {
+      let gs = -1;
+      while (-1 !== (gs = parts.indexOf("**", gs + 1))) {
+        let i = gs;
+        while (parts[i + 1] === "**") {
+          i++;
+        }
+        if (i !== gs) {
+          parts.splice(gs, i - gs);
+        }
+      }
+      return parts;
+    });
+  }
+  // get rid of adjascent ** and resolve .. portions
+  levelOneOptimize(globParts) {
+    return globParts.map((parts) => {
+      parts = parts.reduce((set2, part) => {
+        const prev = set2[set2.length - 1];
+        if (part === "**" && prev === "**") {
+          return set2;
+        }
+        if (part === "..") {
+          if (prev && prev !== ".." && prev !== "." && prev !== "**") {
+            set2.pop();
+            return set2;
+          }
+        }
+        set2.push(part);
+        return set2;
+      }, []);
+      return parts.length === 0 ? [""] : parts;
+    });
+  }
+  levelTwoFileOptimize(parts) {
+    if (!Array.isArray(parts)) {
+      parts = this.slashSplit(parts);
+    }
+    let didSomething = false;
+    do {
+      didSomething = false;
+      if (!this.preserveMultipleSlashes) {
+        for (let i = 1; i < parts.length - 1; i++) {
+          const p = parts[i];
+          if (i === 1 && p === "" && parts[0] === "")
+            continue;
+          if (p === "." || p === "") {
+            didSomething = true;
+            parts.splice(i, 1);
+            i--;
+          }
+        }
+        if (parts[0] === "." && parts.length === 2 && (parts[1] === "." || parts[1] === "")) {
+          didSomething = true;
+          parts.pop();
+        }
+      }
+      let dd = 0;
+      while (-1 !== (dd = parts.indexOf("..", dd + 1))) {
+        const p = parts[dd - 1];
+        if (p && p !== "." && p !== ".." && p !== "**" && !(this.isWindows && /^[a-z]:$/i.test(p))) {
+          didSomething = true;
+          parts.splice(dd - 1, 2);
+          dd -= 2;
+        }
+      }
+    } while (didSomething);
+    return parts.length === 0 ? [""] : parts;
+  }
+  // First phase: single-pattern processing
+  // <pre> is 1 or more portions
+  // <rest> is 1 or more portions
+  // <p> is any portion other than ., .., '', or **
+  // <e> is . or ''
+  //
+  // **/.. is *brutal* for filesystem walking performance, because
+  // it effectively resets the recursive walk each time it occurs,
+  // and ** cannot be reduced out by a .. pattern part like a regexp
+  // or most strings (other than .., ., and '') can be.
+  //
+  // <pre>/**/../<p>/<p>/<rest> -> {<pre>/../<p>/<p>/<rest>,<pre>/**/<p>/<p>/<rest>}
+  // <pre>/<e>/<rest> -> <pre>/<rest>
+  // <pre>/<p>/../<rest> -> <pre>/<rest>
+  // **/**/<rest> -> **/<rest>
+  //
+  // **/*/<rest> -> */**/<rest> <== not valid because ** doesn't follow
+  // this WOULD be allowed if ** did follow symlinks, or * didn't
+  firstPhasePreProcess(globParts) {
+    let didSomething = false;
+    do {
+      didSomething = false;
+      for (let parts of globParts) {
+        let gs = -1;
+        while (-1 !== (gs = parts.indexOf("**", gs + 1))) {
+          let gss = gs;
+          while (parts[gss + 1] === "**") {
+            gss++;
+          }
+          if (gss > gs) {
+            parts.splice(gs + 1, gss - gs);
+          }
+          let next = parts[gs + 1];
+          const p = parts[gs + 2];
+          const p2 = parts[gs + 3];
+          if (next !== "..")
+            continue;
+          if (!p || p === "." || p === ".." || !p2 || p2 === "." || p2 === "..") {
+            continue;
+          }
+          didSomething = true;
+          parts.splice(gs, 1);
+          const other = parts.slice(0);
+          other[gs] = "**";
+          globParts.push(other);
+          gs--;
+        }
+        if (!this.preserveMultipleSlashes) {
+          for (let i = 1; i < parts.length - 1; i++) {
+            const p = parts[i];
+            if (i === 1 && p === "" && parts[0] === "")
+              continue;
+            if (p === "." || p === "") {
+              didSomething = true;
+              parts.splice(i, 1);
+              i--;
+            }
+          }
+          if (parts[0] === "." && parts.length === 2 && (parts[1] === "." || parts[1] === "")) {
+            didSomething = true;
+            parts.pop();
+          }
+        }
+        let dd = 0;
+        while (-1 !== (dd = parts.indexOf("..", dd + 1))) {
+          const p = parts[dd - 1];
+          if (p && p !== "." && p !== ".." && p !== "**") {
+            didSomething = true;
+            const needDot = dd === 1 && parts[dd + 1] === "**";
+            const splin = needDot ? ["."] : [];
+            parts.splice(dd - 1, 2, ...splin);
+            if (parts.length === 0)
+              parts.push("");
+            dd -= 2;
+          }
+        }
+      }
+    } while (didSomething);
+    return globParts;
+  }
+  // second phase: multi-pattern dedupes
+  // {<pre>/*/<rest>,<pre>/<p>/<rest>} -> <pre>/*/<rest>
+  // {<pre>/<rest>,<pre>/<rest>} -> <pre>/<rest>
+  // {<pre>/**/<rest>,<pre>/<rest>} -> <pre>/**/<rest>
+  //
+  // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
+  // ^-- not valid because ** doens't follow symlinks
+  secondPhasePreProcess(globParts) {
+    for (let i = 0; i < globParts.length - 1; i++) {
+      for (let j = i + 1; j < globParts.length; j++) {
+        const matched = this.partsMatch(globParts[i], globParts[j], !this.preserveMultipleSlashes);
+        if (matched) {
+          globParts[i] = [];
+          globParts[j] = matched;
+          break;
+        }
+      }
+    }
+    return globParts.filter((gs) => gs.length);
+  }
+  partsMatch(a, b, emptyGSMatch = false) {
+    let ai = 0;
+    let bi = 0;
+    let result = [];
+    let which = "";
+    while (ai < a.length && bi < b.length) {
+      if (a[ai] === b[bi]) {
+        result.push(which === "b" ? b[bi] : a[ai]);
+        ai++;
+        bi++;
+      } else if (emptyGSMatch && a[ai] === "**" && b[bi] === a[ai + 1]) {
+        result.push(a[ai]);
+        ai++;
+      } else if (emptyGSMatch && b[bi] === "**" && a[ai] === b[bi + 1]) {
+        result.push(b[bi]);
+        bi++;
+      } else if (a[ai] === "*" && b[bi] && (this.options.dot || !b[bi].startsWith(".")) && b[bi] !== "**") {
+        if (which === "b")
+          return false;
+        which = "a";
+        result.push(a[ai]);
+        ai++;
+        bi++;
+      } else if (b[bi] === "*" && a[ai] && (this.options.dot || !a[ai].startsWith(".")) && a[ai] !== "**") {
+        if (which === "a")
+          return false;
+        which = "b";
+        result.push(b[bi]);
+        ai++;
+        bi++;
+      } else {
+        return false;
+      }
+    }
+    return a.length === b.length && result;
+  }
+  parseNegate() {
+    if (this.nonegate)
+      return;
+    const pattern = this.pattern;
+    let negate = false;
+    let negateOffset = 0;
+    for (let i = 0; i < pattern.length && pattern.charAt(i) === "!"; i++) {
+      negate = !negate;
+      negateOffset++;
+    }
+    if (negateOffset)
+      this.pattern = pattern.slice(negateOffset);
+    this.negate = negate;
+  }
+  // set partial to true to test if, for example,
+  // "/a/b" matches the start of "/*/b/*/d"
+  // Partial means, if you run out of file before you run
+  // out of pattern, then that's fine, as long as all
+  // the parts match.
+  matchOne(file2, pattern, partial2 = false) {
+    let fileStartIndex = 0;
+    let patternStartIndex = 0;
+    if (this.isWindows) {
+      const fileDrive = typeof file2[0] === "string" && /^[a-z]:$/i.test(file2[0]);
+      const fileUNC = !fileDrive && file2[0] === "" && file2[1] === "" && file2[2] === "?" && /^[a-z]:$/i.test(file2[3]);
+      const patternDrive = typeof pattern[0] === "string" && /^[a-z]:$/i.test(pattern[0]);
+      const patternUNC = !patternDrive && pattern[0] === "" && pattern[1] === "" && pattern[2] === "?" && typeof pattern[3] === "string" && /^[a-z]:$/i.test(pattern[3]);
+      const fdi = fileUNC ? 3 : fileDrive ? 0 : void 0;
+      const pdi = patternUNC ? 3 : patternDrive ? 0 : void 0;
+      if (typeof fdi === "number" && typeof pdi === "number") {
+        const [fd, pd] = [
+          file2[fdi],
+          pattern[pdi]
+        ];
+        if (fd.toLowerCase() === pd.toLowerCase()) {
+          pattern[pdi] = fd;
+          patternStartIndex = pdi;
+          fileStartIndex = fdi;
+        }
+      }
+    }
+    const { optimizationLevel = 1 } = this.options;
+    if (optimizationLevel >= 2) {
+      file2 = this.levelTwoFileOptimize(file2);
+    }
+    if (pattern.includes(GLOBSTAR)) {
+      return this.#matchGlobstar(file2, pattern, partial2, fileStartIndex, patternStartIndex);
+    }
+    return this.#matchOne(file2, pattern, partial2, fileStartIndex, patternStartIndex);
+  }
+  #matchGlobstar(file2, pattern, partial2, fileIndex, patternIndex) {
+    const firstgs = pattern.indexOf(GLOBSTAR, patternIndex);
+    const lastgs = pattern.lastIndexOf(GLOBSTAR);
+    const [head, body, tail] = partial2 ? [
+      pattern.slice(patternIndex, firstgs),
+      pattern.slice(firstgs + 1),
+      []
+    ] : [
+      pattern.slice(patternIndex, firstgs),
+      pattern.slice(firstgs + 1, lastgs),
+      pattern.slice(lastgs + 1)
+    ];
+    if (head.length) {
+      const fileHead = file2.slice(fileIndex, fileIndex + head.length);
+      if (!this.#matchOne(fileHead, head, partial2, 0, 0)) {
+        return false;
+      }
+      fileIndex += head.length;
+      patternIndex += head.length;
+    }
+    let fileTailMatch = 0;
+    if (tail.length) {
+      if (tail.length + fileIndex > file2.length)
+        return false;
+      let tailStart = file2.length - tail.length;
+      if (this.#matchOne(file2, tail, partial2, tailStart, 0)) {
+        fileTailMatch = tail.length;
+      } else {
+        if (file2[file2.length - 1] !== "" || fileIndex + tail.length === file2.length) {
+          return false;
+        }
+        tailStart--;
+        if (!this.#matchOne(file2, tail, partial2, tailStart, 0)) {
+          return false;
+        }
+        fileTailMatch = tail.length + 1;
+      }
+    }
+    if (!body.length) {
+      let sawSome = !!fileTailMatch;
+      for (let i2 = fileIndex; i2 < file2.length - fileTailMatch; i2++) {
+        const f = String(file2[i2]);
+        sawSome = true;
+        if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+          return false;
+        }
+      }
+      return partial2 || sawSome;
+    }
+    const bodySegments = [[[], 0]];
+    let currentBody = bodySegments[0];
+    let nonGsParts = 0;
+    const nonGsPartsSums = [0];
+    for (const b of body) {
+      if (b === GLOBSTAR) {
+        nonGsPartsSums.push(nonGsParts);
+        currentBody = [[], 0];
+        bodySegments.push(currentBody);
+      } else {
+        currentBody[0].push(b);
+        nonGsParts++;
+      }
+    }
+    let i = bodySegments.length - 1;
+    const fileLength = file2.length - fileTailMatch;
+    for (const b of bodySegments) {
+      b[1] = fileLength - (nonGsPartsSums[i--] + b[0].length);
+    }
+    return !!this.#matchGlobStarBodySections(file2, bodySegments, fileIndex, 0, partial2, 0, !!fileTailMatch);
+  }
+  // return false for "nope, not matching"
+  // return null for "not matching, cannot keep trying"
+  #matchGlobStarBodySections(file2, bodySegments, fileIndex, bodyIndex, partial2, globStarDepth, sawTail) {
+    const bs = bodySegments[bodyIndex];
+    if (!bs) {
+      for (let i = fileIndex; i < file2.length; i++) {
+        sawTail = true;
+        const f = file2[i];
+        if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+          return false;
+        }
+      }
+      return sawTail;
+    }
+    const [body, after] = bs;
+    while (fileIndex <= after) {
+      const m = this.#matchOne(file2.slice(0, fileIndex + body.length), body, partial2, fileIndex, 0);
+      if (m && globStarDepth < this.maxGlobstarRecursion) {
+        const sub = this.#matchGlobStarBodySections(file2, bodySegments, fileIndex + body.length, bodyIndex + 1, partial2, globStarDepth + 1, sawTail);
+        if (sub !== false) {
+          return sub;
+        }
+      }
+      const f = file2[fileIndex];
+      if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+        return false;
+      }
+      fileIndex++;
+    }
+    return partial2 || null;
+  }
+  #matchOne(file2, pattern, partial2, fileIndex, patternIndex) {
+    let fi;
+    let pi;
+    let pl;
+    let fl;
+    for (fi = fileIndex, pi = patternIndex, fl = file2.length, pl = pattern.length; fi < fl && pi < pl; fi++, pi++) {
+      this.debug("matchOne loop");
+      let p = pattern[pi];
+      let f = file2[fi];
+      this.debug(pattern, p, f);
+      if (p === false || p === GLOBSTAR) {
+        return false;
+      }
+      let hit;
+      if (typeof p === "string") {
+        hit = f === p;
+        this.debug("string match", p, f, hit);
+      } else {
+        hit = p.test(f);
+        this.debug("pattern match", p, f, hit);
+      }
+      if (!hit)
+        return false;
+    }
+    if (fi === fl && pi === pl) {
+      return true;
+    } else if (fi === fl) {
+      return partial2;
+    } else if (pi === pl) {
+      return fi === fl - 1 && file2[fi] === "";
+    } else {
+      throw new Error("wtf?");
+    }
+  }
+  braceExpand() {
+    return braceExpand(this.pattern, this.options);
+  }
+  parse(pattern) {
+    assertValidPattern(pattern);
+    const options = this.options;
+    if (pattern === "**")
+      return GLOBSTAR;
+    if (pattern === "")
+      return "";
+    let m;
+    let fastTest = null;
+    if (m = pattern.match(starRE)) {
+      fastTest = options.dot ? starTestDot : starTest;
+    } else if (m = pattern.match(starDotExtRE)) {
+      fastTest = (options.nocase ? options.dot ? starDotExtTestNocaseDot : starDotExtTestNocase : options.dot ? starDotExtTestDot : starDotExtTest)(m[1]);
+    } else if (m = pattern.match(qmarksRE)) {
+      fastTest = (options.nocase ? options.dot ? qmarksTestNocaseDot : qmarksTestNocase : options.dot ? qmarksTestDot : qmarksTest)(m);
+    } else if (m = pattern.match(starDotStarRE)) {
+      fastTest = options.dot ? starDotStarTestDot : starDotStarTest;
+    } else if (m = pattern.match(dotStarRE)) {
+      fastTest = dotStarTest;
+    }
+    const re2 = AST.fromGlob(pattern, this.options).toMMPattern();
+    if (fastTest && typeof re2 === "object") {
+      Reflect.defineProperty(re2, "test", { value: fastTest });
+    }
+    return re2;
+  }
+  makeRe() {
+    if (this.regexp || this.regexp === false)
+      return this.regexp;
+    const set2 = this.set;
+    if (!set2.length) {
+      this.regexp = false;
+      return this.regexp;
+    }
+    const options = this.options;
+    const twoStar = options.noglobstar ? star2 : options.dot ? twoStarDot : twoStarNoDot;
+    const flags = new Set(options.nocase ? ["i"] : []);
+    let re2 = set2.map((pattern) => {
+      const pp = pattern.map((p) => {
+        if (p instanceof RegExp) {
+          for (const f of p.flags.split(""))
+            flags.add(f);
+        }
+        return typeof p === "string" ? regExpEscape2(p) : p === GLOBSTAR ? GLOBSTAR : p._src;
+      });
+      pp.forEach((p, i) => {
+        const next = pp[i + 1];
+        const prev = pp[i - 1];
+        if (p !== GLOBSTAR || prev === GLOBSTAR) {
+          return;
+        }
+        if (prev === void 0) {
+          if (next !== void 0 && next !== GLOBSTAR) {
+            pp[i + 1] = "(?:\\/|" + twoStar + "\\/)?" + next;
+          } else {
+            pp[i] = twoStar;
+          }
+        } else if (next === void 0) {
+          pp[i - 1] = prev + "(?:\\/|\\/" + twoStar + ")?";
+        } else if (next !== GLOBSTAR) {
+          pp[i - 1] = prev + "(?:\\/|\\/" + twoStar + "\\/)" + next;
+          pp[i + 1] = GLOBSTAR;
+        }
+      });
+      const filtered = pp.filter((p) => p !== GLOBSTAR);
+      if (this.partial && filtered.length >= 1) {
+        const prefixes = [];
+        for (let i = 1; i <= filtered.length; i++) {
+          prefixes.push(filtered.slice(0, i).join("/"));
+        }
+        return "(?:" + prefixes.join("|") + ")";
+      }
+      return filtered.join("/");
+    }).join("|");
+    const [open, close] = set2.length > 1 ? ["(?:", ")"] : ["", ""];
+    re2 = "^" + open + re2 + close + "$";
+    if (this.partial) {
+      re2 = "^(?:\\/|" + open + re2.slice(1, -1) + close + ")$";
+    }
+    if (this.negate)
+      re2 = "^(?!" + re2 + ").+$";
+    try {
+      this.regexp = new RegExp(re2, [...flags].join(""));
+    } catch {
+      this.regexp = false;
+    }
+    return this.regexp;
+  }
+  slashSplit(p) {
+    if (this.preserveMultipleSlashes) {
+      return p.split("/");
+    } else if (this.isWindows && /^\/\/[^/]+/.test(p)) {
+      return ["", ...p.split(/\/+/)];
+    } else {
+      return p.split(/\/+/);
+    }
+  }
+  match(f, partial2 = this.partial) {
+    this.debug("match", f, this.pattern);
+    if (this.comment) {
+      return false;
+    }
+    if (this.empty) {
+      return f === "";
+    }
+    if (f === "/" && partial2) {
+      return true;
+    }
+    const options = this.options;
+    if (this.isWindows) {
+      f = f.split("\\").join("/");
+    }
+    const ff = this.slashSplit(f);
+    this.debug(this.pattern, "split", ff);
+    const set2 = this.set;
+    this.debug(this.pattern, "set", set2);
+    let filename = ff[ff.length - 1];
+    if (!filename) {
+      for (let i = ff.length - 2; !filename && i >= 0; i--) {
+        filename = ff[i];
+      }
+    }
+    for (const pattern of set2) {
+      let file2 = ff;
+      if (options.matchBase && pattern.length === 1) {
+        file2 = [filename];
+      }
+      const hit = this.matchOne(file2, pattern, partial2);
+      if (hit) {
+        if (options.flipNegate) {
+          return true;
+        }
+        return !this.negate;
+      }
+    }
+    if (options.flipNegate) {
+      return false;
+    }
+    return this.negate;
+  }
+  static defaults(def) {
+    return minimatch.defaults(def).Minimatch;
+  }
+};
+minimatch.AST = AST;
+minimatch.Minimatch = Minimatch;
+minimatch.escape = escape;
+minimatch.unescape = unescape;
+
 // src/diff.ts
-import { minimatch } from "minimatch";
 async function fetchDiff(octokit, owner, repo, prNumber, excludePatterns) {
   try {
     const { data: diffText } = await octokit.pulls.get({
@@ -33096,7 +38688,6 @@ function stripPatchPII(diffText) {
 }
 
 // src/router.ts
-import { minimatch as minimatch2 } from "minimatch";
 function classifyDiff(totalLines, fileCount, changedFiles, config2) {
   if (!config2.tierRouting) {
     return { tier: "standard", reason: "tier routing disabled" };
@@ -33110,7 +38701,7 @@ function classifyDiff(totalLines, fileCount, changedFiles, config2) {
   return { tier: "standard", reason: "normal diff" };
 }
 function matchesSecurityPath(files, patterns) {
-  return files.some((f) => patterns.some((p) => minimatch2(f, p)));
+  return files.some((f) => patterns.some((p) => minimatch(f, p)));
 }
 function estimateTokens(text2) {
   return Math.ceil(text2.length / 4);
@@ -33225,13 +38816,13 @@ function buildPositionHint(files) {
 
 // src/memory.ts
 import * as fs2 from "node:fs";
-import * as path2 from "node:path";
+import * as path3 from "node:path";
 import * as core2 from "@actions/core";
 var MAX_MEMORY_BYTES = 2048;
 var MEMORY_FILENAME = "mizumi-memory.md";
 var CONSOLIDATE_THRESHOLD = 0.8;
 function readMemory(workspace) {
-  const memoryPath = path2.join(workspace, ".github", MEMORY_FILENAME);
+  const memoryPath = path3.join(workspace, ".github", MEMORY_FILENAME);
   if (!fs2.existsSync(memoryPath)) return "";
   try {
     const content = fs2.readFileSync(memoryPath, "utf-8");
@@ -33243,8 +38834,8 @@ function readMemory(workspace) {
   }
 }
 function writeMemory(workspace, currentMemory, reviewFindings) {
-  const memoryDir = path2.join(workspace, ".github");
-  const memoryPath = path2.join(memoryDir, MEMORY_FILENAME);
+  const memoryDir = path3.join(workspace, ".github");
+  const memoryPath = path3.join(memoryDir, MEMORY_FILENAME);
   let updated = currentMemory;
   if (reviewFindings.trim()) {
     updated += `
@@ -33292,7 +38883,7 @@ function ghostWarnings(memoryContent, changedFiles) {
   const lines = memoryContent.split("\n");
   for (const line of lines) {
     for (const file2 of changedFiles) {
-      const basename7 = path2.basename(file2);
+      const basename7 = path3.basename(file2);
       if (line.includes(file2) || line.includes(basename7)) {
         const summary = line.replace(/^[-*]\s*/, "").trim();
         if (summary && !warnings.includes(summary)) {
@@ -33302,6 +38893,151 @@ function ghostWarnings(memoryContent, changedFiles) {
     }
   }
   return warnings.slice(0, 5);
+}
+var CATEGORY_PROCEDURES = {
+  security: {
+    steps: [
+      "Check for input validation on all external boundaries",
+      "Verify authentication/authorization on sensitive operations",
+      "Look for injection vectors (SQL, XSS, command)",
+      "Check for hardcoded secrets or credentials",
+      "Verify secure defaults (fail-closed, deny-by-default)"
+    ],
+    pitfalls: [
+      "Assuming client-side validation is sufficient",
+      "Missing rate limiting on auth endpoints",
+      "Using string concatenation for queries"
+    ],
+    verification: [
+      "All untrusted inputs are sanitized before use",
+      "Auth checks are not bypassable by parameter tampering",
+      "No secrets in source or config files"
+    ]
+  },
+  bug: {
+    steps: [
+      "Verify null/undefined checks before property access",
+      "Check error handling completeness (all error paths)",
+      "Validate boundary conditions and off-by-one errors",
+      "Verify type assumptions match actual runtime types",
+      "Check for race conditions in async code"
+    ],
+    pitfalls: [
+      "Assuming optional fields are always present",
+      "Ignoring error return values",
+      "Mutating shared state without synchronization"
+    ],
+    verification: [
+      "All nullable access paths are guarded",
+      "Error paths have appropriate logging/handling",
+      "Edge cases (empty arrays, zero values) are handled"
+    ]
+  },
+  performance: {
+    steps: [
+      "Check for N+1 query patterns in loops",
+      "Verify O(n^2) or worse algorithms have small n bounds",
+      "Look for unnecessary re-computations of deterministic values",
+      "Check for synchronous operations that should be async",
+      "Verify memory usage patterns (leaks, large allocations)"
+    ],
+    pitfalls: [
+      "Premature optimization without measurement",
+      "Caching without invalidation strategy",
+      "Over-fetching data from APIs/databases"
+    ],
+    verification: [
+      "No obvious O(n^2) loops over large collections",
+      "Expensive computations are memoized where appropriate",
+      "Database queries are batched, not per-loop-iteration"
+    ]
+  },
+  style: {
+    steps: [
+      "Check naming consistency with project conventions",
+      "Verify function/method length reasonableness",
+      "Look for dead code or unreachable branches",
+      "Check for consistent error handling patterns"
+    ],
+    pitfalls: [
+      "Enforcing personal preferences over project conventions",
+      "Suggesting changes that touch too many lines at once"
+    ],
+    verification: [
+      "Naming follows the dominant pattern in the codebase",
+      "No obvious dead code paths"
+    ]
+  },
+  architecture: {
+    steps: [
+      "Verify separation of concerns (no business logic in handlers)",
+      "Check dependency direction (no circular imports)",
+      "Verify interface boundaries are clean and minimal",
+      "Look for leaky abstractions across module boundaries"
+    ],
+    pitfalls: [
+      "Over-engineering simple features",
+      "Suggesting patterns the team isn't using"
+    ],
+    verification: [
+      "Layer boundaries are respected",
+      "No god objects or megaclasses"
+    ]
+  },
+  compliance: {
+    steps: [
+      "Verify PII handling follows data retention policies",
+      "Check for required audit logging on sensitive operations",
+      "Verify access control matches compliance requirements"
+    ],
+    pitfalls: [
+      "Assuming GDPR only applies to EU users",
+      "Missing consent tracking for data collection"
+    ],
+    verification: [
+      "PII fields are explicitly marked/encrypted",
+      "Audit trails exist for sensitive data mutations"
+    ]
+  }
+};
+var DEFAULT_PROCEDURE = {
+  steps: [
+    "Review code for common issues in this category",
+    "Check for inconsistencies with project conventions"
+  ],
+  pitfalls: [
+    "Flagging issues without clear remediation"
+  ],
+  verification: [
+    "Finding is actionable and specific"
+  ]
+};
+function parseSkillFrontmatter(raw) {
+  const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!fmMatch) return null;
+  const fm = fmMatch[1];
+  const getField = (key, fallback = "") => {
+    const m = fm.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
+    return m ? m[1].trim().replace(/^["']|["']$/g, "") : fallback;
+  };
+  const getList = (key) => {
+    const block = fm.match(new RegExp(`^${key}:\\n((?:\\s+- .+\\n?)+)`, "m"));
+    if (!block) return [];
+    return block[1].split("\n").map((l) => l.replace(/^\s+- /, "").trim()).filter(Boolean);
+  };
+  return {
+    name: getField("name"),
+    description: getField("description"),
+    tags: getList("tags"),
+    category: getField("category"),
+    file_pattern: getField("file_pattern"),
+    version: parseInt(getField("version", "1"), 10) || 1,
+    confidence: parseInt(getField("confidence", "70"), 10) || 70,
+    occurrence_count: parseInt(getField("occurrence_count", "3"), 10) || 3,
+    trigger_conditions: getList("trigger_conditions"),
+    created_at: getField("created_at", (/* @__PURE__ */ new Date()).toISOString().split("T")[0]),
+    updated_at: getField("updated_at", (/* @__PURE__ */ new Date()).toISOString().split("T")[0])
+  };
 }
 function autoGenerateSkills(memoryContent, workspace) {
   if (!memoryContent) return [];
@@ -33314,21 +39050,62 @@ function autoGenerateSkills(memoryContent, workspace) {
     if (existing) existing.count++;
     else counts.set(key, { file: m[1], category: m[3], count: 1 });
   }
-  const skillsDir = path2.join(workspace, ".github", "mizumi-skills");
+  const skillsDir = path3.join(workspace, ".github", "mizumi-skills");
   const generated = [];
   for (const [, v] of counts) {
     if (v.count < 3) continue;
     if (!fs2.existsSync(skillsDir)) fs2.mkdirSync(skillsDir, { recursive: true });
-    const basename7 = path2.basename(v.file, path2.extname(v.file));
+    const basename7 = path3.basename(v.file, path3.extname(v.file));
     const skillName = `${v.category}-${basename7}`;
-    const skillPath = path2.join(skillsDir, `${skillName}.md`);
-    const body = `When reviewing ${v.file}, pay attention to ${v.category} issues.`;
+    const skillPath = path3.join(skillsDir, `${skillName}.md`);
+    const procedure = CATEGORY_PROCEDURES[v.category] ?? DEFAULT_PROCEDURE;
+    const now2 = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    let version2 = 1;
+    let occurrenceCount = v.count;
+    let createdAt = now2;
+    if (fs2.existsSync(skillPath)) {
+      const existingRaw = fs2.readFileSync(skillPath, "utf-8");
+      const existingFm = parseSkillFrontmatter(existingRaw);
+      if (existingFm) {
+        version2 = existingFm.version + 1;
+        occurrenceCount = existingFm.occurrence_count + v.count;
+        createdAt = existingFm.created_at;
+      }
+    }
+    const triggerConditions = [
+      `File matches ${v.file} or similar path patterns`,
+      `${v.category} category review is active`,
+      `PR changes files in ${path3.dirname(v.file)} directory`
+    ];
+    const confidence = Math.min(95, 70 + Math.floor(occurrenceCount / 3) * 5);
+    const tags = [v.category, v.file.includes("test") ? "testing" : "production", `v${version2}`];
     const content = `---
 name: ${skillName}
-description: ${v.category} patterns for ${v.file}
+description: Recurring ${v.category} patterns for ${v.file} \u2014 auto-generated from ${occurrenceCount} review observations
+tags:
+${tags.map((t) => `  - ${t}`).join("\n")}
+category: ${v.category}
 file_pattern: "${v.file}"
+version: ${version2}
+confidence: ${confidence}
+occurrence_count: ${occurrenceCount}
+trigger_conditions:
+${triggerConditions.map((c) => `  - "${c}"`).join("\n")}
+created_at: "${createdAt}"
+updated_at: "${now2}"
 ---
-${body}
+
+## When to Use
+Apply this skill when reviewing changes to \`${v.file}\` or similar files in the \`${path3.dirname(v.file)}\` directory, especially when ${v.category} concerns are relevant.
+
+## Procedure
+${procedure.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+## Pitfalls
+${procedure.pitfalls.map((p) => `- ${p}`).join("\n")}
+
+## Verification Checklist
+${procedure.verification.map((c) => `- [ ] ${c}`).join("\n")}
 `;
     fs2.writeFileSync(skillPath, content, "utf-8");
     generated.push(skillPath);
@@ -33336,20 +39113,34 @@ ${body}
   return generated;
 }
 function loadSkills(workspace, changedFiles) {
-  const skillsDir = path2.join(workspace, ".github", "mizumi-skills");
+  const skillsDir = path3.join(workspace, ".github", "mizumi-skills");
   if (!fs2.existsSync(skillsDir)) return { names: [], loaded: "" };
   const allFiles = fs2.readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
   const names = allFiles.map((f) => f.replace(/\.md$/, ""));
-  const fmRe = /^---\n[\s\S]*?file_pattern:\s*"([^"]+)"[\s\S]*?---\n([\s\S]*)$/;
   let loaded = "";
   let skillCount = 0;
   for (const f of allFiles) {
     if (skillCount >= 5) break;
-    const raw = fs2.readFileSync(path2.join(skillsDir, f), "utf-8");
-    const fm = raw.match(fmRe);
-    if (!fm || !changedFiles.some((cf) => cf === fm[1] || cf.endsWith(fm[1]))) continue;
+    const raw = fs2.readFileSync(path3.join(skillsDir, f), "utf-8");
+    const fm = parseSkillFrontmatter(raw);
+    let matches = false;
+    if (fm) {
+      const fileMatch = changedFiles.some(
+        (cf) => cf === fm.file_pattern || cf.endsWith(fm.file_pattern) || fm.file_pattern.endsWith(path3.basename(cf))
+      );
+      const tagMatch = fm.tags.some((tag) => changedFiles.some((cf) => path3.basename(cf).includes(tag)));
+      matches = fileMatch || tagMatch;
+    } else {
+      const legacyMatch = raw.match(/file_pattern:\s*"([^"]+)"/);
+      if (legacyMatch) {
+        matches = changedFiles.some((cf) => cf === legacyMatch[1] || cf.endsWith(legacyMatch[1]));
+      }
+    }
+    if (!matches) continue;
+    const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+    const body = bodyMatch ? bodyMatch[1].trim() : raw.trim();
     loaded += `
-${fm[2].trim()}
+${body}
 `;
     skillCount++;
     if (loaded.length > 2e3) {
@@ -33361,11 +39152,11 @@ ${fm[2].trim()}
 }
 function readRules(workspace) {
   const rulesPaths = [
-    path2.join(workspace, "REVIEW.md"),
-    path2.join(workspace, "CLAUDE.md"),
-    path2.join(workspace, ".github", "REVIEW.md"),
-    path2.join(workspace, ".cursorrules"),
-    path2.join(workspace, ".github", "copilot-instructions.md")
+    path3.join(workspace, "REVIEW.md"),
+    path3.join(workspace, "CLAUDE.md"),
+    path3.join(workspace, ".github", "REVIEW.md"),
+    path3.join(workspace, ".cursorrules"),
+    path3.join(workspace, ".github", "copilot-instructions.md")
   ];
   const parts = [];
   for (const p of rulesPaths) {
@@ -33507,9 +39298,9 @@ Pay extra attention to whether these issues have reappeared.`;
 // node_modules/@ai-sdk/provider/dist/index.mjs
 var marker = "vercel.ai.error";
 var symbol = Symbol.for(marker);
-var _a;
+var _a2;
 var _b;
-var AISDKError = class _AISDKError extends (_b = Error, _a = symbol, _b) {
+var AISDKError = class _AISDKError extends (_b = Error, _a2 = symbol, _b) {
   /**
    * Creates an AI SDK Error.
    *
@@ -33524,7 +39315,7 @@ var AISDKError = class _AISDKError extends (_b = Error, _a = symbol, _b) {
     cause
   }) {
     super(message);
-    this[_a] = true;
+    this[_a2] = true;
     this.name = name143;
     this.cause = cause;
   }
@@ -33544,9 +39335,9 @@ var AISDKError = class _AISDKError extends (_b = Error, _a = symbol, _b) {
 var name = "AI_APICallError";
 var marker2 = `vercel.ai.error.${name}`;
 var symbol2 = Symbol.for(marker2);
-var _a2;
+var _a22;
 var _b2;
-var APICallError = class extends (_b2 = AISDKError, _a2 = symbol2, _b2) {
+var APICallError = class extends (_b2 = AISDKError, _a22 = symbol2, _b2) {
   constructor({
     message,
     url: url2,
@@ -33563,7 +39354,7 @@ var APICallError = class extends (_b2 = AISDKError, _a2 = symbol2, _b2) {
     data
   }) {
     super({ name, message, cause });
-    this[_a2] = true;
+    this[_a22] = true;
     this.url = url2;
     this.requestBodyValues = requestBodyValues;
     this.statusCode = statusCode;
@@ -34055,7 +39846,7 @@ __export(external_exports, {
   object: () => object,
   optional: () => optional,
   overwrite: () => _overwrite,
-  parse: () => parse2,
+  parse: () => parse4,
   parseAsync: () => parseAsync2,
   partialRecord: () => partialRecord,
   pipe: () => pipe,
@@ -34375,7 +40166,7 @@ __export(core_exports2, {
   isValidJWT: () => isValidJWT,
   locales: () => locales_exports,
   meta: () => meta,
-  parse: () => parse,
+  parse: () => parse3,
   parseAsync: () => parseAsync,
   prettifyError: () => prettifyError,
   process: () => process2,
@@ -34508,17 +40299,17 @@ __export(util_exports, {
   getSizableOrigin: () => getSizableOrigin,
   hexToUint8Array: () => hexToUint8Array,
   isObject: () => isObject,
-  isPlainObject: () => isPlainObject,
+  isPlainObject: () => isPlainObject3,
   issue: () => issue,
   joinValues: () => joinValues,
   jsonStringifyReplacer: () => jsonStringifyReplacer,
-  merge: () => merge,
+  merge: () => merge2,
   mergeDefs: () => mergeDefs,
   normalizeParams: () => normalizeParams,
   nullish: () => nullish,
   numKeys: () => numKeys,
   objectClone: () => objectClone,
-  omit: () => omit,
+  omit: () => omit2,
   optionalKeys: () => optionalKeys,
   parsedType: () => parsedType,
   partial: () => partial,
@@ -34638,10 +40429,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path25) {
-  if (!path25)
+function getElementAtPath(obj, path27) {
+  if (!path27)
     return obj;
-  return path25.reduce((acc, key) => acc?.[key], obj);
+  return path27.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -34688,7 +40479,7 @@ var allowsEval = /* @__PURE__ */ cached(() => {
     return false;
   }
 });
-function isPlainObject(o) {
+function isPlainObject3(o) {
   if (isObject(o) === false)
     return false;
   const ctor = o.constructor;
@@ -34705,7 +40496,7 @@ function isPlainObject(o) {
   return true;
 }
 function shallowClone(o) {
-  if (isPlainObject(o))
+  if (isPlainObject3(o))
     return { ...o };
   if (Array.isArray(o))
     return [...o];
@@ -34883,7 +40674,7 @@ function pick(schema, mask) {
   });
   return clone(schema, def);
 }
-function omit(schema, mask) {
+function omit2(schema, mask) {
   const currDef = schema._zod.def;
   const checks = currDef.checks;
   const hasChecks = checks && checks.length > 0;
@@ -34909,7 +40700,7 @@ function omit(schema, mask) {
   return clone(schema, def);
 }
 function extend(schema, shape) {
-  if (!isPlainObject(shape)) {
+  if (!isPlainObject3(shape)) {
     throw new Error("Invalid input to extend: expected a plain object");
   }
   const checks = schema._zod.def.checks;
@@ -34932,7 +40723,7 @@ function extend(schema, shape) {
   return clone(schema, def);
 }
 function safeExtend(schema, shape) {
-  if (!isPlainObject(shape)) {
+  if (!isPlainObject3(shape)) {
     throw new Error("Invalid input to safeExtend: expected a plain object");
   }
   const def = mergeDefs(schema._zod.def, {
@@ -34944,7 +40735,7 @@ function safeExtend(schema, shape) {
   });
   return clone(schema, def);
 }
-function merge(a, b) {
+function merge2(a, b) {
   if (a._zod.def.checks?.length) {
     throw new Error(".merge() cannot be used on object schemas containing refinements. Use .safeExtend() instead.");
   }
@@ -35050,11 +40841,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path25, issues) {
+function prefixIssues(path27, issues) {
   return issues.map((iss) => {
     var _a21;
     (_a21 = iss).path ?? (_a21.path = []);
-    iss.path.unshift(path25);
+    iss.path.unshift(path27);
     return iss;
   });
 }
@@ -35201,16 +40992,16 @@ function flattenError(error52, mapper = (issue2) => issue2.message) {
 }
 function formatError(error52, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error53, path25 = []) => {
+  const processError = (error53, path27 = []) => {
     for (const issue2 of error53.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path25, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path27, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
       } else {
-        const fullpath = [...path25, ...issue2.path];
+        const fullpath = [...path27, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -35237,17 +41028,17 @@ function formatError(error52, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error52, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error53, path25 = []) => {
+  const processError = (error53, path27 = []) => {
     var _a21, _b17;
     for (const issue2 of error53.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path25, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path27, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path25, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path27, ...issue2.path]);
       } else {
-        const fullpath = [...path25, ...issue2.path];
+        const fullpath = [...path27, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -35279,8 +41070,8 @@ function treeifyError(error52, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path25 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path25) {
+  const path27 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path27) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -35320,7 +41111,7 @@ var _parse = (_Err) => (schema, value, _ctx, _params) => {
   }
   return result.value;
 };
-var parse = /* @__PURE__ */ _parse($ZodRealError);
+var parse3 = /* @__PURE__ */ _parse($ZodRealError);
 var _parseAsync = (_Err) => async (schema, value, _ctx, params) => {
   const ctx = _ctx ? { ..._ctx, async: true } : { async: true };
   let result = schema._zod.run({ value, issues: [] }, ctx);
@@ -37279,7 +43070,7 @@ function mergeValues(a, b) {
   if (a instanceof Date && b instanceof Date && +a === +b) {
     return { valid: true, data: a };
   }
-  if (isPlainObject(a) && isPlainObject(b)) {
+  if (isPlainObject3(a) && isPlainObject3(b)) {
     const bKeys = Object.keys(b);
     const sharedKeys = Object.keys(a).filter((key) => bKeys.indexOf(key) !== -1);
     const newObj = { ...a, ...b };
@@ -37465,7 +43256,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.parse = (payload, ctx) => {
     const input = payload.value;
-    if (!isPlainObject(input)) {
+    if (!isPlainObject3(input)) {
       payload.issues.push({
         expected: "record",
         code: "invalid_type",
@@ -38112,10 +43903,10 @@ var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
       throw new Error("implement() must be called with a function");
     }
     return function(...args) {
-      const parsedArgs = inst._def.input ? parse(inst._def.input, args) : args;
+      const parsedArgs = inst._def.input ? parse3(inst._def.input, args) : args;
       const result = Reflect.apply(func, this, parsedArgs);
       if (inst._def.output) {
-        return parse(inst._def.output, result);
+        return parse3(inst._def.output, result);
       }
       return result;
     };
@@ -44895,10 +50686,10 @@ function _property(property, schema, params) {
   });
 }
 // @__NO_SIDE_EFFECTS__
-function _mime(types, params) {
+function _mime(types2, params) {
   return new $ZodCheckMimeType({
     check: "mime_type",
-    mime: types,
+    mime: types2,
     ...normalizeParams(params)
   });
 }
@@ -45424,8 +51215,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
       continue;
     }
     if (ctx.external) {
-      const ext = ctx.external.registry.get(entry[0])?.id;
-      if (schema !== entry[0] && ext) {
+      const ext2 = ctx.external.registry.get(entry[0])?.id;
+      if (schema !== entry[0] && ext2) {
         extractToDef(entry);
         continue;
       }
@@ -46549,7 +52340,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, {
 });
 
 // node_modules/zod/v4/classic/parse.js
-var parse2 = /* @__PURE__ */ _parse(ZodRealError);
+var parse4 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
 var safeParseAsync2 = /* @__PURE__ */ _safeParseAsync(ZodRealError);
@@ -46612,7 +52403,7 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
   inst.def = def;
   inst.type = def.type;
   Object.defineProperty(inst, "_def", { value: def });
-  inst.parse = (data, params) => parse2(inst, data, params, { callee: inst.parse });
+  inst.parse = (data, params) => parse4(inst, data, params, { callee: inst.parse });
   inst.safeParse = (data, params) => safeParse2(inst, data, params);
   inst.parseAsync = async (data, params) => parseAsync2(inst, data, params, { callee: inst.parseAsync });
   inst.safeParseAsync = async (data, params) => safeParseAsync2(inst, data, params);
@@ -47523,7 +53314,7 @@ var ZodFile = /* @__PURE__ */ $constructor("ZodFile", (inst, def) => {
   inst._zod.processJSONSchema = (ctx, json3, params) => fileProcessor(inst, ctx, json3, params);
   inst.min = (size, params) => inst.check(_minSize(size, params));
   inst.max = (size, params) => inst.check(_maxSize(size, params));
-  inst.mime = (types, params) => inst.check(_mime(Array.isArray(types) ? types : [types], params));
+  inst.mime = (types2, params) => inst.check(_mime(Array.isArray(types2) ? types2 : [types2], params));
 });
 function file(params) {
   return _file(ZodFile, params);
@@ -47972,13 +53763,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path25 = ref.slice(1).split("/").filter(Boolean);
-  if (path25.length === 0) {
+  const path27 = ref.slice(1).split("/").filter(Boolean);
+  if (path27.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path25[0] === defsKey) {
-    const key = path25[1];
+  if (path27[0] === defsKey) {
+    const key = path27[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -48745,8 +54536,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path25, errorMaps, issueData } = params;
-  const fullPath = [...path25, ...issueData.path || []];
+  const { data, path: path27, errorMaps, issueData } = params;
+  const fullPath = [...path27, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -48861,11 +54652,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path25, key) {
+  constructor(parent, value, path27, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path25;
+    this._path = path27;
     this._key = key;
   }
   get path() {
@@ -51056,9 +56847,9 @@ var ZodUnion2 = class extends ZodType2 {
     return this._def.options;
   }
 };
-ZodUnion2.create = (types, params) => {
+ZodUnion2.create = (types2, params) => {
   return new ZodUnion2({
-    options: types,
+    options: types2,
     typeName: ZodFirstPartyTypeKind2.ZodUnion,
     ...processCreateParams(params)
   });
@@ -52271,14 +58062,14 @@ var ParseError = class extends Error {
 var LF = 10;
 var CR = 13;
 var SPACE = 32;
-function noop(_arg) {
+function noop3(_arg) {
 }
 function createParser(callbacks) {
   if (typeof callbacks == "function")
     throw new TypeError(
       "`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?"
     );
-  const { onEvent = noop, onError = noop, onRetry = noop, onComment } = callbacks, pendingFragments = [];
+  const { onEvent = noop3, onError = noop3, onRetry = noop3, onComment } = callbacks, pendingFragments = [];
   let isFirstChunk = true, id, data = "", dataLines = 0, eventType;
   function feed(chunk) {
     if (isFirstChunk && (isFirstChunk = false, chunk.charCodeAt(0) === 239 && chunk.charCodeAt(1) === 187 && chunk.charCodeAt(2) === 191 && (chunk = chunk.slice(3))), pendingFragments.length === 0) {
@@ -52466,12 +58257,12 @@ function createToolNameMapping({
   providerToolNames,
   resolveProviderToolName
 }) {
-  var _a24;
+  var _a25;
   const customToolNameToProviderToolName = {};
   const providerToolNameToCustomToolName = {};
   for (const tool2 of tools) {
     if (tool2.type === "provider") {
-      const providerToolName = (_a24 = resolveProviderToolName == null ? void 0 : resolveProviderToolName(tool2)) != null ? _a24 : tool2.id in providerToolNames ? providerToolNames[tool2.id] : void 0;
+      const providerToolName = (_a25 = resolveProviderToolName == null ? void 0 : resolveProviderToolName(tool2)) != null ? _a25 : tool2.id in providerToolNames ? providerToolNames[tool2.id] : void 0;
       if (providerToolName == null) {
         continue;
       }
@@ -52733,7 +58524,7 @@ function isPrivateIPv6(ip) {
   return false;
 }
 async function downloadBlob(url2, options) {
-  var _a24, _b23;
+  var _a25, _b23;
   validateDownloadUrl(url2);
   try {
     const response = await fetch(url2, {
@@ -52752,7 +58543,7 @@ async function downloadBlob(url2, options) {
     const data = await readResponseWithSizeLimit({
       response,
       url: url2,
-      maxBytes: (_a24 = options == null ? void 0 : options.maxBytes) != null ? _a24 : DEFAULT_MAX_DOWNLOAD_SIZE
+      maxBytes: (_a25 = options == null ? void 0 : options.maxBytes) != null ? _a25 : DEFAULT_MAX_DOWNLOAD_SIZE
     });
     const contentType = (_b23 = response.headers.get("content-type")) != null ? _b23 : void 0;
     return new Blob([data], contentType ? { type: contentType } : void 0);
@@ -52858,11 +58649,11 @@ function handleFetchError({
   return error52;
 }
 function getRuntimeEnvironmentUserAgent(globalThisAny = globalThis) {
-  var _a24, _b23, _c;
+  var _a25, _b23, _c;
   if (globalThisAny.window) {
     return `runtime/browser`;
   }
-  if ((_a24 = globalThisAny.navigator) == null ? void 0 : _a24.userAgent) {
+  if ((_a25 = globalThisAny.navigator) == null ? void 0 : _a25.userAgent) {
     return `runtime/${globalThisAny.navigator.userAgent.toLowerCase()}`;
   }
   if ((_c = (_b23 = globalThisAny.process) == null ? void 0 : _b23.versions) == null ? void 0 : _c.node) {
@@ -52903,7 +58694,7 @@ function withUserAgentSuffix(headers, ...userAgentSuffixParts) {
   );
   return Object.fromEntries(normalizedHeaders.entries());
 }
-var VERSION2 = true ? "4.0.27" : "0.0.0-test";
+var VERSION10 = true ? "4.0.27" : "0.0.0-test";
 var getOriginalFetch = () => globalThis.fetch;
 var getFromApi = async ({
   url: url2,
@@ -52918,7 +58709,7 @@ var getFromApi = async ({
       method: "GET",
       headers: withUserAgentSuffix(
         headers,
-        `ai-sdk/provider-utils/${VERSION2}`,
+        `ai-sdk/provider-utils/${VERSION10}`,
         getRuntimeEnvironmentUserAgent()
       ),
       signal: abortSignal
@@ -53036,15 +58827,15 @@ function loadOptionalSetting({
   return settingValue;
 }
 function mediaTypeToExtension(mediaType) {
-  var _a24;
+  var _a25;
   const [_type, subtype = ""] = mediaType.toLowerCase().split("/");
-  return (_a24 = {
+  return (_a25 = {
     mpeg: "mp3",
     "x-wav": "wav",
     opus: "ogg",
     mp4: "m4a",
     "x-m4a": "m4a"
-  }[subtype]) != null ? _a24 : subtype;
+  }[subtype]) != null ? _a25 : subtype;
 }
 var suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
 var suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
@@ -53056,9 +58847,9 @@ function _parse2(text2) {
   if (suspectProtoRx.test(text2) === false && suspectConstructorRx.test(text2) === false) {
     return obj;
   }
-  return filter(obj);
+  return filter2(obj);
 }
-function filter(obj) {
+function filter2(obj) {
   let next = [obj];
   while (next.length) {
     const nodes = next;
@@ -53162,11 +58953,11 @@ function parseAnyDef() {
   return {};
 }
 function parseArrayDef(def, refs) {
-  var _a24, _b23, _c;
+  var _a25, _b23, _c;
   const res = {
     type: "array"
   };
-  if (((_a24 = def.type) == null ? void 0 : _a24._def) && ((_c = (_b23 = def.type) == null ? void 0 : _b23._def) == null ? void 0 : _c.typeName) !== ZodFirstPartyTypeKind2.ZodAny) {
+  if (((_a25 = def.type) == null ? void 0 : _a25._def) && ((_c = (_b23 = def.type) == null ? void 0 : _b23._def) == null ? void 0 : _c.typeName) !== ZodFirstPartyTypeKind2.ZodAny) {
     res.items = parseDef(def.type._def, {
       ...refs,
       currentPath: [...refs.currentPath, "items"]
@@ -53532,8 +59323,8 @@ function escapeNonAlphaNumeric(source) {
   return result;
 }
 function addFormat(schema, value, message, refs) {
-  var _a24;
-  if (schema.format || ((_a24 = schema.anyOf) == null ? void 0 : _a24.some((x) => x.format))) {
+  var _a25;
+  if (schema.format || ((_a25 = schema.anyOf) == null ? void 0 : _a25.some((x) => x.format))) {
     if (!schema.anyOf) {
       schema.anyOf = [];
     }
@@ -53552,8 +59343,8 @@ function addFormat(schema, value, message, refs) {
   }
 }
 function addPattern(schema, regex2, message, refs) {
-  var _a24;
-  if (schema.pattern || ((_a24 = schema.allOf) == null ? void 0 : _a24.some((x) => x.pattern))) {
+  var _a25;
+  if (schema.pattern || ((_a25 = schema.allOf) == null ? void 0 : _a25.some((x) => x.pattern))) {
     if (!schema.allOf) {
       schema.allOf = [];
     }
@@ -53572,7 +59363,7 @@ function addPattern(schema, regex2, message, refs) {
   }
 }
 function stringifyRegExpWithFlags(regex2, refs) {
-  var _a24;
+  var _a25;
   if (!refs.applyRegexFlags || !regex2.flags) {
     return regex2.source;
   }
@@ -53602,7 +59393,7 @@ function stringifyRegExpWithFlags(regex2, refs) {
             pattern += source[i];
             pattern += `${source[i - 2]}-${source[i]}`.toUpperCase();
             inCharRange = false;
-          } else if (source[i + 1] === "-" && ((_a24 = source[i + 2]) == null ? void 0 : _a24.match(/[a-z]/))) {
+          } else if (source[i + 1] === "-" && ((_a25 = source[i + 2]) == null ? void 0 : _a25.match(/[a-z]/))) {
             pattern += source[i];
             inCharRange = true;
           } else {
@@ -53654,13 +59445,13 @@ function stringifyRegExpWithFlags(regex2, refs) {
   return pattern;
 }
 function parseRecordDef(def, refs) {
-  var _a24, _b23, _c, _d, _e, _f;
+  var _a25, _b23, _c, _d, _e, _f;
   const schema = {
     type: "object",
-    additionalProperties: (_a24 = parseDef(def.valueType._def, {
+    additionalProperties: (_a25 = parseDef(def.valueType._def, {
       ...refs,
       currentPath: [...refs.currentPath, "additionalProperties"]
-    })) != null ? _a24 : refs.allowedAdditionalProperties
+    })) != null ? _a25 : refs.allowedAdditionalProperties
   };
   if (((_b23 = def.keyType) == null ? void 0 : _b23._def.typeName) === ZodFirstPartyTypeKind2.ZodString && ((_c = def.keyType._def.checks) == null ? void 0 : _c.length)) {
     const { type, ...keyType } = parseStringDef(def.keyType._def, refs);
@@ -53744,15 +59535,15 @@ function parseUnionDef(def, refs) {
   if (options.every(
     (x) => x._def.typeName in primitiveMappings && (!x._def.checks || !x._def.checks.length)
   )) {
-    const types = options.reduce((types2, x) => {
+    const types2 = options.reduce((types22, x) => {
       const type = primitiveMappings[x._def.typeName];
-      return type && !types2.includes(type) ? [...types2, type] : types2;
+      return type && !types22.includes(type) ? [...types22, type] : types22;
     }, []);
     return {
-      type: types.length > 1 ? types : types[0]
+      type: types2.length > 1 ? types2 : types2[0]
     };
   } else if (options.every((x) => x._def.typeName === "ZodLiteral" && !x.description)) {
-    const types = options.reduce(
+    const types2 = options.reduce(
       (acc, x) => {
         const type = typeof x._def.value;
         switch (type) {
@@ -53773,8 +59564,8 @@ function parseUnionDef(def, refs) {
       },
       []
     );
-    if (types.length === options.length) {
-      const uniqueTypes = types.filter((x, i, a) => a.indexOf(x) === i);
+    if (types2.length === options.length) {
+      const uniqueTypes = types2.filter((x, i, a) => a.indexOf(x) === i);
       return {
         type: uniqueTypes.length > 1 ? uniqueTypes : uniqueTypes[0],
         enum: options.reduce(
@@ -53917,8 +59708,8 @@ function safeIsOptional(schema) {
   }
 }
 var parseOptionalDef = (def, refs) => {
-  var _a24;
-  if (refs.currentPath.toString() === ((_a24 = refs.propertyPath) == null ? void 0 : _a24.toString())) {
+  var _a25;
+  if (refs.currentPath.toString() === ((_a25 = refs.propertyPath) == null ? void 0 : _a25.toString())) {
     return parseDef(def.innerType._def, refs);
   }
   const innerSchema = parseDef(def.innerType._def, {
@@ -54095,10 +59886,10 @@ var getRelativePath = (pathA, pathB) => {
   return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
 };
 function parseDef(def, refs, forceResolution = false) {
-  var _a24;
+  var _a25;
   const seenItem = refs.seen.get(def);
   if (refs.override) {
-    const overrideResult = (_a24 = refs.override) == null ? void 0 : _a24.call(
+    const overrideResult = (_a25 = refs.override) == null ? void 0 : _a25.call(
       refs,
       def,
       refs,
@@ -54177,7 +59968,7 @@ var getRefs = (options) => {
   };
 };
 var zod3ToJsonSchema = (schema, options) => {
-  var _a24;
+  var _a25;
   const refs = getRefs(options);
   let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce(
     (acc, [name34, schema2]) => {
@@ -54197,14 +59988,14 @@ var zod3ToJsonSchema = (schema, options) => {
     {}
   ) : void 0;
   const name24 = typeof options === "string" ? options : (options == null ? void 0 : options.nameStrategy) === "title" ? void 0 : options == null ? void 0 : options.name;
-  const main = (_a24 = parseDef(
+  const main = (_a25 = parseDef(
     schema._def,
     name24 === void 0 ? refs : {
       ...refs,
       currentPath: [...refs.basePath, refs.definitionPath, name24]
     },
     false
-  )) != null ? _a24 : parseAnyDef();
+  )) != null ? _a25 : parseAnyDef();
   const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
   if (title !== void 0) {
     main.title = title;
@@ -54280,8 +60071,8 @@ function standardSchema(standardSchema2) {
   );
 }
 function zod3Schema(zodSchema2, options) {
-  var _a24;
-  const useReferences = (_a24 = options == null ? void 0 : options.useReferences) != null ? _a24 : false;
+  var _a25;
+  const useReferences = (_a25 = options == null ? void 0 : options.useReferences) != null ? _a25 : false;
   return jsonSchema(
     // defer json schema creation to avoid unnecessary computation when only validation is needed
     () => zod3ToJsonSchema(zodSchema2, {
@@ -54296,8 +60087,8 @@ function zod3Schema(zodSchema2, options) {
   );
 }
 function zod4Schema(zodSchema2, options) {
-  var _a24;
-  const useReferences = (_a24 = options == null ? void 0 : options.useReferences) != null ? _a24 : false;
+  var _a25;
+  const useReferences = (_a25 = options == null ? void 0 : options.useReferences) != null ? _a25 : false;
   return jsonSchema(
     // defer json schema creation to avoid unnecessary computation when only validation is needed
     () => addAdditionalPropertiesToJsonSchema(
@@ -54500,7 +60291,7 @@ var postToApi = async ({
       method: "POST",
       headers: withUserAgentSuffix(
         headers,
-        `ai-sdk/provider-utils/${VERSION2}`,
+        `ai-sdk/provider-utils/${VERSION10}`,
         getRuntimeEnvironmentUserAgent()
       ),
       body: body.content,
@@ -54766,8 +60557,8 @@ async function* executeTool({
 }
 
 // node_modules/@ai-sdk/gateway/dist/index.mjs
-var import_oidc = __toESM(require_dist(), 1);
-var import_oidc2 = __toESM(require_dist(), 1);
+var import_oidc = __toESM(require_dist2(), 1);
+var import_oidc2 = __toESM(require_dist2(), 1);
 var marker16 = "vercel.ai.gateway.error";
 var symbol17 = Symbol.for(marker16);
 var _a18;
@@ -54806,9 +60597,9 @@ var GatewayError = class _GatewayError extends (_b16 = Error, _a18 = symbol17, _
 var name15 = "GatewayAuthenticationError";
 var marker22 = `vercel.ai.gateway.error.${name15}`;
 var symbol22 = Symbol.for(marker22);
-var _a22;
+var _a23;
 var _b22;
-var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b22 = GatewayError, _a22 = symbol22, _b22) {
+var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b22 = GatewayError, _a23 = symbol22, _b22) {
   constructor({
     message = "Authentication failed",
     statusCode = 401,
@@ -54816,7 +60607,7 @@ var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b22
     generationId
   } = {}) {
     super({ message, statusCode, cause, generationId });
-    this[_a22] = true;
+    this[_a23] = true;
     this.name = name15;
     this.type = "authentication_error";
   }
@@ -56271,7 +62062,7 @@ async function getVercelRequestId() {
   var _a93;
   return (_a93 = (0, import_oidc.getContext)().headers) == null ? void 0 : _a93["x-vercel-id"];
 }
-var VERSION3 = true ? "3.0.120" : "0.0.0-test";
+var VERSION11 = true ? "3.0.120" : "0.0.0-test";
 var AI_GATEWAY_PROTOCOL_VERSION = "0.0.1";
 function createGatewayProvider(options = {}) {
   var _a93, _b92;
@@ -56282,15 +62073,15 @@ function createGatewayProvider(options = {}) {
   const baseURL = (_b92 = withoutTrailingSlash(options.baseURL)) != null ? _b92 : "https://ai-gateway.vercel.sh/v3/ai";
   const getHeaders = async () => {
     try {
-      const auth = await getGatewayAuthToken(options);
+      const auth2 = await getGatewayAuthToken(options);
       return withUserAgentSuffix(
         {
-          Authorization: `Bearer ${auth.token}`,
+          Authorization: `Bearer ${auth2.token}`,
           "ai-gateway-protocol-version": AI_GATEWAY_PROTOCOL_VERSION,
-          [GATEWAY_AUTH_METHOD_HEADER]: auth.authMethod,
+          [GATEWAY_AUTH_METHOD_HEADER]: auth2.authMethod,
           ...options.headers
         },
-        `ai-sdk/gateway/${VERSION3}`
+        `ai-sdk/gateway/${VERSION11}`
       );
     } catch (error52) {
       throw GatewayAuthenticationError.createContextualError({
@@ -56476,7 +62267,7 @@ async function getGatewayAuthToken(options) {
 }
 
 // node_modules/@opentelemetry/api/build/esm/version.js
-var VERSION4 = "1.9.1";
+var VERSION12 = "1.9.1";
 
 // node_modules/@opentelemetry/api/build/esm/internal/semver.js
 var re = /^(\d+)\.(\d+)\.(\d+)(-(.+))?$/;
@@ -56541,29 +62332,29 @@ function _makeCompatibilityCheck(ownVersion) {
     return _reject(globalVersion);
   };
 }
-var isCompatible = _makeCompatibilityCheck(VERSION4);
+var isCompatible = _makeCompatibilityCheck(VERSION12);
 
 // node_modules/@opentelemetry/api/build/esm/internal/global-utils.js
-var major = VERSION4.split(".")[0];
+var major = VERSION12.split(".")[0];
 var GLOBAL_OPENTELEMETRY_API_KEY = /* @__PURE__ */ Symbol.for(`opentelemetry.js.api.${major}`);
 var _global = typeof globalThis === "object" ? globalThis : typeof self === "object" ? self : typeof window === "object" ? window : typeof global === "object" ? global : {};
 function registerGlobal(type, instance, diag, allowOverride = false) {
   var _a21;
   const api = _global[GLOBAL_OPENTELEMETRY_API_KEY] = (_a21 = _global[GLOBAL_OPENTELEMETRY_API_KEY]) !== null && _a21 !== void 0 ? _a21 : {
-    version: VERSION4
+    version: VERSION12
   };
   if (!allowOverride && api[type]) {
     const err = new Error(`@opentelemetry/api: Attempted duplicate registration of API: ${type}`);
     diag.error(err.stack || err.message);
     return false;
   }
-  if (api.version !== VERSION4) {
-    const err = new Error(`@opentelemetry/api: Registration of version v${api.version} for ${type} does not match previously registered API v${VERSION4}`);
+  if (api.version !== VERSION12) {
+    const err = new Error(`@opentelemetry/api: Registration of version v${api.version} for ${type} does not match previously registered API v${VERSION12}`);
     diag.error(err.stack || err.message);
     return false;
   }
   api[type] = instance;
-  diag.debug(`@opentelemetry/api: Registered a global for ${type} v${VERSION4}.`);
+  diag.debug(`@opentelemetry/api: Registered a global for ${type} v${VERSION12}.`);
   return true;
 }
 function getGlobal(type) {
@@ -56575,7 +62366,7 @@ function getGlobal(type) {
   return (_b17 = _global[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _b17 === void 0 ? void 0 : _b17[type];
 }
 function unregisterGlobal(type, diag) {
-  diag.debug(`@opentelemetry/api: Unregistering a global for ${type} v${VERSION4}.`);
+  diag.debug(`@opentelemetry/api: Unregistering a global for ${type} v${VERSION12}.`);
   const api = _global[GLOBAL_OPENTELEMETRY_API_KEY];
   if (api) {
     delete api[type];
@@ -57233,8 +63024,8 @@ _a19 = symbol18;
 var name23 = "AI_InvalidStreamPartError";
 var marker23 = `vercel.ai.error.${name23}`;
 var symbol23 = Symbol.for(marker23);
-var _a23;
-_a23 = symbol23;
+var _a24;
+_a24 = symbol23;
 var name33 = "AI_InvalidToolApprovalError";
 var marker33 = `vercel.ai.error.${name33}`;
 var symbol33 = Symbol.for(marker33);
@@ -57497,31 +63288,31 @@ async function notify(options) {
   }
 }
 function formatWarning({
-  warning: warning29,
+  warning: warning30,
   provider,
   model
 }) {
   const prefix = `AI SDK Warning (${provider} / ${model}):`;
-  switch (warning29.type) {
+  switch (warning30.type) {
     case "unsupported": {
-      let message = `${prefix} The feature "${warning29.feature}" is not supported.`;
-      if (warning29.details) {
-        message += ` ${warning29.details}`;
+      let message = `${prefix} The feature "${warning30.feature}" is not supported.`;
+      if (warning30.details) {
+        message += ` ${warning30.details}`;
       }
       return message;
     }
     case "compatibility": {
-      let message = `${prefix} The feature "${warning29.feature}" is used in a compatibility mode.`;
-      if (warning29.details) {
-        message += ` ${warning29.details}`;
+      let message = `${prefix} The feature "${warning30.feature}" is used in a compatibility mode.`;
+      if (warning30.details) {
+        message += ` ${warning30.details}`;
       }
       return message;
     }
     case "other": {
-      return `${prefix} ${warning29.message}`;
+      return `${prefix} ${warning30.message}`;
     }
     default: {
-      return `${prefix} ${JSON.stringify(warning29, null, 2)}`;
+      return `${prefix} ${JSON.stringify(warning30, null, 2)}`;
     }
   }
 }
@@ -57543,10 +63334,10 @@ var logWarnings = (options) => {
     hasLoggedBefore = true;
     console.info(FIRST_WARNING_INFO_MESSAGE);
   }
-  for (const warning29 of options.warnings) {
+  for (const warning30 of options.warnings) {
     console.warn(
       formatWarning({
-        warning: warning29,
+        warning: warning30,
         provider: options.provider,
         model: options.model
       })
@@ -57790,7 +63581,7 @@ function detectMediaType({
   }
   return void 0;
 }
-var VERSION5 = true ? "6.0.191" : "0.0.0-test";
+var VERSION13 = true ? "6.0.191" : "0.0.0-test";
 var download = async ({
   url: url2,
   maxBytes,
@@ -57803,7 +63594,7 @@ var download = async ({
     const response = await fetch(urlText, {
       headers: withUserAgentSuffix(
         {},
-        `ai-sdk/${VERSION5}`,
+        `ai-sdk/${VERSION13}`,
         getRuntimeEnvironmentUserAgent()
       ),
       signal: abortSignal
@@ -60289,7 +66080,7 @@ var DefaultStepResult = class {
     rawFinishReason,
     usage,
     warnings,
-    request,
+    request: request2,
     response,
     providerMetadata
   }) {
@@ -60303,7 +66094,7 @@ var DefaultStepResult = class {
     this.rawFinishReason = rawFinishReason;
     this.usage = usage;
     this.warnings = warnings;
-    this.request = request;
+    this.request = request2;
     this.response = response;
     this.providerMetadata = providerMetadata;
   }
@@ -60566,7 +66357,7 @@ async function generateText({
   const callSettings = prepareCallSettings(settings);
   const headersWithUserAgent = withUserAgentSuffix(
     headers != null ? headers : {},
-    `ai/${VERSION5}`
+    `ai/${VERSION13}`
   );
   const baseTelemetryAttributes = getBaseTelemetryAttributes({
     model,
@@ -62417,7 +68208,7 @@ async function generateObject(options) {
   const callSettings = prepareCallSettings(settings);
   const headersWithUserAgent = withUserAgentSuffix(
     headers != null ? headers : {},
-    `ai/${VERSION5}`
+    `ai/${VERSION13}`
   );
   const baseTelemetryAttributes = getBaseTelemetryAttributes({
     model,
@@ -62456,7 +68247,7 @@ async function generateObject(options) {
         let usage;
         let warnings;
         let response;
-        let request;
+        let request2;
         let resultProviderMetadata;
         let reasoning;
         const standardizedPrompt = await standardizePrompt({
@@ -62568,7 +68359,7 @@ async function generateObject(options) {
         usage = asLanguageModelUsage(generateResult.usage);
         warnings = generateResult.warnings;
         resultProviderMetadata = generateResult.providerMetadata;
-        request = (_a21 = generateResult.request) != null ? _a21 : {};
+        request2 = (_a21 = generateResult.request) != null ? _a21 : {};
         response = generateResult.responseData;
         reasoning = generateResult.reasoning;
         logWarnings({
@@ -62609,7 +68400,7 @@ async function generateObject(options) {
           finishReason,
           usage,
           warnings,
-          request,
+          request: request2,
           response,
           providerMetadata: resultProviderMetadata
         });
@@ -62656,7 +68447,7 @@ var defaultDownload2 = createDownload();
 import * as core3 from "@actions/core";
 
 // node_modules/@ai-sdk/anthropic/dist/index.mjs
-var VERSION6 = true ? "3.0.79" : "0.0.0-test";
+var VERSION14 = true ? "3.0.79" : "0.0.0-test";
 var anthropicErrorDataSchema = lazySchema(
   () => zodSchema(
     external_exports.object({
@@ -64738,13 +70529,13 @@ async function convertToAnthropicMessagesPrompt({
   let system = void 0;
   const messages = [];
   async function shouldEnableCitations(providerMetadata) {
-    var _a24, _b23;
+    var _a25, _b23;
     const anthropicOptions = await parseProviderOptions({
       provider: "anthropic",
       providerOptions: providerMetadata,
       schema: anthropicFilePartProviderOptions
     });
-    return (_b23 = (_a24 = anthropicOptions == null ? void 0 : anthropicOptions.citations) == null ? void 0 : _a24.enabled) != null ? _b23 : false;
+    return (_b23 = (_a25 = anthropicOptions == null ? void 0 : anthropicOptions.citations) == null ? void 0 : _a25.enabled) != null ? _b23 : false;
   }
   async function getDocumentMetadata(providerMetadata) {
     const anthropicOptions = await parseProviderOptions({
@@ -64902,7 +70693,7 @@ async function convertToAnthropicMessagesPrompt({
                 switch (output.type) {
                   case "content":
                     contentValue = output.value.map((contentPart) => {
-                      var _a24;
+                      var _a25;
                       switch (contentPart.type) {
                         case "text":
                           return {
@@ -64956,7 +70747,7 @@ async function convertToAnthropicMessagesPrompt({
                           return void 0;
                         }
                         case "custom": {
-                          const anthropicOptions = (_a24 = contentPart.providerOptions) == null ? void 0 : _a24.anthropic;
+                          const anthropicOptions = (_a25 = contentPart.providerOptions) == null ? void 0 : _a25.anthropic;
                           if ((anthropicOptions == null ? void 0 : anthropicOptions.type) === "tool-reference") {
                             return {
                               type: "tool_reference",
@@ -65621,7 +71412,7 @@ function sanitizeJsonSchema(schema) {
   return sanitizeSchema(schema);
 }
 function sanitizeDefinition(definition) {
-  if (typeof definition === "boolean" || !isPlainObject2(definition)) {
+  if (typeof definition === "boolean" || !isPlainObject4(definition)) {
     return definition;
   }
   return sanitizeSchema(definition);
@@ -65722,7 +71513,7 @@ function getConstraintDescription(schema) {
   return descriptions.length === 0 ? void 0 : `${descriptions.join("; ")}.`;
 }
 function formatConstraintName(key) {
-  return key.replace(/[A-Z]/g, (match) => ` ${match.toLowerCase()}`);
+  return key.replace(/[A-Z]/g, (match2) => ` ${match2.toLowerCase()}`);
 }
 function formatConstraintValue(value) {
   if (typeof value === "string") {
@@ -65730,7 +71521,7 @@ function formatConstraintValue(value) {
   }
   return JSON.stringify(value);
 }
-function isPlainObject2(value) {
+function isPlainObject4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function createCitationSource(citation, citationDocuments, generateId3) {
@@ -66519,11 +72310,11 @@ var AnthropicMessagesLanguageModel = class {
               toolCallId: part.tool_use_id,
               toolName: toolNameMapping.toCustomToolName("web_search"),
               result: part.content.map((result) => {
-                var _a24;
+                var _a25;
                 return {
                   url: result.url,
                   title: result.title,
-                  pageAge: (_a24 = result.page_age) != null ? _a24 : null,
+                  pageAge: (_a25 = result.page_age) != null ? _a25 : null,
                   encryptedContent: result.encrypted_content,
                   type: result.type
                 };
@@ -66710,10 +72501,10 @@ var AnthropicMessagesLanguageModel = class {
       },
       warnings,
       providerMetadata: (() => {
-        var _a24, _b23, _c2, _d2, _e2;
+        var _a25, _b23, _c2, _d2, _e2;
         const anthropicMetadata = {
           usage: response.usage,
-          cacheCreationInputTokens: (_a24 = response.usage.cache_creation_input_tokens) != null ? _a24 : null,
+          cacheCreationInputTokens: (_a25 = response.usage.cache_creation_input_tokens) != null ? _a25 : null,
           stopSequence: (_b23 = response.stop_sequence) != null ? _b23 : null,
           iterations: response.usage.iterations ? response.usage.iterations.map(
             (iter) => iter.type === "advisor_message" ? {
@@ -66823,7 +72614,7 @@ var AnthropicMessagesLanguageModel = class {
           controller.enqueue({ type: "stream-start", warnings });
         },
         transform(chunk, controller) {
-          var _a24, _b23, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
+          var _a25, _b23, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
           if (options.includeRawChunks) {
             controller.enqueue({ type: "raw", rawValue: chunk.rawValue });
           }
@@ -66993,7 +72784,7 @@ var AnthropicMessagesLanguageModel = class {
                 case "web_fetch_tool_result": {
                   if (part.content.type === "web_fetch_result") {
                     citationDocuments.push({
-                      title: (_a24 = part.content.content.title) != null ? _a24 : part.content.url,
+                      title: (_a25 = part.content.content.title) != null ? _a25 : part.content.url,
                       mediaType: part.content.content.source.media_type
                     });
                     controller.enqueue({
@@ -68222,17 +74013,17 @@ function createAnthropic(options = {}) {
         ...authHeaders,
         ...options.headers
       },
-      `ai-sdk/anthropic/${VERSION6}`
+      `ai-sdk/anthropic/${VERSION14}`
     );
   };
   const createChatModel = (modelId) => {
-    var _a24;
+    var _a25;
     return new AnthropicMessagesLanguageModel(modelId, {
       provider: providerName,
       baseURL,
       headers: getHeaders,
       fetch: options.fetch,
-      generateId: (_a24 = options.generateId) != null ? _a24 : generateId,
+      generateId: (_a25 = options.generateId) != null ? _a25 : generateId,
       supportedUrls: () => ({
         "image/*": [/^https?:\/\/.*$/],
         "application/pdf": [/^https?:\/\/.*$/]
@@ -68376,7 +74167,7 @@ function convertToOpenAIChatMessages({
         messages.push({
           role: "user",
           content: content.map((part, index) => {
-            var _a24, _b17, _c;
+            var _a25, _b17, _c;
             switch (part.type) {
               case "text": {
                 return { type: "text", text: part.text };
@@ -68389,7 +74180,7 @@ function convertToOpenAIChatMessages({
                     image_url: {
                       url: part.data instanceof URL ? part.data.toString() : `data:${mediaType};base64,${convertToBase64(part.data)}`,
                       // OpenAI specific extension: image detail
-                      detail: (_b17 = (_a24 = part.providerOptions) == null ? void 0 : _a24.openai) == null ? void 0 : _b17.imageDetail
+                      detail: (_b17 = (_a25 = part.providerOptions) == null ? void 0 : _a25.openai) == null ? void 0 : _b17.imageDetail
                     }
                   };
                 } else if (part.mediaType.startsWith("audio/")) {
@@ -70085,10 +75876,10 @@ var OpenAIImageModel = class {
         providerMetadata: {
           openai: {
             images: response2.data.map((item, index) => {
-              var _a24, _b23, _c2, _d2, _e2, _f2;
+              var _a25, _b23, _c2, _d2, _e2, _f2;
               return {
                 ...item.revised_prompt ? { revisedPrompt: item.revised_prompt } : {},
-                created: (_a24 = response2.created) != null ? _a24 : void 0,
+                created: (_a25 = response2.created) != null ? _a25 : void 0,
                 size: (_b23 = response2.size) != null ? _b23 : void 0,
                 quality: (_c2 = response2.quality) != null ? _c2 : void 0,
                 background: (_d2 = response2.background) != null ? _d2 : void 0,
@@ -70152,10 +75943,10 @@ var OpenAIImageModel = class {
       providerMetadata: {
         openai: {
           images: response.data.map((item, index) => {
-            var _a24, _b23, _c2, _d2, _e2, _f2;
+            var _a25, _b23, _c2, _d2, _e2, _f2;
             return {
               ...item.revised_prompt ? { revisedPrompt: item.revised_prompt } : {},
-              created: (_a24 = response.created) != null ? _a24 : void 0,
+              created: (_a25 = response.created) != null ? _a25 : void 0,
               size: (_b23 = response.size) != null ? _b23 : void 0,
               quality: (_c2 = response.quality) != null ? _c2 : void 0,
               background: (_d2 = response.background) != null ? _d2 : void 0,
@@ -70883,7 +76674,7 @@ async function convertToOpenAIResponsesInput({
         input.push({
           role: "user",
           content: content.map((part, index) => {
-            var _a24, _b23, _c2;
+            var _a25, _b23, _c2;
             switch (part.type) {
               case "text": {
                 return { type: "input_text", text: part.text };
@@ -70896,7 +76687,7 @@ async function convertToOpenAIResponsesInput({
                     ...part.data instanceof URL ? { image_url: part.data.toString() } : typeof part.data === "string" && isFileId(part.data, fileIdPrefixes) ? { file_id: part.data } : {
                       image_url: `data:${mediaType};base64,${convertToBase64(part.data)}`
                     },
-                    detail: (_b23 = (_a24 = part.providerOptions) == null ? void 0 : _a24[providerOptionsName]) == null ? void 0 : _b23.imageDetail
+                    detail: (_b23 = (_a25 = part.providerOptions) == null ? void 0 : _a25[providerOptionsName]) == null ? void 0 : _b23.imageDetail
                   };
                 }
                 if (part.data instanceof URL) {
@@ -71306,7 +77097,7 @@ async function convertToOpenAIResponsesInput({
                 break;
               case "content":
                 outputValue = output.value.map((item) => {
-                  var _a24, _b23, _c2, _d2, _e2;
+                  var _a25, _b23, _c2, _d2, _e2;
                   switch (item.type) {
                     case "text":
                       return { type: "input_text", text: item.text };
@@ -71314,7 +77105,7 @@ async function convertToOpenAIResponsesInput({
                       return {
                         type: "input_image",
                         image_url: `data:${item.mediaType};base64,${item.data}`,
-                        detail: (_b23 = (_a24 = item.providerOptions) == null ? void 0 : _a24[providerOptionsName]) == null ? void 0 : _b23.imageDetail
+                        detail: (_b23 = (_a25 = item.providerOptions) == null ? void 0 : _a25[providerOptionsName]) == null ? void 0 : _b23.imageDetail
                       };
                     case "image-url":
                       return {
@@ -71367,7 +77158,7 @@ async function convertToOpenAIResponsesInput({
               break;
             case "content":
               contentValue = output.value.map((item) => {
-                var _a24, _b23, _c2, _d2, _e2;
+                var _a25, _b23, _c2, _d2, _e2;
                 switch (item.type) {
                   case "text": {
                     return { type: "input_text", text: item.text };
@@ -71376,7 +77167,7 @@ async function convertToOpenAIResponsesInput({
                     return {
                       type: "input_image",
                       image_url: `data:${item.mediaType};base64,${item.data}`,
-                      detail: (_b23 = (_a24 = item.providerOptions) == null ? void 0 : _a24[providerOptionsName]) == null ? void 0 : _b23.imageDetail
+                      detail: (_b23 = (_a25 = item.providerOptions) == null ? void 0 : _a25[providerOptionsName]) == null ? void 0 : _b23.imageDetail
                     };
                   }
                   case "image-url": {
@@ -72682,8 +78473,8 @@ async function prepareResponsesTools({
               value: tool2.args,
               schema: mcpArgsSchema
             });
-            const mapApprovalFilter = (filter2) => ({
-              tool_names: filter2.toolNames
+            const mapApprovalFilter = (filter3) => ({
+              tool_names: filter3.toolNames
             });
             const requireApproval = args.requireApproval;
             const requireApprovalParam = requireApproval == null ? void 0 : typeof requireApproval === "string" ? requireApproval : requireApproval.never != null ? { never: mapApprovalFilter(requireApproval.never) } : void 0;
@@ -72748,10 +78539,10 @@ async function prepareResponsesTools({
         type: "allowed_tools",
         mode: (_b17 = allowedTools.mode) != null ? _b17 : "auto",
         tools: allowedTools.toolNames.map((name21) => {
-          var _a24;
+          var _a25;
           return {
             type: "function",
-            name: (_a24 = toolNameMapping == null ? void 0 : toolNameMapping.toProviderToolName(name21)) != null ? _a24 : name21
+            name: (_a25 = toolNameMapping == null ? void 0 : toolNameMapping.toProviderToolName(name21)) != null ? _a25 : name21
           };
         })
       },
@@ -74862,7 +80653,7 @@ var OpenAITranscriptionModel = class {
     };
   }
 };
-var VERSION7 = true ? "3.0.65" : "0.0.0-test";
+var VERSION15 = true ? "3.0.65" : "0.0.0-test";
 function createOpenAI(options = {}) {
   var _a21, _b17;
   const baseURL = (_a21 = withoutTrailingSlash(
@@ -74883,41 +80674,41 @@ function createOpenAI(options = {}) {
       "OpenAI-Project": options.project,
       ...options.headers
     },
-    `ai-sdk/openai/${VERSION7}`
+    `ai-sdk/openai/${VERSION15}`
   );
   const createChatModel = (modelId) => new OpenAIChatLanguageModel(modelId, {
     provider: `${providerName}.chat`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createCompletionModel = (modelId) => new OpenAICompletionLanguageModel(modelId, {
     provider: `${providerName}.completion`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createEmbeddingModel = (modelId) => new OpenAIEmbeddingModel(modelId, {
     provider: `${providerName}.embedding`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createImageModel = (modelId) => new OpenAIImageModel(modelId, {
     provider: `${providerName}.image`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createTranscriptionModel = (modelId) => new OpenAITranscriptionModel(modelId, {
     provider: `${providerName}.transcription`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
   const createSpeechModel = (modelId) => new OpenAISpeechModel(modelId, {
     provider: `${providerName}.speech`,
-    url: ({ path: path25 }) => `${baseURL}${path25}`,
+    url: ({ path: path27 }) => `${baseURL}${path27}`,
     headers: getHeaders,
     fetch: options.fetch
   });
@@ -74932,7 +80723,7 @@ function createOpenAI(options = {}) {
   const createResponsesModel = (modelId) => {
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${providerName}.responses`,
-      url: ({ path: path25 }) => `${baseURL}${path25}`,
+      url: ({ path: path27 }) => `${baseURL}${path27}`,
       headers: getHeaders,
       fetch: options.fetch,
       fileIdPrefixes: ["file-"]
@@ -74962,7 +80753,7 @@ function createOpenAI(options = {}) {
 var openai = createOpenAI();
 
 // node_modules/@ai-sdk/google/dist/index.mjs
-var VERSION8 = true ? "3.0.79" : "0.0.0-test";
+var VERSION16 = true ? "3.0.79" : "0.0.0-test";
 var googleErrorDataSchema = lazySchema(
   () => zodSchema(
     external_exports.object({
@@ -75313,13 +81104,13 @@ function isEmptyObjectSchema(jsonSchema2) {
 }
 var dataUrlRegex = /^data:([^;,]+);base64,(.+)$/s;
 function parseBase64DataUrl(value) {
-  const match = dataUrlRegex.exec(value);
-  if (match == null) {
+  const match2 = dataUrlRegex.exec(value);
+  if (match2 == null) {
     return void 0;
   }
   return {
-    mediaType: match[1],
-    data: match[2]
+    mediaType: match2[1],
+    data: match2[2]
   };
 }
 function convertUrlToolResultPart(url2) {
@@ -75472,8 +81263,8 @@ function convertToGoogleGenerativeAIMessages(prompt, options) {
         contents.push({
           role: "model",
           parts: content.map((part) => {
-            var _a24, _b23, _c2, _d2;
-            const providerOpts = (_d2 = (_a24 = part.providerOptions) == null ? void 0 : _a24[providerOptionsName]) != null ? _d2 : providerOptionsName !== "google" ? (_b23 = part.providerOptions) == null ? void 0 : _b23.google : (_c2 = part.providerOptions) == null ? void 0 : _c2.vertex;
+            var _a25, _b23, _c2, _d2;
+            const providerOpts = (_d2 = (_a25 = part.providerOptions) == null ? void 0 : _a25[providerOptionsName]) != null ? _d2 : providerOptionsName !== "google" ? (_b23 = part.providerOptions) == null ? void 0 : _b23.google : (_c2 = part.providerOptions) == null ? void 0 : _c2.vertex;
             const thoughtSignature = (providerOpts == null ? void 0 : providerOpts.thoughtSignature) != null ? String(providerOpts.thoughtSignature) : void 0;
             switch (part.type) {
               case "text": {
@@ -78003,8 +83794,8 @@ var KNOWN_DOC_EXTENSIONS = {
 };
 function inferDocMediaType(uriOrName) {
   const lower = uriOrName.toLowerCase();
-  for (const [ext, media] of Object.entries(KNOWN_DOC_EXTENSIONS)) {
-    if (lower.endsWith(`.${ext}`)) return media;
+  for (const [ext2, media] of Object.entries(KNOWN_DOC_EXTENSIONS)) {
+    if (lower.endsWith(`.${ext2}`)) return media;
   }
   return "application/octet-stream";
 }
@@ -80453,7 +86244,7 @@ var GoogleInteractionsLanguageModel = class {
       } else {
         const env = opts.environment;
         const sources = (_u = env.sources) == null ? void 0 : _u.map((s) => {
-          var _a24;
+          var _a25;
           if (s.type === "inline") {
             return {
               type: "inline",
@@ -80464,7 +86255,7 @@ var GoogleInteractionsLanguageModel = class {
           return pruneUndefined({
             type: s.type,
             source: s.source,
-            target: (_a24 = s.target) != null ? _a24 : void 0
+            target: (_a25 = s.target) != null ? _a25 : void 0
           });
         });
         let network;
@@ -80474,10 +86265,10 @@ var GoogleInteractionsLanguageModel = class {
           network = {
             allowlist: env.network.allowlist.map(
               (entry) => {
-                var _a24;
+                var _a25;
                 return pruneUndefined({
                   domain: entry.domain,
-                  transform: (_a24 = entry.transform) != null ? _a24 : void 0
+                  transform: (_a25 = entry.transform) != null ? _a25 : void 0
                 });
               }
             )
@@ -80743,15 +86534,15 @@ function createGoogleGenerativeAI(options = {}) {
       }),
       ...options.headers
     },
-    `ai-sdk/google/${VERSION8}`
+    `ai-sdk/google/${VERSION16}`
   );
   const createChatModel = (modelId) => {
-    var _a24;
+    var _a25;
     return new GoogleGenerativeAILanguageModel(modelId, {
       provider: providerName,
       baseURL,
       headers: getHeaders,
-      generateId: (_a24 = options.generateId) != null ? _a24 : generateId,
+      generateId: (_a25 = options.generateId) != null ? _a25 : generateId,
       supportedUrls: () => ({
         "*": [
           // Google Generative Language "files" endpoint
@@ -80780,24 +86571,24 @@ function createGoogleGenerativeAI(options = {}) {
     fetch: options.fetch
   });
   const createVideoModel = (modelId) => {
-    var _a24;
+    var _a25;
     return new GoogleGenerativeAIVideoModel(modelId, {
       provider: providerName,
       baseURL,
       headers: getHeaders,
       fetch: options.fetch,
-      generateId: (_a24 = options.generateId) != null ? _a24 : generateId
+      generateId: (_a25 = options.generateId) != null ? _a25 : generateId
     });
   };
   const createInteractionsModel = (modelIdOrAgent) => {
-    var _a24;
+    var _a25;
     return new GoogleInteractionsLanguageModel(
       modelIdOrAgent,
       {
         provider: `${providerName}.interactions`,
         baseURL,
         headers: getHeaders,
-        generateId: (_a24 = options.generateId) != null ? _a24 : generateId,
+        generateId: (_a25 = options.generateId) != null ? _a25 : generateId,
         fetch: options.fetch
       }
     );
@@ -80905,15 +86696,15 @@ function sanitizeInput(raw) {
   }
   const repeatRe = new RegExp(`(.{${MAX_REPEAT_CHARS},})\\1{${MIN_REPEATS},}`, "g");
   clean = clean.replace(repeatRe, "$1[...repeated...]");
-  clean = clean.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, (match) => {
+  clean = clean.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, (match2) => {
     try {
-      const decoded = Buffer.from(match, "base64").toString("utf-8");
+      const decoded = Buffer.from(match2, "base64").toString("utf-8");
       for (const pattern of INJECTION_PATTERNS) {
         if (pattern.test(decoded)) return "[FILTERED_BASE64]";
       }
-      return match;
+      return match2;
     } catch {
-      return match;
+      return match2;
     }
   });
   const lines = clean.split("\n");
@@ -81096,7 +86887,9 @@ var ReviewComment = external_exports.object({
   category: external_exports.enum(["bug", "security", "performance", "style", "architecture", "compliance"]),
   message: external_exports.string().describe("Clear explanation of the issue"),
   suggestion: external_exports.string().optional().describe("Code fix suggestion if applicable"),
-  confidence: external_exports.number().min(0).max(100).describe("Confidence score 0-100")
+  confidence: external_exports.number().min(0).max(100).describe("Confidence score 0-100"),
+  validationStatus: external_exports.enum(["pending", "passed", "failed", "none"]).optional().describe("CI validation status of the suggested fix"),
+  validationUrl: external_exports.string().optional().describe("URL to view validation results")
 });
 var ReviewResponse = external_exports.object({
   summary: external_exports.string().describe("Overall PR summary and verdict"),
@@ -81404,7 +87197,7 @@ function getSecondModel(config2) {
       if (fallback.provider === "anthropic") return createAnthropic({ apiKey: key })(fallback.model);
       if (fallback.provider === "openai") return createOpenAI({ apiKey: key })(fallback.model);
       if (fallback.provider === "google") {
-        const { createGoogleGenerativeAI: createGoogleGenerativeAI2 } = require_dist5();
+        const { createGoogleGenerativeAI: createGoogleGenerativeAI2 } = require_dist6();
         return createGoogleGenerativeAI2({ apiKey: key })(fallback.model);
       }
     }
@@ -82100,7 +87893,6 @@ async function createOrUpdateDetailComment(octokit, owner, repo, prNumber, body)
 }
 
 // src/rules.ts
-import { minimatch as minimatch3 } from "minimatch";
 function runRules(files) {
   const findings = [];
   for (const file2 of files) {
@@ -82264,7 +88056,7 @@ var APPROVAL_PATTERNS = [
   "**/guard/**"
 ];
 function isApprovalFile(filePath) {
-  return APPROVAL_PATTERNS.some((p) => minimatch3(filePath, p));
+  return APPROVAL_PATTERNS.some((p) => minimatch(filePath, p));
 }
 function checkDuplicateApprovalGuard(files) {
   const hasApproval = files.some((f) => isApprovalFile(f.path));
@@ -82359,7 +88151,7 @@ function classifyPR(changedFiles, totalAdditions, totalDeletions, _prTitle, _prB
 
 // src/spend.ts
 import * as fs3 from "node:fs";
-import * as path3 from "node:path";
+import * as path4 from "node:path";
 import * as core8 from "@actions/core";
 var SPEND_FILENAME = "mizumi-spend.jsonl";
 var MAX_SPEND_ENTRIES = 500;
@@ -82383,8 +88175,8 @@ function createSpendEntry(repo, pr, provider, model, usage, tier, findingCount, 
   };
 }
 function appendSpendEntry(workspace, entry) {
-  const dir = path3.join(workspace, ".github");
-  const filePath = path3.join(dir, SPEND_FILENAME);
+  const dir = path4.join(workspace, ".github");
+  const filePath = path4.join(dir, SPEND_FILENAME);
   try {
     if (!fs3.existsSync(dir)) fs3.mkdirSync(dir, { recursive: true });
     fs3.appendFileSync(filePath, JSON.stringify(entry) + "\n", "utf-8");
@@ -82408,7 +88200,7 @@ function truncateIfNeeded(filePath) {
   }
 }
 function readSpendLog(workspace) {
-  const filePath = path3.join(workspace, ".github", SPEND_FILENAME);
+  const filePath = path4.join(workspace, ".github", SPEND_FILENAME);
   if (!fs3.existsSync(filePath)) return [];
   try {
     return fs3.readFileSync(filePath, "utf-8").trim().split("\n").filter(Boolean).map((line) => {
@@ -82451,16 +88243,16 @@ function formatSpendDigest(entries) {
 
 // src/db.ts
 import * as core9 from "@actions/core";
-import * as path4 from "node:path";
+import * as path5 from "node:path";
 import * as fs4 from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 var DB_FILENAME = "mizumi-data.db";
 function getDbPath(workspace) {
-  return path4.join(workspace, ".github", DB_FILENAME);
+  return path5.join(workspace, ".github", DB_FILENAME);
 }
 function openDb(workspace) {
   const dbPath = getDbPath(workspace);
-  const dir = path4.dirname(dbPath);
+  const dir = path5.dirname(dbPath);
   if (!fs4.existsSync(dir)) fs4.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec(`
@@ -82569,7 +88361,7 @@ function hashMessage(message) {
 
 // src/feedback.ts
 import * as fs5 from "node:fs";
-import * as path5 from "node:path";
+import * as path6 from "node:path";
 import * as core10 from "@actions/core";
 var FEEDBACK_FILENAME = "mizumi-feedback.json";
 var MAX_FEEDBACK_ENTRIES = 200;
@@ -82582,7 +88374,7 @@ function hashMessage2(message) {
   return Math.abs(hash2).toString(36);
 }
 function readFeedbackStore(workspace) {
-  const filePath = path5.join(workspace, ".github", FEEDBACK_FILENAME);
+  const filePath = path6.join(workspace, ".github", FEEDBACK_FILENAME);
   if (!fs5.existsSync(filePath)) return { entries: [] };
   try {
     const content = fs5.readFileSync(filePath, "utf-8");
@@ -82592,8 +88384,8 @@ function readFeedbackStore(workspace) {
   }
 }
 function writeFeedbackStore(workspace, store) {
-  const dir = path5.join(workspace, ".github");
-  const filePath = path5.join(dir, FEEDBACK_FILENAME);
+  const dir = path6.join(workspace, ".github");
+  const filePath = path6.join(dir, FEEDBACK_FILENAME);
   if (store.entries.length > MAX_FEEDBACK_ENTRIES) {
     store.entries = store.entries.slice(-MAX_FEEDBACK_ENTRIES);
   }
@@ -82730,9 +88522,9 @@ ${diagram}
   return body;
 }
 function parseCommand(body) {
-  const match = body.match(/^\/mizumi\s+(\w+)(?:\s+(.+))?/);
-  if (!match) return null;
-  return { command: match[1], args: match[2] || "" };
+  const match2 = body.match(/^\/mizumi\s+(\w+)(?:\s+(.+))?/);
+  if (!match2) return null;
+  return { command: match2[1], args: match2[2] || "" };
 }
 
 // src/slop.ts
@@ -82793,12 +88585,12 @@ function detectSlop(diffText, totalAdditions, totalDeletions, _fileCount, change
 
 // src/improve.ts
 import * as core11 from "@actions/core";
-import * as path6 from "node:path";
+import * as path7 from "node:path";
 var MARKER2 = "<!-- mizumi-review-marker -->";
 function isDangerousPath(p) {
   if (!p || p.trim() === "") return true;
-  const normalized = path6.normalize(p);
-  if (path6.isAbsolute(normalized)) return true;
+  const normalized = path7.normalize(p);
+  if (path7.isAbsolute(normalized)) return true;
   const segments = normalized.split(/[/\\]+/);
   if (segments.some((s) => s === "..")) return true;
   if (segments.some((s) => s.startsWith(".") && s !== ".")) return true;
@@ -82972,13 +88764,13 @@ ${t.code}
 
 // src/idempotency.ts
 import * as fs6 from "node:fs";
-import * as path7 from "node:path";
+import * as path8 from "node:path";
 import * as crypto from "node:crypto";
 var IDEM_FILENAME = "mizumi-idempotency.json";
 var MAX_ENTRIES = 500;
 var MAX_FILE_BYTES = 1e5;
 function storePath(workspace) {
-  return path7.join(workspace, ".github", IDEM_FILENAME);
+  return path8.join(workspace, ".github", IDEM_FILENAME);
 }
 function readStore(workspace) {
   const p = storePath(workspace);
@@ -82992,7 +88784,7 @@ function readStore(workspace) {
 }
 function writeStore(workspace, store) {
   const p = storePath(workspace);
-  const dir = path7.dirname(p);
+  const dir = path8.dirname(p);
   if (!fs6.existsSync(dir)) fs6.mkdirSync(dir, { recursive: true });
   const delEntries = Object.entries(store.deliveryIds).sort(([, a], [, b]) => a - b);
   const shaEntries = Object.entries(store.reviewedShas).sort(([, a], [, b]) => a - b);
@@ -83077,16 +88869,16 @@ function createAgentTools(octokit, owner, repo, headSha) {
     inputSchema: external_exports.object({
       path: external_exports.string().describe("File path relative to repo root, e.g. 'src/auth/login.ts'")
     }),
-    execute: async ({ path: path25 }) => {
-      if (isBlockedPath(path25)) {
-        core12.warning(`Agent read_file blocked: ${path25} matches secret file pattern`);
-        return `Access denied: ${path25} is a protected file (secrets/credentials)`;
+    execute: async ({ path: path27 }) => {
+      if (isBlockedPath(path27)) {
+        core12.warning(`Agent read_file blocked: ${path27} matches secret file pattern`);
+        return `Access denied: ${path27} is a protected file (secrets/credentials)`;
       }
       try {
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
-          path: path25,
+          path: path27,
           ref: headSha,
           headers: { accept: "application/vnd.github.raw+json" }
         });
@@ -83097,9 +88889,9 @@ function createAgentTools(octokit, owner, repo, headSha) {
           const decoded = Buffer.from(data.content, "base64").toString("utf-8");
           return truncate(decoded, 5e3);
         }
-        return `File: ${path25} - could not read content`;
+        return `File: ${path27} - could not read content`;
       } catch {
-        return `File not found or inaccessible: ${path25}`;
+        return `File not found or inaccessible: ${path27}`;
       }
     }
   });
@@ -83194,11 +88986,11 @@ ${diffContent.slice(0, 15e3)}`;
 
 // src/linter.ts
 import * as core13 from "@actions/core";
-import * as path8 from "node:path";
+import * as path9 from "node:path";
 import { execFileSync } from "node:child_process";
 function relativePath(workspace, absPath) {
-  const normWs = path8.normalize(workspace);
-  const normAbs = path8.normalize(absPath);
+  const normWs = path9.normalize(workspace);
+  const normAbs = path9.normalize(absPath);
   if (normAbs.startsWith(normWs)) {
     return normAbs.slice(normWs.length).replace(/^[\\/]+/, "");
   }
@@ -83292,14 +89084,14 @@ function runTsc(workspace) {
     const output = e?.stdout || e?.stderr || "";
     const lines = output.split("\n");
     for (const line of lines) {
-      const match = line.match(/^(.+?)\((\d+),\d+\):\s*(error|warning)\s+(TS\d+):\s*(.+)$/);
-      if (match) {
+      const match2 = line.match(/^(.+?)\((\d+),\d+\):\s*(error|warning)\s+(TS\d+):\s*(.+)$/);
+      if (match2) {
         findings.push({
-          file: relativePath(workspace, match[1]),
-          line: parseInt(match[2], 10),
-          severity: match[3] === "error" ? "high" : "low",
+          file: relativePath(workspace, match2[1]),
+          line: parseInt(match2[2], 10),
+          severity: match2[3] === "error" ? "high" : "low",
           category: "bug",
-          message: `${match[4]}: ${match[5]}`,
+          message: `${match2[4]}: ${match2[5]}`,
           linter: "tsc"
         });
       }
@@ -83605,9 +89397,9 @@ var DEFAULT_RATE_LIMITS = {
   custom: { rpm: 60, rps: 5 }
 };
 function createRateLimiter(provider) {
-  const defaults = DEFAULT_RATE_LIMITS[provider] || { rpm: 60, rps: 5 };
-  const rpm = parseInt(core15.getInput("rpm") || "0", 10) || defaults.rpm;
-  const rps = parseInt(core15.getInput("rps") || "0", 10) || defaults.rps;
+  const defaults2 = DEFAULT_RATE_LIMITS[provider] || { rpm: 60, rps: 5 };
+  const rpm = parseInt(core15.getInput("rpm") || "0", 10) || defaults2.rpm;
+  const rps = parseInt(core15.getInput("rps") || "0", 10) || defaults2.rps;
   core15.info(`Rate limiter: ${provider} \u2014 ${rpm} RPM, ${rps} RPS`);
   return new RateLimiter({ rpm, rps });
 }
@@ -83654,13 +89446,13 @@ async function checkCompliance(octokit, owner, repo, _prNumber, prBody, prTitle,
 function extractIssueRefs(text2) {
   const refs = /* @__PURE__ */ new Set();
   const explicitRefs = text2.matchAll(ISSUE_REFS);
-  for (const match of explicitRefs) {
-    const numMatch = match[0].match(/#(\d+)/);
+  for (const match2 of explicitRefs) {
+    const numMatch = match2[0].match(/#(\d+)/);
     if (numMatch) refs.add(parseInt(numMatch[1], 10));
   }
   const bareRefs = text2.matchAll(BARE_REF);
-  for (const match of bareRefs) {
-    refs.add(parseInt(match[1], 10));
+  for (const match2 of bareRefs) {
+    refs.add(parseInt(match2[1], 10));
   }
   return [...refs].slice(0, 5);
 }
@@ -83785,7 +89577,7 @@ async function processReactionApprovals(octokit, owner, repo, prNumber, config2)
 // src/persist.ts
 import * as core18 from "@actions/core";
 import * as fs7 from "node:fs";
-import * as path9 from "node:path";
+import * as path10 from "node:path";
 var LEARNING_FILES = [
   ".github/mizumi-memory.md",
   ".github/mizumi-feedback.json"
@@ -83849,7 +89641,7 @@ async function persistLearningData(octokit, owner, repo, defaultBranch, workspac
 function collectLearningFiles(workspace) {
   const results = [];
   for (const filePath of LEARNING_FILES) {
-    const fullPath = path9.join(workspace, filePath);
+    const fullPath = path10.join(workspace, filePath);
     if (!fs7.existsSync(fullPath)) continue;
     try {
       const content = fs7.readFileSync(fullPath, "utf-8");
@@ -83859,12 +89651,12 @@ function collectLearningFiles(workspace) {
     } catch {
     }
   }
-  const skillsPath = path9.join(workspace, SKILLS_DIR);
+  const skillsPath = path10.join(workspace, SKILLS_DIR);
   if (fs7.existsSync(skillsPath)) {
     try {
       const files = fs7.readdirSync(skillsPath).filter((f) => f.endsWith(".md"));
       for (const f of files) {
-        const fullPath = path9.join(skillsPath, f);
+        const fullPath = path10.join(skillsPath, f);
         const content = fs7.readFileSync(fullPath, "utf-8");
         if (content.trim()) {
           results.push({ repoPath: `${SKILLS_DIR}/${f}`, content });
@@ -83998,10 +89790,10 @@ async function getLatestFindings(octokit, owner, repo, prNumber) {
     for (const comment of issues) {
       if (!comment.body?.includes(MARKER4)) continue;
       const severityPattern = /\|\s*(critical|high|medium|low|nitpick)\s*\|\s*(\d+)\s*\|/gi;
-      let match;
-      while ((match = severityPattern.exec(comment.body)) !== null) {
-        const severity = match[1].toLowerCase();
-        const count = parseInt(match[2], 10);
+      let match2;
+      while ((match2 = severityPattern.exec(comment.body)) !== null) {
+        const severity = match2[1].toLowerCase();
+        const count = parseInt(match2[2], 10);
         for (let i = 0; i < count; i++) {
           findings.push({
             file: "unknown",
@@ -84042,13 +89834,12 @@ async function createOrUpdateSpendComment(octokit, owner, repo, prNumber, body) 
 
 // src/rule-engine.ts
 import * as fs8 from "node:fs";
-import * as path10 from "node:path";
+import * as path11 from "node:path";
 import * as core20 from "@actions/core";
-import { minimatch as minimatch4 } from "minimatch";
 import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
 var RULES_FILENAME = "mizumi-rules.yml";
 function loadCustomRules(workspace) {
-  const rulesPath = path10.join(workspace, ".github", RULES_FILENAME);
+  const rulesPath = path11.join(workspace, ".github", RULES_FILENAME);
   if (!fs8.existsSync(rulesPath)) return [];
   try {
     const raw = fs8.readFileSync(rulesPath, "utf-8");
@@ -84080,7 +89871,7 @@ var DB_FILENAME2 = "mizumi-data.db";
 var DISCOVERY_MIN_OCCURRENCES = 3;
 var DISCOVERY_MIN_ACCEPTANCE = 0.4;
 function discoverRules(workspace, repo) {
-  const dbPath = path10.join(workspace, ".github", DB_FILENAME2);
+  const dbPath = path11.join(workspace, ".github", DB_FILENAME2);
   if (!fs8.existsSync(dbPath)) return [];
   let db = null;
   try {
@@ -84134,11 +89925,11 @@ function minePatternsFromDb(db, repo) {
   return rows.map((r) => {
     const acceptanceRate = r.accepted / r.total;
     const confidence = Math.round(60 + acceptanceRate * 25);
-    const dir = path10.dirname(r.file);
-    const ext = path10.extname(r.file);
-    const fileGlob = `${dir}/**${ext}`;
+    const dir = path11.dirname(r.file);
+    const ext2 = path11.extname(r.file);
+    const fileGlob = `${dir}/**${ext2}`;
     const ruleId = `discovered-${r.file.replace(/[^a-z0-9]/gi, "-")}-${r.category}`;
-    const basename7 = path10.basename(r.file, ext);
+    const basename7 = path11.basename(r.file, ext2);
     return {
       id: ruleId,
       name: `${r.category}-pattern-${basename7}`,
@@ -84206,7 +89997,7 @@ var DECAY_LOW_ACCEPTANCE = 0.3;
 var DECAY_RATE = 5;
 function applyRuleDecay(rules, workspace, repo) {
   let decayed = 0;
-  const dbPath = path10.join(workspace, ".github", DB_FILENAME2);
+  const dbPath = path11.join(workspace, ".github", DB_FILENAME2);
   if (!fs8.existsSync(dbPath)) return { rules, decayed };
   let db = null;
   try {
@@ -84266,7 +90057,7 @@ function runRuleEngine(files, customRules, discoveredRules) {
   const allRules = [...customRules, ...discoveredRules].filter((r) => r.enabled && r.confidence >= 30);
   for (const rule of allRules) {
     for (const file2 of files) {
-      if (rule.fileGlob && !minimatch4(file2.path, rule.fileGlob)) continue;
+      if (rule.fileGlob && !minimatch(file2.path, rule.fileGlob)) continue;
       if (rule.type === "regex" && rule.pattern) {
         let regex2;
         try {
@@ -84290,7 +90081,7 @@ function runRuleEngine(files, customRules, discoveredRules) {
         }
       }
       if ((rule.type === "pattern" || rule.type === "glob") && rule.fileGlob) {
-        if (minimatch4(file2.path, rule.fileGlob)) {
+        if (minimatch(file2.path, rule.fileGlob)) {
           const firstAdd = file2.hunks[0]?.changes.find((c) => c.type === "add");
           findings.push({
             file: file2.path,
@@ -84315,7 +90106,7 @@ function runRuleEngine(files, customRules, discoveredRules) {
 function updateRuleMatchStats(workspace, findings, customRules, discoveredRules) {
   const allRules = [...customRules, ...discoveredRules];
   const matchedRuleNames = new Set(findings.map((f) => f.rule));
-  const dbPath = path10.join(workspace, ".github", DB_FILENAME2);
+  const dbPath = path11.join(workspace, ".github", DB_FILENAME2);
   if (!fs8.existsSync(dbPath)) return;
   let db = null;
   try {
@@ -84932,11 +90723,11 @@ function runASTContractAnalysis(diffFiles, workspace) {
   for (const file2 of diffFiles) {
     if (!/\.[tj]sx?$/.test(file2.path)) continue;
     try {
-      const fs23 = __require("node:fs");
-      const path25 = __require("node:path");
-      const fullPath = path25.join(workspace, file2.path);
-      if (fs23.existsSync(fullPath)) {
-        allFileContents.set(file2.path, fs23.readFileSync(fullPath, "utf-8"));
+      const fs24 = __require("node:fs");
+      const path27 = __require("node:path");
+      const fullPath = path27.join(workspace, file2.path);
+      if (fs24.existsSync(fullPath)) {
+        allFileContents.set(file2.path, fs24.readFileSync(fullPath, "utf-8"));
         filesAnalyzed++;
       }
     } catch {
@@ -85082,7 +90873,7 @@ function shouldRunBehavioralAnalysis(diffFiles) {
 // src/ownership.ts
 import * as core23 from "@actions/core";
 import * as fs9 from "node:fs";
-import * as path11 from "node:path";
+import * as path12 from "node:path";
 var DEFAULT_OWNERSHIP_CONFIG = {
   boostOwned: true,
   tagOwners: true,
@@ -85161,11 +90952,11 @@ function applyOwnershipToFindings(findings, ownership, config2 = DEFAULT_OWNERSH
 }
 function buildOwnershipSummary(ownership) {
   const teamFiles = /* @__PURE__ */ new Map();
-  for (const match of ownership) {
-    for (const owner of match.owners) {
+  for (const match2 of ownership) {
+    for (const owner of match2.owners) {
       const key = owner.startsWith("@") ? owner : `@${owner}`;
       if (!teamFiles.has(key)) teamFiles.set(key, []);
-      teamFiles.get(key).push(match.file);
+      teamFiles.get(key).push(match2.file);
     }
   }
   if (teamFiles.size === 0) return "";
@@ -85184,7 +90975,7 @@ var CODEOWNERS_PATHS = [
 ];
 function loadCodeowners(workspace) {
   for (const relPath of CODEOWNERS_PATHS) {
-    const fullPath = path11.join(workspace, relPath);
+    const fullPath = path12.join(workspace, relPath);
     if (fs9.existsSync(fullPath)) {
       try {
         const content = fs9.readFileSync(fullPath, "utf-8");
@@ -85200,11 +90991,11 @@ function loadCodeowners(workspace) {
 
 // src/delta.ts
 import * as fs10 from "node:fs";
-import * as path12 from "node:path";
+import * as path13 from "node:path";
 var DELTA_FILENAME = "mizumi-delta.json";
 var MAX_PR_ENTRIES = 1e3;
 function storePath2(workspace) {
-  return path12.join(workspace, ".github", DELTA_FILENAME);
+  return path13.join(workspace, ".github", DELTA_FILENAME);
 }
 function readStore2(workspace) {
   const p = storePath2(workspace);
@@ -85218,7 +91009,7 @@ function readStore2(workspace) {
 }
 function writeStore2(workspace, store) {
   const p = storePath2(workspace);
-  const dir = path12.dirname(p);
+  const dir = path13.dirname(p);
   if (!fs10.existsSync(dir)) fs10.mkdirSync(dir, { recursive: true });
   const entries = Object.entries(store.timestamps).sort(([, a], [, b]) => a - b);
   while (entries.length > MAX_PR_ENTRIES) {
@@ -85332,20 +91123,19 @@ Only reviewed changes since \`${shaShort}\`.
 
 // src/adr.ts
 import * as fs11 from "node:fs";
-import * as path13 from "node:path";
+import * as path14 from "node:path";
 import * as core24 from "@actions/core";
-import { minimatch as minimatch5 } from "minimatch";
 var ADR_DIRS = ["docs/adr", ".github/adr", "ADR", "adr"];
 var ADR_PATTERN = /^ADR-?(\d+)|^(\d+)[-\s]/;
 function discoverADRs(workspace) {
   const adrs = [];
   for (const dir of ADR_DIRS) {
-    const fullDir = path13.join(workspace, dir);
+    const fullDir = path14.join(workspace, dir);
     if (!fs11.existsSync(fullDir)) continue;
     try {
       const files = fs11.readdirSync(fullDir).filter((f) => f.endsWith(".md") || f.endsWith(".MD")).sort();
       for (const file2 of files) {
-        const filePath = path13.join(fullDir, file2);
+        const filePath = path14.join(fullDir, file2);
         try {
           const content = fs11.readFileSync(filePath, "utf-8");
           const adr = parseADR(content, file2, filePath);
@@ -85376,9 +91166,9 @@ function parseADR(content, filename, filePath) {
 }
 function extractSection(content, sectionName) {
   const re2 = new RegExp(`^##?\\s+${sectionName}\\s*\\n([\\s\\S]*?)(?=^##?\\s+\\w|$(?!\\n))`, "mi");
-  const match = content.match(re2);
-  if (!match) return "";
-  return match[1].trim();
+  const match2 = content.match(re2);
+  if (!match2) return "";
+  return match2[1].trim();
 }
 function inferAppliesTo(text2) {
   const patterns = [];
@@ -85422,7 +91212,7 @@ function checkADRViolations(files, adrs) {
   const acceptedADRs = adrs.filter((a) => a.status.toLowerCase() === "accepted");
   for (const adr of acceptedADRs) {
     const applicableFiles = files.filter(
-      (f) => adr.appliesTo.some((pattern) => minimatch5(f.path, pattern))
+      (f) => adr.appliesTo.some((pattern) => minimatch(f.path, pattern))
     );
     if (applicableFiles.length === 0) continue;
     for (const file2 of applicableFiles) {
@@ -85459,9 +91249,9 @@ function checkLineAgainstADR(line, lineNum, filePath, adr) {
 function extractForbiddenPatterns(decision) {
   const patterns = [];
   const re2 = /(?:do not use|avoid|never use|must not use|should not use|don't use)\s+([^\s,.:;]+)/gi;
-  let match;
-  while ((match = re2.exec(decision)) !== null) {
-    patterns.push(match[1].toLowerCase());
+  let match2;
+  while ((match2 = re2.exec(decision)) !== null) {
+    patterns.push(match2[1].toLowerCase());
   }
   return patterns;
 }
@@ -85544,10 +91334,10 @@ function findSources(files) {
         if (change.type !== "add") continue;
         const line = change.content;
         for (const pattern of SOURCE_PATTERNS) {
-          const match = line.match(pattern.re);
-          if (match) {
+          const match2 = line.match(pattern.re);
+          if (match2) {
             sources.push({
-              variable: match[pattern.varGroup],
+              variable: match2[pattern.varGroup],
               sourceType: pattern.type,
               file: file2.path,
               line: change.line
@@ -85771,9 +91561,9 @@ function matchesNegativeRule(finding, rules) {
 function applyNegativeRules(findings, rules) {
   if (rules.length === 0) return findings;
   return findings.filter((f) => {
-    const match = matchesNegativeRule(f, rules);
-    if (match) {
-      core26.info(`Review learning: suppressed "${f.category}" finding (dismissal rate ${Math.round(match.dismissalRate * 100)}%, ${match.sampleSize} samples)`);
+    const match2 = matchesNegativeRule(f, rules);
+    if (match2) {
+      core26.info(`Review learning: suppressed "${f.category}" finding (dismissal rate ${Math.round(match2.dismissalRate * 100)}%, ${match2.sampleSize} samples)`);
       return false;
     }
     return true;
@@ -85840,9 +91630,9 @@ function extractImportEdges(files) {
       for (const change of hunk.changes) {
         if (change.type !== "add") continue;
         for (const pattern of IMPORT_PATTERNS) {
-          const match = change.content.match(pattern.re);
-          if (!match) continue;
-          const rawPath = match[pattern.pathGroup];
+          const match2 = change.content.match(pattern.re);
+          if (!match2) continue;
+          const rawPath = match2[pattern.pathGroup];
           const target = resolveImportPath2(rawPath, file2.path);
           if (target && target !== file2.path) {
             edges.push({
@@ -85991,10 +91781,10 @@ function parseAcceptanceCriteria(body) {
   if (!body) return [];
   const criteria = [];
   const seen = /* @__PURE__ */ new Set();
-  let match;
+  let match2;
   TASK_LIST_RE.lastIndex = 0;
-  while ((match = TASK_LIST_RE.exec(body)) !== null) {
-    const text2 = match[2].trim();
+  while ((match2 = TASK_LIST_RE.exec(body)) !== null) {
+    const text2 = match2[2].trim();
     if (text2 && !seen.has(text2.toLowerCase())) {
       criteria.push(text2);
       seen.add(text2.toLowerCase());
@@ -86008,16 +91798,16 @@ function parseAcceptanceCriteria(body) {
     const nextHeading = afterHeading.search(/^#{1,3}\s+/m);
     const section = nextHeading > 0 ? afterHeading.slice(0, nextHeading) : afterHeading;
     NUMBERED_LIST_RE.lastIndex = 0;
-    while ((match = NUMBERED_LIST_RE.exec(section)) !== null) {
-      const text2 = match[2].trim();
+    while ((match2 = NUMBERED_LIST_RE.exec(section)) !== null) {
+      const text2 = match2[2].trim();
       if (text2 && !seen.has(text2.toLowerCase())) {
         criteria.push(text2);
         seen.add(text2.toLowerCase());
       }
     }
     BULLET_LIST_RE.lastIndex = 0;
-    while ((match = BULLET_LIST_RE.exec(section)) !== null) {
-      const text2 = match[1].trim();
+    while ((match2 = BULLET_LIST_RE.exec(section)) !== null) {
+      const text2 = match2[1].trim();
       if (text2 && !seen.has(text2.toLowerCase())) {
         criteria.push(text2);
         seen.add(text2.toLowerCase());
@@ -86026,8 +91816,8 @@ function parseAcceptanceCriteria(body) {
     if (criteria.length > 0) return criteria;
   }
   NUMBERED_LIST_RE.lastIndex = 0;
-  while ((match = NUMBERED_LIST_RE.exec(body)) !== null) {
-    const text2 = match[2].trim();
+  while ((match2 = NUMBERED_LIST_RE.exec(body)) !== null) {
+    const text2 = match2[2].trim();
     if (text2.length > 5 && !seen.has(text2.toLowerCase())) {
       criteria.push(text2);
       seen.add(text2.toLowerCase());
@@ -86035,8 +91825,8 @@ function parseAcceptanceCriteria(body) {
   }
   if (criteria.length > 0) return criteria;
   BULLET_LIST_RE.lastIndex = 0;
-  while ((match = BULLET_LIST_RE.exec(body)) !== null) {
-    const text2 = match[1].trim();
+  while ((match2 = BULLET_LIST_RE.exec(body)) !== null) {
+    const text2 = match2[1].trim();
     if (text2.length > 5 && !seen.has(text2.toLowerCase())) {
       criteria.push(text2);
       seen.add(text2.toLowerCase());
@@ -86049,10 +91839,10 @@ function parseTaskListStatus(body) {
   const items = [];
   const seen = /* @__PURE__ */ new Set();
   TASK_LIST_RE.lastIndex = 0;
-  let match;
-  while ((match = TASK_LIST_RE.exec(body)) !== null) {
-    const text2 = match[2].trim();
-    const checked = match[1].toLowerCase() === "x";
+  let match2;
+  while ((match2 = TASK_LIST_RE.exec(body)) !== null) {
+    const text2 = match2[2].trim();
+    const checked = match2[1].toLowerCase() === "x";
     if (text2 && !seen.has(text2.toLowerCase())) {
       items.push({ text: text2, checked });
       seen.add(text2.toLowerCase());
@@ -86064,9 +91854,9 @@ function extractKeywords(criterion) {
   const keywords = [];
   const seen = /* @__PURE__ */ new Set();
   IDENTIFIER_RE.lastIndex = 0;
-  let match;
-  while ((match = IDENTIFIER_RE.exec(criterion)) !== null) {
-    const kw = match[1];
+  let match2;
+  while ((match2 = IDENTIFIER_RE.exec(criterion)) !== null) {
+    const kw = match2[1];
     if (kw.length < 3) continue;
     if (/^(the|and|for|not|but|are|has|can|all|any|use|new|old|get|set|add|put|let|run|key|way|may|via)\b/i.test(kw)) continue;
     if (!seen.has(kw.toLowerCase())) {
@@ -86243,10 +92033,10 @@ async function checkSpecCompliance(octokit, owner, repo, prBody, prTitle, diffFi
 var ISSUE_REF_SIMPLE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#(\d+)|#(\d+)/gi;
 function extractIssueRefsSimple(text2) {
   const refs = /* @__PURE__ */ new Set();
-  let match;
+  let match2;
   ISSUE_REF_SIMPLE.lastIndex = 0;
-  while ((match = ISSUE_REF_SIMPLE.exec(text2)) !== null) {
-    const num = match[1] || match[2];
+  while ((match2 = ISSUE_REF_SIMPLE.exec(text2)) !== null) {
+    const num = match2[1] || match2[2];
     if (num) refs.add(parseInt(num, 10));
   }
   return [...refs].slice(0, 5);
@@ -86359,9 +92149,9 @@ var PUBLIC_ROUTE_PATTERNS = [
   /^\/graphql/i
   // Often public, but may have auth at middleware level
 ];
-function isPublicRoute(path25) {
-  if (!path25) return false;
-  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path25));
+function isPublicRoute(path27) {
+  if (!path27) return false;
+  return PUBLIC_ROUTE_PATTERNS.some((re2) => re2.test(path27));
 }
 function hasAuthSignal(content) {
   return AUTH_SIGNALS.some((re2) => re2.test(content));
@@ -86381,10 +92171,10 @@ function detectRoutesInFile(file2) {
       for (const pattern of ROUTE_PATTERNS) {
         if (pattern.framework === "nestjs" && !file2.path.includes(".controller.") && !file2.path.includes(".module.")) continue;
         if (pattern.framework === "nextjs" && !nextjsApiRoute) continue;
-        const match = change.content.match(pattern.routeRe);
-        if (!match) continue;
-        const method = pattern.methodGroup > 0 ? match[pattern.methodGroup].toLowerCase() : "any";
-        const route = pattern.pathGroup > 0 ? match[pattern.pathGroup] || "/" : "/";
+        const match2 = change.content.match(pattern.routeRe);
+        if (!match2) continue;
+        const method = pattern.methodGroup > 0 ? match2[pattern.methodGroup].toLowerCase() : "any";
+        const route = pattern.pathGroup > 0 ? match2[pattern.pathGroup] || "/" : "/";
         const surroundingBlock = hunk.changes.filter((c) => Math.abs(c.line - change.line) <= 15 && c.type !== "delete").map((c) => c.content);
         routes.push({ line: change.line, method, route, framework: pattern.framework, surroundingBlock });
         break;
@@ -86635,9 +92425,9 @@ function shannonEntropy(s) {
 function extractStringLiterals(line) {
   const results = [];
   const re2 = /['"`]([^'"`\n\\]{6,}?)['"`]/g;
-  let match;
-  while ((match = re2.exec(line)) !== null) {
-    results.push({ value: match[1], startCol: match.index });
+  let match2;
+  while ((match2 = re2.exec(line)) !== null) {
+    results.push({ value: match2[1], startCol: match2.index });
   }
   return results;
 }
@@ -86726,14 +92516,14 @@ function runEntropyAnalysis(files) {
   const findings = [];
   let stringsAnalyzed = 0;
   for (const file2 of files) {
-    const isTestFile = /(__tests__|\.test\.|\.spec\.|_test\.|_spec\.)/.test(file2.path);
+    const isTestFile2 = /(__tests__|\.test\.|\.spec\.|_test\.|_spec\.)/.test(file2.path);
     for (const hunk of file2.hunks) {
       for (const change of hunk.changes) {
         if (change.type !== "add") continue;
         const literals = extractStringLiterals(change.content);
         for (const lit of literals) {
           stringsAnalyzed++;
-          if (isTestFile) continue;
+          if (isTestFile2) continue;
           const { likely, reason } = isLikelySecret(lit.value, change.content);
           if (!likely) continue;
           const snippet = lit.value.length > 20 ? lit.value.slice(0, 8) + "..." + lit.value.slice(-4) : lit.value.slice(0, 3) + "...";
@@ -86943,9 +92733,9 @@ function extractTicketRefs(prBody, prTitle, prefixes) {
   const linearKeys = /* @__PURE__ */ new Set();
   const githubIds = /* @__PURE__ */ new Set();
   const matches = text2.matchAll(JIRA_RE);
-  for (const match of matches) {
-    const fullKey = `${match[1]}-${match[2]}`;
-    const prefix = match[1];
+  for (const match2 of matches) {
+    const fullKey = `${match2[1]}-${match2[2]}`;
+    const prefix = match2[1];
     if (prefixes.includes(prefix)) {
       jiraKeys.add(fullKey);
     } else {
@@ -86953,8 +92743,8 @@ function extractTicketRefs(prBody, prTitle, prefixes) {
     }
   }
   const ghMatches = text2.matchAll(GITHUB_RE);
-  for (const match of ghMatches) {
-    githubIds.add(parseInt(match[1], 10));
+  for (const match2 of ghMatches) {
+    githubIds.add(parseInt(match2[1], 10));
   }
   return {
     jiraKeys: [...jiraKeys],
@@ -87101,7 +92891,7 @@ function parseMCPEndpoints() {
 
 // src/org-memory.ts
 import * as core34 from "@actions/core";
-import * as path14 from "node:path";
+import * as path15 from "node:path";
 import * as fs12 from "node:fs";
 import { DatabaseSync as DatabaseSync3 } from "node:sqlite";
 var DB_FILENAME3 = "mizumi-data.db";
@@ -87109,11 +92899,11 @@ var MAX_SIMILAR_PRS = 5;
 var MIN_SIMILARITY = 0.1;
 var MAX_SUMMARY_LEN = 500;
 function getDbPath2(workspace) {
-  return path14.join(workspace, ".github", DB_FILENAME3);
+  return path15.join(workspace, ".github", DB_FILENAME3);
 }
 function openDb2(workspace) {
   const dbPath = getDbPath2(workspace);
-  const dir = path14.dirname(dbPath);
+  const dir = path15.dirname(dbPath);
   if (!fs12.existsSync(dir)) fs12.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync3(dbPath);
   db.exec(`
@@ -87303,7 +93093,7 @@ function pruneOldHistory(workspace, repo, maxAgeDays) {
 // src/test-gap.ts
 import * as core35 from "@actions/core";
 import * as fs13 from "node:fs";
-import * as path15 from "node:path";
+import * as path16 from "node:path";
 var NON_PRODUCTION_PATTERNS = [
   /\.test\.[tj]sx?$/,
   /\.spec\.[tj]sx?$/,
@@ -87331,7 +93121,7 @@ var NON_PRODUCTION_PATTERNS = [
 ];
 var SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx)$/;
 function toPosix(p) {
-  return p.split(path15.sep).join("/");
+  return p.split(path16.sep).join("/");
 }
 function isProductionFile(filePath) {
   if (!SOURCE_EXTENSIONS.test(filePath)) return false;
@@ -87341,28 +93131,28 @@ function isProductionFile(filePath) {
   return true;
 }
 function inferTestFilePath(sourceFile) {
-  const dir = path15.dirname(sourceFile);
-  const base = path15.basename(sourceFile, path15.extname(sourceFile));
-  const ext = path15.extname(sourceFile);
-  const coLocated = toPosix(path15.join(dir, "__tests__", `${base}.test${ext}`));
+  const dir = path16.dirname(sourceFile);
+  const base = path16.basename(sourceFile, path16.extname(sourceFile));
+  const ext2 = path16.extname(sourceFile);
+  const coLocated = toPosix(path16.join(dir, "__tests__", `${base}.test${ext2}`));
   return coLocated;
 }
 function getAllTestConventions(sourceFile) {
-  const dir = path15.dirname(sourceFile);
-  const base = path15.basename(sourceFile, path15.extname(sourceFile));
-  const ext = path15.extname(sourceFile);
+  const dir = path16.dirname(sourceFile);
+  const base = path16.basename(sourceFile, path16.extname(sourceFile));
+  const ext2 = path16.extname(sourceFile);
   return [
     // Co-located __tests__
-    toPosix(path15.join(dir, "__tests__", `${base}.test${ext}`)),
-    toPosix(path15.join(dir, "__tests__", `${base}.spec${ext}`)),
+    toPosix(path16.join(dir, "__tests__", `${base}.test${ext2}`)),
+    toPosix(path16.join(dir, "__tests__", `${base}.spec${ext2}`)),
     // Top-level __tests__ mirroring src/
-    dir.startsWith("src/") ? toPosix(path15.join("src", "__tests__", dir.slice(4), `${base}.test${ext}`)) : toPosix(path15.join("__tests__", dir, `${base}.test${ext}`)),
+    dir.startsWith("src/") ? toPosix(path16.join("src", "__tests__", dir.slice(4), `${base}.test${ext2}`)) : toPosix(path16.join("__tests__", dir, `${base}.test${ext2}`)),
     // Separate test/ directories
-    dir.startsWith("src/") ? toPosix(path15.join("test", dir.slice(4), `${base}.test${ext}`)) : toPosix(path15.join("test", dir, `${base}.test${ext}`)),
-    dir.startsWith("src/") ? toPosix(path15.join("tests", dir.slice(4), `${base}.test${ext}`)) : toPosix(path15.join("tests", dir, `${base}.test${ext}`)),
+    dir.startsWith("src/") ? toPosix(path16.join("test", dir.slice(4), `${base}.test${ext2}`)) : toPosix(path16.join("test", dir, `${base}.test${ext2}`)),
+    dir.startsWith("src/") ? toPosix(path16.join("tests", dir.slice(4), `${base}.test${ext2}`)) : toPosix(path16.join("tests", dir, `${base}.test${ext2}`)),
     // Sibling test file (.test.ts / .spec.ts next to the source)
-    toPosix(path15.join(dir, `${base}.test${ext}`)),
-    toPosix(path15.join(dir, `${base}.spec${ext}`))
+    toPosix(path16.join(dir, `${base}.test${ext2}`)),
+    toPosix(path16.join(dir, `${base}.spec${ext2}`))
   ];
 }
 function countNewSymbols(diffFile) {
@@ -87384,16 +93174,16 @@ function countNewSymbols(diffFile) {
 function findExistingTestFile(sourceFile, workspace) {
   const conventions = getAllTestConventions(sourceFile);
   for (const testPath of conventions) {
-    const fullPath = path15.join(workspace, testPath);
+    const fullPath = path16.join(workspace, testPath);
     if (fs13.existsSync(fullPath)) return testPath;
   }
   return null;
 }
 function isTestFileInDiff(sourceFile, changedFiles) {
-  const base = path15.basename(sourceFile, path15.extname(sourceFile));
+  const base = path16.basename(sourceFile, path16.extname(sourceFile));
   for (const changed of changedFiles) {
     if (!isProductionFile(changed) && changed.includes(base)) return true;
-    const dir = path15.dirname(sourceFile);
+    const dir = path16.dirname(sourceFile);
     if (changed.includes("__tests__") && changed.includes(dir.split("/").pop() || "")) {
       return true;
     }
@@ -87467,17 +93257,17 @@ function buildTestGapContext(result) {
 
 // src/suppression-memories.ts
 import * as core36 from "@actions/core";
-import * as path16 from "node:path";
+import * as path17 from "node:path";
 import * as fs14 from "node:fs";
 import { DatabaseSync as DatabaseSync4 } from "node:sqlite";
 var DB_FILENAME4 = "mizumi-data.db";
 var MIN_PATTERN_LEN = 5;
 function getDbPath3(workspace) {
-  return path16.join(workspace, ".github", DB_FILENAME4);
+  return path17.join(workspace, ".github", DB_FILENAME4);
 }
 function openDb3(workspace) {
   const dbPath = getDbPath3(workspace);
-  const dir = path16.dirname(dbPath);
+  const dir = path17.dirname(dbPath);
   if (!fs14.existsSync(dir)) fs14.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync4(dbPath);
   db.exec(`
@@ -88025,7 +93815,7 @@ function buildSplitContext(score, category, suggestions) {
 
 // src/finding-lifecycle.ts
 import * as fs15 from "node:fs";
-import * as path17 from "node:path";
+import * as path18 from "node:path";
 import * as core40 from "@actions/core";
 var LIFECYCLE_FILENAME = "mizumi-lifecycle.json";
 var MAX_SNAPSHOTS = 500;
@@ -88049,7 +93839,7 @@ function hashMessage3(message) {
   return Math.abs(hash2).toString(36);
 }
 function storePath3(workspace) {
-  return path17.join(workspace, ".github", LIFECYCLE_FILENAME);
+  return path18.join(workspace, ".github", LIFECYCLE_FILENAME);
 }
 function readStore3(workspace) {
   const p = storePath3(workspace);
@@ -88063,7 +93853,7 @@ function readStore3(workspace) {
 }
 function writeStore3(workspace, store) {
   const p = storePath3(workspace);
-  const dir = path17.dirname(p);
+  const dir = path18.dirname(p);
   if (!fs15.existsSync(dir)) fs15.mkdirSync(dir, { recursive: true });
   const entries = Object.entries(store.snapshots).sort(([, a], [, b]) => a.timestamp - b.timestamp);
   while (entries.length > MAX_SNAPSHOTS) {
@@ -88490,9 +94280,9 @@ function parsePackageJsonDiff(file2) {
       continue;
     }
     if (deletedSection) {
-      const match = DEP_LINE_PATTERN.exec(line);
-      if (match) {
-        oldDeps.set(match[1], { version: match[2], group: deletedSection });
+      const match2 = DEP_LINE_PATTERN.exec(line);
+      if (match2) {
+        oldDeps.set(match2[1], { version: match2[2], group: deletedSection });
       }
     }
   }
@@ -88509,9 +94299,9 @@ function parsePackageJsonDiff(file2) {
       continue;
     }
     if (addedSection) {
-      const match = DEP_LINE_PATTERN.exec(line);
-      if (match) {
-        newDeps.set(match[1], { version: match[2], group: addedSection });
+      const match2 = DEP_LINE_PATTERN.exec(line);
+      if (match2) {
+        newDeps.set(match2[1], { version: match2[2], group: addedSection });
       }
     }
   }
@@ -88569,12 +94359,12 @@ function parseSemver(version2) {
   if (cleaned.startsWith("file:") || cleaned.startsWith("workspace:") || cleaned.startsWith("github:") || cleaned.startsWith("git+") || cleaned.startsWith("npm:") || cleaned.startsWith("link:")) {
     return null;
   }
-  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(cleaned);
-  if (!match) return null;
+  const match2 = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(cleaned);
+  if (!match2) return null;
   return {
-    major: parseInt(match[1], 10),
-    minor: match[2] ? parseInt(match[2], 10) : 0,
-    patch: match[3] ? parseInt(match[3], 10) : 0
+    major: parseInt(match2[1], 10),
+    minor: match2[2] ? parseInt(match2[2], 10) : 0,
+    patch: match2[3] ? parseInt(match2[3], 10) : 0
   };
 }
 function detectLockfileChanges(files) {
@@ -88589,12 +94379,12 @@ function detectLockfileChanges(files) {
   }
   return lockfileChanges;
 }
-function isDepFile(path25) {
-  if (PACKAGE_JSON_PATTERN.test(path25)) return true;
+function isDepFile(path27) {
+  if (PACKAGE_JSON_PATTERN.test(path27)) return true;
   for (const pattern of LOCKFILE_PATTERNS) {
-    if (pattern.test(path25)) return true;
+    if (pattern.test(path27)) return true;
   }
-  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path25)) {
+  if (/(^|\/)(requirements\.txt|Gemfile|Cargo\.toml|go\.mod|go\.sum|pom\.xml|build\.gradle|\.csproj|packages\.config)$/i.test(path27)) {
     return true;
   }
   return false;
@@ -88616,9 +94406,9 @@ function traceImportImpact(files, changedPackages) {
     const content = file2.hunks.flatMap((h) => h.changes).map((c) => c.content).join("\n");
     for (const pattern of IMPORT_PATTERNS2) {
       pattern.re.lastIndex = 0;
-      let match;
-      while ((match = pattern.re.exec(content)) !== null) {
-        const importPath = match[1];
+      let match2;
+      while ((match2 = pattern.re.exec(content)) !== null) {
+        const importPath = match2[1];
         const pkgName = extractPackageName(importPath);
         if (pkgSet.has(pkgName)) {
           impacts.push({
@@ -88932,7 +94722,7 @@ async function analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor)
 
 // src/crosspr-persist.ts
 import * as fs16 from "node:fs";
-import * as path18 from "node:path";
+import * as path19 from "node:path";
 var CROSSPR_FILENAME = "mizumi-crosspr.json";
 var MAX_ENTRIES_PER_PATTERN = 50;
 var MAX_PATTERNS = 1e3;
@@ -88964,7 +94754,7 @@ function fingerprintCrossPR(finding) {
   };
 }
 function storePath4(workspace) {
-  return path18.join(workspace, ".github", CROSSPR_FILENAME);
+  return path19.join(workspace, ".github", CROSSPR_FILENAME);
 }
 function readStore4(workspace) {
   const p = storePath4(workspace);
@@ -88978,7 +94768,7 @@ function readStore4(workspace) {
 }
 function writeStore4(workspace, store) {
   const p = storePath4(workspace);
-  const dir = path18.dirname(p);
+  const dir = path19.dirname(p);
   if (!fs16.existsSync(dir)) fs16.mkdirSync(dir, { recursive: true });
   const cutoff = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1e3;
   for (const [key, entries] of Object.entries(store.patterns)) {
@@ -89119,7 +94909,7 @@ function buildCrossPRBodySummary(result) {
 
 // src/sarif.ts
 import * as fs17 from "node:fs";
-import * as path19 from "node:path";
+import * as path20 from "node:path";
 var MIZUMI_VERSION = "0.1.0";
 var MIZUMI_INFO_URI = "https://github.com/LVT382009/mizumi";
 var SEVERITY_TO_LEVEL = {
@@ -89237,9 +95027,9 @@ function generateSARIF(findings, repoUrl) {
   };
 }
 function writeSARIF(workspace, sarif) {
-  const outDir = path19.join(workspace, ".github");
+  const outDir = path20.join(workspace, ".github");
   if (!fs17.existsSync(outDir)) fs17.mkdirSync(outDir, { recursive: true });
-  const outPath = path19.join(outDir, "mizumi-results.sarif");
+  const outPath = path20.join(outDir, "mizumi-results.sarif");
   fs17.writeFileSync(outPath, JSON.stringify(sarif, null, 2), "utf-8");
   return outPath;
 }
@@ -89460,7 +95250,7 @@ function buildSummary(findings, riskScore) {
 
 // src/project-index.ts
 import * as fs18 from "node:fs";
-import * as path20 from "node:path";
+import * as path21 from "node:path";
 var SKIP_DIRS = /* @__PURE__ */ new Set([
   "node_modules",
   ".git",
@@ -89506,7 +95296,7 @@ var KEY_FILE_PATTERNS = [
   { pattern: /^action\.yml$/, role: "GitHub Action" }
 ];
 function classifyKeyFile(relativePath2) {
-  const basename7 = path20.basename(relativePath2);
+  const basename7 = path21.basename(relativePath2);
   for (const { pattern, role } of KEY_FILE_PATTERNS) {
     if (pattern.test(basename7)) return role;
   }
@@ -89551,7 +95341,7 @@ function buildTree(dir, prefix = "", depth = 0, fileCount = { value: 0 }) {
       result += `${prefix}${connector}${entry.name}/
 `;
       result += buildTree(
-        path20.join(dir, entry.name),
+        path21.join(dir, entry.name),
         prefix + childPrefix,
         depth + 1,
         fileCount
@@ -89578,7 +95368,7 @@ function buildProjectIndex(workspace) {
       return;
     }
     for (const entry of entries) {
-      const entryPath = path20.join(dir, entry.name);
+      const entryPath = path21.join(dir, entry.name);
       const entryRel = relPath ? `${relPath}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         if (SKIP_DIRS.has(entry.name) || entry.name.startsWith(".") && entry.name !== ".github") continue;
@@ -89605,7 +95395,7 @@ function buildProjectIndex(workspace) {
     for (const entry of entries) {
       if (entry.isDirectory() && !SKIP_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
         totalDirs++;
-        countDirs(path20.join(dir, entry.name));
+        countDirs(path21.join(dir, entry.name));
       }
     }
   }
@@ -89649,9 +95439,9 @@ function buildProjectIndex(workspace) {
 
 // src/repo-health.ts
 import * as fs19 from "node:fs";
-import * as path21 from "node:path";
+import * as path22 from "node:path";
 function detectCIConfig(workspace, keyFiles) {
-  const hasCI = keyFiles.some((f) => f.role === "CI/CD") || fs19.existsSync(path21.join(workspace, ".github", "workflows")) || fs19.existsSync(path21.join(workspace, ".gitlab-ci.yml")) || fs19.existsSync(path21.join(workspace, "Jenkinsfile")) || fs19.existsSync(path21.join(workspace, ".circleci"));
+  const hasCI = keyFiles.some((f) => f.role === "CI/CD") || fs19.existsSync(path22.join(workspace, ".github", "workflows")) || fs19.existsSync(path22.join(workspace, ".gitlab-ci.yml")) || fs19.existsSync(path22.join(workspace, "Jenkinsfile")) || fs19.existsSync(path22.join(workspace, ".circleci"));
   const score = hasCI ? 10 : 0;
   return {
     id: "ci_config",
@@ -89666,7 +95456,7 @@ function detectTestFramework(workspace, keyFiles) {
   const hasTestConfig = keyFiles.some(
     (f) => f.role === "test config" || f.path.includes("__tests__") || f.path.includes(".test.") || f.path.includes(".spec.")
   );
-  const hasTestDir = fs19.existsSync(path21.join(workspace, "test")) || fs19.existsSync(path21.join(workspace, "tests")) || fs19.existsSync(path21.join(workspace, "__tests__")) || fs19.existsSync(path21.join(workspace, "spec"));
+  const hasTestDir = fs19.existsSync(path22.join(workspace, "test")) || fs19.existsSync(path22.join(workspace, "tests")) || fs19.existsSync(path22.join(workspace, "__tests__")) || fs19.existsSync(path22.join(workspace, "spec"));
   const score = (hasTestConfig ? 6 : 0) + (hasTestDir ? 4 : 0);
   return {
     id: "test_framework",
@@ -89728,7 +95518,7 @@ function detectDependencyManagement(keyFiles) {
 }
 function detectEnvConfig(workspace, keyFiles) {
   const hasEnv = keyFiles.some((f) => f.role === "environment");
-  const hasEnvExample = fs19.existsSync(path21.join(workspace, ".env.example")) || fs19.existsSync(path21.join(workspace, ".env.sample"));
+  const hasEnvExample = fs19.existsSync(path22.join(workspace, ".env.example")) || fs19.existsSync(path22.join(workspace, ".env.sample"));
   const score = hasEnv ? hasEnvExample ? 10 : 5 : 5;
   return {
     id: "env_config",
@@ -89752,9 +95542,9 @@ function detectOwnership(keyFiles) {
   };
 }
 function detectDocumentation(workspace) {
-  const hasReadme = fs19.existsSync(path21.join(workspace, "README.md"));
-  const hasContributing = fs19.existsSync(path21.join(workspace, "CONTRIBUTING.md")) || fs19.existsSync(path21.join(workspace, ".github", "CONTRIBUTING.md"));
-  const hasChangelog = fs19.existsSync(path21.join(workspace, "CHANGELOG.md")) || fs19.existsSync(path21.join(workspace, "CHANGES.md"));
+  const hasReadme = fs19.existsSync(path22.join(workspace, "README.md"));
+  const hasContributing = fs19.existsSync(path22.join(workspace, "CONTRIBUTING.md")) || fs19.existsSync(path22.join(workspace, ".github", "CONTRIBUTING.md"));
+  const hasChangelog = fs19.existsSync(path22.join(workspace, "CHANGELOG.md")) || fs19.existsSync(path22.join(workspace, "CHANGES.md"));
   const score = (hasReadme ? 5 : 0) + (hasContributing ? 3 : 0) + (hasChangelog ? 2 : 0);
   return {
     id: "documentation",
@@ -89766,10 +95556,10 @@ function detectDocumentation(workspace) {
   };
 }
 function detectSecurityConfig(workspace, keyFiles) {
-  const hasSecurityPolicy = fs19.existsSync(path21.join(workspace, "SECURITY.md")) || fs19.existsSync(path21.join(workspace, ".github", "SECURITY.md"));
-  const hasDependabot = fs19.existsSync(path21.join(workspace, ".github", "dependabot.yml")) || fs19.existsSync(path21.join(workspace, ".github", "dependabot.yaml"));
+  const hasSecurityPolicy = fs19.existsSync(path22.join(workspace, "SECURITY.md")) || fs19.existsSync(path22.join(workspace, ".github", "SECURITY.md"));
+  const hasDependabot = fs19.existsSync(path22.join(workspace, ".github", "dependabot.yml")) || fs19.existsSync(path22.join(workspace, ".github", "dependabot.yaml"));
   const hasCodeowners = keyFiles.some((f) => f.role === "ownership");
-  const hasSecurityPaths = fs19.existsSync(path21.join(workspace, ".github", "CODEOWNERS"));
+  const hasSecurityPaths = fs19.existsSync(path22.join(workspace, ".github", "CODEOWNERS"));
   const score = (hasSecurityPolicy ? 4 : 0) + (hasDependabot ? 3 : 0) + (hasCodeowners || hasSecurityPaths ? 3 : 0);
   return {
     id: "security_config",
@@ -89894,7 +95684,7 @@ function scanKeyFiles(dir, relPath = "") {
     return results;
   }
   for (const entry of entries) {
-    const entryPath = path21.join(dir, entry.name);
+    const entryPath = path22.join(dir, entry.name);
     const entryRel = relPath ? `${relPath}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       if (SKIP_DIRS_SET.has(entry.name) || entry.name.startsWith(".") && entry.name !== ".github") continue;
@@ -90066,7 +95856,7 @@ function planChunkedReview(files) {
 
 // src/review-cache.ts
 import * as fs20 from "node:fs";
-import * as path22 from "node:path";
+import * as path23 from "node:path";
 import * as crypto2 from "node:crypto";
 var CACHE_VERSION = 1;
 var CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
@@ -90075,10 +95865,10 @@ function hashContent(filePath, content) {
   return crypto2.createHash("sha256").update(filePath + "\0" + content).digest("hex").substring(0, 16);
 }
 function getCacheDir(workspace) {
-  return path22.join(workspace, ".mizumi", "cache");
+  return path23.join(workspace, ".mizumi", "cache");
 }
 function getCachePath(workspace) {
-  return path22.join(getCacheDir(workspace), "review-cache.json");
+  return path23.join(getCacheDir(workspace), "review-cache.json");
 }
 function readCacheStore(workspace) {
   const cachePath = getCachePath(workspace);
@@ -90196,7 +95986,7 @@ function formatCacheStats(stats) {
 // src/audit-trail.ts
 import * as core42 from "@actions/core";
 import * as fs21 from "node:fs";
-import * as path23 from "node:path";
+import * as path24 from "node:path";
 var AuditTrailBuilder = class {
   meta;
   stages = [];
@@ -90245,16 +96035,16 @@ var AuditTrailBuilder = class {
   }
 };
 function writeAuditTrail(workspace, trail) {
-  const dir = path23.join(workspace, ".mizumi", "audit");
+  const dir = path24.join(workspace, ".mizumi", "audit");
   if (!fs21.existsSync(dir)) fs21.mkdirSync(dir, { recursive: true });
   const fileName = `audit-${trail.meta.runId}.json`;
-  const filePath = path23.join(dir, fileName);
+  const filePath = path24.join(dir, fileName);
   fs21.writeFileSync(filePath, JSON.stringify(trail, null, 2), "utf8");
   core42.info(`Audit trail written to ${filePath} (${trail.stages.length} stages, ${trail.findings.length} findings, ${trail.llmCalls.length} LLM calls)`);
   return filePath;
 }
 function readAuditTrail(workspace, runId) {
-  const filePath = path23.join(workspace, ".mizumi", "audit", `audit-${runId}.json`);
+  const filePath = path24.join(workspace, ".mizumi", "audit", `audit-${runId}.json`);
   try {
     if (!fs21.existsSync(filePath)) return null;
     return JSON.parse(fs21.readFileSync(filePath, "utf8"));
@@ -90263,7 +96053,7 @@ function readAuditTrail(workspace, runId) {
   }
 }
 function listAuditTrails(workspace) {
-  const dir = path23.join(workspace, ".mizumi", "audit");
+  const dir = path24.join(workspace, ".mizumi", "audit");
   if (!fs21.existsSync(dir)) return [];
   return fs21.readdirSync(dir).filter((f) => f.startsWith("audit-") && f.endsWith(".json")).map((f) => f.slice(6, -5)).sort();
 }
@@ -90271,10 +96061,12 @@ function formatNumber(n) {
   const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return n < 0 ? `-${abs}` : abs;
 }
+var runCounter = 0;
 function generateRunId() {
   const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${ts}-${rand}`;
+  const seq = (runCounter++).toString(36).padStart(3, "0");
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${ts}-${seq}-${rand}`;
 }
 function sanitizeConfig(config2) {
   const sanitized = {};
@@ -90300,13 +96092,13 @@ function computeConfigHash(config2) {
 // src/review-dashboard.ts
 import * as core43 from "@actions/core";
 import * as fs22 from "node:fs";
-import * as path24 from "node:path";
+import * as path25 from "node:path";
 function collectDashboardMetrics(config2) {
   const weeks = config2.weeks ?? 4;
   const workspace = config2.workspace;
   const acceptanceByCategory = {};
   try {
-    const feedbackPath = path24.join(workspace, ".mizumi", "feedback.json");
+    const feedbackPath = path25.join(workspace, ".mizumi", "feedback.json");
     if (fs22.existsSync(feedbackPath)) {
       const store = JSON.parse(fs22.readFileSync(feedbackPath, "utf8"));
       for (const entry of store) {
@@ -90335,7 +96127,7 @@ function collectDashboardMetrics(config2) {
   const weeklyRisk = {};
   const categoryCounts = {};
   try {
-    const spendPath = path24.join(workspace, ".mizumi", "spend.jsonl");
+    const spendPath = path25.join(workspace, ".mizumi", "spend.jsonl");
     if (fs22.existsSync(spendPath)) {
       const lines = fs22.readFileSync(spendPath, "utf8").trim().split("\n");
       for (const line of lines) {
@@ -90382,7 +96174,7 @@ function collectDashboardMetrics(config2) {
   }
   const topSuppressed = [];
   try {
-    const suppPath = path24.join(workspace, ".mizumi", "suppressions.jsonl");
+    const suppPath = path25.join(workspace, ".mizumi", "suppressions.jsonl");
     if (fs22.existsSync(suppPath)) {
       const lines = fs22.readFileSync(suppPath, "utf8").trim().split("\n");
       const patternCounts = {};
@@ -90549,9 +96341,9 @@ function getWeekKey(timestamp) {
   }
 }
 function writeDashboard(workspace, html) {
-  const dir = path24.join(workspace, ".mizumi");
+  const dir = path25.join(workspace, ".mizumi");
   if (!fs22.existsSync(dir)) fs22.mkdirSync(dir, { recursive: true });
-  const filePath = path24.join(dir, "dashboard.html");
+  const filePath = path25.join(dir, "dashboard.html");
   fs22.writeFileSync(filePath, html, "utf8");
   core43.info(`Dashboard written to ${filePath}`);
   return filePath;
@@ -90567,7 +96359,7 @@ function findRunsForPR(workspace, owner, repo, prNumber) {
       results.push(trailToReplay(trail));
     }
   }
-  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.runId.localeCompare(b.runId));
 }
 function formatReplayTimeline(runs) {
   if (runs.length === 0) return "*No review history for this PR.*";
@@ -90914,30 +96706,9216 @@ function detectLockOrdering(seqs, filePath) {
   return results;
 }
 
+// src/crosspr-conflict.ts
+import * as core45 from "@actions/core";
+function detectFileCollisions(currentFiles, otherPR) {
+  const conflicts = [];
+  for (const file2 of otherPR.files) {
+    if (currentFiles.has(file2)) {
+      conflicts.push({
+        kind: "file-collision",
+        currentFile: file2,
+        otherPR: otherPR.number,
+        otherFile: file2,
+        description: `Both this PR and PR #${otherPR.number} modify \`${file2}\` \u2014 likely merge conflict`,
+        severity: "high"
+      });
+    }
+  }
+  return conflicts;
+}
+function stripExtension(p) {
+  const dot = p.lastIndexOf(".");
+  const slash = p.lastIndexOf("/");
+  if (dot > slash && dot > 0) return p.slice(0, dot);
+  return p;
+}
+function detectExportConflicts(currentEdges, currentFiles, otherPR) {
+  const conflicts = [];
+  const otherFilesNoExt = new Set(otherPR.files.map(stripExtension));
+  const currentFilesNoExt = new Set([...currentFiles].map(stripExtension));
+  for (const edge of currentEdges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (otherFilesNoExt.has(edgeTarget) && !currentFilesNoExt.has(edgeTarget)) {
+      conflicts.push({
+        kind: "export-change",
+        currentFile: edge.from,
+        otherPR: otherPR.number,
+        otherFile: edge.to,
+        description: `This PR imports from \`${edge.to}\` (${edge.kind}) which PR #${otherPR.number} also modifies \u2014 signature may change`,
+        severity: "medium"
+      });
+    }
+  }
+  for (const edge of otherPR.edges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (currentFilesNoExt.has(edgeTarget) && !otherFilesNoExt.has(edgeTarget)) {
+      conflicts.push({
+        kind: "export-change",
+        currentFile: edge.to,
+        otherPR: otherPR.number,
+        otherFile: edge.from,
+        description: `PR #${otherPR.number} imports from \`${edge.to}\` which this PR modifies \u2014 their code may break`,
+        severity: "medium"
+      });
+    }
+  }
+  return conflicts;
+}
+function detectDeleteUseConflicts(currentEdges, _currentFiles, currentDeleted, otherPR) {
+  const conflicts = [];
+  const otherDeletedNoExt = new Set(otherPR.deletedFiles.map(stripExtension));
+  for (const edge of currentEdges) {
+    const edgeTarget = stripExtension(edge.to);
+    if (otherDeletedNoExt.has(edgeTarget)) {
+      const deletedFile = otherPR.deletedFiles.find((d) => stripExtension(d) === edgeTarget) || edgeTarget;
+      conflicts.push({
+        kind: "delete-use",
+        currentFile: edge.from,
+        otherPR: otherPR.number,
+        otherFile: deletedFile,
+        description: `This PR imports \`${deletedFile}\` but PR #${otherPR.number} deletes it`,
+        severity: "critical"
+      });
+    }
+  }
+  for (const deletedFile of currentDeleted) {
+    const deletedNoExt = stripExtension(deletedFile);
+    for (const edge of otherPR.edges) {
+      const edgeTarget = stripExtension(edge.to);
+      if (edgeTarget === deletedNoExt) {
+        conflicts.push({
+          kind: "delete-use",
+          currentFile: deletedFile,
+          otherPR: otherPR.number,
+          otherFile: edge.from,
+          description: `This PR deletes \`${deletedFile}\` but PR #${otherPR.number} still imports it`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return conflicts;
+}
+function dedupConflicts(conflicts) {
+  const seen = /* @__PURE__ */ new Set();
+  return conflicts.filter((c) => {
+    const key = `${c.kind}:${c.currentFile}:${c.otherPR}:${c.otherFile}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildConflictContext(result) {
+  const critical = result.conflicts.filter((c) => c.severity === "critical");
+  const high = result.conflicts.filter((c) => c.severity === "high");
+  const medium = result.conflicts.filter((c) => c.severity === "medium");
+  if (critical.length === 0 && high.length === 0 && medium.length === 0) return "";
+  let ctx = `## Cross-PR Conflicts (${result.conflicts.length})
+`;
+  ctx += "This PR may conflict with other open PRs. Coordinate with authors before merging:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const c of critical.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (high.length > 0) {
+    ctx += "### High\n";
+    for (const c of high.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (medium.length > 0) {
+    ctx += "### Medium\n";
+    for (const c of medium.slice(0, 5)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildConflictBodySummary(result) {
+  if (result.conflicts.length === 0) return "";
+  let body = `<details><summary><strong>Cross-PR Conflicts</strong> \u2014 ${result.conflicts.length} detected</summary>
+
+`;
+  body += "| Type | File | Other PR | Severity |\n";
+  body += "|------|------|----------|----------|\n";
+  for (const c of result.conflicts.slice(0, 15)) {
+    const typeLabel = c.kind === "file-collision" ? "collision" : c.kind === "export-change" ? "export" : "delete-use";
+    body += `| ${typeLabel} | \`${c.currentFile}\` | #${c.otherPR} | ${c.severity} |
+`;
+  }
+  if (result.conflicts.length > 15) {
+    body += `| ... | | | ${result.conflicts.length - 15} more |
+`;
+  }
+  body += `
+*Analyzed against ${result.otherPRs.length} other open PRs.*
+</details>
+`;
+  return body;
+}
+function detectCrossPRConflicts(currentFiles, otherPRs) {
+  const currentFilePaths = new Set(currentFiles.map((f) => f.path));
+  const currentEdges = extractImportEdges(currentFiles);
+  const currentDeleted = currentFiles.filter((f) => f.status === "deleted").map((f) => f.path);
+  const allConflicts = [];
+  for (const otherPR of otherPRs) {
+    const fileCollisions = detectFileCollisions(currentFilePaths, otherPR);
+    const exportConflicts = detectExportConflicts(currentEdges, currentFilePaths, otherPR);
+    const deleteUseConflicts = detectDeleteUseConflicts(currentEdges, currentFilePaths, currentDeleted, otherPR);
+    allConflicts.push(...fileCollisions, ...exportConflicts, ...deleteUseConflicts);
+  }
+  const conflicts = dedupConflicts(allConflicts);
+  const severityOrder2 = { critical: 0, high: 1, medium: 2 };
+  conflicts.sort((a, b) => {
+    const sv = (severityOrder2[a.severity] ?? 3) - (severityOrder2[b.severity] ?? 3);
+    if (sv !== 0) return sv;
+    return a.currentFile.localeCompare(b.currentFile);
+  });
+  const result = {
+    conflicts,
+    currentFiles: [...currentFilePaths].sort(),
+    otherPRs,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildConflictContext(result);
+  result.bodySummary = buildConflictBodySummary(result);
+  if (conflicts.length > 0) {
+    core45.info(`Cross-PR conflicts: ${conflicts.length} detected against ${otherPRs.length} open PRs`);
+  }
+  return result;
+}
+function buildOpenPRSummary(prNumber, title, files) {
+  const edges = extractImportEdges(files);
+  const deletedFiles = files.filter((f) => f.status === "deleted").map((f) => f.path);
+  return {
+    number: prNumber,
+    title,
+    files: files.map((f) => f.path),
+    edges,
+    deletedFiles
+  };
+}
+
+// src/architecture-drift.ts
+import * as core46 from "@actions/core";
+import * as fs23 from "node:fs";
+import * as path26 from "node:path";
+function loadArchitectureModel(workspace) {
+  const ymlPath = path26.join(workspace, ".github", "mizumi-architecture.yml");
+  if (!fs23.existsSync(ymlPath)) return null;
+  try {
+    const raw = fs23.readFileSync(ymlPath, "utf-8");
+    return parseArchitectureYaml(raw);
+  } catch {
+    core46.warning("Failed to parse .github/mizumi-architecture.yml");
+    return null;
+  }
+}
+function matchGlob(filePath, pattern) {
+  if (pattern === "**") return true;
+  if (!pattern.includes("*")) return filePath === pattern;
+  const re2 = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "{{GLOBSTAR}}").replace(/\*/g, "[^/]*").replace(/{{GLOBSTAR}}/g, ".*");
+  return new RegExp(`^${re2}$`).test(filePath);
+}
+function fileMatchesAny(filePath, patterns) {
+  return patterns.some((p) => matchGlob(filePath, p));
+}
+function resolveLayer(filePath, layers) {
+  for (const layer of layers) {
+    if (fileMatchesAny(filePath, layer.patterns)) return layer.name;
+  }
+  return null;
+}
+function resolveContext(filePath, contexts) {
+  for (const ctx of contexts) {
+    if (fileMatchesAny(filePath, ctx.patterns)) return ctx.name;
+  }
+  return null;
+}
+function detectLayerViolations(edges, currentFiles, layers, strict) {
+  const violations = [];
+  for (const edge of edges) {
+    if (!currentFiles.has(edge.from)) continue;
+    const sourceLayer = resolveLayer(edge.from, layers);
+    const targetLayer = resolveLayer(edge.to, layers);
+    if (!sourceLayer || !targetLayer) continue;
+    if (sourceLayer === targetLayer) continue;
+    const sourceDef = layers.find((l) => l.name === sourceLayer);
+    if (!sourceDef) continue;
+    const isAllowed = sourceDef.allowedDeps.includes(targetLayer);
+    if (!isAllowed) {
+      violations.push({
+        kind: "layer-violation",
+        sourceFile: edge.from,
+        targetFile: edge.to,
+        sourceLayer,
+        targetLayer,
+        description: `Layer violation: \`${sourceLayer}\` file \`${edge.from}\` imports from \`${targetLayer}\` layer (\`${edge.to}\`) \u2014 not in allowed dependencies [${sourceDef.allowedDeps.join(", ")}]`,
+        severity: "critical"
+      });
+    }
+    if (strict && isAllowed) {
+      const sourceIdx = layers.findIndex((l) => l.name === sourceLayer);
+      const targetIdx = layers.findIndex((l) => l.name === targetLayer);
+      if (targetIdx < sourceIdx) {
+        violations.push({
+          kind: "layer-violation",
+          sourceFile: edge.from,
+          targetFile: edge.to,
+          sourceLayer,
+          targetLayer,
+          description: `Upward dependency: \`${sourceLayer}\` (\`${edge.from}\`) imports from lower layer \`${targetLayer}\` (\`${edge.to}\`) in strict mode`,
+          severity: "medium"
+        });
+      }
+    }
+  }
+  return violations;
+}
+function detectBoundaryViolations(edges, currentFiles, contexts) {
+  if (contexts.length === 0) return [];
+  const violations = [];
+  for (const edge of edges) {
+    if (!currentFiles.has(edge.from)) continue;
+    const sourceCtx = resolveContext(edge.from, contexts);
+    const targetCtx = resolveContext(edge.to, contexts);
+    if (!sourceCtx || !targetCtx) continue;
+    if (sourceCtx === targetCtx) continue;
+    violations.push({
+      kind: "boundary-violation",
+      sourceFile: edge.from,
+      targetFile: edge.to,
+      sourceLayer: sourceCtx,
+      targetLayer: targetCtx,
+      description: `Boundary violation: \`${edge.from}\` in context \`${sourceCtx}\` imports from \`${targetCtx}\` context (\`${edge.to}\`) \u2014 consider an anti-corruption layer`,
+      severity: "medium"
+    });
+  }
+  return violations;
+}
+function dedupViolations(violations) {
+  const seen = /* @__PURE__ */ new Set();
+  return violations.filter((v) => {
+    const key = `${v.kind}:${v.sourceFile}:${v.targetFile}:${v.sourceLayer}:${v.targetLayer}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildDriftContext(result) {
+  if (result.violations.length === 0) return "";
+  const critical = result.violations.filter((v) => v.severity === "critical");
+  const medium = result.violations.filter((v) => v.severity === "medium");
+  let ctx = `## Architecture Drift (${result.violations.length})
+`;
+  ctx += "This PR may violate the declared architecture model. Review before merging:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Layer Violations\n";
+    for (const v of critical.slice(0, 10)) {
+      ctx += `- ${v.description}
+`;
+    }
+  }
+  if (medium.length > 0) {
+    ctx += "### Boundary Crossings\n";
+    for (const v of medium.slice(0, 10)) {
+      ctx += `- ${v.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildDriftBodySummary(result) {
+  if (result.violations.length === 0) return "";
+  let body = `<details><summary><strong>Architecture Drift</strong> \u2014 ${result.violations.length} violations</summary>
+
+`;
+  body += "| Type | Source | Target | From \u2192 To | Severity |\n";
+  body += "|------|--------|--------|-----------|----------|\n";
+  for (const v of result.violations.slice(0, 15)) {
+    const typeLabel = v.kind === "layer-violation" ? "layer" : "boundary";
+    body += `| ${typeLabel} | \`${v.sourceFile}\` | \`${v.targetFile}\` | ${v.sourceLayer} \u2192 ${v.targetLayer} | ${v.severity} |
+`;
+  }
+  if (result.violations.length > 15) {
+    body += `| ... | | | | ${result.violations.length - 15} more |
+`;
+  }
+  body += `
+*Architecture model: ${result.model?.layers.length ?? 0} layers${result.model?.contexts?.length ? `, ${result.model.contexts.length} contexts` : ""}.*
+</details>
+`;
+  return body;
+}
+function detectArchitectureDrift(currentFiles, model) {
+  const filePaths = new Set(currentFiles.map((f) => f.path));
+  const edges = extractImportEdges(currentFiles);
+  const layerViolations = detectLayerViolations(edges, filePaths, model.layers, model.strict ?? false);
+  const boundaryViolations = detectBoundaryViolations(edges, filePaths, model.contexts ?? []);
+  const violations = dedupViolations([...layerViolations, ...boundaryViolations]);
+  violations.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.sourceFile.localeCompare(b.sourceFile);
+  });
+  const result = {
+    violations,
+    model,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildDriftContext(result);
+  result.bodySummary = buildDriftBodySummary(result);
+  if (violations.length > 0) {
+    core46.info(`Architecture drift: ${violations.length} violations detected (${layerViolations.length} layer, ${boundaryViolations.length} boundary)`);
+  }
+  return result;
+}
+function parseArchitectureYaml(raw) {
+  const lines = raw.split("\n");
+  const layers = [];
+  const contexts = [];
+  let strict = false;
+  let currentSection = null;
+  let sectionIndent = -1;
+  let currentLayer = null;
+  let currentContext = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const indent = line.search(/\S/);
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) {
+      if (trimmed.startsWith("- ")) {
+        const item = trimmed.slice(2).trim().replace(/^["']|["']$/g, "");
+        if (currentLayer && currentSection === "layers") {
+          currentLayer.patterns.push(item);
+        } else if (currentContext && currentSection === "contexts") {
+          currentContext.patterns.push(item);
+        }
+      }
+      continue;
+    }
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed.slice(colonIdx + 1).trim();
+    if (indent === 0) {
+      if (key === "strict") strict = value === "true";
+      if (key === "layers") {
+        currentSection = "layers";
+        sectionIndent = -1;
+        currentLayer = null;
+      }
+      if (key === "contexts") {
+        currentSection = "contexts";
+        sectionIndent = -1;
+        currentContext = null;
+      }
+      continue;
+    }
+    if (currentSection === "layers") {
+      if (sectionIndent === -1) sectionIndent = indent - 2;
+      if (indent === sectionIndent + 2 && value === "") {
+        currentLayer = { name: key, patterns: [], allowedDeps: [] };
+        layers.push(currentLayer);
+        continue;
+      }
+    }
+    if (currentSection === "contexts") {
+      if (sectionIndent === -1) sectionIndent = indent - 2;
+      if (indent === sectionIndent + 2 && value === "") {
+        currentContext = { name: key, patterns: [] };
+        contexts.push(currentContext);
+        continue;
+      }
+    }
+    if (currentLayer && currentSection === "layers") {
+      if (key === "patterns" && value === "") {
+      } else if ((key === "allowed_deps" || key === "allowedDeps") && value) {
+        currentLayer.allowedDeps = value.split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+      }
+    }
+  }
+  return { layers, contexts: contexts.length > 0 ? contexts : void 0, strict };
+}
+
+// src/test-assertion-audit.ts
+import * as core47 from "@actions/core";
+var WEAK_MATCHER_PATTERNS = [
+  /expect\s*\([^)]*\)\s*\.\s*toBeDefined\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeTruthy\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeFalsy\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBeNull\s*\(\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBe\s*\(\s*null\s*\)/g,
+  /expect\s*\([^)]*\)\s*\.\s*toBe\s*\(\s*undefined\s*\)/g
+];
+var TAUTOLOGICAL_PATTERNS = [
+  /expect\s*\(\s*true\s*\)\s*\.\s*toBe\s*\(\s*true\s*\)/g,
+  /expect\s*\(\s*false\s*\)\s*\.\s*toBe\s*\(\s*false\s*\)/g,
+  /expect\s*\(\s*1\s*\)\s*\.\s*toBe\s*\(\s*1\s*\)/g,
+  /expect\s*\(\s*0\s*\)\s*\.\s*toBe\s*\(\s*0\s*\)/g
+];
+var EXPECT_PATTERN = /expect\s*\(/g;
+var IT_PATTERN = /\b(it|test)\s*\(\s*["'`]/g;
+var DESCRIBE_PATTERN = /\bdescribe\s*\(\s*["'`]/g;
+function detectWeakAssertions(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  for (const pattern of WEAK_MATCHER_PATTERNS) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      pattern.lastIndex = 0;
+      if (pattern.test(line)) {
+        const trimmed = line.trim();
+        if (/\.\s*not\s*\.\s*(toBeDefined|toBeTruthy|toBeFalsy|toBeNull)/.test(trimmed)) continue;
+        const matcher = trimmed.match(/\.\s*(toBeDefined|toBeTruthy|toBeFalsy|toBeNull|toBe)\s*\(/)?.[1] || "weak";
+        issues.push({
+          category: "weak-assertion",
+          file: filePath,
+          line: i + 1,
+          code: trimmed,
+          description: `Weak assertion \`.${matcher}()\` in \`${filePath}:${i + 1}\` \u2014 passes too easily, consider a more specific matcher`,
+          severity: "medium"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectTautologicalAssertions(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  for (const pattern of TAUTOLOGICAL_PATTERNS) {
+    for (let i = 0; i < lines.length; i++) {
+      pattern.lastIndex = 0;
+      if (pattern.test(lines[i])) {
+        issues.push({
+          category: "tautological-assertion",
+          file: filePath,
+          line: i + 1,
+          code: lines[i].trim(),
+          description: `Tautological assertion in \`${filePath}:${i + 1}\` \u2014 always passes, tests nothing`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectZeroAssertionFiles(filePath, content) {
+  const issues = [];
+  EXPECT_PATTERN.lastIndex = 0;
+  if (!EXPECT_PATTERN.test(content)) {
+    IT_PATTERN.lastIndex = 0;
+    DESCRIBE_PATTERN.lastIndex = 0;
+    if (IT_PATTERN.test(content) || DESCRIBE_PATTERN.test(content)) {
+      issues.push({
+        category: "zero-assertion-file",
+        file: filePath,
+        line: 0,
+        code: "",
+        description: `Test file \`${filePath}\` has no \`expect()\` calls \u2014 tests provide no actual verification`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectAssertionFreeTests(filePath, content) {
+  const issues = [];
+  const lines = content.split("\n");
+  let inItBlock = false;
+  let itStart = -1;
+  let itName = "";
+  let depth = 0;
+  let hasExpect = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const itMatch = line.match(/\b(it|test)\s*\(\s*["'`]([^"'`]+)/);
+    if (itMatch && !inItBlock) {
+      inItBlock = true;
+      itStart = i + 1;
+      itName = itMatch[2];
+      depth = 0;
+      hasExpect = false;
+      for (const ch of line) {
+        if (ch === "{") depth++;
+        if (ch === "}") depth--;
+      }
+      continue;
+    }
+    if (inItBlock) {
+      for (const ch of line) {
+        if (ch === "{") depth++;
+        if (ch === "}") depth--;
+      }
+      if (/expect\s*\(/.test(line)) hasExpect = true;
+      if (depth <= 0 && i > 0) {
+        if (!hasExpect && itName) {
+          issues.push({
+            category: "assertion-free-test",
+            file: filePath,
+            line: itStart,
+            code: `it("${itName}...")`,
+            description: `Test \`"${itName}"\` in \`${filePath}:${itStart}\` has no \`expect()\` \u2014 may be missing assertions`,
+            severity: "critical"
+          });
+        }
+        inItBlock = false;
+        itName = "";
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}:${issue2.code}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAuditContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const medium = result.issues.filter((i) => i.severity === "medium");
+  let ctx = `## Test Assertion Quality (${result.issues.length} issues)
+`;
+  ctx += "This PR may introduce weak or missing test assertions:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 5)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (medium.length > 0) {
+    ctx += "### Medium\n";
+    for (const i of medium.slice(0, 5)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAuditBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Test Assertion Quality</strong> \u2014 ${result.issues.length} issues</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    const lineStr = i.line > 0 ? String(i.line) : "-";
+    body += `| ${catLabel} | \`${i.file}\` | ${lineStr} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Weak or missing assertions give false confidence in test coverage.*
+</details>
+`;
+  return body;
+}
+function auditTestAssertions(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (!isTestFile(file2.path)) continue;
+    if (file2.status === "deleted") continue;
+    const content = reconstructContent(file2);
+    allIssues.push(...detectWeakAssertions(file2.path, content));
+    allIssues.push(...detectTautologicalAssertions(file2.path, content));
+    allIssues.push(...detectZeroAssertionFiles(file2.path, content));
+    allIssues.push(...detectAssertionFreeTests(file2.path, content));
+  }
+  const issues = dedupIssues(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAuditContext(result);
+  result.bodySummary = buildAuditBodySummary(result);
+  if (issues.length > 0) {
+    core47.info(`Test assertion audit: ${issues.length} quality issues detected`);
+  }
+  return result;
+}
+var TEST_FILE_PATTERNS = [
+  /\.test\.[jt]s$/,
+  /\.spec\.[jt]s$/,
+  /__tests__\//,
+  /test\//,
+  /tests\//
+];
+function isTestFile(filePath) {
+  return TEST_FILE_PATTERNS.some((p) => p.test(filePath));
+}
+function reconstructContent(file2) {
+  const lines = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      lines.push(content);
+    }
+  }
+  return lines.join("\n");
+}
+
+// src/breaking-change-radar.ts
+import * as core48 from "@actions/core";
+var REMOVED_EXPORT_RE = /^-\s*export\s+(function|class|const|let|var|interface|type|enum|default)\s+/;
+var DELETED_PUBLIC_METHOD_RE = /^-\s*(public\s+|static\s+public\s+|public\s+static\s+|async\s+public\s+)(\w+)\s*\(/;
+var RETURN_TYPE_CHANGE_RE_OLD = /^-\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)[^(]*\([^)]*\)\s*:\s*(\w+)/;
+var RETURN_TYPE_CHANGE_RE_NEW = /^\+\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)[^(]*\([^)]*\)\s*:\s*(\w+)/;
+var NEW_THROW_RE = /^\+\s*throw\s+new\s+(\w+)/;
+var EXPORT_FUNC_RE = /^(?:-|\+)\s*export\s+(?:async\s+)?function\s+(\w+)/;
+var EXPORT_CONST_RE = /^(?:-|\+)\s*export\s+(?:const|let|var)\s+(\w+)/;
+function detectRemovedExports(file2) {
+  const changes = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "delete") continue;
+      const content = change.content;
+      const match2 = content.match(REMOVED_EXPORT_RE);
+      if (match2) {
+        const kind = match2[1];
+        const nameMatch = content.match(/export\s+\w+\s+(\w+)/);
+        const symbol21 = nameMatch ? nameMatch[1] : "unknown";
+        changes.push({
+          category: "removed-export",
+          file: file2.path,
+          line: change.line,
+          symbol: symbol21,
+          description: `Removed export \`${symbol21}\` (${kind}) in \`${file2.path}:${change.line}\` \u2014 downstream consumers will break`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return changes;
+}
+function detectDeletedPublicMethods(file2) {
+  const changes = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "delete") continue;
+      const content = change.content;
+      const match2 = content.match(DELETED_PUBLIC_METHOD_RE);
+      if (match2) {
+        const symbol21 = match2[2];
+        changes.push({
+          category: "deleted-public-method",
+          file: file2.path,
+          line: change.line,
+          symbol: symbol21,
+          description: `Deleted public method \`${symbol21}\` in \`${file2.path}:${change.line}\` \u2014 callers will break`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return changes;
+}
+function detectNewRequiredParams(file2) {
+  const changes = [];
+  const oldSignatures = /* @__PURE__ */ new Map();
+  const newSignatures = /* @__PURE__ */ new Map();
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      const funcMatch = content.match(/^(?:-|\+)\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(([^)]*)\)/);
+      if (!funcMatch) continue;
+      const name21 = funcMatch[1];
+      const params = funcMatch[2];
+      const paramList = params.split(",").map((p) => p.trim()).filter(Boolean);
+      const hasDefaults = paramList.some((p) => p.includes("=") || p.startsWith("..."));
+      const paramCount = paramList.length;
+      if (content.startsWith("-")) {
+        oldSignatures.set(name21, { line: change.line, paramCount, hasDefaults });
+      } else if (content.startsWith("+")) {
+        newSignatures.set(name21, { line: change.line, paramCount, hasDefaults });
+      }
+    }
+  }
+  for (const [name21, newSig] of newSignatures) {
+    const oldSig = oldSignatures.get(name21);
+    if (!oldSig) continue;
+    if (newSig.paramCount > oldSig.paramCount) {
+      const addedParams = newSig.paramCount - oldSig.paramCount;
+      for (const hunk of file2.hunks) {
+        for (const change of hunk.changes) {
+          if (change.type !== "add") continue;
+          const content = change.content;
+          const funcMatch = content.match(/^\+\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(([^)]*)\)/);
+          if (!funcMatch || funcMatch[1] !== name21) continue;
+          const params = funcMatch[2].split(",").map((p) => p.trim()).filter(Boolean);
+          const addedParamList = params.slice(oldSig.paramCount);
+          const allHaveDefaults = addedParamList.every((p) => p.includes("=") || p.startsWith("..."));
+          if (!allHaveDefaults) {
+            changes.push({
+              category: "new-required-param",
+              file: file2.path,
+              line: change.line,
+              symbol: name21,
+              description: `Function \`${name21}\` in \`${file2.path}:${change.line}\` gained ${addedParams} parameter(s) without defaults \u2014 existing callers will break`,
+              severity: "critical"
+            });
+          } else {
+            changes.push({
+              category: "new-required-param",
+              file: file2.path,
+              line: change.line,
+              symbol: name21,
+              description: `Function \`${name21}\` in \`${file2.path}:${change.line}\` gained ${addedParams} parameter(s) with defaults \u2014 low risk but may indicate API evolution`,
+              severity: "warning"
+            });
+          }
+        }
+      }
+    }
+  }
+  return changes;
+}
+function detectReturnTypeChanges(file2) {
+  const changes = [];
+  const oldReturns = /* @__PURE__ */ new Map();
+  const newReturns = /* @__PURE__ */ new Map();
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      const oldMatch = content.match(RETURN_TYPE_CHANGE_RE_OLD);
+      if (oldMatch) oldReturns.set(oldMatch[1], { type: oldMatch[2], line: change.line });
+      const newMatch = content.match(RETURN_TYPE_CHANGE_RE_NEW);
+      if (newMatch) newReturns.set(newMatch[1], { type: newMatch[2], line: change.line });
+    }
+  }
+  for (const [name21, newRet] of newReturns) {
+    const oldRet = oldReturns.get(name21);
+    if (!oldRet || oldRet.type === newRet.type) continue;
+    changes.push({
+      category: "return-type-narrowing",
+      file: file2.path,
+      line: newRet.line,
+      symbol: name21,
+      description: `Return type of \`${name21}\` changed from \`${oldRet.type}\` to \`${newRet.type}\` in \`${file2.path}\` \u2014 may break consumers expecting \`${oldRet.type}\``,
+      severity: "warning"
+    });
+  }
+  return changes;
+}
+function detectNewThrownExceptions(file2) {
+  const changes = [];
+  const oldThrows = /* @__PURE__ */ new Set();
+  const newThrows = /* @__PURE__ */ new Map();
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      if (content.startsWith("-")) {
+        const throwMatch = content.match(/^-\s*throw\s+new\s+(\w+)/);
+        if (throwMatch) oldThrows.add(throwMatch[1]);
+      }
+      if (content.startsWith("+")) {
+        const throwMatch = content.match(NEW_THROW_RE);
+        if (throwMatch) {
+          newThrows.set(throwMatch[1], { line: change.line, symbol: throwMatch[1] });
+        }
+      }
+    }
+  }
+  for (const [exceptionType, info76] of newThrows) {
+    if (!oldThrows.has(exceptionType)) {
+      changes.push({
+        category: "changed-thrown-exceptions",
+        file: file2.path,
+        line: info76.line,
+        symbol: exceptionType,
+        description: `New exception type \`${exceptionType}\` thrown in \`${file2.path}:${info76.line}\` \u2014 callers may not handle this`,
+        severity: "warning"
+      });
+    }
+  }
+  return changes;
+}
+function detectRenamedExports(file2) {
+  const changes = [];
+  const removedExports = [];
+  const addedExports = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      const content = change.content;
+      const funcMatch = content.match(EXPORT_FUNC_RE);
+      if (funcMatch) {
+        if (content.startsWith("-")) removedExports.push({ name: funcMatch[1], line: change.line });
+        if (content.startsWith("+")) addedExports.push({ name: funcMatch[1], line: change.line });
+        continue;
+      }
+      const constMatch = content.match(EXPORT_CONST_RE);
+      if (constMatch) {
+        if (content.startsWith("-")) removedExports.push({ name: constMatch[1], line: change.line });
+        if (content.startsWith("+")) addedExports.push({ name: constMatch[1], line: change.line });
+      }
+    }
+  }
+  for (const removed of removedExports) {
+    for (const added of addedExports) {
+      if (removed.name === added.name) continue;
+      if (isLikelyRename(removed.name, added.name)) {
+        changes.push({
+          category: "renamed-export",
+          file: file2.path,
+          line: added.line,
+          symbol: `${removed.name} \u2192 ${added.name}`,
+          description: `Export renamed from \`${removed.name}\` to \`${added.name}\` in \`${file2.path}\` \u2014 consumers using \`${removed.name}\` will break`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return changes;
+}
+function isLikelyRename(oldName, newName) {
+  let prefix = 0;
+  const minLen = Math.min(oldName.length, newName.length);
+  for (let i = 0; i < minLen; i++) {
+    if (oldName[i] === newName[i]) prefix++;
+    else break;
+  }
+  if (prefix >= 3 && Math.abs(oldName.length - newName.length) <= 2) return true;
+  if (oldName.length <= 6 && newName.length <= 6) {
+    return editDistance(oldName, newName) <= 2;
+  }
+  return false;
+}
+function editDistance(a, b) {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+function dedupChanges(changes) {
+  const seen = /* @__PURE__ */ new Set();
+  const renamedSymbols = new Set(
+    changes.filter((c) => c.category === "renamed-export").map((c) => c.symbol.split(" \u2192 ")[0])
+  );
+  return changes.filter((c) => {
+    if (c.category === "removed-export" && renamedSymbols.has(c.symbol)) return false;
+    const key = `${c.category}:${c.file}:${c.symbol}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildRadarContext(result) {
+  if (result.changes.length === 0) return "";
+  const critical = result.changes.filter((c) => c.severity === "critical");
+  const warnings = result.changes.filter((c) => c.severity === "warning");
+  let ctx = `## Breaking Change Radar (${result.changes.length})
+`;
+  ctx += "This PR may introduce breaking changes:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Breaking\n";
+    for (const c of critical.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const c of warnings.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildRadarBodySummary(result) {
+  if (result.changes.length === 0) return "";
+  let body = `<details><summary><strong>Breaking Change Radar</strong> \u2014 ${result.changes.length} detected</summary>
+
+`;
+  body += "| Category | Symbol | File | Severity |\n";
+  body += "|----------|--------|------|----------|\n";
+  for (const c of result.changes.slice(0, 15)) {
+    const catLabel = c.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${c.symbol}\` | \`${c.file}\` | ${c.severity} |
+`;
+  }
+  if (result.changes.length > 15) {
+    body += `| ... | | | ${result.changes.length - 15} more |
+`;
+  }
+  body += `
+*Breaking changes require consumer updates before merging.*
+</details>
+`;
+  return body;
+}
+function detectBreakingChanges(diffFiles) {
+  const allChanges = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allChanges.push(...detectRemovedExports(file2));
+    allChanges.push(...detectDeletedPublicMethods(file2));
+    allChanges.push(...detectNewRequiredParams(file2));
+    allChanges.push(...detectReturnTypeChanges(file2));
+    allChanges.push(...detectNewThrownExceptions(file2));
+    allChanges.push(...detectRenamedExports(file2));
+  }
+  const changes = dedupChanges(allChanges);
+  changes.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    changes,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildRadarContext(result);
+  result.bodySummary = buildRadarBodySummary(result);
+  if (changes.length > 0) {
+    core48.info(`Breaking change radar: ${changes.length} detected (${changes.filter((c) => c.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/import-cycle-detector.ts
+import * as core49 from "@actions/core";
+function stripExtension2(p) {
+  const dot = p.lastIndexOf(".");
+  const slash = p.lastIndexOf("/");
+  if (dot > slash && dot > 0) return p.slice(0, dot);
+  return p;
+}
+function detectCycles(edges) {
+  const adj = /* @__PURE__ */ new Map();
+  for (const edge of edges) {
+    const fromNorm = stripExtension2(edge.from);
+    if (!adj.has(fromNorm)) adj.set(fromNorm, []);
+    adj.get(fromNorm).push({ to: edge.to, kind: edge.kind });
+  }
+  const allCycles = [];
+  const seenCycles = /* @__PURE__ */ new Set();
+  const nodes = [...adj.keys()];
+  for (const startNode of nodes) {
+    const stack = [
+      { node: startNode, path: [startNode], kinds: [] }
+    ];
+    const globalVisited = /* @__PURE__ */ new Set();
+    while (stack.length > 0) {
+      const { node, path: path27, kinds } = stack.pop();
+      const neighbors = adj.get(node);
+      if (!neighbors) continue;
+      for (const { to, kind } of neighbors) {
+        if (to === startNode && path27.length >= 2) {
+          const chain = [...path27, startNode];
+          const cycleKey = path27.slice().sort().join("\u2192");
+          if (!seenCycles.has(cycleKey)) {
+            seenCycles.add(cycleKey);
+            allCycles.push(classifyCycle(chain, [...kinds, kind]));
+          }
+        } else if (!path27.includes(to) && !globalVisited.has(to)) {
+          stack.push({
+            node: to,
+            path: [...path27, to],
+            kinds: [...kinds, kind]
+          });
+        }
+      }
+    }
+  }
+  for (const edge of edges) {
+    if (stripExtension2(edge.from) === edge.to) {
+      const cycleKey = `self:${edge.from}`;
+      if (!seenCycles.has(cycleKey)) {
+        seenCycles.add(cycleKey);
+        allCycles.push({
+          category: "self-import",
+          chain: [edge.from, edge.from],
+          length: 1,
+          kinds: [edge.kind],
+          description: `Self-import in \`${edge.from}\` \u2014 file imports itself`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return allCycles;
+}
+function classifyCycle(chain, kinds) {
+  const length = chain.length - 1;
+  if (length === 2) {
+    return {
+      category: "direct-cycle",
+      chain,
+      length,
+      kinds,
+      description: `Direct cycle: \`${chain[0]}\` \u2194 \`${chain[1]}\` \u2014 both files import each other, causing initialization-order bugs`,
+      severity: "critical"
+    };
+  }
+  return {
+    category: "indirect-cycle",
+    chain,
+    length,
+    kinds,
+    description: `Indirect cycle (${length}-node): ${chain.map((c) => `\`${c}\``).join(" \u2192 ")} \u2014 circular dependency chain may cause undefined-at-runtime errors`,
+    severity: "warning"
+  };
+}
+function buildCycleContext(result) {
+  if (result.cycles.length === 0) return "";
+  const critical = result.cycles.filter((c) => c.severity === "critical");
+  const warnings = result.cycles.filter((c) => c.severity === "warning");
+  let ctx = `## Import Cycle Detection (${result.cycles.length})
+`;
+  ctx += "This PR may introduce circular dependencies:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const c of critical.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const c of warnings.slice(0, 10)) {
+      ctx += `- ${c.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCycleBodySummary(result) {
+  if (result.cycles.length === 0) return "";
+  let body = `<details><summary><strong>Import Cycle Detection</strong> \u2014 ${result.cycles.length} cycle(s)</summary>
+
+`;
+  body += "| Category | Chain | Length | Severity |\n";
+  body += "|----------|-------|--------|----------|\n";
+  for (const c of result.cycles.slice(0, 15)) {
+    const catLabel = c.category.replace(/-/g, " ");
+    const chainPreview = c.chain.slice(0, -1).map((f) => f.split("/").pop()).join(" \u2192 ");
+    body += `| ${catLabel} | ${chainPreview} | ${c.length} | ${c.severity} |
+`;
+  }
+  if (result.cycles.length > 15) {
+    body += `| ... | | | ${result.cycles.length - 15} more |
+`;
+  }
+  body += `
+*Circular dependencies cause initialization-order bugs and tree-shaking failures.*
+</details>
+`;
+  return body;
+}
+function detectImportCycles(diffFiles) {
+  const edges = extractImportEdges(diffFiles);
+  const cycles = detectCycles(edges);
+  cycles.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.length - b.length;
+  });
+  const result = {
+    cycles,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCycleContext(result);
+  result.bodySummary = buildCycleBodySummary(result);
+  if (cycles.length > 0) {
+    core49.info(`Import cycle detection: ${cycles.length} cycle(s) detected (${cycles.filter((c) => c.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/dead-code-detector.ts
+import * as core50 from "@actions/core";
+var TERMINATING_RE = /^\+\s*(return\b|throw\b|break\b|continue\b)/;
+var VAR_DECL_RE = /^\+\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*[=:]/;
+var EMPTY_CATCH_RE = /catch\s*\([^)]*\)\s*\{\s*\}/;
+function detectUnreachableCode(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length - 1; i++) {
+    const current = addedChanges[i];
+    if (!TERMINATING_RE.test(current.content)) continue;
+    const currentIndent = getIndent(current.content);
+    for (let j = i + 1; j < addedChanges.length; j++) {
+      const next = addedChanges[j];
+      const nextIndent = getIndent(next.content);
+      if (nextIndent < currentIndent) break;
+      const trimmed = next.content.replace(/^\+\s*/, "").trim();
+      if (!trimmed || trimmed === "}" || trimmed.startsWith("//")) continue;
+      issues.push({
+        category: "unreachable-code",
+        file: file2.path,
+        line: next.line,
+        symbol: trimmed.substring(0, 40),
+        description: `Unreachable code after \`${current.content.replace(/^\+\s*/, "").trim().split(/\s/)[0]}\` in \`${file2.path}:${next.line}\` \u2014 this code will never execute`,
+        severity: "warning"
+      });
+      break;
+    }
+  }
+  return issues;
+}
+function detectUnusedVariables(file2) {
+  const issues = [];
+  const allContent = file2.hunks.flatMap((h) => h.changes).map((c) => c.content);
+  const addedContent = allContent.filter((c) => c.startsWith("+"));
+  const declarations = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const match2 = change.content.match(VAR_DECL_RE);
+      if (match2) {
+        const name21 = match2[1];
+        if (change.content.includes("export ")) continue;
+        if (change.content.includes("{") && change.content.includes("}")) continue;
+        declarations.push({ name: name21, line: change.line, content: change.content });
+      }
+    }
+  }
+  for (const decl of declarations) {
+    const name21 = decl.name;
+    if (name21.length <= 1) continue;
+    if (name21.startsWith("_")) continue;
+    let isUsed = false;
+    for (const line of addedContent) {
+      if (line === decl.content) continue;
+      const re2 = new RegExp(`\\b${escapeRegex4(name21)}\\b`);
+      if (re2.test(line)) {
+        isUsed = true;
+        break;
+      }
+    }
+    if (!isUsed) {
+      issues.push({
+        category: "unused-variable",
+        file: file2.path,
+        line: decl.line,
+        symbol: name21,
+        description: `Variable \`${name21}\` declared but never used in \`${file2.path}:${decl.line}\` \u2014 consider removing dead code`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectEmptyCatchBlocks(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes;
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i];
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (EMPTY_CATCH_RE.test(content)) {
+        issues.push({
+          category: "empty-catch",
+          file: file2.path,
+          line: change.line,
+          symbol: "catch",
+          description: `Empty catch block in \`${file2.path}:${change.line}\` \u2014 errors are silently swallowed, consider logging or rethrowing`,
+          severity: "critical"
+        });
+        continue;
+      }
+      const catchOpenMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*$/);
+      if (catchOpenMatch) {
+        for (let j = i + 1; j < changes.length; j++) {
+          if (changes[j].type !== "add") continue;
+          const nextTrimmed = changes[j].content.replace(/^\+/, "").trim();
+          if (nextTrimmed === "}") {
+            issues.push({
+              category: "empty-catch",
+              file: file2.path,
+              line: change.line,
+              symbol: "catch",
+              description: `Empty catch block in \`${file2.path}:${change.line}\` \u2014 errors are silently swallowed, consider logging or rethrowing`,
+              severity: "critical"
+            });
+          }
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function getIndent(line) {
+  const stripped = line.startsWith("+") ? line.slice(1) : line;
+  const indent = stripped.match(/^(\s*)/);
+  return indent ? indent[1].length : 0;
+}
+function escapeRegex4(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function dedupIssues2(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}:${issue2.symbol}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildDeadCodeContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Dead Code Detection (${result.issues.length})
+`;
+  ctx += "This PR may introduce dead code:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildDeadCodeBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Dead Code Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | Symbol | File | Line | Severity |\n";
+  body += "|----------|--------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.symbol}\` | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Dead code reduces readability and can mask bugs. Empty catch blocks silently swallow errors.*
+</details>
+`;
+  return body;
+}
+function detectDeadCode(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnreachableCode(file2));
+    allIssues.push(...detectUnusedVariables(file2));
+    allIssues.push(...detectEmptyCatchBlocks(file2));
+  }
+  const issues = dedupIssues2(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildDeadCodeContext(result);
+  result.bodySummary = buildDeadCodeBodySummary(result);
+  if (issues.length > 0) {
+    core50.info(`Dead code detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/type-safety-erosion.ts
+import * as core51 from "@actions/core";
+var AS_ASSERTION_RE = /\bas\s+[A-Z]\w+/;
+var ANY_TYPE_RE = /:\s*any\b|\bas\s+any\b|<any>|\bany\b(?=[>\],\s])/;
+var TS_IGNORE_RE = /@ts-ignore/;
+var TS_EXPECT_ERROR_RE = /@ts-expect-error/;
+var TS_NOCHECK_RE = /@ts-nocheck/;
+var ESLINT_DISABLE_RE = /eslint-disable(?:-next-line)?(?:\s|$)/;
+function detectTypeAssertions(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (!AS_ASSERTION_RE.test(content)) continue;
+      if (/import\s+.*\s+as\s+/.test(content)) continue;
+      const trimmed = content.replace(/^\+/, "").trim();
+      const match2 = trimmed.match(/\bas\s+([A-Z]\w+)/);
+      const targetType = match2 ? match2[1] : "unknown";
+      issues.push({
+        category: "type-assertion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Type assertion \`as ${targetType}\` in \`${file2.path}:${change.line}\` \u2014 bypasses type checker, consider type-safe alternatives`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectAnyType(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (!ANY_TYPE_RE.test(content)) continue;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+      issues.push({
+        category: "any-type",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `\`any\` type used in \`${file2.path}:${change.line}\` \u2014 creates type escape hatch, prefer specific types or \`unknown\``,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectTSDirectives(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (TS_NOCHECK_RE.test(content)) {
+        issues.push({
+          category: "ts-directive",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `@ts-nocheck in \`${file2.path}:${change.line}\` \u2014 disables type checking for entire file, critical type safety risk`,
+          severity: "critical"
+        });
+      } else if (TS_IGNORE_RE.test(content)) {
+        issues.push({
+          category: "ts-directive",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `@ts-ignore in \`${file2.path}:${change.line}\` \u2014 suppresses type error without fixing it, prefer @ts-expect-error or type-safe alternatives`,
+          severity: "critical"
+        });
+      } else if (TS_EXPECT_ERROR_RE.test(content)) {
+        issues.push({
+          category: "ts-directive",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `@ts-expect-error in \`${file2.path}:${change.line}\` \u2014 suppresses type error; acceptable if temporary, but should have a tracking issue`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectLintSuppressions(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (!ESLINT_DISABLE_RE.test(content)) continue;
+      const trimmed = content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "lint-suppression",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `ESLint suppression in \`${file2.path}:${change.line}\` \u2014 disables lint rule, consider fixing the underlying issue instead`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues3(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildErosionContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Type Safety Erosion (${result.issues.length})
+`;
+  ctx += "This PR may erode type safety:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildErosionBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Type Safety Erosion</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Type safety erosion accumulates silently. Prefer type-safe alternatives over assertions, \`any\`, and error suppression.*
+</details>
+`;
+  return body;
+}
+function detectTypeSafetyErosion(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectTypeAssertions(file2));
+    allIssues.push(...detectAnyType(file2));
+    allIssues.push(...detectTSDirectives(file2));
+    allIssues.push(...detectLintSuppressions(file2));
+  }
+  const issues = dedupIssues3(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildErosionContext(result);
+  result.bodySummary = buildErosionBodySummary(result);
+  if (issues.length > 0) {
+    core51.info(`Type safety erosion: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/todo-debt-detector.ts
+import * as core52 from "@actions/core";
+var DEBT_PATTERNS = [
+  { category: "fixme", pattern: /\bFIXME\b/i, severity: "critical" },
+  { category: "hack", pattern: /\bHACK\b/i, severity: "critical" },
+  { category: "xxx", pattern: /\bXXX\b/i, severity: "critical" },
+  { category: "todo", pattern: /\bTODO\b/i, severity: "warning" },
+  { category: "workaround", pattern: /\bWORKAROUND\b/i, severity: "warning" }
+];
+function detectTechDebtInFile(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (!trimmed || trimmed === "}") continue;
+      for (const { category, pattern, severity } of DEBT_PATTERNS) {
+        if (!pattern.test(content)) continue;
+        const match2 = trimmed.match(pattern);
+        if (!match2) continue;
+        const afterMarker = trimmed.slice(trimmed.indexOf(match2[0]) + match2[0].length).trim();
+        const cleanDesc = afterMarker.replace(/^[:\-]\s*/, "").trim();
+        const displayDesc = cleanDesc.length > 80 ? cleanDesc.slice(0, 77) + "..." : cleanDesc;
+        issues.push({
+          category,
+          file: file2.path,
+          line: change.line,
+          marker: match2[0],
+          description: displayDesc || "(no description)",
+          summary: `\`${match2[0]}\` added in \`${file2.path}:${change.line}\`${displayDesc ? " \u2014 " + displayDesc : ""}`,
+          severity
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues4(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildTechDebtContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Tech Debt Detection (${result.issues.length})
+`;
+  ctx += "This PR adds tech debt markers:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.summary}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.summary}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildTechDebtBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Tech Debt Detection</strong> \u2014 ${result.issues.length} marker(s) added</summary>
+
+`;
+  body += "| Marker | File | Line | Description | Severity |\n";
+  body += "|--------|------|------|-------------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const desc = i.description.length > 40 ? i.description.slice(0, 37) + "..." : i.description;
+    body += `| \`${i.marker}\` | \`${i.file}\` | ${i.line} | ${desc} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Tech debt markers accumulate silently. FIXME/HACK/XXX signal known bugs or workarounds that should be tracked.*
+</details>
+`;
+  return body;
+}
+function detectTechDebt(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectTechDebtInFile(file2));
+  }
+  const issues = dedupIssues4(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildTechDebtContext(result);
+  result.bodySummary = buildTechDebtBodySummary(result);
+  if (issues.length > 0) {
+    core52.info(`Tech debt detection: ${issues.length} marker(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/magic-number-detector.ts
+import * as core53 from "@actions/core";
+var NUMERIC_LITERAL_RE = /(?:[=<>!+\-*/|&?]\s*)(\d{2,})\b/;
+var SAFE_NUMBERS = /* @__PURE__ */ new Set(["0", "1", "-1", "10", "100", "1000", "2", "4", "8", "16", "32", "64", "128", "256", "512", "1024"]);
+var STRING_LITERAL_RE = /===?\s*['"][^'"]{3,}['"]|=\s*['"][^'"]{3,}['"]/;
+var TIMEOUT_RE = /\b(timeout|delay|interval|duration|wait|sleep|retry|backoff|ttl|expire)\w*\s*[=:]\s*\d{2,}/i;
+var SKIP_LINE_RE = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectNumericLiterals(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (/^\+\s*\d+\s*$/.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(NUMERIC_LITERAL_RE);
+      if (!match2) continue;
+      const number4 = match2[1];
+      if (SAFE_NUMBERS.has(number4)) continue;
+      if (/^(19|20)\d{2}$/.test(number4)) continue;
+      if (/version|Version|VERSION/.test(content)) continue;
+      issues.push({
+        category: "numeric-literal",
+        file: file2.path,
+        line: change.line,
+        value: number4,
+        description: `Magic number \`${number4}\` in \`${file2.path}:${change.line}\` \u2014 consider extracting to a named constant`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectStringLiterals(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (/console\.\w+\(|^\+\s*['"]/.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(STRING_LITERAL_RE);
+      if (!match2) continue;
+      const strMatch = match2[0].match(/['"]([^'"]+)['"]/);
+      if (!strMatch) continue;
+      const strVal = strMatch[1];
+      issues.push({
+        category: "string-literal",
+        file: file2.path,
+        line: change.line,
+        value: `"${strVal.length > 30 ? strVal.slice(0, 27) + "..." : strVal}"`,
+        description: `Hardcoded string \`${strVal.length > 30 ? strVal.slice(0, 27) + "..." : strVal}\` in \`${file2.path}:${change.line}\` \u2014 consider extracting to a named constant`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectTimeoutDurations(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      if (SKIP_LINE_RE.test(content)) continue;
+      if (file2.path.includes(".test.") || file2.path.includes(".spec.")) continue;
+      const match2 = content.match(TIMEOUT_RE);
+      if (!match2) continue;
+      const numMatch = match2[0].match(/(\d{2,})/);
+      const numVal = numMatch ? numMatch[1] : "unknown";
+      issues.push({
+        category: "timeout-duration",
+        file: file2.path,
+        line: change.line,
+        value: numVal,
+        description: `Hardcoded timeout/duration \`${numVal}\` in \`${file2.path}:${change.line}\` \u2014 extract to a config constant for maintainability`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues5(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}:${issue2.value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildMagicNumberContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Magic Number Detection (${result.issues.length})
+`;
+  ctx += "This PR introduces magic numbers:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildMagicNumberBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Magic Number Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | Value | File | Line | Severity |\n";
+  body += "|----------|-------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.value}\` | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Magic numbers reduce readability and make code harder to maintain. Extract values to named constants.*
+</details>
+`;
+  return body;
+}
+function detectMagicNumbers(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectNumericLiterals(file2));
+    allIssues.push(...detectStringLiterals(file2));
+    allIssues.push(...detectTimeoutDurations(file2));
+  }
+  const issues = dedupIssues5(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildMagicNumberContext(result);
+  result.bodySummary = buildMagicNumberBodySummary(result);
+  if (issues.length > 0) {
+    core53.info(`Magic number detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/error-handling-detector.ts
+import * as core54 from "@actions/core";
+var THEN_WITHOUT_CATCH_RE = /\.then\s*\(/;
+var FINALLY_WITHOUT_CATCH_RE = /\.finally\s*\(/;
+var FLOATING_PROMISE_RE = /(?:new\s+Promise|Promise\.\w+)\s*\(/;
+var VOID_PROMISE_RE = /\bvoid\s+\S+/;
+var TRIVIAL_CATCH_RE = /catch\s*\([^)]*\)\s*\{[\s;]*\}/;
+var VAR_REF_ONLY_RE = /^\w+;?\s*$/;
+var REDIS_ASYNC_RE = /\b(redis|client)\.\s*(get|set|del|exists|incr|decr|hget|hset|hdel|lpush|rpush|sadd|srem|zadd|zrem|publish|subscribe|ping|flushdb|flushall)\s*\(/;
+function detectUnhandledPromises(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+    if (/^\+\s*import\s/.test(content)) continue;
+    if (trimmed.startsWith("}")) continue;
+    if (THEN_WITHOUT_CATCH_RE.test(content) && !FINALLY_WITHOUT_CATCH_RE.test(content)) {
+      const hasNextCatch = content.includes(".catch(");
+      if (hasNextCatch) continue;
+      const changeIdx = addedChanges.indexOf(change);
+      let lineHasCatch = false;
+      for (let j = changeIdx + 1; j < Math.min(changeIdx + 3, addedChanges.length); j++) {
+        if (addedChanges[j].content.includes(".catch(")) {
+          lineHasCatch = true;
+          break;
+        }
+      }
+      if (lineHasCatch) continue;
+      issues.push({
+        category: "unhandled-promise",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise chain with .then() but no .catch() in \`${file2.path}:${change.line}\` \u2014 unhandled rejection possible, add .catch() or use await with try/catch`,
+        severity: "critical"
+      });
+    }
+    if (FLOATING_PROMISE_RE.test(content) && !content.includes("await") && !content.includes(".then(") && !content.includes(".catch(") && !content.includes("return")) {
+      if (/=\s*await/.test(content)) continue;
+      if (/return\s+new\s+Promise/.test(content)) continue;
+      issues.push({
+        category: "unhandled-promise",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise created but not handled in \`${file2.path}:${change.line}\` \u2014 add await, .then()/.catch(), or assign to a variable`,
+        severity: "critical"
+      });
+    }
+    if (FINALLY_WITHOUT_CATCH_RE.test(content) && !content.includes(".catch(")) {
+      const changeIdx = addedChanges.indexOf(change);
+      let lineHasCatch = false;
+      for (let j = Math.max(0, changeIdx - 3); j < Math.min(changeIdx + 3, addedChanges.length); j++) {
+        if (addedChanges[j].content.includes(".catch(")) {
+          lineHasCatch = true;
+          break;
+        }
+      }
+      if (!lineHasCatch) {
+        issues.push({
+          category: "unhandled-promise",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Promise chain with .finally() but no .catch() in \`${file2.path}:${change.line}\` \u2014 .finally() does not handle rejections, add .catch()`,
+          severity: "critical"
+        });
+      }
+    }
+    if (VOID_PROMISE_RE.test(trimmed) && trimmed.startsWith("void ")) {
+      issues.push({
+        category: "unhandled-promise",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Promise discarded with void expression in \`${file2.path}:${change.line}\` \u2014 void does not handle rejections, use .catch() or await with try/catch`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectMissingAwait(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+      if (/^\+\s*import\s/.test(content)) continue;
+      if (trimmed.startsWith("}")) continue;
+      if (/\bawait\b/.test(content)) continue;
+      if (/\basync\s+function\b/.test(content) || /\basync\s*\(/.test(content) || /\basync\s+/.test(content) && /=>/.test(content)) continue;
+      if (/\breturn\b/.test(content)) continue;
+      if (/\btry\s*\{/.test(content)) continue;
+      if (/\bconst\b.*=\s*(?:fetch|axios)/.test(content) && !content.includes("await")) {
+      } else if (/\bconst\b.*=.*Promise/.test(content)) {
+        continue;
+      }
+      const asyncMatch = content.match(/\b(fetch|axios\.\w+|readFile|writeFile|mkdir|rm|readdir|copyFile|pipeline|query|execute|connect|disconnect|find|findById|findOne|save|remove|deleteOne|updateOne|create|aggregate|bulkWrite)\s*\(/);
+      if (asyncMatch) {
+        if (/\.then\s*\(/.test(content) || /\.catch\s*\(/.test(content)) continue;
+        if (/=\s*\(\s*$/.test(content)) continue;
+        issues.push({
+          category: "missing-await",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Async function \`${asyncMatch[1]}() \` called without await in \`${file2.path}:${change.line}\` \u2014 result is a Promise, not the actual value; add await or handle rejection`,
+          severity: "critical"
+        });
+      }
+      if (REDIS_ASYNC_RE.test(content)) {
+        if (/\.then\s*\(/.test(content) || /\.catch\s*\(/.test(content)) continue;
+        issues.push({
+          category: "missing-await",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Redis async operation without await in \`${file2.path}:${change.line}\` \u2014 result is a Promise, add await or handle rejection`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectSwallowedErrors(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes;
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i];
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (TRIVIAL_CATCH_RE.test(content)) continue;
+      const catchOpenMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*$/);
+      if (catchOpenMatch) {
+        let bodyLines = [];
+        for (let j = i + 1; j < changes.length; j++) {
+          if (changes[j].type !== "add") continue;
+          const nextTrimmed = changes[j].content.replace(/^\+/, "").trim();
+          if (nextTrimmed === "}") break;
+          bodyLines.push(nextTrimmed);
+          if (bodyLines.length >= 5) break;
+        }
+        if (bodyLines.length > 0) {
+          const allComments = bodyLines.every((l) => l.startsWith("//") || l.startsWith("/*") || l.startsWith("*"));
+          const allVarRef = bodyLines.every((l) => VAR_REF_ONLY_RE.test(l)) && !bodyLines.some((l) => /\bthrow\b/.test(l));
+          if (allComments) {
+            issues.push({
+              category: "swallowed-error",
+              file: file2.path,
+              line: change.line,
+              code: trimmed,
+              description: `Catch block body only contains comments in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+              severity: "warning"
+            });
+          } else if (allVarRef) {
+            issues.push({
+              category: "swallowed-error",
+              file: file2.path,
+              line: change.line,
+              code: trimmed,
+              description: `Catch block body only references the error variable in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+              severity: "warning"
+            });
+          }
+        }
+      }
+      const inlineCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*\/\*[^*]*\*+\/?\s*\}/);
+      if (inlineCatch) {
+        issues.push({
+          category: "swallowed-error",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Catch block body is only a comment in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+          severity: "warning"
+        });
+      }
+      const logOnlyCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*console\.(log|debug|info)\s*\([^)]*\)\s*;?\s*\}/);
+      if (logOnlyCatch) {
+        issues.push({
+          category: "swallowed-error",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Catch block only logs error in \`${file2.path}:${change.line}\` \u2014 error is logged but not propagated; consider logging at warning/error level and rethrowing or adding monitoring`,
+          severity: "warning"
+        });
+      }
+      const varRefCatch = content.match(/catch\s*\([^)]*\)\s*\{\s*\w+;?\s*\}/);
+      if (varRefCatch && !content.includes("throw") && !content.includes("console.error") && !content.includes("logger.error")) {
+        const bodyMatch = content.match(/catch\s*\([^)]*\)\s*\{\s*(\w+;?)\s*\}/);
+        if (bodyMatch) {
+          issues.push({
+            category: "swallowed-error",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Catch block body is only a variable reference in \`${file2.path}:${change.line}\` \u2014 error is caught but not handled, add logging or rethrow`,
+            severity: "warning"
+          });
+        }
+      }
+      const emptyErrorHandler = content.match(/\.on\s*\(\s*['"]unhandledRejection['"]\s*,/);
+      if (emptyErrorHandler && content.includes("{}")) {
+        issues.push({
+          category: "swallowed-error",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Empty unhandledRejection handler in \`${file2.path}:${change.line}\` \u2014 errors will be silently discarded, add proper handling`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues6(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildErrorHandlingContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Error Handling Gaps (${result.issues.length})
+`;
+  ctx += "This PR may have error handling gaps:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildErrorHandlingBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Error Handling Gap Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Unhandled promises and missing awaits cause production incidents. Swallowed errors mask bugs.*
+</details>
+`;
+  return body;
+}
+function detectErrorHandlingGaps(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnhandledPromises(file2));
+    allIssues.push(...detectMissingAwait(file2));
+    allIssues.push(...detectSwallowedErrors(file2));
+  }
+  const issues = dedupIssues6(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildErrorHandlingContext(result);
+  result.bodySummary = buildErrorHandlingBodySummary(result);
+  if (issues.length > 0) {
+    core54.info(`Error handling gap detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/performance-antipattern-detector.ts
+import * as core55 from "@actions/core";
+var LOOP_KEYWORD_RE = /^\+\s*(?:for|while)\s*\(/;
+var LOOP_METHOD_RE = /\.\s*(?:forEach|map|filter|reduce|flatMap|some|every|find)\s*\(/;
+var QUERY_IN_LOOP_RE = /\b(?:query|execute|find|findById|findOne|save|remove|deleteOne|updateOne|create|aggregate|fetch|axios|readFile|writeFile)\s*\(/;
+var SYNC_IO_RE = /\b(readFileSync|writeFileSync|appendFileSync|existsSync|statSync|mkdirSync|rmSync|readdirSync|copyFileSync|accessSync|readlinkSync|symlinkSync|unlinkSync|renameSync|realpathSync|chownSync|chmodSync|lobSync)\s*\(/;
+var ASYNC_CONTEXT_RE = /\basync\b/;
+var AWAIT_ASSIGN_RE = /^\+\s*(?:const|let|var)\s+\w+\s*=\s*await\s+/;
+var UNNECESSARY_AWAIT_RE = /await\s+(?:undefined|null|true|false|\d+|['"][^'"]*['"]|new\s+Map|new\s+Set|new\s+Date|Object\.|Array\.|Math\.|JSON\.|parseInt|parseFloat|isNaN|String\(|Number\(|Boolean\()/;
+function detectNPlus1Queries(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    if (change.type !== "add") continue;
+    if (!LOOP_KEYWORD_RE.test(change.content) && !LOOP_METHOD_RE.test(change.content)) continue;
+    for (let j = i + 1; j < Math.min(i + 11, changes.length); j++) {
+      const next = changes[j];
+      if (next.type !== "add") continue;
+      const nextTrimmed = next.content.replace(/^\+/, "").trim();
+      if (nextTrimmed.startsWith("}") || nextTrimmed === "});") break;
+      if (QUERY_IN_LOOP_RE.test(next.content)) {
+        issues.push({
+          category: "n-plus-1-query",
+          file: file2.path,
+          line: next.line,
+          code: nextTrimmed,
+          description: `Query inside loop in \`${file2.path}:${next.line}\` \u2014 potential N+1 query pattern; consider batching or using Promise.all()`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function detectSyncInAsync(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  let inAsyncFunction = false;
+  let asyncIndent = -1;
+  for (const change of changes) {
+    if (change.type !== "add") continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (ASYNC_CONTEXT_RE.test(content) && /\bfunction\b|=>|=>\s*\{/.test(content)) {
+      inAsyncFunction = true;
+      const indent = content.match(/^(\+)?(\s*)/);
+      asyncIndent = indent ? indent[0].length : 0;
+    }
+    if (SYNC_IO_RE.test(content)) {
+      const syncCall = content.match(SYNC_IO_RE);
+      const funcName = syncCall ? syncCall[1] : "syncIO";
+      if (inAsyncFunction || ASYNC_CONTEXT_RE.test(content)) {
+        issues.push({
+          category: "sync-in-async",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Synchronous I/O \`${funcName}()\` in async context in \`${file2.path}:${change.line}\` \u2014 blocks the event loop; use the async version instead`,
+          severity: "critical"
+        });
+      } else {
+        issues.push({
+          category: "sync-in-async",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Synchronous I/O \`${funcName}() \` in \`${file2.path}:${change.line}\` \u2014 blocks the event loop; consider async alternative`,
+          severity: "warning"
+        });
+      }
+    }
+    if (trimmed === "}" && inAsyncFunction) {
+      const currentIndent = content.replace(/^\+/, "").search(/\S/);
+      if (currentIndent >= 0 && currentIndent <= asyncIndent) {
+        inAsyncFunction = false;
+      }
+    }
+  }
+  return issues;
+}
+function detectWaterfallAwaits(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length - 1; i++) {
+    const current = addedChanges[i];
+    const next = addedChanges[i + 1];
+    if (!AWAIT_ASSIGN_RE.test(current.content)) continue;
+    if (!AWAIT_ASSIGN_RE.test(next.content)) continue;
+    if (Math.abs(next.line - current.line) > 2) continue;
+    const currentAwait = current.content.match(/await\s+(\w+)/);
+    const nextAwait = next.content.match(/await\s+(\w+)/);
+    if (currentAwait && nextAwait && currentAwait[1] === nextAwait[1]) {
+      continue;
+    }
+    const currentTrimmed = current.content.replace(/^\+/, "").trim();
+    const nextTrimmed = next.content.replace(/^\+/, "").trim();
+    issues.push({
+      category: "waterfall-await",
+      file: file2.path,
+      line: current.line,
+      code: currentTrimmed + "\n" + nextTrimmed,
+      description: `Sequential awaits in \`${file2.path}:${current.line}-${next.line}\` \u2014 if independent, use Promise.all() for parallel execution`,
+      severity: "warning"
+    });
+    i++;
+  }
+  return issues;
+}
+function detectUnnecessaryAwaits(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+      if (UNNECESSARY_AWAIT_RE.test(content)) {
+        issues.push({
+          category: "unnecessary-await",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Unnecessary await on non-promise value in \`${file2.path}:${change.line}\` \u2014 awaiting a synchronous value adds microtask overhead`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues7(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildPerfContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Performance Anti-Patterns (${result.issues.length})
+`;
+  ctx += "This PR may introduce performance anti-patterns:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildPerfBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Performance Anti-Patterns</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*N+1 queries and sync I/O cause production latency. Waterfall awaits waste concurrency.*
+</details>
+`;
+  return body;
+}
+function detectPerformanceAntiPatterns(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectNPlus1Queries(file2));
+    allIssues.push(...detectSyncInAsync(file2));
+    allIssues.push(...detectWaterfallAwaits(file2));
+    allIssues.push(...detectUnnecessaryAwaits(file2));
+  }
+  const issues = dedupIssues7(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildPerfContext(result);
+  result.bodySummary = buildPerfBodySummary(result);
+  if (issues.length > 0) {
+    core55.info(`Performance anti-pattern detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/resource-lifecycle-detector.ts
+import * as core56 from "@actions/core";
+var RESOURCE_ACQUIRE_RE = /\.(?:open|createReadStream|createWriteStream|readFile|writeFile|fopen|openSync)\s*\(/;
+var RESOURCE_RELEASE_RE = /\.(?:close|end|destroy|fclose|closeSync)\s*\(/;
+var FS_OPEN_RE = /(?:^|[^.])\b(?:open|openSync)\s*\(/;
+var FS_CLOSE_RE = /(?:^|[^.])\b(?:close|closeSync)\s*\(/;
+var CONNECTION_ACQUIRE_RE = /\.(?:connect|createConnection|createPool|acquire|getClient|socket)\s*\(/;
+var CONNECTION_RELEASE_RE = /\.(?:disconnect|end|release|quit|destroy|close|endConnection)\s*\(/;
+var STANDALONE_CONNECT_RE = /(?:^|[^.])\b(?:connect|mysql\.createConnection|redis\.createClient|pg\.Pool|mongoose\.connect|amqp\.connect)\s*\(/;
+var STANDALONE_DISCONNECT_RE = /(?:^|[^.])\b(?:disconnect|end|quit|close)\s*\(/;
+var LISTENER_SUBSCRIBE_RE = /\.(?:on|addEventListener|addListener|subscribe)\s*\(/;
+var LISTENER_UNSUBSCRIBE_RE = /\.(?:off|removeEventListener|removeListener|unsubscribe|removeAllListeners)\s*\(/;
+var USE_EFFECT_RE = /useEffect\s*\(/;
+var RETURN_CLEANUP_RE = /return\s+(?:\(\s*\)|function|\()/;
+var SUBSCRIBE_IN_EFFECT_RE = /\.(?:on|addEventListener|addListener|subscribe)\s*\(/;
+var TRY_RE = /^\+\s*try\s*\{/;
+var FINALLY_RE = /^\+\s*\}\s*finally\s*\{/;
+var SKIP_LINE_RE2 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectUnclosedResources(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedContent = changes.filter((c) => c.type === "add").map((c) => c.content);
+  const hasRelease = (re2) => addedContent.some((line) => re2.test(line));
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE2.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      let acquired = false;
+      if (RESOURCE_ACQUIRE_RE.test(content)) {
+        acquired = true;
+        if (!hasRelease(RESOURCE_RELEASE_RE) && !hasRelease(FS_CLOSE_RE)) {
+          issues.push({
+            category: "unclosed-resource",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unclosed resource in \`${file2.path}:${change.line}\` \u2014 openReadStream/createWriteStream without matching close/end/destroy; use finally or try-with-resources pattern`,
+            severity: "critical"
+          });
+        }
+      }
+      if (!acquired && FS_OPEN_RE.test(content)) {
+        if (!hasRelease(FS_CLOSE_RE) && !hasRelease(RESOURCE_RELEASE_RE)) {
+          issues.push({
+            category: "unclosed-resource",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unclosed file handle in \`${file2.path}:${change.line}\` \u2014 open/openSync without matching close/closeSync; always close handles in a finally block`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectUnreleasedConnections(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedContent = changes.filter((c) => c.type === "add").map((c) => c.content);
+  const hasRelease = (re2) => addedContent.some((line) => re2.test(line));
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE2.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (CONNECTION_ACQUIRE_RE.test(content) || STANDALONE_CONNECT_RE.test(content)) {
+        if (!hasRelease(CONNECTION_RELEASE_RE) && !hasRelease(STANDALONE_DISCONNECT_RE)) {
+          issues.push({
+            category: "unreleased-connection",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unreleased connection in \`${file2.path}:${change.line}\` \u2014 connect/createConnection without matching disconnect/end/release; connections must be released to avoid pool exhaustion`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectUnsubscribedListeners(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedContent = changes.filter((c) => c.type === "add").map((c) => c.content);
+  const hasUnsubscribe = (re2) => addedContent.some((line) => re2.test(line));
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE2.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (LISTENER_SUBSCRIBE_RE.test(content)) {
+        if (!hasUnsubscribe(LISTENER_UNSUBSCRIBE_RE)) {
+          issues.push({
+            category: "unsubscribed-listener",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unsubscribed listener in \`${file2.path}:${change.line}\` \u2014 on/addEventListener without matching off/removeEventListener; listeners must be removed to prevent memory leaks`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectMissingFinally(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (!TRY_RE.test(change.content)) continue;
+    let hasAcquire = false;
+    let hasFinally = false;
+    for (let j = i + 1; j < Math.min(i + 20, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      if (FINALLY_RE.test(next.content)) {
+        hasFinally = true;
+        break;
+      }
+      if (RESOURCE_ACQUIRE_RE.test(next.content) || CONNECTION_ACQUIRE_RE.test(next.content)) {
+        hasAcquire = true;
+      }
+    }
+    if (hasAcquire && !hasFinally) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "missing-finally-cleanup",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `try block with resource acquire but no finally in \`${file2.path}:${change.line}\` \u2014 resources should be released in a finally block to guarantee cleanup on error`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectReactMissingCleanup(file2) {
+  const issues = [];
+  if (!/\.(tsx|jsx|ts|js)$/.test(file2.path)) return issues;
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (!USE_EFFECT_RE.test(change.content)) continue;
+    let hasSubscribe = false;
+    let hasReturnCleanup = false;
+    let subscribeLine = 0;
+    let subscribeCode = "";
+    for (let j = i + 1; j < Math.min(i + 15, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      const nextContent = next.content;
+      if (RETURN_CLEANUP_RE.test(nextContent)) {
+        hasReturnCleanup = true;
+        break;
+      }
+      if (/^\+\s*\}\s*,\s*\[/.test(nextContent) || USE_EFFECT_RE.test(nextContent)) break;
+      if (SUBSCRIBE_IN_EFFECT_RE.test(nextContent) || LISTENER_SUBSCRIBE_RE.test(nextContent)) {
+        hasSubscribe = true;
+        subscribeLine = next.line;
+        subscribeCode = nextContent.replace(/^\+/, "").trim();
+      }
+    }
+    if (hasSubscribe && !hasReturnCleanup) {
+      issues.push({
+        category: "react-missing-cleanup",
+        file: file2.path,
+        line: subscribeLine || change.line,
+        code: subscribeCode || change.content.replace(/^\+/, "").trim(),
+        description: `useEffect with subscription but no cleanup in \`${file2.path}:${subscribeLine || change.line}\` \u2014 return a cleanup function from useEffect to unsubscribe/removeListener on unmount`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues8(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildResourceLifecycleContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Resource Lifecycle Violations (${result.issues.length})
+`;
+  ctx += "This PR may introduce resource lifecycle violations:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildResourceLifecycleBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Resource Lifecycle Violations</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Unclosed resources cause connection pool exhaustion and file descriptor leaks. Always release in finally blocks.*
+</details>
+`;
+  return body;
+}
+function detectResourceLifecycleViolations(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnclosedResources(file2));
+    allIssues.push(...detectUnreleasedConnections(file2));
+    allIssues.push(...detectUnsubscribedListeners(file2));
+    allIssues.push(...detectMissingFinally(file2));
+    allIssues.push(...detectReactMissingCleanup(file2));
+  }
+  const issues = dedupIssues8(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildResourceLifecycleContext(result);
+  result.bodySummary = buildResourceLifecycleBodySummary(result);
+  if (issues.length > 0) {
+    core56.info(`Resource lifecycle detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/observability-gap-detector.ts
+import * as core57 from "@actions/core";
+var LOG_ERROR_RE = /\.(?:error|fatal|critical|alert|emergency)\s*\(/;
+var LOG_WARN_RE = /\.warn\s*\(/;
+var SENTRY_RE = /Sentry\.\s*(?:captureException|captureMessage|captureEvent|withScope|addBreadcrumb)\s*\(/;
+var METRICS_RE = /\.(?:increment|decrement|gauge|histogram|timing|counter|meter)\s*\(/;
+var TRACE_RE = /\.span|\.trace|\.recordException|\.setAttribute|\.addEvent\s*\(/;
+var CONSOLE_LOG_RE = /\.log\s*\(/;
+var CONSOLE_INSPECT_RE = /\.inspect\s*\(/;
+var CONSOLE_DEBUG_RE = /\.debug\s*\(/;
+var CONSOLE_INFO_RE = /\.info\s*\(/;
+var CATCH_RE = /catch\s*\([^)]*\)\s*\{/;
+var CATCH_INLINE_RE = /catch\s*\([^)]*\)\s*\{[^}]*\}/;
+var THROW_RE = /^\+\s*throw\b/;
+var THROW_NEW_RE = /throw\s+new\s+\w*Error/;
+var ROUTE_HANDLER_RE = /\.(?:get|post|put|patch|delete|head|options|use|all)\s*\(\s*['"]/;
+var MIDDLEWARE_RE = /\.(?:use|all)\s*\(/;
+var SKIP_LINE_RE3 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectSilentCatches(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    if (change.type !== "add") continue;
+    const content = change.content;
+    if (CATCH_INLINE_RE.test(content)) {
+      const innerMatch = content.match(/\{([^}]*)\}/);
+      if (innerMatch) {
+        const inner = innerMatch[1].trim();
+        if (!inner) continue;
+        const hasStrong = LOG_ERROR_RE.test(inner) || LOG_WARN_RE.test(inner) || METRICS_RE.test(inner) || TRACE_RE.test(inner) || SENTRY_RE.test(inner);
+        const hasWeak = CONSOLE_LOG_RE.test(inner) || CONSOLE_INSPECT_RE.test(inner) || CONSOLE_DEBUG_RE.test(inner) || CONSOLE_INFO_RE.test(inner);
+        if (hasWeak && !hasStrong) {
+          const trimmed = content.replace(/^\+/, "").trim();
+          issues.push({
+            category: "silent-catch",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Catch block with only console.log/debug in \`${file2.path}:${change.line}\` \u2014 use logger.error() or logger.warn() for production observability`,
+            severity: "warning"
+          });
+        }
+      }
+      continue;
+    }
+    if (CATCH_RE.test(content)) {
+      let hasStrong = false;
+      let hasWeak = false;
+      let blockLines = [];
+      for (let j = i + 1; j < Math.min(i + 15, changes.length); j++) {
+        const next = changes[j];
+        const nextContent = next.content.replace(/^\+/, "").trim();
+        if (nextContent === "}" || nextContent === "});") break;
+        blockLines.push(nextContent);
+        if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content) || SENTRY_RE.test(next.content)) {
+          hasStrong = true;
+        }
+        if (CONSOLE_LOG_RE.test(next.content) || CONSOLE_DEBUG_RE.test(next.content) || CONSOLE_INFO_RE.test(next.content)) {
+          hasWeak = true;
+        }
+      }
+      if (hasWeak && !hasStrong && blockLines.length > 0) {
+        const trimmed = content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "silent-catch",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Catch block with only console.log/debug/info in \`${file2.path}:${change.line}\` \u2014 use logger.error() or logger.warn() for production observability`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectThrowWithoutLog(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (!THROW_RE.test(change.content)) continue;
+    if (!THROW_NEW_RE.test(change.content)) continue;
+    let hasPriorLog = false;
+    for (let j = Math.max(0, i - 5); j < i; j++) {
+      const prev = addedChanges[j];
+      if (LOG_ERROR_RE.test(prev.content) || LOG_WARN_RE.test(prev.content) || METRICS_RE.test(prev.content) || TRACE_RE.test(prev.content) || SENTRY_RE.test(prev.content)) {
+        hasPriorLog = true;
+        break;
+      }
+    }
+    if (!hasPriorLog) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "throw-without-log",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Throw without prior logging in \`${file2.path}:${change.line}\` \u2014 log before throwing for production observability; errors caught upstream may be swallowed`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectUnloggedRoutes(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (SKIP_LINE_RE3.test(change.content)) continue;
+    if (!ROUTE_HANDLER_RE.test(change.content) && !MIDDLEWARE_RE.test(change.content)) continue;
+    let hasObservability = false;
+    for (let j = i + 1; j < Math.min(i + 20, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      if (LOG_ERROR_RE.test(next.content) || LOG_WARN_RE.test(next.content) || LOG_ERROR_RE.test(next.content) || METRICS_RE.test(next.content) || TRACE_RE.test(next.content) || SENTRY_RE.test(next.content) || CONSOLE_LOG_RE.test(next.content) || CONSOLE_INFO_RE.test(next.content)) {
+        hasObservability = true;
+        break;
+      }
+      if (/^\+\s*\}\s*[;,]\s*$/.test(next.content) || ROUTE_HANDLER_RE.test(next.content)) break;
+    }
+    if (!hasObservability) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "unlogged-route",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Route handler without logging in \`${file2.path}:${change.line}\` \u2014 add request logging or metrics for production debuggability`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectMissingErrorMetadata(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    if (change.type !== "add") continue;
+    const weakLogMatch = change.content.match(/(?:logger|log|Logger)\.\s*(?:error|warn|fatal|critical|alert|emergency)\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+    if (weakLogMatch) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "missing-error-metadata",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Error log without context object in \`${file2.path}:${change.line}\` \u2014 include error object and metadata for structured logging (e.g., logger.error("msg", { err, requestId }))`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues9(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildObservabilityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Observability Gaps (${result.issues.length})
+`;
+  ctx += "This PR may lack observability:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildObservabilityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Observability Gap Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Silent catches and missing logs make production incidents take hours instead of minutes to diagnose.*
+</details>
+`;
+  return body;
+}
+function detectObservabilityGaps(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectSilentCatches(file2));
+    allIssues.push(...detectThrowWithoutLog(file2));
+    allIssues.push(...detectUnloggedRoutes(file2));
+    allIssues.push(...detectMissingErrorMetadata(file2));
+  }
+  const issues = dedupIssues9(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildObservabilityContext(result);
+  result.bodySummary = buildObservabilityBodySummary(result);
+  if (issues.length > 0) {
+    core57.info(`Observability gap detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/async-concurrency-hazard-detector.ts
+import * as core58 from "@actions/core";
+var IF_CHECK_RE = /^\+\s*(?:if|while)\s*\(/;
+var ASYNC_AFTER_CHECK_RE = /^\+\s*(?:await|\.then)\b/;
+var CHECK_EXISTS_RE = /(?:exists(?:Sync|Async)?|has|includes?|contains?)\s*\(/;
+var USE_AFTER_CHECK_RE = /await\s+.*(?:get|read|fetch|open|write|create|delete|remove)\b/;
+var MODULE_LEVEL_MUTABLE_RE = /^\+\s*(?:let|var)\s+(\w+)\s*=/;
+var ASYNC_FUNC_RE = /async\s+(?:function|\(|[a-zA-Z])/;
+var MUTABLE_READ_WRITE_RE = /(\w+)\s*(?:\+\+|--|\+=|-=|\*=|\/=|=)/;
+var FLAG_CHECK_RE = /if\s*\(\s*!(\w+)\s*\)/;
+var COMMON_FLAG_NAMES = /^(?:is|has|can|should|will|did|was|processing|running|loading|busy|locked|active|pending|initialized|connected|ready|done|complete|started|enabled|disabled|cancelled|closed|open)/i;
+var DYNAMIC_ARRAY_RE = /Promise\.all\s*\(\s*(?:[\w.]+\.)?(?:map|filter|reduce|flatMap|slice|splice|concat)\s*\(/;
+var LARGE_LITERAL_RE = /Promise\.all\s*\(\s*\[/;
+var SKIP_LINE_RE4 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectTOCTOU(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (!IF_CHECK_RE.test(change.content)) continue;
+    if (!CHECK_EXISTS_RE.test(change.content)) continue;
+    let hasAsyncUse = false;
+    for (let j = i + 1; j < Math.min(i + 8, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      if (/^\+\s*\}\s*(?:else|catch|finally|\ [;,])?/.test(next.content)) break;
+      if (ASYNC_AFTER_CHECK_RE.test(next.content) || USE_AFTER_CHECK_RE.test(next.content)) {
+        hasAsyncUse = true;
+        break;
+      }
+    }
+    if (hasAsyncUse) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "toctou",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `TOCTOU race in \`${file2.path}:${change.line}\` \u2014 condition check followed by async operation; state may change between check and use. Acquire a lock or merge check+use into atomic operation`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectSharedMutableState(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  const mutableVars = /* @__PURE__ */ new Map();
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE4.test(change.content)) continue;
+    const match2 = change.content.match(MODULE_LEVEL_MUTABLE_RE);
+    if (match2) {
+      mutableVars.set(match2[1], change.line);
+    }
+  }
+  if (mutableVars.size === 0) return issues;
+  let inAsyncFunc = false;
+  let asyncBraceDepth = 0;
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE4.test(change.content)) continue;
+    const content = change.content.replace(/^\+/, "").trim();
+    if (ASYNC_FUNC_RE.test(content)) {
+      inAsyncFunc = true;
+      asyncBraceDepth = 0;
+    }
+    if (inAsyncFunc) {
+      for (const ch of content) {
+        if (ch === "{") asyncBraceDepth++;
+        if (ch === "}") asyncBraceDepth--;
+      }
+      if (asyncBraceDepth <= 0 && content.includes("}")) {
+        inAsyncFunc = false;
+        continue;
+      }
+      const rwMatch = content.match(MUTABLE_READ_WRITE_RE);
+      if (rwMatch && mutableVars.has(rwMatch[1])) {
+        const varName = rwMatch[1];
+        const existingLine = mutableVars.get(varName);
+        if (existingLine !== change.line) {
+          const trimmed = change.content.replace(/^\+/, "").trim();
+          issues.push({
+            category: "shared-mutable-state",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Shared mutable state \`${varName}\` accessed in async context in \`${file2.path}:${change.line}\` \u2014 concurrent calls may interleave reads/writes. Use atomic operations or mutex`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectRaceOnFlag(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (SKIP_LINE_RE4.test(change.content)) continue;
+    const flagMatch = change.content.match(FLAG_CHECK_RE);
+    if (!flagMatch) continue;
+    const flagName = flagMatch[1];
+    if (!COMMON_FLAG_NAMES.test(flagName)) continue;
+    let hasFlagSet = false;
+    let hasAwait = false;
+    for (let j = i + 1; j < Math.min(i + 10, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      const nextContent = next.content.replace(/^\+/, "").trim();
+      if (/^\}\s*(?:else|catch|finally)?/.test(nextContent)) break;
+      if (nextContent.includes(`${flagName} = true`) || nextContent.includes(`${flagName} = false`)) {
+        hasFlagSet = true;
+      }
+      if (/^await\b/.test(nextContent)) {
+        hasAwait = true;
+      }
+    }
+    if (hasFlagSet && hasAwait) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "race-on-flag",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Race on flag \`${flagName}\` in \`${file2.path}:${change.line}\` \u2014 check-then-set pattern before async work; concurrent calls can both pass the check. Use atomic compare-and-swap or mutex`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectUnboundedPromiseAll(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE4.test(change.content)) continue;
+    if (DYNAMIC_ARRAY_RE.test(change.content)) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "unbounded-promise-all",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Unbounded Promise.all with dynamic array in \`${file2.path}:${change.line}\` \u2014 no concurrency limit; can exhaust connections, memory, or rate limits. Use p-limit or Promise.allSettled with concurrency control`,
+        severity: "warning"
+      });
+      continue;
+    }
+    if (LARGE_LITERAL_RE.test(change.content)) {
+      const commaCount = (change.content.match(/,/g) || []).length;
+      if (commaCount >= 4) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "unbounded-promise-all",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Large Promise.all (${commaCount + 1} items) in \`${file2.path}:${change.line}\` \u2014 consider batching or using concurrency-limited execution to avoid resource exhaustion`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues10(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildConcurrencyHazardContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Concurrency Hazards (${result.issues.length})
+`;
+  ctx += "This PR may introduce concurrency bugs:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildConcurrencyHazardBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Async Concurrency Hazard Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Concurrency bugs are non-deterministic, reproduce only under load, and leave no stack trace. Catch them at review time.*
+</details>
+`;
+  return body;
+}
+function detectConcurrencyHazards(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectTOCTOU(file2));
+    allIssues.push(...detectSharedMutableState(file2));
+    allIssues.push(...detectRaceOnFlag(file2));
+    allIssues.push(...detectUnboundedPromiseAll(file2));
+  }
+  const issues = dedupIssues10(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildConcurrencyHazardContext(result);
+  result.bodySummary = buildConcurrencyHazardBodySummary(result);
+  if (issues.length > 0) {
+    core58.info(`Concurrency hazard detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/lifecycle-protocol-detector.ts
+import * as core59 from "@actions/core";
+var STATE_MACHINE_RE = /(?:createMachine|Machine|StateMachine|fsm|FSM|useStateMachine|useMachine|createStateMachine)\s*\(/;
+var STATE_ASSIGN_RE = /(?:\.status|\.state|\.phase|\.stage)\s*=\s*['"](\w+)['"]/;
+var TRANSITION_RE = /(?:target|next|to|transition)\s*:\s*['"](\w+)['"]/;
+var INITIAL_STATE_RE = /(?:initial|start|default)\s*:\s*['"](\w+)['"]/;
+var ERROR_STATE_RE = /['\"]?(?:error|failed|failure|rejected|invalid|cancelled|aborted|denied|timeout|dead)['\"]?\s*:/;
+var SET_STATUS_RE = /(?:setState|setStatus|setPhase|setStage|transition|goTo|changeState|advance|proceed)\s*\(\s*['"](\w+)['"]/;
+var STATE_LITERAL_RE = /(?:status|state|phase|stage)\s*(?:===|!==|==|=)\s*['"](\w+)['"]/;
+var SKIP_LINE_RE5 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectInvalidTransitions(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  let hasStateMachine = false;
+  const transitions = /* @__PURE__ */ new Set();
+  const states = /* @__PURE__ */ new Set();
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE5.test(change.content)) continue;
+    if (STATE_MACHINE_RE.test(change.content)) {
+      hasStateMachine = true;
+    }
+    const transMatch = change.content.match(TRANSITION_RE);
+    if (transMatch) {
+      transitions.add(transMatch[1]);
+    }
+    const stateMatch = change.content.match(STATE_ASSIGN_RE);
+    if (stateMatch) {
+      states.add(stateMatch[1]);
+    }
+    const setStatusMatch = change.content.match(SET_STATUS_RE);
+    if (setStatusMatch) {
+      states.add(setStatusMatch[1]);
+    }
+    const stateLitMatch = change.content.match(STATE_LITERAL_RE);
+    if (stateLitMatch) {
+      states.add(stateLitMatch[1]);
+    }
+  }
+  if (hasStateMachine || transitions.size > 0) {
+    for (const change of addedChanges) {
+      if (SKIP_LINE_RE5.test(change.content)) continue;
+      const setStatusMatch = change.content.match(SET_STATUS_RE);
+      if (setStatusMatch) {
+        const targetState = setStatusMatch[1];
+        if (transitions.size > 0 && !transitions.has(targetState) && targetState !== "error" && targetState !== "failed") {
+          const trimmed = change.content.replace(/^\+/, "").trim();
+          issues.push({
+            category: "invalid-transition",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Possible invalid transition to '${targetState}' in \`${file2.path}:${change.line}\` \u2014 state '${targetState}' not found in transition table; verify this transition is valid`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectMissingInitialState(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (SKIP_LINE_RE5.test(change.content)) continue;
+    if (!STATE_MACHINE_RE.test(change.content)) continue;
+    let hasInitialState = false;
+    for (let j = i + 1; j < Math.min(i + 20, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      if (INITIAL_STATE_RE.test(next.content)) {
+        hasInitialState = true;
+        break;
+      }
+      if (/^\+\s*\}\s*[;,]\s*$/.test(next.content)) break;
+    }
+    if (!hasInitialState) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "missing-initial-state",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `State machine without initial state in \`${file2.path}:${change.line}\` \u2014 every state machine needs an initial/default state to be deterministic`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectUnreachableState(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  const definedStates = /* @__PURE__ */ new Map();
+  const targetedStates = /* @__PURE__ */ new Set();
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE5.test(change.content)) continue;
+    const stateDefMatch = change.content.match(/^\+\s*['"](\w+)['"]\s*:/);
+    if (stateDefMatch) {
+      definedStates.set(stateDefMatch[1], change.line);
+    }
+    const transMatch = change.content.match(TRANSITION_RE);
+    if (transMatch) {
+      targetedStates.add(transMatch[1]);
+    }
+    const initMatch = change.content.match(INITIAL_STATE_RE);
+    if (initMatch) {
+      targetedStates.add(initMatch[1]);
+    }
+  }
+  for (const [state, line] of definedStates) {
+    if (!targetedStates.has(state) && state !== "error" && state !== "failed" && state !== "success" && state !== "done") {
+      issues.push({
+        category: "unreachable-state",
+        file: file2.path,
+        line,
+        code: `state '${state}'`,
+        description: `Unreachable state '${state}' in \`${file2.path}:${line}\` \u2014 no transition targets this state; it may be dead code or a missing transition should be added`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectMissingErrorState(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (let i = 0; i < addedChanges.length; i++) {
+    const change = addedChanges[i];
+    if (SKIP_LINE_RE5.test(change.content)) continue;
+    if (!STATE_MACHINE_RE.test(change.content)) continue;
+    let hasErrorState = false;
+    for (let j = i + 1; j < Math.min(i + 30, addedChanges.length); j++) {
+      const next = addedChanges[j];
+      if (ERROR_STATE_RE.test(next.content)) {
+        hasErrorState = true;
+        break;
+      }
+      if (/^\+\s*\}\s*[;,]\s*$/.test(next.content)) break;
+    }
+    if (!hasErrorState) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "missing-error-state",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `State machine without error/failure state in \`${file2.path}:${change.line}\` \u2014 add an error, failed, or rejected state to handle failures gracefully`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues11(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildLifecycleProtocolContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## State Machine / Lifecycle Protocol Violations (${result.issues.length})
+`;
+  ctx += "This PR may introduce state machine violations:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildLifecycleProtocolBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>State Machine / Lifecycle Protocol Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*State machine violations cause non-deterministic bugs \u2014 orders shipped before payment, deploys rolled back before starting.*
+</details>
+`;
+  return body;
+}
+function detectLifecycleProtocolViolations(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectInvalidTransitions(file2));
+    allIssues.push(...detectMissingInitialState(file2));
+    allIssues.push(...detectUnreachableState(file2));
+    allIssues.push(...detectMissingErrorState(file2));
+  }
+  const issues = dedupIssues11(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildLifecycleProtocolContext(result);
+  result.bodySummary = buildLifecycleProtocolBodySummary(result);
+  if (issues.length > 0) {
+    core59.info(`Lifecycle protocol detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/semantic-type-confusion-detector.ts
+import * as core60 from "@actions/core";
+var UNIT_SUFFIXES = /(?:Cents|Dollars|Millicents|Millis|Seconds|Minutes|Hours|Days|Weeks|Months|Years|Kb|Mb|Gb|Tb|Pb|Kib|Mib|Gib|Pix|Pixels|Meters|Km|Miles|Feet|Inches|Kg|Lb|Oz|Celsius|Fahrenheit|Kelvin|Bps|Kbps|Mbps|Gbps|Hz|Khz|Mhz|Ghz)$/i;
+var ID_TYPE_RE = /^(?:user|order|product|account|session|transaction|payment|invoice|customer|tenant|project|team|org|repo|branch|commit|build|deploy|release|ticket|message|thread|comment|file|asset|resource|policy|role|permission)Id$/i;
+var DURATION_VAR_RE = /(?:duration|timeout|delay|interval|ttl|expiry|age|elapsed|latency|uptime|downtime|waitTime|processingTime|responseTime)/i;
+var TIMESTAMP_AS_DURATION_RE = /(?:createdAt|updatedAt|startedAt|endedAt|expiresAt)\s*(?:\+|\-|\*|\/|=)\s*(?:\d+|\.)/;
+var DURATION_AS_TIMESTAMP_RE = /(?:duration|timeout|delay|interval|ttl)\s*(?:<|>|<=|>=|===|==)\s*(?:Date\.|new Date|Date\.now|\.now\(\))/;
+var SKIP_LINE_RE6 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectUnitMismatch(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE6.test(change.content)) continue;
+    const assignMatch = change.content.match(/(\w*(?:Cents|Dollars|Millicents)\w*)\s*(?:===|!==|==|!=|=)\s*(\w*(?:Cents|Dollars|Millicents)\w*)/i);
+    if (assignMatch && assignMatch[1] !== assignMatch[2]) {
+      const lhs = assignMatch[1];
+      const rhs = assignMatch[2];
+      const lhsUnit = lhs.match(UNIT_SUFFIXES)?.[0];
+      const rhsUnit = rhs.match(UNIT_SUFFIXES)?.[0];
+      if (lhsUnit && rhsUnit && lhsUnit.toLowerCase() !== rhsUnit.toLowerCase()) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "unit-mismatch",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Unit mismatch in \`${file2.path}:${change.line}\` \u2014 ${lhs} (${lhsUnit}) assigned/compared with ${rhs} (${rhsUnit}); convert units before mixing`,
+          severity: "warning"
+        });
+      }
+    }
+    const timeMatch = change.content.match(/(\w*(?:Seconds|Millis|Minutes|Hours|Days)\w*)\s*(?:===|!==|==|!=|=|<|>|<=|>=)\s*(\w*(?:Seconds|Millis|Minutes|Hours|Days)\w*)/i);
+    if (timeMatch && timeMatch[1] !== timeMatch[2]) {
+      const lhs = timeMatch[1];
+      const rhs = timeMatch[2];
+      const lhsUnit = lhs.match(UNIT_SUFFIXES)?.[0];
+      const rhsUnit = rhs.match(UNIT_SUFFIXES)?.[0];
+      if (lhsUnit && rhsUnit && lhsUnit.toLowerCase() !== rhsUnit.toLowerCase()) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "unit-mismatch",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Time unit mismatch in \`${file2.path}:${change.line}\` \u2014 ${lhs} (${lhsUnit}) mixed with ${rhs} (${rhsUnit}); explicit unit conversion required`,
+          severity: "warning"
+        });
+      }
+    }
+    const storageMatch = change.content.match(/(\w*(?:Kb|Mb|Gb|Tb|Pb|Kib|Mib|Gib)\w*)\s*(?:===|!==|==|!=|=|<|>|<=|>=)\s*(\w*(?:Kb|Mb|Gb|Tb|Pb|Kib|Mib|Gib)\w*)/i);
+    if (storageMatch && storageMatch[1] !== storageMatch[2]) {
+      const lhs = storageMatch[1];
+      const rhs = storageMatch[2];
+      const lhsUnit = lhs.match(UNIT_SUFFIXES)?.[0];
+      const rhsUnit = rhs.match(UNIT_SUFFIXES)?.[0];
+      if (lhsUnit && rhsUnit && lhsUnit.toLowerCase() !== rhsUnit.toLowerCase()) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "unit-mismatch",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Storage unit mismatch in \`${file2.path}:${change.line}\` \u2014 ${lhs} (${lhsUnit}) mixed with ${rhs} (${rhsUnit}); explicit unit conversion required`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectIdConfusion(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE6.test(change.content)) continue;
+    const idMatch = change.content.match(/(\w+Id)\s*(===|!==|==|!=|=)\s*(\w+Id)/i);
+    if (idMatch && idMatch[1] !== idMatch[3]) {
+      const lhs = idMatch[1];
+      const rhs = idMatch[3];
+      const lhsType = lhs.match(ID_TYPE_RE);
+      const rhsType = rhs.match(ID_TYPE_RE);
+      if (lhsType && rhsType && lhs.toLowerCase() !== rhs.toLowerCase()) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "id-confusion",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `ID type confusion in \`${file2.path}:${change.line}\` \u2014 ${lhs} mixed with ${rhs}; different entity IDs are not interchangeable even if both are strings`,
+          severity: "critical"
+        });
+      }
+    }
+    const funcCallMatch = change.content.match(/get(?:User|Order|Product|Account|Session|Transaction|Payment|Invoice|Customer)\s*\(\s*(\w+Id)/i);
+    if (funcCallMatch) {
+      const argId = funcCallMatch[1];
+      const funcPrefix = change.content.match(/get(\w+)\s*\(/i)?.[1]?.toLowerCase();
+      const argType = argId.replace(/Id$/i, "").toLowerCase();
+      if (funcPrefix && argType && funcPrefix !== argType && funcPrefix !== "" && argType !== "") {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "id-confusion",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Possible ID confusion in \`${file2.path}:${change.line}\` \u2014 get${funcPrefix}(${argId}); expected ${funcPrefix}Id, got ${argId}`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectTimestampDurationSwap(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE6.test(change.content)) continue;
+    if (TIMESTAMP_AS_DURATION_RE.test(change.content) && !DURATION_VAR_RE.test(change.content)) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      const tsMatch = change.content.match(/(\w+(?:At|Timestamp))\s*[\+\-\*\/=]/i);
+      if (tsMatch) {
+        issues.push({
+          category: "timestamp-duration-swap",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Timestamp used in arithmetic in \`${file2.path}:${change.line}\` \u2014 ${tsMatch[1]} is an absolute time, not a duration; use Date differences to compute durations`,
+          severity: "warning"
+        });
+      }
+    }
+    if (DURATION_AS_TIMESTAMP_RE.test(change.content)) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      const durMatch = change.content.match(/((?:\w+)?(?:duration|timeout|delay|interval|ttl))\s*[<>=!]+/i);
+      if (durMatch) {
+        issues.push({
+          category: "timestamp-duration-swap",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Duration compared to absolute time in \`${file2.path}:${change.line}\` \u2014 ${durMatch[1]} is a duration, not a timestamp; compare elapsed time instead`,
+          severity: "warning"
+        });
+      }
+    }
+    const setTimeoutTimestamp = change.content.match(/(?:setTimeout|setInterval)\s*\(\s*(?:async\s+)?(?:\(\)|\w+)\s*,\s*(\w+(?:At|Timestamp|Date|Time))/i);
+    if (setTimeoutTimestamp) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "timestamp-duration-swap",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `setTimeout/setInterval with timestamp in \`${file2.path}:${change.line}\` \u2014 ${setTimeoutTimestamp[1]} appears to be an absolute time, but setTimeout expects a duration in ms`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectStringSubtypeConfusion(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE6.test(change.content)) continue;
+    const assignMatch = change.content.match(/(\w*(?:email|eMail|emailAddress|mail)\w*)\s*(?:===|!==|==|!=|=)\s*(\w*(?:phone|phoneNumber|tel|mobile|cell|fax)\w*)/i);
+    if (assignMatch) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "string-subtype-confusion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `String subtype confusion in \`${file2.path}:${change.line}\` \u2014 email mixed with phone number; both are strings but have different formats and validation`,
+        severity: "warning"
+      });
+    }
+    const phoneEmailMatch = change.content.match(/(\w*(?:phone|phoneNumber|tel|mobile|cell|fax)\w*)\s*(?:===|!==|==|!=|=)\s*(\w*(?:email|eMail|emailAddress|mail)\w*)/i);
+    if (phoneEmailMatch) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "string-subtype-confusion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `String subtype confusion in \`${file2.path}:${change.line}\` \u2014 phone number mixed with email; both are strings but have different formats and validation`,
+        severity: "warning"
+      });
+    }
+    const urlPathMatch = change.content.match(/(\w*(?:filePath|dirPath|pathname|basePath)\w*)\s*(?:===|!==|==|!=|=)\s*(\w*(?:url|uri|href|link|endpoint)\w*)/i);
+    if (urlPathMatch) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "string-subtype-confusion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `String subtype confusion in \`${file2.path}:${change.line}\` \u2014 file path mixed with URL; both are strings but have different semantics and security implications`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues12(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildSemanticTypeConfusionContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Semantic Type Confusion (${result.issues.length})
+`;
+  ctx += "This PR may mix semantically different types that share the same structural type:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildSemanticTypeConfusionBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Semantic Type Confusion Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Semantic type confusion compiles without error but produces subtly wrong results at runtime.*
+</details>
+`;
+  return body;
+}
+function detectSemanticTypeConfusion(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnitMismatch(file2));
+    allIssues.push(...detectIdConfusion(file2));
+    allIssues.push(...detectTimestampDurationSwap(file2));
+    allIssues.push(...detectStringSubtypeConfusion(file2));
+  }
+  const issues = dedupIssues12(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildSemanticTypeConfusionContext(result);
+  result.bodySummary = buildSemanticTypeConfusionBodySummary(result);
+  if (issues.length > 0) {
+    core60.info(`Semantic type confusion detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/data-flow-boundary-detector.ts
+import * as core61 from "@actions/core";
+var PII_FIELDS_RE = /\b(?:ssn|socialSecurity|social_security|sin|nationalId|national_id|passport|passportNumber|passport_number|taxId|tax_id|ein|driverLicense|driver_license|dateOfBirth|date_of_birth|dob|birthDate|birth_date|gender|ethnicity|race|religion|sexualOrientation|sexual_orientation|disability|maidenName|maiden_name|biometric|fingerprint|faceId|irisScan)\b/i;
+var FINANCIAL_PII_RE = /\b(?:creditCard|credit_card|cardNumber|card_number|cvv|cvc|pin|pinNumber|pin_number|bankAccount|bank_account|routingNumber|routing_number|iban|swiftCode|swift_code|walletAddress|wallet_address)\b/i;
+var SECRET_DATA_RE = /\b(?:password|passwd|secret|token|apiKey|api_key|accessToken|access_token|refreshToken|refresh_token|privateKey|private_key|authCode|auth_code|credential|sessionId|session_id)\b/i;
+var LOG_OUTPUT_RE = /\b(?:console\.(log|debug|info|warn|error|dir|table)|logger\.(log|debug|info|warn|error|trace|fatal)|log\.(log|debug|info|warn|error|trace|fatal)|winston\.\w+|bunyan\.\w+|pino\.\w+|logging\.\w+)\s*\(/;
+var RESPONSE_RE = /\b(?:res\.(?:json|send|end|render|write)|response\.(?:json|send|end|render|write)|ctx\.(?:body|response)|reply\.(?:send|code|type)|ResponseBody|HttpResponse|sendResponse|returnResponse)\s*[\(.=]/;
+var EXTERNAL_API_RE = /\b(?:fetch|axios|http\.(?:get|post|put|patch|delete|request)|request\(|\.send\(|httpClient|webhook|postMessage|sendMessage|publishEvent|emitEvent|trackEvent|identifyUser|analytics\.\w+)\s*[\(.]/;
+var DB_SOURCE_RE = /\b(?:db\.\w+|database\.\w+|query|findOne|findById|findMany|execute|prisma\.\w+|knex|sequelize|typeorm|mongoose|redis\.get|cache\.get|session\.|auth\.|authenticate|getCredentials|getUser|getProfile)\s*[\(.]/;
+var SANITIZE_RE = /\b(?:sanitize|redact|mask|hash|encrypt|truncate|obfuscate|omit|strip|filter|exclude|remove)\s*[\(.]/;
+var SKIP_LINE_RE7 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectUnprotectedPIIInResponse(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE7.test(change.content)) continue;
+    const hasResponse = RESPONSE_RE.test(change.content);
+    if (!hasResponse) continue;
+    const piiMatch = change.content.match(PII_FIELDS_RE);
+    const financialMatch = change.content.match(FINANCIAL_PII_RE);
+    const hasSanitize = SANITIZE_RE.test(change.content);
+    if (piiMatch && !hasSanitize) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "unprotected-pii-in-response",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `PII field \`${piiMatch[0]}\` in HTTP response in \`${file2.path}:${change.line}\` \u2014 sensitive PII returned without redaction/sanitization; redact or mask before sending to client`,
+        severity: "warning"
+      });
+    }
+    if (financialMatch && !hasSanitize) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "unprotected-pii-in-response",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Financial PII \`${financialMatch[0]}\` in HTTP response in \`${file2.path}:${change.line}\` \u2014 financial data returned without redaction; PCI-DSS requires truncation/masking of card numbers`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectSensitiveDataInLog(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE7.test(change.content)) continue;
+    const hasLog = LOG_OUTPUT_RE.test(change.content);
+    if (!hasLog) continue;
+    const secretMatch = change.content.match(SECRET_DATA_RE);
+    const piiMatch = change.content.match(PII_FIELDS_RE);
+    const financialMatch = change.content.match(FINANCIAL_PII_RE);
+    if (secretMatch) {
+      const hasSanitize = SANITIZE_RE.test(change.content);
+      if (!hasSanitize) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "sensitive-data-in-log",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Secret/credential \`${secretMatch[0]}\` in log output in \`${file2.path}:${change.line}\` \u2014 credentials must never be logged; use redacted placeholder or structured logging with field exclusion`,
+          severity: "critical"
+        });
+      }
+    }
+    if (piiMatch) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      const hasSanitize = SANITIZE_RE.test(change.content);
+      if (!hasSanitize) {
+        issues.push({
+          category: "sensitive-data-in-log",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `PII field \`${piiMatch[0]}\` in log output in \`${file2.path}:${change.line}\` \u2014 PII must not be logged per GDPR/HIPAA; log a redacted identifier instead`,
+          severity: "critical"
+        });
+      }
+    }
+    if (financialMatch) {
+      const hasSanitize = SANITIZE_RE.test(change.content);
+      if (!hasSanitize) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "sensitive-data-in-log",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Financial PII \`${financialMatch[0]}\` in log output in \`${file2.path}:${change.line}\` \u2014 PCI-DSS prohibits logging card/bank data; remove from log statement`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectTrustBoundarySkip(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE7.test(change.content)) continue;
+    const hasDbSource = DB_SOURCE_RE.test(change.content);
+    const hasExternalApi = EXTERNAL_API_RE.test(change.content);
+    if (hasDbSource && hasExternalApi) {
+      const hasSanitize = SANITIZE_RE.test(change.content);
+      if (!hasSanitize) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "trust-boundary-skip",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Data from trusted source sent directly to external API in \`${file2.path}:${change.line}\` \u2014 data crossing trust boundaries should be validated/sanitized; add explicit consent check or data filter`,
+          severity: "critical"
+        });
+      }
+    }
+    const spreadToExternal = change.content.match(/(?:fetch|axios|http|webhook|publish|track|analytics|send).*?\.{2,}\s*(\w+)/i) || change.content.match(/\.{2,}\s*(\w+).*(?:fetch|axios|http|webhook|publish|track|analytics|send)/i);
+    if (spreadToExternal) {
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      const hasSanitize = SANITIZE_RE.test(change.content);
+      if (!hasSanitize) {
+        issues.push({
+          category: "trust-boundary-skip",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Spread of \`${spreadToExternal[1]}\` into external call in \`${file2.path}:${change.line}\` \u2014 spreading entire objects may leak unintended fields; whitelist specific fields instead`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectClientSideLeak(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  if (/\.test\.|\.spec\.|__tests__/.test(file2.path)) return issues;
+  const isClientFile = /(?:client|frontend|browser|public|static|dist|src\/app|src\/pages|src\/components|src\/views)\//i.test(file2.path);
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE7.test(change.content)) continue;
+    const clientLeakMatch = change.content.match(/(?:localStorage|sessionStorage|indexedDB)\.setItem\s*\(\s*['"](\w+)['"]\s*,\s*(\w+)/i);
+    if (clientLeakMatch) {
+      const valueSource = clientLeakMatch[2];
+      const isSensitiveSource = /\b(?:password|token|secret|key|auth|credential|session|private)/i.test(valueSource);
+      if (isSensitiveSource) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "client-side-leak",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Sensitive data \`${valueSource}\` stored in ${clientLeakMatch[0].split(".")[0]} in \`${file2.path}:${change.line}\` \u2014 browser storage is accessible to XSS; use httpOnly cookies or server-side sessions instead`,
+          severity: "critical"
+        });
+      }
+    }
+    const envLeak = change.content.match(/process\.env\.(\w+).*(?:window\.|document\.|localStorage|sessionStorage|props|state|store)/i) || change.content.match(/(?:window\.|document\.|localStorage|sessionStorage)[^;]*?process\.env\.(\w+)/i);
+    if (envLeak) {
+      const envName = envLeak[1] || envLeak[2];
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "client-side-leak",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Environment variable \`process.env.${envName}\` exposed to client in \`${file2.path}:${change.line}\` \u2014 server env vars may contain secrets; use a dedicated public env prefix or API endpoint`,
+        severity: "critical"
+      });
+    }
+    if (isClientFile) {
+      const secretMatch = change.content.match(SECRET_DATA_RE);
+      if (secretMatch && !SANITIZE_RE.test(change.content)) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        if (/\.test\.|\.spec\./.test(file2.path)) continue;
+        if (/\b(?:label|placeholder|title|heading|description|tooltip|aria-|data-testid)\b/i.test(change.content)) continue;
+        issues.push({
+          category: "client-side-leak",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Sensitive reference \`${secretMatch[0]}\` in client-side code in \`${file2.path}:${change.line}\` \u2014 credentials/secrets should not exist in client bundles; move to server-side API`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues13(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildDataFlowContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Data Flow Boundary Violations (${result.issues.length})
+`;
+  ctx += "This PR may expose sensitive data across trust boundaries:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildDataFlowBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Data Flow Boundary Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Data flow boundary violations cause data breaches \u2014 PII in logs, credit cards in responses, secrets in client bundles.*
+</details>
+`;
+  return body;
+}
+function detectDataFlowBoundaryViolations(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnprotectedPIIInResponse(file2));
+    allIssues.push(...detectSensitiveDataInLog(file2));
+    allIssues.push(...detectTrustBoundarySkip(file2));
+    allIssues.push(...detectClientSideLeak(file2));
+  }
+  const issues = dedupIssues13(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildDataFlowContext(result);
+  result.bodySummary = buildDataFlowBodySummary(result);
+  if (issues.length > 0) {
+    core61.info(`Data flow boundary detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/null-guard-detector.ts
+import * as core62 from "@actions/core";
+var DEEP_ACCESS_RE = /(\w+)\.(\w+)\.(\w+)/;
+var PARTIAL_OPTIONAL_CHAIN_RE = /\?\.\s*(\w+)\.(\w+)/;
+var ASSERTION_ACCESS_RE = /(\w+)!\.(\w+)/;
+var ARRAY_INDEX_ACCESS_RE = /(\w+)\[(\d+)\]\.(\w+)/;
+var NULLABLE_SOURCE_RE = /\b(?:data|response|result|item|element|node|entry|record|obj|config|options|payload|body|content|value|user|account|profile|session|cache|row|doc|document|entity|resource|parent|child|target|source|ref|header|token|error|match|capture|group)\b/i;
+var SKIP_LINE_RE8 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectDeepAccessWithoutGuard(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE8.test(change.content)) continue;
+    const deepMatch = change.content.match(DEEP_ACCESS_RE);
+    if (deepMatch) {
+      const chain = `${deepMatch[1]}.${deepMatch[2]}.${deepMatch[3]}`;
+      const optionalChain = `${deepMatch[1]}?.${deepMatch[2]}`;
+      if (change.content.includes(optionalChain)) continue;
+      const sourceVar = deepMatch[1];
+      if (new RegExp(`\\b${sourceVar}\\s*(?:===|!==|==|!=|&&|\\?)`).test(change.content)) continue;
+      if (NULLABLE_SOURCE_RE.test(sourceVar)) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "deep-access-without-guard",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Deep property access \`${chain}\` without null guard in \`${file2.path}:${change.line}\` \u2014 \`${deepMatch[2]}\` could be null/undefined, causing TypeError; use optional chaining \`${deepMatch[1]}?.${deepMatch[2]}?.${deepMatch[3]}\``,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectArrayIndexWithoutCheck(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE8.test(change.content)) continue;
+    const arrMatch = change.content.match(ARRAY_INDEX_ACCESS_RE);
+    if (arrMatch) {
+      const arrName = arrMatch[1];
+      const index = arrMatch[2];
+      const prop = arrMatch[3];
+      if (change.content.includes(`${arrName}.length`) || change.content.includes(`${arrName}?.[`)) continue;
+      if (change.content.includes(`${arrName}?.[`) || change.content.includes(`].${prop}`) === false) continue;
+      if (NULLABLE_SOURCE_RE.test(arrName)) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "array-index-without-check",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Array index access \`${arrName}[${index}].${prop}\` without length check in \`${file2.path}:${change.line}\` \u2014 array could be empty, causing TypeError; check \`${arrName}.length > ${index}\` or use optional chaining \`${arrName}?.[${index}]?.${prop}\``,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectOptionalChainCoverageGap(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE8.test(change.content)) continue;
+    const partialMatch = change.content.match(PARTIAL_OPTIONAL_CHAIN_RE);
+    if (partialMatch) {
+      const level1 = partialMatch[1];
+      const level2 = partialMatch[2];
+      const fullPattern = `?.${level1}.${level2}`;
+      const safePattern = `?.${level1}?.${level2}`;
+      if (!change.content.includes(safePattern) && change.content.includes(fullPattern)) {
+        const trimmed = change.content.replace(/^\+/, "").trim();
+        issues.push({
+          category: "optional-chain-coverage-gap",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Partial optional chain \`${level1}?.${level2}\` in \`${file2.path}:${change.line}\` \u2014 \`${level1}\` is guarded but \`${level2}\` is accessed with \`.\`; use \`${level1}?.${level2}?\` or \`${level1}?.${level2}\` with full optional chaining`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectAssertiveAccessOnOptional(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE8.test(change.content)) continue;
+    const assertMatch = change.content.match(ASSERTION_ACCESS_RE);
+    if (assertMatch) {
+      const varName = assertMatch[1];
+      const prop = assertMatch[2];
+      if (new RegExp(`\\b${varName}\\s*(?:&&|!==?\\s*null|!==?\\s*undefined|if\\s*\\()`).test(change.content)) continue;
+      const trimmed = change.content.replace(/^\+/, "").trim();
+      issues.push({
+        category: "assertive-access-on-optional",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Non-null assertion \`${varName}!.${prop}\` in \`${file2.path}:${change.line}\` \u2014 assertion overrides TypeScript null safety; use optional chaining \`${varName}?.${prop}\` or add an explicit null check`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues14(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildNullGuardContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Null Guard / Defensive Access Gaps (${result.issues.length})
+`;
+  ctx += "This PR may have missing null/undefined checks before property access:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildNullGuardBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Null Guard Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Missing null guards cause production TypeErrors \u2014 deep access without optional chaining, unguarded array indices, non-null assertions on optional values.*
+</details>
+`;
+  return body;
+}
+function detectNullGuardGaps(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectDeepAccessWithoutGuard(file2));
+    allIssues.push(...detectArrayIndexWithoutCheck(file2));
+    allIssues.push(...detectOptionalChainCoverageGap(file2));
+    allIssues.push(...detectAssertiveAccessOnOptional(file2));
+  }
+  const issues = dedupIssues14(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildNullGuardContext(result);
+  result.bodySummary = buildNullGuardBodySummary(result);
+  if (issues.length > 0) {
+    core62.info(`Null guard detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/ai-code-pathology-detector.ts
+import * as core63 from "@actions/core";
+var HALLUCINATED_PACKAGES_RE = /\b(?:lodash-es|ramda|date-fns-tz|@aws-sdk\/client-all|@google-cloud\/all|aws-sdk\/v3|@azure\/all|@types\/express-serve-static-core|node:util\/promisify|python|django|flask|tensorflow|torch|numpy|pandas|scipy|sklearn|matplotlib)\b/;
+var WRONG_SUBPATH_RE = /from\s+['"](?:@actions\/github\/lib\/|@octokit\/rest\/lib\/|express\/lib\/|lodash\/fp\/|@types\/node\/ts)/;
+var HALLUCINATED_FUNCTION_RE = /import\s+\{[^}]*(?:QueryClient|useQuery|useMutation|DataProvider|AuthClient|StorageClient|CacheClient|EventClient)[^}]*\}\s+from\s+['"](?:@actions\/|@octokit\/|express|lodash|axios|dotenv)[^;]*;/;
+var STUB_RETURN_RE = /return\s+(?:true|false|null|undefined|0|''|""|\[\]|\{\}|new Map\(\)|new Set\(\));?\s*(?:\}|$)/;
+var IDENTITY_RETURN_RE = /return\s+\w+;?\s*(?:\}|$)/;
+var EMPTY_TRY_CATCH_RE = /try\s*\{\s*\}\s*catch\s*\([^)]*\)\s*\{\s*\}/;
+var COMMENTED_ALTERNATIVE_RE = /^\+\s*\/\/\s*(?:alternative|option|or|instead|another way|could also|also:|FIXME|NOTE: alternative)/i;
+var EXCESSIVE_BLANK_LINES_RE = /^\+\s*$/;
+var SKIP_LINE_RE9 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+var LEGITIMATE_TRIVIAL_RE = /^(?:isEmpty|isSet|isEnabled|isDisabled|isReady|isComplete|has[A-Z]|can[A-Z]|should[A-Z]|is[A-Z])/;
+function detectHallucinatedImports(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (!trimmed.startsWith("import ")) continue;
+    if (HALLUCINATED_PACKAGES_RE.test(content)) {
+      const pkgMatch = content.match(HALLUCINATED_PACKAGES_RE);
+      issues.push({
+        category: "hallucinated-import",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Possible hallucinated package \`${pkgMatch?.[0]}\` in \`${file2.path}:${change.line}\` \u2014 verify this package exists and provides the imported symbols; LLMs frequently fabricate package names`,
+        severity: "critical"
+      });
+    }
+    if (WRONG_SUBPATH_RE.test(content)) {
+      issues.push({
+        category: "hallucinated-import",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Wrong import subpath in \`${file2.path}:${change.line}\` \u2014 deep package subpaths are often hallucinated by LLMs; import from the package root instead`,
+        severity: "critical"
+      });
+    }
+    if (HALLUCINATED_FUNCTION_RE.test(content)) {
+      const funcMatch = content.match(/import\s+\{([^}]+)\}/)?.[1]?.trim();
+      issues.push({
+        category: "hallucinated-import",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Possible hallucinated function import \`${funcMatch}\` in \`${file2.path}:${change.line}\` \u2014 verify these exports exist in the package; LLMs commonly import non-existent functions`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectSycophanticStubs(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE9.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (STUB_RETURN_RE.test(trimmed)) {
+      const funcMatch = content.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=)/);
+      if (funcMatch) {
+        const funcName = funcMatch[1] || funcMatch[2];
+        if (funcName && LEGITIMATE_TRIVIAL_RE.test(funcName)) continue;
+        const returnMatch = trimmed.match(/return\s+(.+?);?\s*$/);
+        const returnValue = returnMatch?.[1] || "trivial value";
+        issues.push({
+          category: "sycophantic-stub",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Function \`${funcName}\` returns \`${returnValue}\` in \`${file2.path}:${change.line}\` \u2014 looks like a stub implementation; LLMs often generate plausible but empty function bodies that need real logic`,
+          severity: "warning"
+        });
+      }
+    }
+    if (IDENTITY_RETURN_RE.test(trimmed) && !/return\s+(?:this|self|result|output|response)/i.test(trimmed)) {
+      const funcMatch = content.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=)/);
+      if (funcMatch) {
+        const funcName = funcMatch[1] || funcMatch[2];
+        if (funcName && LEGITIMATE_TRIVIAL_RE.test(funcName)) continue;
+        const returnVar = trimmed.match(/return\s+(\w+)/)?.[1];
+        const paramMatch = content.match(/\((\w+)(?:,\s*\w+)*\)/);
+        if (paramMatch && paramMatch[1] === returnVar) {
+          issues.push({
+            category: "sycophantic-stub",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Function \`${funcName}\` appears to be an identity function (returns \`${returnVar}\` unchanged) in \`${file2.path}:${change.line}\` \u2014 may be a stub; LLMs generate pass-through functions when unsure of logic`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectConfidentWrongAPI(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE9.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    const setIncludes = content.match(/(\w*[Ss]et\w*)\.includes\s*\(/);
+    if (setIncludes) {
+      issues.push({
+        category: "confident-wrong-api",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Set using \`.includes()\` instead of \`.has()\` in \`${file2.path}:${change.line}\` \u2014 Set.has() is the correct API; .includes() is an Array method and will throw TypeError on Sets`,
+        severity: "critical"
+      });
+    }
+    const arrHas = content.match(/(\w*(?:list|items|array|arr|data|collection)\w*)\.has\s*\(/i);
+    if (arrHas) {
+      issues.push({
+        category: "confident-wrong-api",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Array using \`.has()\` instead of \`.includes()\` in \`${file2.path}:${change.line}\` \u2014 Arrays use .includes(), not .has(); .has() is a Map/Set method`,
+        severity: "critical"
+      });
+    }
+    const arrSize = content.match(/(\w*(?:list|items|array|arr|data|collection)\w*)\.size\b/i);
+    if (arrSize && !content.includes("Map") && !content.includes("Set")) {
+      issues.push({
+        category: "confident-wrong-api",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Array using \`.size\` instead of \`.length\` in \`${file2.path}:${change.line}\` \u2014 Arrays use .length, not .size; .size is for Map/Set`,
+        severity: "critical"
+      });
+    }
+    const mapLength = content.match(/(\w*(?:map|set|dict|hash)\w*)\.length\b/i);
+    if (mapLength) {
+      issues.push({
+        category: "confident-wrong-api",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Map/Set using \`.length\` instead of \`.size\` in \`${file2.path}:${change.line}\` \u2014 Map/Set use .size, not .length; .length is for Arrays/strings`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectBoilerplateExpansion(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (EMPTY_TRY_CATCH_RE.test(content)) {
+      issues.push({
+        category: "boilerplate-expansion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Empty try/catch block in \`${file2.path}:${change.line}\` \u2014 catches errors but does nothing with them; LLMs add empty try/catch as boilerplate; add error handling or remove the try/catch`,
+        severity: "warning"
+      });
+    }
+    if (COMMENTED_ALTERNATIVE_RE.test(content)) {
+      issues.push({
+        category: "boilerplate-expansion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Commented-out alternative approach in \`${file2.path}:${change.line}\` \u2014 LLMs leave multiple implementation options as comments; remove alternatives and keep only the chosen approach`,
+        severity: "warning"
+      });
+    }
+  }
+  let consecutiveBlanks = 0;
+  for (const change of addedChanges) {
+    if (EXCESSIVE_BLANK_LINES_RE.test(change.content)) {
+      consecutiveBlanks++;
+      if (consecutiveBlanks === 3) {
+        issues.push({
+          category: "boilerplate-expansion",
+          file: file2.path,
+          line: change.line,
+          code: "",
+          description: `3+ consecutive blank lines in \`${file2.path}:${change.line}\` \u2014 excessive blank lines are common in AI-generated code; reduce to 1 blank line between sections`,
+          severity: "warning"
+        });
+        break;
+      }
+    } else {
+      consecutiveBlanks = 0;
+    }
+  }
+  return issues;
+}
+function dedupIssues15(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAIPathologyContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## AI-Generated Code Pathologies (${result.issues.length})
+`;
+  ctx += "This PR may contain LLM-specific code mistakes:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAIPathologyBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>AI Code Pathology Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*AI-generated code pathologies compile without error but are semantically wrong \u2014 hallucinated imports, sycophantic stubs, wrong API methods, unnecessary boilerplate.*
+</details>
+`;
+  return body;
+}
+function detectAICodePathologies(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectHallucinatedImports(file2));
+    allIssues.push(...detectSycophanticStubs(file2));
+    allIssues.push(...detectConfidentWrongAPI(file2));
+    allIssues.push(...detectBoilerplateExpansion(file2));
+  }
+  const issues = dedupIssues15(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAIPathologyContext(result);
+  result.bodySummary = buildAIPathologyBodySummary(result);
+  if (issues.length > 0) {
+    core63.info(`AI code pathology detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/ungated-critical-return-detector.ts
+import * as core64 from "@actions/core";
+var VALIDATION_FUNC_RE = /\b(?:validate\w*|assert\w*|ensure\w*|confirm\w*|require\w*|(?:check|verify)(?!Auth)\w*|test\w*|sanitize\w*|normalize\w*)\s*\(/i;
+var AUTH_FUNC_RE = /\b(?:isAuth\w*|canAccess\w*|hasPermission\w*|hasRole\w*|hasAccess\w*|isAllowed\w*|isPermitted\w*|isAuthorized\w*|isAuthenticated\w*|authenticate\w*|authorize\w*|checkAuth\w*|verifyAuth\w*|verifyPermission\w*|requireAuth\w*)\s*\(/i;
+var WRITE_PATH_FUNC_RE = /\b(?:save\w*|write\w*|insert\w*|update\w*|delete\w*|remove\w*|destroy\w*|create\w*|push\w*|publish\w*|send\w*|store\w*|persist\w*|commit\w*|upload\w*|flush\w*|fire\w*|emit\w*|dispatch\w*)\s*\(/i;
+var ASSIGNMENT_RE = /^(?:const|let|var)\s+(\w+)\s*=\s*(.+?)\s*;?\s*$/;
+var BARE_CALL_RE = /^\s*(\w+)\s*\(/;
+var GUARD_WORDS_RE = /\b(\w+)\b/g;
+var SKIP_LINE_RE10 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\.|\})/;
+var GUARD_LINE_RE = /^\+\s*(?:if\s*\(|throw\s|return\s|if\s*\(!|if\s*\()/;
+var KNOWN_FIRE_AND_FORGET_RE = /\b(?:log\w*|console\.\w+|debug\w*|trace\w*|info\w*|warn\w*|error\w*|metric\w*|track\w*|report\w*|notify\w*|emit\w*\.on|addEventListener|removeEventListener|on\(|off\()\s*\(/i;
+var AWAITED_CALL_RE = /\bawait\s+/;
+function detectDiscardedValidationReturn(file2) {
+  const issues = [];
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  const assignedVars = /* @__PURE__ */ new Map();
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE10.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (GUARD_LINE_RE.test(content)) {
+      const words = trimmed.match(GUARD_WORDS_RE);
+      if (words) {
+        for (const w of words) {
+          assignedVars.delete(w);
+        }
+      }
+      continue;
+    }
+    if (AWAITED_CALL_RE.test(trimmed)) continue;
+    if (KNOWN_FIRE_AND_FORGET_RE.test(trimmed)) continue;
+    const assignMatch = trimmed.match(ASSIGNMENT_RE);
+    if (assignMatch) {
+      const [, varName, callExpr] = assignMatch;
+      if (VALIDATION_FUNC_RE.test(callExpr)) {
+        assignedVars.set(varName, {
+          line: change.line,
+          code: trimmed,
+          funcName: callExpr.match(/(\w+)\s*\(/)?.[1] || "validate"
+        });
+        continue;
+      }
+      if (AUTH_FUNC_RE.test(callExpr)) {
+        assignedVars.set(varName, {
+          line: change.line,
+          code: trimmed,
+          funcName: callExpr.match(/(\w+)\s*\(/)?.[1] || "auth"
+        });
+        continue;
+      }
+      continue;
+    }
+    const bareMatch = trimmed.match(BARE_CALL_RE);
+    if (bareMatch) {
+      const funcName = bareMatch[1];
+      if (VALIDATION_FUNC_RE.test(trimmed)) {
+        issues.push({
+          category: "discarded-validation-return",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Validation function \`${funcName}()\` called but return value discarded in \`${file2.path}:${change.line}\` \u2014 LLMs frequently call validate/check functions without guarding on the result, causing silent auth bypass; add \`if (!result)\` guard or assign and check`,
+          severity: "critical"
+        });
+        continue;
+      }
+      if (AUTH_FUNC_RE.test(trimmed)) {
+        issues.push({
+          category: "discarded-auth-return",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Auth function \`${funcName}()\` called but return value discarded in \`${file2.path}:${change.line}\` \u2014 LLMs call isAuthenticated/hasPermission without checking the result, causing auth bypass; add \`if (!result) return\` guard`,
+          severity: "critical"
+        });
+        continue;
+      }
+      if (WRITE_PATH_FUNC_RE.test(trimmed)) {
+        issues.push({
+          category: "unguarded-write-path",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Write-path function \`${funcName}()\` called but return value discarded in \`${file2.path}:${change.line}\` \u2014 LLMs call save/insert/update without checking for failure; add error handling or assign result`,
+          severity: "warning"
+        });
+        continue;
+      }
+    }
+  }
+  for (const [varName, info76] of assignedVars) {
+    issues.push({
+      category: "assigned-but-ungated",
+      file: file2.path,
+      line: info76.line,
+      code: info76.code,
+      description: `Variable \`${varName}\` assigned result of \`${info76.funcName}()\` but never used in a guard (if/throw/return) in \`${file2.path}:${info76.line}\` \u2014 LLMs assign validation results without adding the guard clause; add \`if (!${varName})\` or \`if (${varName} === false)\` check`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function dedupIssues16(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildUngatedReturnContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Ungated Critical Returns (${result.issues.length})
+`;
+  ctx += "This PR may contain discarded validation/auth returns \u2014 LLMs call check functions without guarding on the result:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildUngatedReturnBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Ungated Critical Return Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Ungated critical returns are the #1 cause of LLM-induced auth bypass \u2014 validate/check functions called but their return value discarded, allowing execution to proceed regardless.*
+</details>
+`;
+  return body;
+}
+function detectUngatedCriticalReturns(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectDiscardedValidationReturn(file2));
+  }
+  const issues = dedupIssues16(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildUngatedReturnContext(result);
+  result.bodySummary = buildUngatedReturnBodySummary(result);
+  if (issues.length > 0) {
+    core64.info(`Ungated critical return detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/hardcoded-config-detector.ts
+import * as core65 from "@actions/core";
+var URL_IN_CODE_RE = /['"](?:https?:\/\/)[^'"]+['"]/;
+var LEGITIMATE_URL_RE = /(?:github\.com\/\w+\/\w+(?:\/(?:tree|blob|issues|pull|releases))?|npmjs\.com|registry\.npmjs|opensource\.org|mozilla\.org|w3\.org|schema\.org|json-schema\.org|example\.(?:com|org|net)|localhost|127\.0\.0\.1|0\.0\.0\.0)/;
+var LISTEN_PORT_RE = /\b(?:listen|bind|connect|createServer)\s*\(\s*(?:['"][^'"]*['"]\s*,?\s*)?(\d{2,5})\b/;
+var PORT_ASSIGN_RE = /(?:port|PORT)\s*[:=]\s*(\d{2,5})\b/;
+var WELL_KNOWN_PORTS = /* @__PURE__ */ new Set([21, 22, 23, 25, 53, 80, 110, 143, 443, 465, 587, 993, 995, 3306, 5432, 6379, 8080, 8443, 27017]);
+var LIMIT_PATTERNS_RE = /\b(?:(?:max|MIN|MAX|default|DEFAULT)_(?:retry|timeout|retries|attempts|batch|concurrency|connections|limit|size|count|items|per_page|per_request)|(?:retry|timeout|retries|attempts|batch|concurrency|connections|limit|rate)_limit|TIMEOUT_MS|MAX_RETRIES|BATCH_SIZE|RATE_LIMIT|MAX_CONNECTIONS|CONCURRENCY_LIMIT)\s*[:=]\s*(\d+)/;
+var SUSPICIOUS_NUMERIC_RE = /\b(?:timeout|retry|max|limit|batch|size|threshold|interval|delay|ttl|expiry|capacity|concurrency|rate|period|duration|backoff)\w*\s*[:=]\s*(\d+)\b/i;
+var TOGGLE_PATTERNS_RE = /\b(?:ENABLE_\w+|DISABLE_\w+|FEATURE_\w+|USE_\w+|ALLOW_\w+|REQUIRE_\w+|SKIP_\w+|FORCE_\w+|DEBUG|VERBOSE|DRY_RUN|MOCK|STUB|SIMULATE)\s*[:=]\s*(?:true|false)/i;
+var CONFIG_TOGGLE_RE = /(?:enabled|disabled|active|verbose|debug|dryRun|dry_run|mock|stub|simulate|force|strict|safe|secure|use[A-Z]\w+|allow[A-Z]\w+|require[A-Z]\w+|skip[A-Z]\w+|enable[A-Z]\w+|disable[A-Z]\w+)\s*[:=]\s*(?:true|false)\s*[,;}]/i;
+var SKIP_LINE_RE11 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\}|case\s)/;
+var TEST_FILE_RE2 = /(?:\.test\.|\.spec\.|__tests__|\/test\/|\/tests\/|\.e2e\.)/;
+var CONFIG_FILE_RE = /(?:\.env|config\.\w+$|settings\.\w+$|\.yml$|\.yaml$|\.json$|\.toml$)/;
+var CONSTANT_DECL_RE = /^\+\s*(?:export\s+)?(?:const|let|var|readonly)\s+\w*(?:URL|URI|ENDPOINT|HOST|PORT|BASE|CONFIG)\w*\s*[:=]/i;
+function detectHardcodedURLs(file2) {
+  const issues = [];
+  if (TEST_FILE_RE2.test(file2.path)) return issues;
+  if (CONFIG_FILE_RE.test(file2.path)) return issues;
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE11.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (CONSTANT_DECL_RE.test(trimmed)) continue;
+    if (URL_IN_CODE_RE.test(content)) {
+      const urlMatch = content.match(URL_IN_CODE_RE);
+      const url2 = urlMatch?.[0] || "";
+      if (LEGITIMATE_URL_RE.test(url2)) continue;
+      issues.push({
+        category: "hardcoded-url",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Hardcoded URL \`${url2.slice(1, -1)}\` in \`${file2.path}:${change.line}\` \u2014 LLMs embed URLs directly in code; use environment variable or config file for service endpoints, API URLs, and webhook targets`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectHardcodedPorts(file2) {
+  const issues = [];
+  if (TEST_FILE_RE2.test(file2.path)) return issues;
+  if (CONFIG_FILE_RE.test(file2.path)) return issues;
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE11.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (CONSTANT_DECL_RE.test(trimmed)) continue;
+    const listenMatch = content.match(LISTEN_PORT_RE);
+    if (listenMatch) {
+      const port = parseInt(listenMatch[1], 10);
+      if (!WELL_KNOWN_PORTS.has(port) && port > 1 && port < 65536) {
+        issues.push({
+          category: "hardcoded-port",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Hardcoded port \`${port}\` in \`${file2.path}:${change.line}\` \u2014 LLMs use common ports (3000, 8080) directly; use \`process.env.PORT\` or config file for deployable code`,
+          severity: "warning"
+        });
+      }
+    }
+    const portAssignMatch = content.match(PORT_ASSIGN_RE);
+    if (portAssignMatch) {
+      const port = parseInt(portAssignMatch[1], 10);
+      if (!WELL_KNOWN_PORTS.has(port) && port > 1 && port < 65536) {
+        if (content.includes("process.env")) continue;
+        issues.push({
+          category: "hardcoded-port",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Hardcoded port \`${port}\` in \`${file2.path}:${change.line}\` \u2014 use environment variable (PORT) for configurable deployment`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectHardcodedLimits(file2) {
+  const issues = [];
+  if (TEST_FILE_RE2.test(file2.path)) return issues;
+  if (CONFIG_FILE_RE.test(file2.path)) return issues;
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE11.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (CONSTANT_DECL_RE.test(trimmed)) continue;
+    if (content.includes("process.env")) continue;
+    const limitMatch = content.match(LIMIT_PATTERNS_RE);
+    if (limitMatch) {
+      const value = limitMatch[1];
+      issues.push({
+        category: "hardcoded-limit",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Hardcoded limit value \`${value}\` in \`${file2.path}:${change.line}\` \u2014 LLMs embed timeout/retry/batch values directly; move to config or environment variable for tunability`,
+        severity: "warning"
+      });
+      continue;
+    }
+    const suspectMatch = content.match(SUSPICIOUS_NUMERIC_RE);
+    if (suspectMatch) {
+      const value = suspectMatch[1];
+      issues.push({
+        category: "hardcoded-limit",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Hardcoded numeric config \`${value}\` in \`${file2.path}:${change.line}\` \u2014 LLMs embed timeout/limit/batch values; use config for deployable code`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectHardcodedToggles(file2) {
+  const issues = [];
+  if (TEST_FILE_RE2.test(file2.path)) return issues;
+  if (CONFIG_FILE_RE.test(file2.path)) return issues;
+  const changes = file2.hunks.flatMap((h) => h.changes);
+  const addedChanges = changes.filter((c) => c.type === "add");
+  for (const change of addedChanges) {
+    if (SKIP_LINE_RE11.test(change.content)) continue;
+    const content = change.content;
+    const trimmed = content.replace(/^\+/, "").trim();
+    if (CONSTANT_DECL_RE.test(trimmed)) continue;
+    if (content.includes("process.env")) continue;
+    if (TOGGLE_PATTERNS_RE.test(content)) {
+      const toggleMatch = content.match(TOGGLE_PATTERNS_RE)?.[0] || "toggle";
+      issues.push({
+        category: "hardcoded-toggle",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Hardcoded feature toggle \`${toggleMatch}\` in \`${file2.path}:${change.line}\` \u2014 LLMs embed booleans directly in logic; use feature flag system or environment variable for runtime configuration`,
+        severity: "warning"
+      });
+      continue;
+    }
+    if (CONFIG_TOGGLE_RE.test(content)) {
+      const toggleMatch = content.match(CONFIG_TOGGLE_RE)?.[0] || "toggle";
+      issues.push({
+        category: "hardcoded-toggle",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Hardcoded toggle \`${toggleMatch.replace(/[,;}]\s*$/, "")}\` in \`${file2.path}:${change.line}\` \u2014 consider environment variable or config-driven toggle for production`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues17(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildHardcodedConfigContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Hardcoded Configuration (${result.issues.length})
+`;
+  ctx += "This PR may contain hardcoded config values \u2014 LLMs embed URLs, ports, timeouts, and toggles directly in code:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildHardcodedConfigBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Hardcoded Configuration Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Hardcoded configuration is a common LLM pathology \u2014 AI agents optimize for "working example" over deployable code, embedding URLs, ports, timeouts, and feature flags directly instead of using config management.*
+</details>
+`;
+  return body;
+}
+function detectHardcodedConfig(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectHardcodedURLs(file2));
+    allIssues.push(...detectHardcodedPorts(file2));
+    allIssues.push(...detectHardcodedLimits(file2));
+    allIssues.push(...detectHardcodedToggles(file2));
+  }
+  const issues = dedupIssues17(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildHardcodedConfigContext(result);
+  result.bodySummary = buildHardcodedConfigBodySummary(result);
+  if (issues.length > 0) {
+    core65.info(`Hardcoded config detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/debug-artifact-detector.ts
+import * as core66 from "@actions/core";
+var DEBUGGER_RE = /\bdebugger\s*;/;
+var CONSOLE_DEBUG_RE2 = /\.(log|debug|info|trace|dir|table|group|groupEnd|time|timeEnd|count|countReset|assert|clear|profile|profileEnd)\s*\(/;
+var CONSOLE_WARN_ERROR_RE = /\.(warn|error)\s*\(/;
+var TEST_ONLY_RE = /\b(?:it|test|describe|context|suite)\.(only|skip)\s*\(/;
+var FOCUS_BLOCK_RE = /\b(?:fit|fdescribe|xit|xdescribe|xtest|xit)\s*\(/;
+var DEBUG_FLAG_TRUE_RE = /\b(?:debug|verbose|trace|tracing|logging|logLevel|log_level)\s*[:=]\s*(?:true|True|TRUE|'debug'|'verbose'|'trace'|"debug"|"verbose"|"trace")/;
+var DEBUG_CONFIG_TRUE_RE = /(?:debug|verbose|trace|logging|logLevel)\s*:\s*(?:true|True|TRUE)\s*[,;}]/;
+var SKIP_LINE_RE12 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+var TEST_FILE_RE3 = /(?:\.test\.|\.spec\.|__tests__|\/test\/|\/tests\/|\.e2e\.)/;
+var SCRIPT_FILE_RE = /(?:\.sh$|\.bash$|Makefile|Dockerfile|\.ps1$|scripts\/|cli\/|bin\/|\.cmd$|\.bat$)/;
+var CONFIG_FILE_RE2 = /(?:\.env|config\.\w+$|settings\.\w+$|\.yml$|\.yaml$|\.toml$)/;
+var LOGGING_DIR_RE = /(?:\/log|\/logger|\/logging|\/monitor|\/telemetry)\//;
+function detectDebuggerStatements(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE12.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (DEBUGGER_RE.test(trimmed)) {
+        issues.push({
+          category: "debugger-statement",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Debug statement \`debugger;\` in \`${file2.path}:${change.line}\` \u2014 LLMs frequently leave debugger statements from iterative debugging; remove before merging`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectConsoleDebug(file2) {
+  const issues = [];
+  if (TEST_FILE_RE3.test(file2.path)) return issues;
+  if (SCRIPT_FILE_RE.test(file2.path)) return issues;
+  if (LOGGING_DIR_RE.test(file2.path)) return issues;
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE12.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (/\bconsole/.test(content) && CONSOLE_DEBUG_RE2.test(content) && !CONSOLE_WARN_ERROR_RE.test(content)) {
+        const methodMatch = content.match(/\bconsole\.(\w+)\s*\(/);
+        const method = methodMatch?.[1] || "log";
+        issues.push({
+          category: "console-debug",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Debug logging \`console.${method}()\` in \`${file2.path}:${change.line}\` \u2014 LLMs add console.log for debugging; use structured logger (pino, winston, bunyan) or remove before merging`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectTestIsolationBreaks(file2) {
+  const issues = [];
+  if (!TEST_FILE_RE3.test(file2.path)) return issues;
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE12.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (TEST_ONLY_RE.test(trimmed)) {
+        const match2 = trimmed.match(/\b(it|test|describe|context|suite)\.(only|skip)\s*\(/);
+        if (match2) {
+          const [, block, modifier] = match2;
+          const severity = modifier === "only" ? "critical" : "warning";
+          const impact = modifier === "only" ? "runs only this test, hiding failures in all other tests" : "skips this test, hiding its failures";
+          issues.push({
+            category: "test-isolation-break",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Test isolation break \`${block}.${modifier}()\` in \`${file2.path}:${change.line}\` \u2014 LLMs add .only to focus debugging then forget to remove it; this ${impact}; remove .${modifier} before merging`,
+            severity
+          });
+        }
+      }
+      if (FOCUS_BLOCK_RE.test(trimmed)) {
+        const match2 = trimmed.match(/\b(fit|fdescribe|xit|xdescribe|xtest|xit)\s*\(/);
+        if (match2) {
+          const [block] = match2;
+          const isFocus = block.startsWith("f");
+          const severity = isFocus ? "critical" : "warning";
+          const impact = isFocus ? "focused test runs only this test, hiding failures in all other tests" : "excluded test skips this test, hiding its failures";
+          issues.push({
+            category: "test-isolation-break",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Test isolation break \`${block}()\` in \`${file2.path}:${change.line}\` \u2014 LLMs use focused/excluded tests during debugging then forget to revert; this ${impact}; use regular it/describe before merging`,
+            severity
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectDebugFlagTrue(file2) {
+  const issues = [];
+  if (CONFIG_FILE_RE2.test(file2.path)) return issues;
+  if (TEST_FILE_RE3.test(file2.path)) return issues;
+  for (const hunk of file2.hunks) {
+    for (const change of hunk.changes) {
+      if (change.type !== "add") continue;
+      if (SKIP_LINE_RE12.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (DEBUG_FLAG_TRUE_RE.test(trimmed)) {
+        const match2 = trimmed.match(/\b(\w+)\s*[:=]\s*(true|True|TRUE|'debug'|'verbose'|'trace'|"debug"|"verbose"|"trace")/);
+        const flag = match2?.[1] || "debug";
+        issues.push({
+          category: "debug-flag-true",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Debug flag \`${flag}\` set to true in \`${file2.path}:${change.line}\` \u2014 LLMs enable debug/verbose flags for testing then forget to disable; this may leak sensitive data in logs or hurt performance in production`,
+          severity: "warning"
+        });
+      }
+      if (DEBUG_CONFIG_TRUE_RE.test(trimmed)) {
+        const match2 = trimmed.match(/(\w+)\s*:\s*(true|True|TRUE)\s*[,;]/);
+        const flag = match2?.[1] || "debug";
+        const alreadyMatched = DEBUG_FLAG_TRUE_RE.test(trimmed);
+        if (alreadyMatched) continue;
+        issues.push({
+          category: "debug-flag-true",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Debug flag \`${flag}: true\` in \`${file2.path}:${change.line}\` \u2014 LLMs enable debug/verbose flags for testing then forget to disable; this may expose sensitive data in production logs`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues18(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildDebugArtifactContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Debug Artifacts (${result.issues.length})
+`;
+  ctx += "This PR may contain leftover debugging artifacts \u2014 LLMs add these during iterative development:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildDebugArtifactBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Debug Artifact Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Debug artifacts leak sensitive data and break CI suites. LLMs add them during iterative debugging and frequently forget to remove them before committing.*
+</details>
+`;
+  return body;
+}
+function detectDebugArtifacts(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectDebuggerStatements(file2));
+    allIssues.push(...detectConsoleDebug(file2));
+    allIssues.push(...detectTestIsolationBreaks(file2));
+    allIssues.push(...detectDebugFlagTrue(file2));
+  }
+  const issues = dedupIssues18(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildDebugArtifactContext(result);
+  result.bodySummary = buildDebugArtifactBodySummary(result);
+  if (issues.length > 0) {
+    core66.info(`Debug artifact detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/callback-misuse-detector.ts
+import * as core67 from "@actions/core";
+var PROMISE_FUNC_RE = /\b(?:fetch|axios\.\w+|readFile|writeFile|mkdir|rm|readdir|copyFile|access|stat|lstat|chmod|chown|link|symlink|unlink|rename|readlink|realpath|mkdtemp|appendFile|open|close|fdatasync|fsync|truncate|ftruncate|write|read|pipe|watchFile|unwatchFile)\s*\(/;
+var CALLBACK_ARG_RE = /\(err(?:or)?\s*,/;
+var PROMISE_WRAP_RE = /new\s+Promise\s*\(\s*(?:async\s+)?\s*\(\s*(?:resolve|res)\s*,\s*(?:reject|rej)\s*\)\s*=>\s*\{/;
+var WRAPPED_CALLBACK_API_RE = /\b(?:fs|child_process|crypto|dns|http|https|net|readline|tls|zlib)\.\w+\s*\(/;
+var ERROR_FIRST_CALLBACK_RE = /\(err(?:or)?\s*,/;
+var MISSING_ERROR_CHECK_RE = /\b(?:if|throw)\s+\(?\s*err(?:or)?\b/;
+var FS_CALLBACK_RE = /\bfs\.\s*(?:readFile|writeFile|mkdir|readdir|stat|lstat|access|unlink|rename|rmdir|appendFile|open|read|write|close|copyFile|chmod|chown|link|symlink|readlink|realpath|mkdtemp|watchFile|rm)\s*\(/;
+var CALLBACK_AS_LAST_ARG_RE = /(?:function\s*\(|=>)\s*\(.*err/;
+var SKIP_LINE_RE13 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+function detectCallbackPromiseMix(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes.filter((c) => c.type === "add");
+    for (const change of changes) {
+      if (SKIP_LINE_RE13.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (PROMISE_FUNC_RE.test(trimmed) && CALLBACK_ARG_RE.test(trimmed)) {
+        const funcMatch = trimmed.match(/(\w+)\s*\(/);
+        const funcName = funcMatch?.[1] || "function";
+        issues.push({
+          category: "callback-promise-mix",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Promise-returning function \`${funcName}()\` called with callback argument in \`${file2.path}:${change.line}\` \u2014 LLMs mix callback and Promise styles; use await or .then()/.catch() instead of callback`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectPromiseCallbackWrap(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes.filter((c) => c.type === "add");
+    let promiseWrapStartLine = null;
+    let hasCallbackApi = false;
+    let wrapCode = "";
+    for (const change of changes) {
+      if (SKIP_LINE_RE13.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (PROMISE_WRAP_RE.test(trimmed)) {
+        promiseWrapStartLine = change.line;
+        wrapCode = trimmed;
+        hasCallbackApi = false;
+        continue;
+      }
+      if (promiseWrapStartLine !== null && change.line <= (promiseWrapStartLine || 0) + 20) {
+        if (WRAPPED_CALLBACK_API_RE.test(trimmed)) {
+          hasCallbackApi = true;
+        }
+        if (trimmed === "});" || trimmed === "})" || trimmed === "});") {
+          if (hasCallbackApi) {
+            issues.push({
+              category: "promise-callback-wrap",
+              file: file2.path,
+              line: promiseWrapStartLine,
+              code: wrapCode,
+              description: `Callback API wrapped in \`new Promise()\` in \`${file2.path}:${promiseWrapStartLine}\` \u2014 LLMs wrap callback APIs in Promises manually; use \`fs.promises.*\` or \`util.promisify()\` instead of hand-rolling Promise wrappers`,
+              severity: "warning"
+            });
+          }
+          promiseWrapStartLine = null;
+          hasCallbackApi = false;
+        }
+      }
+    }
+    if (promiseWrapStartLine !== null && hasCallbackApi) {
+      issues.push({
+        category: "promise-callback-wrap",
+        file: file2.path,
+        line: promiseWrapStartLine,
+        code: wrapCode,
+        description: `Callback API wrapped in \`new Promise()\` in \`${file2.path}:${promiseWrapStartLine}\` \u2014 LLMs wrap callback APIs in Promises manually; use \`fs.promises.*\` or \`util.promisify()\` instead`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectUnhandledCallbackError(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes.filter((c) => c.type === "add");
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i];
+      if (SKIP_LINE_RE13.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (ERROR_FIRST_CALLBACK_RE.test(trimmed)) {
+        let foundErrorCheck = false;
+        let bodyLines = [];
+        for (let j = i + 1; j < Math.min(i + 10, changes.length); j++) {
+          const nextTrimmed = changes[j].content.replace(/^\+/, "").trim();
+          if (nextTrimmed === "}" || nextTrimmed === "});" || nextTrimmed === "})") break;
+          bodyLines.push(nextTrimmed);
+          if (MISSING_ERROR_CHECK_RE.test(nextTrimmed)) {
+            foundErrorCheck = true;
+            break;
+          }
+        }
+        if (MISSING_ERROR_CHECK_RE.test(trimmed)) {
+          foundErrorCheck = true;
+        }
+        if (!foundErrorCheck) {
+          issues.push({
+            category: "unhandled-callback-error",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Error-first callback without error handling in \`${file2.path}:${change.line}\` \u2014 LLMs declare \`err\` parameter but never check it; add \`if (err)\` guard or use Promise-based API with try/catch`,
+            severity: "warning"
+          });
+        }
+      }
+      const inlineCallback = trimmed.match(/\(err(?:or)?\s*,\s*\w+\)\s*=>\s*(?!.*err(?:or)?)(?![^{]*\{)/);
+      if (inlineCallback && !MISSING_ERROR_CHECK_RE.test(trimmed) && !trimmed.includes("{")) {
+        const alreadyFlagged = issues.some(
+          (iss) => iss.category === "unhandled-callback-error" && iss.line === change.line
+        );
+        if (!alreadyFlagged) {
+          issues.push({
+            category: "unhandled-callback-error",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Error-first callback with unused error parameter in \`${file2.path}:${change.line}\` \u2014 LLMs ignore callback errors; add error handling or use async/await with try/catch`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectDeprecatedCallbackApi(file2) {
+  const issues = [];
+  for (const hunk of file2.hunks) {
+    const changes = hunk.changes.filter((c) => c.type === "add");
+    for (const change of changes) {
+      if (SKIP_LINE_RE13.test(change.content)) continue;
+      const content = change.content;
+      const trimmed = content.replace(/^\+/, "").trim();
+      if (FS_CALLBACK_RE.test(trimmed)) {
+        if (CALLBACK_AS_LAST_ARG_RE.test(trimmed) || content.includes("function(") || content.includes("=>")) {
+          const funcMatch = trimmed.match(/fs\.(\w+)\s*\(/);
+          const funcName = funcMatch?.[1] || "readFile";
+          issues.push({
+            category: "deprecated-callback-api",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Deprecated callback-style \`fs.${funcName}()\` in \`${file2.path}:${change.line}\` \u2014 LLMs use callback-style Node.js APIs from training data; use \`await fs.promises.${funcName}()\` or \`const { promisify } = require('util')\` instead`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues19(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildCallbackMisuseContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Callback/Promise Misuse (${result.issues.length})
+`;
+  ctx += "This PR may contain callback/Promise style mixing \u2014 LLMs trained on mixed-era codebases generate callback-style code in modern async/await codebases:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCallbackMisuseBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Callback/Promise Misuse Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Callback/Promise mixing causes unhandled errors, race conditions, and harder-to-read code. LLMs trained on older codebases generate callback patterns when modern async/await is preferred.*
+</details>
+`;
+  return body;
+}
+function detectCallbackMisuse(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectCallbackPromiseMix(file2));
+    allIssues.push(...detectPromiseCallbackWrap(file2));
+    allIssues.push(...detectUnhandledCallbackError(file2));
+    allIssues.push(...detectDeprecatedCallbackApi(file2));
+  }
+  const issues = dedupIssues19(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCallbackMisuseContext(result);
+  result.bodySummary = buildCallbackMisuseBodySummary(result);
+  if (issues.length > 0) {
+    core67.info(`Callback misuse detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/stale-closure-detector.ts
+import * as core68 from "@actions/core";
+function stripPrefix(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+function makeVarRef(varName) {
+  return new RegExp(`\\b${varName}\\b`);
+}
+var VAR_LOOP_RE = /\bfor\s*\(\s*var\s+(\w+)\s+/;
+var FOR_LOOP_RE = /\bfor\s*\(\s*(?:var|let|const)\s+(\w+)\s+/;
+var FOR_IN_RE = /\bfor\s*\(\s*(?:var|let|const)\s+(\w+)\s+in\s+/;
+var FOR_OF_RE = /\bfor\s*\(\s*(?:var|let|const)\s+(\w+)\s+of\s+/;
+var FOREACH_ASYNC_RE = /\.\s*forEach\s*\(\s*async\b/;
+var CLOSURE_RE = /(?:function\s*\(|=>\s*\{|=>\s*\(|=>\s*\w|\.then\s*\(|\.catch\s*\()/;
+var EVENT_HANDLER_RE = /\.\s*(?:on|addEventListener|once|prependOnceListener)\s*\(\s*['"]/;
+var TIMER_RE = /\b(?:setTimeout|setInterval|nextTick|setImmediate)\s*\(/;
+var AWAIT_IN_LOOP_RE = /\bawait\s+/;
+var MUTATION_RE = /^\+\s*(?:let|var)\s+\w+\s*=/;
+var SKIP_LINE_RE14 = /^\+\s*(\/\/|\/\*|\*|import\s|export\s|interface\s|type\s|enum\s|\})/;
+var TEST_FILE_RE4 = /(?:\.test\.|\.spec\.|__tests__|\/test\/|\/tests\/|\.e2e\.)/;
+function detectLoopVarClosure(file2) {
+  const issues = [];
+  const added = getAddedChanges(file2);
+  for (let i = 0; i < added.length; i++) {
+    const change = added[i];
+    if (SKIP_LINE_RE14.test(change.content)) continue;
+    const trimmed = stripPrefix(change.content);
+    const varMatch = trimmed.match(VAR_LOOP_RE);
+    if (varMatch) {
+      const loopVar = varMatch[1];
+      const ref = makeVarRef(loopVar);
+      let foundClosure = false;
+      let foundRef = false;
+      for (let j = i + 1; j < Math.min(i + 20, added.length); j++) {
+        const next = stripPrefix(added[j].content);
+        if (next === "}") break;
+        if (CLOSURE_RE.test(next)) foundClosure = true;
+        if (foundClosure && ref.test(next)) {
+          foundRef = true;
+          break;
+        }
+        if (CLOSURE_RE.test(next) && ref.test(next)) {
+          foundRef = true;
+          break;
+        }
+      }
+      if (foundRef) {
+        issues.push({
+          category: "loop-var-closure",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Loop variable \`${loopVar}\` captured in closure inside \`var\` loop in \`${file2.path}:${change.line}\` \u2014 LLMs use \`var\` in loops with closures, causing all iterations to share the same variable; use \`let\` instead of \`var\` to get per-iteration binding`,
+          severity: "critical"
+        });
+      }
+    }
+    const letMatch = trimmed.match(FOR_OF_RE) || trimmed.match(FOR_IN_RE) || trimmed.match(FOR_LOOP_RE);
+    if (letMatch && !VAR_LOOP_RE.test(trimmed)) {
+      const loopVar = letMatch[1];
+      let hasClosure = false;
+      let hasAwait = false;
+      for (let j = i + 1; j < Math.min(i + 20, added.length); j++) {
+        const next = stripPrefix(added[j].content);
+        if (next === "}") break;
+        if (CLOSURE_RE.test(next)) hasClosure = true;
+        if (AWAIT_IN_LOOP_RE.test(next)) hasAwait = true;
+      }
+      if (hasClosure && hasAwait) {
+        issues.push({
+          category: "loop-var-closure",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Loop variable \`${loopVar}\` captured in async closure in \`${file2.path}:${change.line}\` \u2014 even with \`let\`, async closures inside loops can race; the closure may reference \`${loopVar}\` after the loop has moved to the next iteration; use \`for...of\` with sequential \`await\` or collect promises and \`Promise.all()\` after the loop`,
+          severity: "warning"
+        });
+      }
+    }
+    if (FOREACH_ASYNC_RE.test(trimmed)) {
+      issues.push({
+        category: "loop-var-closure",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `\`forEach\` with \`async\` callback in \`${file2.path}:${change.line}\` \u2014 LLMs write \`array.forEach(async ...)\` but forEach does not await the callback; promises fire in parallel and errors are swallowed; use \`for...of\` with \`await\` or \`Promise.all(array.map(async ...))\` instead`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectStaleEventHandler(file2) {
+  const issues = [];
+  const added = getAddedChanges(file2);
+  const mutableVars = /* @__PURE__ */ new Set();
+  for (const change of added) {
+    const trimmed = stripPrefix(change.content);
+    const letMatch = trimmed.match(/^(?:let|var)\s+(\w+)\s*=/);
+    if (letMatch) mutableVars.add(letMatch[1]);
+  }
+  for (let i = 0; i < added.length; i++) {
+    const change = added[i];
+    if (SKIP_LINE_RE14.test(change.content)) continue;
+    const trimmed = stripPrefix(change.content);
+    if (EVENT_HANDLER_RE.test(trimmed)) {
+      for (const varName of mutableVars) {
+        const ref = makeVarRef(varName);
+        let found = ref.test(trimmed);
+        if (!found) {
+          for (let j = i + 1; j < Math.min(i + 6, added.length); j++) {
+            const next = stripPrefix(added[j].content);
+            if (next === "}" || next === "});" || next === "})") break;
+            if (ref.test(next)) {
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) {
+          issues.push({
+            category: "stale-event-handler",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Event handler capturing mutable variable \`${varName}\` in \`${file2.path}:${change.line}\` \u2014 LLMs register event handlers that capture mutable state; the handler uses the value at bind time, not event time; use \`const\` for captured values or re-read inside the handler`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectAsyncClosureRace(file2) {
+  const issues = [];
+  const added = getAddedChanges(file2);
+  for (let i = 0; i < added.length; i++) {
+    const change = added[i];
+    if (SKIP_LINE_RE14.test(change.content)) continue;
+    const trimmed = stripPrefix(change.content);
+    const letAssign = trimmed.match(/^(?:let)\s+(\w+)\s*=\s*await\s+/);
+    if (letAssign) {
+      const varName = letAssign[1];
+      const reassignRE = new RegExp(`\\b${varName}\\s*=\\s*(?!await)`);
+      for (let j = i + 1; j < Math.min(i + 15, added.length); j++) {
+        const next = stripPrefix(added[j].content);
+        if (reassignRE.test(next) && !next.includes("const")) {
+          issues.push({
+            category: "async-closure-race",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Async variable \`${varName}\` reassigned after await in \`${file2.path}:${change.line}\` \u2014 LLMs reassign \`let\` variables after \`await\`, creating race conditions where concurrent code paths see different values; use \`const\` for each assignment or separate variable names`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+    }
+    if (trimmed.includes("Promise.all")) {
+      let hasNearbyMutation = false;
+      for (let j = Math.max(0, i - 5); j < Math.min(i + 15, added.length); j++) {
+        if (MUTATION_RE.test(added[j].content)) {
+          hasNearbyMutation = true;
+          break;
+        }
+      }
+      if (hasNearbyMutation) {
+        issues.push({
+          category: "async-closure-race",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `\`Promise.all\` with mutable state in \`${file2.path}:${change.line}\` \u2014 LLMs use \`let\` variables inside Promise.all callbacks, causing race conditions when multiple promises mutate the same variable concurrently; use immutable patterns or separate accumulators per promise`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectSettimeoutStaleCapture(file2) {
+  const issues = [];
+  const added = getAddedChanges(file2);
+  const mutableVars = /* @__PURE__ */ new Set();
+  for (const change of added) {
+    const trimmed = stripPrefix(change.content);
+    const letMatch = trimmed.match(/^(?:let|var)\s+(\w+)\s*=/);
+    if (letMatch) mutableVars.add(letMatch[1]);
+  }
+  for (let i = 0; i < added.length; i++) {
+    const change = added[i];
+    if (SKIP_LINE_RE14.test(change.content)) continue;
+    const trimmed = stripPrefix(change.content);
+    if (TIMER_RE.test(trimmed)) {
+      for (const varName of mutableVars) {
+        const ref = makeVarRef(varName);
+        let found = ref.test(trimmed);
+        if (!found) {
+          for (let j = i + 1; j < Math.min(i + 8, added.length); j++) {
+            const next = stripPrefix(added[j].content);
+            if (next === "}" || next === "});" || next === "})") break;
+            if (ref.test(next)) {
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) {
+          const severity = TEST_FILE_RE4.test(file2.path) ? "warning" : "critical";
+          issues.push({
+            category: "settimeout-stale-capture",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `\`setTimeout\`/\`setInterval\` callback capturing mutable variable \`${varName}\` in \`${file2.path}:${change.line}\` \u2014 LLMs capture mutable variables in timer callbacks; the variable may have changed by the time the timer fires; capture the current value with a \`const\` before the timer, or use \`const \${varName} = current${varName.charAt(0).toUpperCase() + varName.slice(1)}\` pattern`,
+            severity
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues20(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildStaleClosureContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Stale Closure Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain closures capturing stale/mutable variables \u2014 a pattern LLMs frequently produce:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildStaleClosureBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Stale Closure Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Stale closures capture variable values at creation time, not invocation time. LLMs write loops with closures, event handlers with mutable state, and timer callbacks that reference variables that change before the callback fires.*
+</details>
+`;
+  return body;
+}
+function detectStaleClosures(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectLoopVarClosure(file2));
+    allIssues.push(...detectStaleEventHandler(file2));
+    allIssues.push(...detectAsyncClosureRace(file2));
+    allIssues.push(...detectSettimeoutStaleCapture(file2));
+  }
+  const issues = dedupIssues20(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildStaleClosureContext(result);
+  result.bodySummary = buildStaleClosureBodySummary(result);
+  if (issues.length > 0) {
+    core68.info(`Stale closure detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/hallucinated-dependency-detector.ts
+import * as core69 from "@actions/core";
+function stripPrefix2(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges2(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var ESM_IMPORT_RE = /import\s+(?:.*?)\s+from\s+['"]([^'"]+)['"]/;
+var DYNAMIC_IMPORT_RE = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/;
+var REQUIRE_RE = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/;
+var NODE_BUILTINS = /* @__PURE__ */ new Set([
+  "assert",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "domain",
+  "events",
+  "fs",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "net",
+  "os",
+  "path",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "repl",
+  "stream",
+  "string_decoder",
+  "sys",
+  "timers",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib"
+]);
+var KNOWN_PACKAGES = /* @__PURE__ */ new Set([
+  "react",
+  "react-dom",
+  "lodash",
+  "express",
+  "next",
+  "typescript",
+  "webpack",
+  "axios",
+  "moment",
+  "jquery",
+  "vue",
+  "angular",
+  "eslint",
+  "jest",
+  "vitest",
+  "mocha",
+  "chai",
+  "sinon",
+  "babel",
+  "rollup",
+  "esbuild",
+  "vite",
+  "prettier",
+  "nodemon",
+  "dotenv",
+  "chalk",
+  "commander",
+  "yargs",
+  "inquirer",
+  "ora",
+  "prisma",
+  "mongoose",
+  "pg",
+  "mysql",
+  "redis",
+  "kafkajs",
+  "zod",
+  "joi",
+  "yup",
+  "ajv",
+  "dayjs",
+  "date-fns",
+  "rxjs",
+  "socket.io",
+  "ws",
+  "nanoid",
+  "uuid",
+  "cors",
+  "helmet",
+  "morgan",
+  "winston",
+  "pino",
+  "bull",
+  "agenda",
+  "node-cron",
+  "sharp",
+  "microsoft",
+  "firebase",
+  "ssh2",
+  "nodemailer",
+  "cookie-parser",
+  "body-parser",
+  "multer",
+  "compression",
+  "serve-static",
+  "express-rate-limit",
+  "http-errors",
+  "supertest",
+  "@types/node",
+  "@types/react",
+  "@types/express",
+  "@actions/core",
+  "@actions/github",
+  "@octokit/rest",
+  "@octokit/core",
+  "@vercel/ncc"
+]);
+var SLOPSQUAT_PATTERNS = [
+  {
+    re: /(?:fast|quick|simple|easy|light|lite|mini|micro|tiny|ultra|super)(?:-?)(\w+)-(?:parser|utils|helper|handler|converter|validator|formatter|resolver|manager|builder|wrapper|client|sdk|driver|adapter|connector|processor|transformer|generator|serializer|encoder|decoder|compressor| sanitizer|security)/i,
+    reason: "descriptive compound names like `fast-X-parser` are LLM favorites"
+  },
+  {
+    re: /(?:\w+)-(?:lite|light|minimal|simple|easy|basic|core|pro|plus|extra|advanced)/i,
+    reason: "`-lite`/`-minimal` suffixes are common LLM confabulations for imagined lighter alternatives"
+  },
+  {
+    re: /(?:aws|azure|gcp|google|cloud)-(?:utils|helpers|sdk-extra|tools|extras|helpers)/i,
+    reason: "cloud provider utility packages are frequently invented by LLMs"
+  },
+  {
+    re: /@(?:aws|azure|gcp|google|cloud)-(?:utils|helpers|tools|extras)/i,
+    reason: "scoped cloud utility packages are common hallucinations"
+  }
+];
+var SKIP_LINE_RE15 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var SOURCE_FILE_RE = /\.(ts|js|tsx|jsx|mjs|cjs)$/;
+var LOCKFILE_RE = /(?:^|\/)(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/;
+function extractPackageName2(importPath) {
+  if (importPath.startsWith("@")) {
+    const parts = importPath.split("/");
+    if (parts.length >= 2) {
+      return `${parts[0]}/${parts[1]}`;
+    }
+    return importPath;
+  }
+  const firstSlash = importPath.indexOf("/");
+  return firstSlash === -1 ? importPath : importPath.substring(0, firstSlash);
+}
+function extractLockfilePackages(diffFiles) {
+  const packages = /* @__PURE__ */ new Set();
+  for (const file2 of diffFiles) {
+    if (!LOCKFILE_RE.test(file2.path)) continue;
+    const allChanges = file2.hunks.flatMap((h) => h.changes);
+    for (const change of allChanges) {
+      const trimmed = stripPrefix2(change.content);
+      const npmMatch = trimmed.match(/^[\s"]*"([^":]+)"[\s"]*:/);
+      if (npmMatch && npmMatch[1].length > 0) {
+        packages.add(npmMatch[1]);
+      }
+      const yarnMatch = trimmed.match(/^"?(@?[^@":]+)@/);
+      if (yarnMatch) {
+        packages.add(yarnMatch[1]);
+      }
+      const pnpmMatch = trimmed.match(/\/(.+?)@/);
+      if (pnpmMatch && file2.path.includes("pnpm-lock")) {
+        packages.add(pnpmMatch[1]);
+      }
+    }
+  }
+  return packages;
+}
+function extractPackageJsonDeps(diffFiles) {
+  const deps = /* @__PURE__ */ new Set();
+  for (const file2 of diffFiles) {
+    if (!file2.path.endsWith("package.json")) continue;
+    const allChanges = file2.hunks.flatMap((h) => h.changes);
+    for (const change of allChanges) {
+      if (change.type !== "add") continue;
+      const trimmed = stripPrefix2(change.content);
+      const depMatch = trimmed.match(/"([^"@:]+)"\s*:\s*"/);
+      if (depMatch) {
+        deps.add(depMatch[1]);
+      }
+    }
+  }
+  return deps;
+}
+function detectUnknownImport(file2, lockfilePackages, packageJsonDeps) {
+  const issues = [];
+  const added = getAddedChanges2(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE15.test(change.content)) continue;
+    const trimmed = stripPrefix2(change.content);
+    const match2 = trimmed.match(ESM_IMPORT_RE) || trimmed.match(DYNAMIC_IMPORT_RE) || trimmed.match(REQUIRE_RE);
+    if (!match2) continue;
+    const importPath = match2[1];
+    if (importPath.startsWith(".") || importPath.startsWith("/")) continue;
+    const packageName = extractPackageName2(importPath);
+    if (NODE_BUILTINS.has(packageName)) continue;
+    if (KNOWN_PACKAGES.has(packageName)) continue;
+    const inLockfile = lockfilePackages.has(packageName);
+    const inPackageJson = packageJsonDeps.has(packageName);
+    if (!inLockfile && !inPackageJson) {
+      issues.push({
+        category: "unknown-import",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Import of unknown package \`${packageName}\` in \`${file2.path}:${change.line}\` \u2014 not found in lockfile or package.json; LLMs frequently invent package names; verify the package exists on npm and is intentionally added as a dependency before merging`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectSlopsquattingSignal(file2) {
+  const issues = [];
+  const added = getAddedChanges2(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE15.test(change.content)) continue;
+    const trimmed = stripPrefix2(change.content);
+    const match2 = trimmed.match(ESM_IMPORT_RE) || trimmed.match(DYNAMIC_IMPORT_RE) || trimmed.match(REQUIRE_RE);
+    if (!match2) continue;
+    const importPath = match2[1];
+    if (importPath.startsWith(".") || importPath.startsWith("/")) continue;
+    const packageName = extractPackageName2(importPath);
+    if (NODE_BUILTINS.has(packageName)) continue;
+    if (KNOWN_PACKAGES.has(packageName)) continue;
+    for (const pattern of SLOPSQUAT_PATTERNS) {
+      if (pattern.re.test(packageName)) {
+        issues.push({
+          category: "slopsquatting-signal",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Package \`${packageName}\` matches slopsquatting pattern in \`${file2.path}:${change.line}\` \u2014 ${pattern.reason}; verify this package actually exists on npm and isn't an LLM invention; slopsquatting attacks register fake packages matching common LLM hallucination patterns`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function detectPhantomScopedImport(file2, lockfilePackages, packageJsonDeps) {
+  const issues = [];
+  const added = getAddedChanges2(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE15.test(change.content)) continue;
+    const trimmed = stripPrefix2(change.content);
+    const match2 = trimmed.match(ESM_IMPORT_RE) || trimmed.match(DYNAMIC_IMPORT_RE) || trimmed.match(REQUIRE_RE);
+    if (!match2) continue;
+    const importPath = match2[1];
+    if (!importPath.startsWith("@")) continue;
+    const packageName = extractPackageName2(importPath);
+    if (KNOWN_PACKAGES.has(packageName)) continue;
+    const inLockfile = lockfilePackages.has(packageName);
+    const inPackageJson = packageJsonDeps.has(packageName);
+    if (!inLockfile && !inPackageJson) {
+      const scope = packageName.split("/")[0];
+      const scopeInLockfile = [...lockfilePackages].some((p) => p.startsWith(scope + "/"));
+      if (!scopeInLockfile) {
+        issues.push({
+          category: "phantom-scoped-import",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Scoped import \`${packageName}\` with unknown scope \`${scope}\` in \`${file2.path}:${change.line}\` \u2014 LLMs invent @scoped packages that don't exist; no other package from this scope exists in the lockfile; verify the scope and package on npm before installing`,
+          severity: "critical"
+        });
+      } else {
+        issues.push({
+          category: "phantom-scoped-import",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Scoped import \`${packageName}\` not in lockfile in \`${file2.path}:${change.line}\` \u2014 the scope \`${scope}\` is known but this specific package isn't listed; may be an LLM invention within a real organization's namespace; verify the package exists before installing`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectVersionMismatch(file2) {
+  const issues = [];
+  const added = getAddedChanges2(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE15.test(change.content)) continue;
+    const trimmed = stripPrefix2(change.content);
+    if (/\.v[234]\.\w+/.test(trimmed)) {
+      const match2 = trimmed.match(ESM_IMPORT_RE) || trimmed.match(REQUIRE_RE);
+      const pkgRef = match2 ? match2[1] : "unknown";
+      issues.push({
+        category: "version-mismatch",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Versioned API access (.v2+) in \`${file2.path}:${change.line}\` \u2014 LLMs call versioned APIs that may not exist in the installed version of \`${pkgRef}\`; verify the installed package version supports this API surface`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues21(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildHallucinatedDepContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Hallucinated Dependency Detection (${result.issues.length})
+`;
+  ctx += "This PR may import packages that don't exist \u2014 a common LLM pattern and active slopsquatting attack vector:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildHallucinatedDepBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Hallucinated Dependency Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs invent ~20% of package references. Slopsquatting attacks register fake packages matching common LLM hallucination patterns. Verify all new imports exist on npm and are in the lockfile before installing.*
+</details>
+`;
+  return body;
+}
+function detectHallucinatedDeps(diffFiles) {
+  const allIssues = [];
+  const lockfilePackages = extractLockfilePackages(diffFiles);
+  const packageJsonDeps = extractPackageJsonDeps(diffFiles);
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!SOURCE_FILE_RE.test(file2.path)) continue;
+    allIssues.push(...detectUnknownImport(file2, lockfilePackages, packageJsonDeps));
+    allIssues.push(...detectSlopsquattingSignal(file2));
+    allIssues.push(...detectPhantomScopedImport(file2, lockfilePackages, packageJsonDeps));
+    allIssues.push(...detectVersionMismatch(file2));
+  }
+  const issues = dedupIssues21(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildHallucinatedDepContext(result);
+  result.bodySummary = buildHallucinatedDepBodySummary(result);
+  if (issues.length > 0) {
+    core69.info(`Hallucinated dependency detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/tautological-test-detector.ts
+import * as core70 from "@actions/core";
+function stripPrefix3(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges3(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var TEST_FILE_RE5 = /(?:\.test\.|\.spec\.|__tests__|\/test\/|\/tests\/|\.e2e\.)/;
+var EXPECT_RE = /\bexpect\s*\(/;
+var ASSERT_RE = /\bassert(?:\.strict|\.deep)?\s*\(/;
+var TAUTOLOGICAL_MATH_RE = /expect\s*\(.+?\)\.\w+\s*\(\s*[\w.]+\s*[\+\-\*\/%]\s*[\w.]+\s*\)/;
+var SELF_REFERENCE_RE = /(?:expected|result|actual)\s*=\s*(?:compute|calculate|format|parse|process|transform|validate|convert)\w*\s*\(/;
+var CONSTANT_IN_TEST_RE = /(?:const|let)\s+\w+\s*=\s*(?:\d{3,}|['"][\w\-]{10,}['"]|0x[0-9a-fA-F]{4,})\s*;/;
+var MAGIC_NUMBER_IN_TEST_RE = /expect\s*\(.+?\)\.\w+\s*\(\s*(?:0x[0-9a-fA-F]{4,}|\d{4,})\s*\)/;
+var ERROR_TEST_RE = /\b(?:error|fail|invalid|reject|throw|catch|negative|edge|boundary|empty|null|undefined|missing|wrong|bad|incorrect)/i;
+var ERROR_CASE_RE = /\b(?:it|test|describe)\s*\(\s*['"].*(?:error|fail|invalid|should not|reject|throw|catch|negative|edge|boundary|empty|null|undefined|missing)/i;
+var PRIVATE_HELPER_IMPORT_RE = /import\s+.*\s+from\s+['"]\.\.\/(?:src\/)?(?:lib\/)?(?:internal|private|helpers?|utils(?:\/internal)?)\//;
+var PRIVATE_METHOD_CALL_RE = /(?:_\w+)\s*\(/;
+var SKIP_LINE_RE16 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function detectTautologicalAssertion(file2) {
+  const issues = [];
+  const added = getAddedChanges3(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE16.test(change.content)) continue;
+    const trimmed = stripPrefix3(change.content);
+    if (SELF_REFERENCE_RE.test(trimmed)) {
+      issues.push({
+        category: "tautological-assertion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Test computes expected using same function in \`${file2.path}:${change.line}\` \u2014 LLMs generate tests that call the same function to compute both actual and expected; if the function is buggy, both sides reproduce the bug; use independently-derived expected values`,
+        severity: "warning"
+      });
+      continue;
+    }
+    if (!EXPECT_RE.test(trimmed) && !ASSERT_RE.test(trimmed)) continue;
+    if (TAUTOLOGICAL_MATH_RE.test(trimmed)) {
+      issues.push({
+        category: "tautological-assertion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Tautological test assertion in \`${file2.path}:${change.line}\` \u2014 test computes expected value using the same arithmetic as the implementation; if the implementation has a bug, the test reproduces the same bug; hardcode the expected result independently instead`,
+        severity: "warning"
+      });
+    }
+    if (MAGIC_NUMBER_IN_TEST_RE.test(trimmed)) {
+      issues.push({
+        category: "tautological-assertion",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Test asserts against large magic number in \`${file2.path}:${change.line}\` \u2014 this value was likely computed by running the implementation and copying the output; derive expected values from test requirements, not implementation output`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectFixtureMirrorConstant(file2) {
+  const issues = [];
+  const added = getAddedChanges3(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE16.test(change.content)) continue;
+    const trimmed = stripPrefix3(change.content);
+    if (CONSTANT_IN_TEST_RE.test(trimmed)) {
+      const constMatch = trimmed.match(/(?:const|let)\s+(\w+)\s*=\s*(.+)/);
+      const varName = constMatch?.[1] || "unknown";
+      const value = constMatch?.[2] || "";
+      const cleanValue = value.replace(/[;'"]+$/, "").trim();
+      if (cleanValue.length > 3) {
+        issues.push({
+          category: "fixture-mirror-constant",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Test fixture \`${varName}\` mirrors implementation constant in \`${file2.path}:${change.line}\` \u2014 LLMs copy implementation constants verbatim into test files; if the constant is wrong in the implementation, the test mirrors the same wrong value; derive test fixtures from requirements, not source code`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectHappyPathOnly(file2) {
+  const issues = [];
+  const added = getAddedChanges3(file2);
+  let totalTestCases = 0;
+  let errorEdgeCases = 0;
+  let lastTestLine = 0;
+  for (const change of added) {
+    if (SKIP_LINE_RE16.test(change.content)) continue;
+    const trimmed = stripPrefix3(change.content);
+    const testMatch = trimmed.match(/\b(?:it|test)\s*\(\s*['"]/);
+    if (testMatch) {
+      totalTestCases++;
+      lastTestLine = change.line;
+      if (ERROR_CASE_RE.test(trimmed) || ERROR_TEST_RE.test(trimmed)) {
+        errorEdgeCases++;
+      }
+    }
+  }
+  if (totalTestCases >= 3 && errorEdgeCases === 0) {
+    issues.push({
+      category: "happy-path-only",
+      file: file2.path,
+      line: lastTestLine,
+      code: `${totalTestCases} test(s), 0 error/edge cases`,
+      description: `Test file \`${file2.path}\` has ${totalTestCases} cases but no error/edge-case tests \u2014 LLMs generate only happy-path tests that mirror the implementation's assumptions; add tests for invalid inputs, error states, boundary values, and null/undefined cases`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function detectPrivateHelperInTest(file2) {
+  const issues = [];
+  const added = getAddedChanges3(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE16.test(change.content)) continue;
+    const trimmed = stripPrefix3(change.content);
+    if (PRIVATE_HELPER_IMPORT_RE.test(trimmed)) {
+      issues.push({
+        category: "private-helper-in-test",
+        file: file2.path,
+        line: change.line,
+        code: trimmed,
+        description: `Test imports from private/internal module in \`${file2.path}:${change.line}\` \u2014 LLMs generate tests that call private implementation helpers to compute expected values; this makes tests tautological since they depend on the code under test; test through the public API only`,
+        severity: "warning"
+      });
+    }
+    const privateMatches = trimmed.match(PRIVATE_METHOD_CALL_RE);
+    if (privateMatches) {
+      const alreadyFlagged = issues.some(
+        (iss) => iss.category === "private-helper-in-test" && iss.line === change.line
+      );
+      if (!alreadyFlagged) {
+        issues.push({
+          category: "private-helper-in-test",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Test calls private function (underscore prefix) in \`${file2.path}:${change.line}\` \u2014 tests should use the public API; calling private functions creates coupling that prevents independent verification of correctness`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues22(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildTautologicalTestContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Tautological Test Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain tests that mirror implementation logic \u2014 a pattern LLMs frequently produce:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildTautologicalTestBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Tautological Test Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate both code and tests, the tests share the same flawed mental model as the implementation. Coverage looks healthy but defect detection is near zero. Use independently-derived expected values and test through public APIs only.*
+</details>
+`;
+  return body;
+}
+function detectTautologicalTests(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!TEST_FILE_RE5.test(file2.path)) continue;
+    allIssues.push(...detectTautologicalAssertion(file2));
+    allIssues.push(...detectFixtureMirrorConstant(file2));
+    allIssues.push(...detectHappyPathOnly(file2));
+    allIssues.push(...detectPrivateHelperInTest(file2));
+  }
+  const issues = dedupIssues22(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildTautologicalTestContext(result);
+  result.bodySummary = buildTautologicalTestBodySummary(result);
+  if (issues.length > 0) {
+    core70.info(`Tautological test detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/context-amplification-detector.ts
+import * as core71 from "@actions/core";
+function stripPrefix4(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges4(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var VERB_SYNONYMS = /* @__PURE__ */ new Map([
+  ["dispatch", "send"],
+  ["push", "send"],
+  ["emit", "send"],
+  ["publish", "send"],
+  ["notify", "send"],
+  ["alert", "send"],
+  ["build", "create"],
+  ["make", "create"],
+  ["generate", "create"],
+  ["init", "create"],
+  ["spawn", "create"],
+  ["fetch", "get"],
+  ["retrieve", "get"],
+  ["load", "get"],
+  ["read", "get"],
+  ["find", "get"],
+  ["query", "get"],
+  ["store", "save"],
+  ["persist", "save"],
+  ["write", "save"],
+  ["remove", "delete"],
+  ["destroy", "delete"],
+  ["cleanup", "delete"],
+  ["purge", "delete"],
+  ["check", "validate"],
+  ["verify", "validate"],
+  ["ensure", "validate"],
+  ["assert", "validate"],
+  ["serialize", "format"],
+  ["encode", "format"],
+  ["convert", "format"],
+  ["transform", "format"],
+  ["decode", "parse"],
+  ["deserialize", "parse"],
+  ["extract", "parse"]
+]);
+function normalizeVerb(verb) {
+  return VERB_SYNONYMS.get(verb) || verb;
+}
+var NOUN_SYNONYMS = /* @__PURE__ */ new Map([
+  ["message", "notification"],
+  ["alert", "notification"],
+  ["event", "notification"],
+  ["dispatch", "notification"],
+  ["settings", "config"],
+  ["options", "config"],
+  ["preferences", "config"],
+  ["env", "config"],
+  ["store", "repository"],
+  ["dao", "repository"],
+  ["persistence", "repository"],
+  ["db", "repository"],
+  ["controller", "handler"],
+  ["service", "handler"],
+  ["manager", "handler"],
+  ["processor", "handler"],
+  ["adapter", "client"],
+  ["connector", "client"],
+  ["wrapper", "client"],
+  ["proxy", "client"],
+  ["telemetry", "logger"],
+  ["metrics", "logger"],
+  ["analytics", "logger"],
+  ["monitor", "logger"],
+  ["account", "user"],
+  ["profile", "user"],
+  ["member", "user"]
+]);
+function normalizeNoun(noun) {
+  return NOUN_SYNONYMS.get(noun) || noun;
+}
+var FUNCTION_DECL_RE = /\b(?:(?:export\s+)?(?:async\s+)?function\s+(\w+)|(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\(|(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\))\s*=>)/;
+var VERB_PREFIXES = [
+  "send",
+  "dispatch",
+  "push",
+  "emit",
+  "publish",
+  "notify",
+  "alert",
+  "create",
+  "build",
+  "make",
+  "generate",
+  "init",
+  "spawn",
+  "get",
+  "fetch",
+  "retrieve",
+  "load",
+  "read",
+  "find",
+  "query",
+  "save",
+  "store",
+  "persist",
+  "write",
+  "update",
+  "delete",
+  "remove",
+  "destroy",
+  "cleanup",
+  "purge",
+  "validate",
+  "check",
+  "verify",
+  "ensure",
+  "assert",
+  "format",
+  "serialize",
+  "encode",
+  "convert",
+  "transform",
+  "parse",
+  "decode",
+  "deserialize",
+  "extract"
+];
+var SKIP_LINE_RE17 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s|interface\s|type\s|enum\s)/;
+var NAMING_INCONSISTENCY_GROUPS = [
+  ["notification", "alert", "message", "dispatch", "event"],
+  ["config", "settings", "options", "preferences", "env"],
+  ["repository", "store", "dao", "persistence", "db"],
+  ["handler", "controller", "service", "manager", "processor"],
+  ["client", "adapter", "connector", "wrapper", "proxy"],
+  ["logger", "telemetry", "metrics", "analytics", "monitor"]
+];
+function detectDuplicateImplementation(diffFiles) {
+  const issues = [];
+  const declarations = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges4(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE17.test(change.content)) continue;
+      const trimmed = stripPrefix4(change.content);
+      const funcMatch = trimmed.match(FUNCTION_DECL_RE);
+      if (funcMatch) {
+        const name21 = funcMatch[1] || funcMatch[2] || funcMatch[3] || "";
+        if (name21) {
+          const lowerName = name21.toLowerCase();
+          for (const verb of VERB_PREFIXES) {
+            if (lowerName.startsWith(verb)) {
+              const noun = normalizeNoun(lowerName.substring(verb.length));
+              const normalizedVerb = normalizeVerb(verb);
+              declarations.push({ name: name21, verb: normalizedVerb, noun, file: file2.path, line: change.line, code: trimmed });
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  for (let i = 0; i < declarations.length; i++) {
+    for (let j = i + 1; j < declarations.length; j++) {
+      const a = declarations[i];
+      const b = declarations[j];
+      if (a.verb === b.verb && a.noun === b.noun && a.name !== b.name && a.file !== b.file) {
+        issues.push({
+          category: "duplicate-implementation",
+          file: a.file,
+          line: a.line,
+          code: a.code,
+          description: `Potential duplicate implementation: \`${a.name}\` in \`${a.file}:${a.line}\` and \`${b.name}\` in \`${b.file}:${b.line}\` \u2014 both implement \`${a.verb}${a.noun}\`; LLMs create parallel implementations when context resets; consolidate into a single implementation`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectNamingInconsistency(diffFiles) {
+  const issues = [];
+  const groupUsage = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges4(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE17.test(change.content)) continue;
+      const trimmed = stripPrefix4(change.content);
+      for (const group of NAMING_INCONSISTENCY_GROUPS) {
+        for (const word of group) {
+          if (trimmed.toLowerCase().includes(word)) {
+            let groupMap = groupUsage.get(group.join(","));
+            if (!groupMap) {
+              groupMap = /* @__PURE__ */ new Map();
+              groupUsage.set(group.join(","), groupMap);
+            }
+            let entries = groupMap.get(word);
+            if (!entries) {
+              entries = [];
+              groupMap.set(word, entries);
+            }
+            entries.push({ file: file2.path, line: change.line, code: trimmed });
+          }
+        }
+      }
+    }
+  }
+  for (const [, groupMap] of groupUsage) {
+    const usedWords = [...groupMap.keys()].filter((w) => groupMap.get(w).length > 0);
+    if (usedWords.length >= 2) {
+      const filesByWord = /* @__PURE__ */ new Map();
+      for (const word of usedWords) {
+        const files = new Set(groupMap.get(word).map((e) => e.file));
+        filesByWord.set(word, files);
+      }
+      const allFiles = new Set([...filesByWord.values()].flatMap((s) => [...s]));
+      if (allFiles.size >= 2) {
+        const firstWord = usedWords[0];
+        const firstEntry = groupMap.get(firstWord)[0];
+        const description = usedWords.map((w) => `\`${w}\``).join(", ");
+        issues.push({
+          category: "naming-inconsistency",
+          file: firstEntry.file,
+          line: firstEntry.line,
+          code: firstEntry.code,
+          description: `Naming inconsistency: ${description} used for same concept across multiple files \u2014 LLMs use different names for the same domain concept when context resets; standardize on one name to prevent drift`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectDivergentUtility(diffFiles) {
+  const issues = [];
+  const utilPatterns = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges4(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE17.test(change.content)) continue;
+      const trimmed = stripPrefix4(change.content);
+      const utilMatch = trimmed.match(/\b(?:(?:export\s+)?(?:async\s+)?function\s+|(?:export\s+)?const\s+)(format|parse|convert|transform|validate|normalize|sanitize|serialize|encode|decode|extract)(\w+)?\s*[\(=]/i);
+      if (utilMatch) {
+        const baseVerb = utilMatch[1];
+        const suffix = utilMatch[2] || "";
+        const key = `${baseVerb.toLowerCase()}${suffix.toLowerCase()}`;
+        let entries = utilPatterns.get(key);
+        if (!entries) {
+          entries = [];
+          utilPatterns.set(key, entries);
+        }
+        entries.push({ displayName: `${baseVerb}${suffix}`, file: file2.path, line: change.line, code: trimmed });
+      }
+    }
+  }
+  for (const [, entries] of utilPatterns) {
+    if (entries.length >= 2) {
+      const files = new Set(entries.map((e) => e.file));
+      if (files.size >= 2) {
+        issues.push({
+          category: "divergent-utility",
+          file: entries[0].file,
+          line: entries[0].line,
+          code: entries[0].code,
+          description: `Utility \`${entries[0].displayName}\` defined in multiple files: ${[...files].map((f) => `\`${f}\``).join(", ")} \u2014 LLMs create divergent copies of utility functions; consolidate into a shared module to prevent subtle logic differences from accumulating`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+function detectImportDivergence(diffFiles) {
+  const issues = [];
+  const importBySymbol = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges4(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE17.test(change.content)) continue;
+      const trimmed = stripPrefix4(change.content);
+      const importMatch = trimmed.match(/import\s+{([^}]+)}\s+from\s+['"]([^'"]+)['"]/);
+      if (importMatch) {
+        const symbols = importMatch[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0].trim());
+        const importPath = importMatch[2];
+        for (const symbol21 of symbols) {
+          if (!symbol21 || symbol21.length < 2) continue;
+          let entries = importBySymbol.get(symbol21);
+          if (!entries) {
+            entries = [];
+            importBySymbol.set(symbol21, entries);
+          }
+          entries.push({ path: importPath, file: file2.path, line: change.line, code: trimmed });
+        }
+      }
+    }
+  }
+  for (const [symbol21, entries] of importBySymbol) {
+    if (entries.length >= 2) {
+      const paths = new Set(entries.map((e) => e.path));
+      if (paths.size >= 2) {
+        issues.push({
+          category: "import-divergence",
+          file: entries[0].file,
+          line: entries[0].line,
+          code: entries[0].code,
+          description: `Symbol \`${symbol21}\` imported from different paths: ${[...paths].map((p) => `\`${p}\``).join(", ")} \u2014 LLMs import from divergent module paths for equivalent functionality; standardize import paths to prevent drift`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function dedupIssues23(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildContextAmplificationContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Context Amplification Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain parallel implementations from LLM context resets:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildContextAmplificationBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Context Amplification Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLM context windows reset, the model forgets existing implementations and creates parallel versions. Both copies may be actively called but only one gets updated, causing subtle drift.*
+</details>
+`;
+  return body;
+}
+function detectContextAmplification(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectDuplicateImplementation(diffFiles));
+  allIssues.push(...detectNamingInconsistency(diffFiles));
+  allIssues.push(...detectDivergentUtility(diffFiles));
+  allIssues.push(...detectImportDivergence(diffFiles));
+  const issues = dedupIssues23(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildContextAmplificationContext(result);
+  result.bodySummary = buildContextAmplificationBodySummary(result);
+  if (issues.length > 0) {
+    core71.info(`Context amplification detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/cargo-cult-architecture-detector.ts
+import * as core72 from "@actions/core";
+function stripPrefix5(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges5(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var CLASS_DECL_RE = /\b(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/;
+var INTERFACE_DECL_RE = /\b(?:export\s+)?interface\s+(\w+)/;
+var EXTENDS_RE = /\bclass\s+\w+\s+extends\s+(\w+)/;
+var IMPLEMENTS_RE = /\bclass\s+\w+\s+implements\s+(\w+(?:\s*,\s*\w+)*)/;
+var SINGLETON_PRIVATE_CTOR_RE = /private\s+(?:constructor|new)\s*\(/;
+var SINGLETON_INSTANCE_RE = /(?:static\s+)?(?:get\s+)?instance\s*[:(]/;
+var SINGLETON_GET_INSTANCE_RE = /getInstance\s*\(\s*\)/;
+var DECORATOR_RE = /@(\w+)(?:\s*\([^)]*\))?\s*$/;
+var DELEGATION_RE = /(?:return\s+)?(?:(?:this|super)\.\w+(?:\.\w+)?|_\w+)\s*\([^)]*\)\s*;?\s*\}?\s*$/;
+var SKIP_LINE_RE18 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function detectEnterpriseFacade(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let inClass = false;
+  let className = "";
+  let classStartLine = 0;
+  let methodCount = 0;
+  let delegationCount = 0;
+  let fieldCount = 0;
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const classMatch = trimmed.match(CLASS_DECL_RE);
+    if (classMatch) {
+      if (inClass && methodCount <= 3 && delegationCount >= methodCount - 1 && methodCount >= 2) {
+        issues.push({
+          category: "enterprise-facade",
+          file: file2.path,
+          line: classStartLine,
+          code: `class ${className}`,
+          description: `Class \`${className}\` in \`${file2.path}:${classStartLine}\` is a facade with ${methodCount} method(s), ${delegationCount} delegation(s) \u2014 LLMs generate manager/service classes that simply delegate to other objects; remove the indirection layer and call the underlying methods directly`,
+          severity: "warning"
+        });
+      }
+      inClass = true;
+      className = classMatch[1];
+      classStartLine = change.line;
+      methodCount = 0;
+      delegationCount = 0;
+      fieldCount = 0;
+      continue;
+    }
+    if (inClass) {
+      if (/^\s*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?(?:static\s+)?(\w+)\s*\(/.test(trimmed) && !/^\s*(?:if|for|while|switch|catch|constructor)\b/.test(trimmed)) {
+        methodCount++;
+        if (DELEGATION_RE.test(trimmed)) {
+          delegationCount++;
+        }
+      }
+      if (/^\s*(?:private|protected|public)\s+(?:readonly\s+)?\w+\s*:\s*\w+/.test(trimmed)) {
+        fieldCount++;
+      }
+      if (trimmed.startsWith("}")) {
+        if (methodCount <= 3 && delegationCount >= methodCount - 1 && methodCount >= 2) {
+          issues.push({
+            category: "enterprise-facade",
+            file: file2.path,
+            line: classStartLine,
+            code: `class ${className}`,
+            description: `Class \`${className}\` in \`${file2.path}:${classStartLine}\` is a facade with ${methodCount} method(s), ${delegationCount} delegation(s) \u2014 LLMs generate manager/service classes that simply delegate to other objects; remove the indirection layer and call the underlying methods directly`,
+            severity: "warning"
+          });
+        }
+        inClass = false;
+      }
+    }
+  }
+  return issues;
+}
+function detectInterfaceForSingleImpl(diffFiles) {
+  const issues = [];
+  const interfaceNames = /* @__PURE__ */ new Map();
+  const implementsMap = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges5(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE18.test(change.content)) continue;
+      const trimmed = stripPrefix5(change.content);
+      const ifaceMatch = trimmed.match(INTERFACE_DECL_RE);
+      if (ifaceMatch) {
+        interfaceNames.set(ifaceMatch[1], { file: file2.path, line: change.line, code: trimmed });
+      }
+      const implMatch = trimmed.match(IMPLEMENTS_RE);
+      if (implMatch) {
+        const classMatch = trimmed.match(CLASS_DECL_RE);
+        const className = classMatch?.[1] || "unknown";
+        const ifaceNames = implMatch[1].split(",").map((s) => s.trim());
+        for (const iface of ifaceNames) {
+          if (!implementsMap.has(iface)) {
+            implementsMap.set(iface, []);
+          }
+          implementsMap.get(iface).push({ file: file2.path, line: change.line, code: trimmed, className });
+        }
+      }
+    }
+  }
+  const SKIP_IFACE_NAMES = /* @__PURE__ */ new Set(["Error", "Event", "Options", "Config", "Props", "State", "Result"]);
+  for (const [ifaceName, ifaceInfo] of interfaceNames) {
+    if (SKIP_IFACE_NAMES.has(ifaceName)) continue;
+    const impls = implementsMap.get(ifaceName);
+    if (impls && impls.length === 1) {
+      issues.push({
+        category: "interface-for-single-impl",
+        file: ifaceInfo.file,
+        line: ifaceInfo.line,
+        code: ifaceInfo.code,
+        description: `Interface \`${ifaceName}\` in \`${ifaceInfo.file}:${ifaceInfo.line}\` has exactly one implementation (\`${impls[0].className}\` in \`${impls[0].file}:${impls[0].line}\`) \u2014 LLMs generate interface-implementation pairs from training data patterns even when there is no polymorphic need; remove the interface and use the concrete class directly unless a second implementation is planned`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectDeepInheritance(diffFiles) {
+  const issues = [];
+  const extendsMap = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges5(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE18.test(change.content)) continue;
+      const trimmed = stripPrefix5(change.content);
+      const classMatch = trimmed.match(CLASS_DECL_RE);
+      const extendsMatch = trimmed.match(EXTENDS_RE);
+      if (classMatch && extendsMatch) {
+        extendsMap.set(classMatch[1], { parent: extendsMatch[1], file: file2.path, line: change.line, code: trimmed });
+      }
+    }
+  }
+  for (const [className, info76] of extendsMap) {
+    let depth = 2;
+    let current = info76.parent;
+    const visited = /* @__PURE__ */ new Set([className]);
+    while (extendsMap.has(current) && !visited.has(current)) {
+      visited.add(current);
+      depth++;
+      current = extendsMap.get(current).parent;
+    }
+    if (depth >= 3) {
+      issues.push({
+        category: "deep-inheritance",
+        file: info76.file,
+        line: info76.line,
+        code: info76.code,
+        description: `Class \`${className}\` in \`${info76.file}:${info76.line}\` sits in a ${depth}-level inheritance chain \u2014 LLMs generate deep class hierarchies from OOP training data; modern patterns favor composition over inheritance; flatten the chain using mixins, composition, or utility functions`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectSingletonMisuse(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let hasPrivateCtor = false;
+  let hasInstancePattern = false;
+  let classLine = 0;
+  let className = "";
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const classMatch = trimmed.match(CLASS_DECL_RE);
+    if (classMatch) {
+      if (hasPrivateCtor && hasInstancePattern && className) {
+        issues.push({
+          category: "singleton-misuse",
+          file: file2.path,
+          line: classLine,
+          code: `class ${className}`,
+          description: `Class \`${className}\` in \`${file2.path}:${classLine}\` uses singleton pattern \u2014 LLMs apply singleton to stateless services where dependency injection is more appropriate; singletons make testing harder and create hidden global state; use dependency injection instead`,
+          severity: "warning"
+        });
+      }
+      className = classMatch[1];
+      classLine = change.line;
+      hasPrivateCtor = false;
+      hasInstancePattern = false;
+    }
+    if (SINGLETON_PRIVATE_CTOR_RE.test(trimmed)) {
+      hasPrivateCtor = true;
+    }
+    if (SINGLETON_INSTANCE_RE.test(trimmed) || SINGLETON_GET_INSTANCE_RE.test(trimmed)) {
+      hasInstancePattern = true;
+    }
+  }
+  if (hasPrivateCtor && hasInstancePattern && className) {
+    issues.push({
+      category: "singleton-misuse",
+      file: file2.path,
+      line: classLine,
+      code: `class ${className}`,
+      description: `Class \`${className}\` in \`${file2.path}:${classLine}\` uses singleton pattern \u2014 LLMs apply singleton to stateless services where dependency injection is more appropriate; singletons make testing harder and create hidden global state; use dependency injection instead`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function detectDecoratorStack(file2) {
+  const issues = [];
+  const added = getAddedChanges5(file2);
+  let consecutiveDecorators = [];
+  for (const change of added) {
+    if (SKIP_LINE_RE18.test(change.content)) continue;
+    const trimmed = stripPrefix5(change.content);
+    const decMatch = trimmed.match(DECORATOR_RE);
+    if (decMatch) {
+      consecutiveDecorators.push({ name: decMatch[1], line: change.line, code: trimmed });
+    } else {
+      if (consecutiveDecorators.length >= 3) {
+        issues.push({
+          category: "decorator-stack",
+          file: file2.path,
+          line: consecutiveDecorators[0].line,
+          code: consecutiveDecorators.map((d) => `@${d.name}`).join(" "),
+          description: `${consecutiveDecorators.length} decorators stacked in \`${file2.path}:${consecutiveDecorators[0].line}\` (${consecutiveDecorators.map((d) => `@${d.name}`).join(", ")}) \u2014 LLMs stack decorators from framework training data; evaluate whether each decorator adds domain value or is cargo-cult pattern matching; prefer explicit function calls for complex behavior composition`,
+          severity: "warning"
+        });
+      }
+      consecutiveDecorators = [];
+    }
+  }
+  if (consecutiveDecorators.length >= 3) {
+    issues.push({
+      category: "decorator-stack",
+      file: file2.path,
+      line: consecutiveDecorators[0].line,
+      code: consecutiveDecorators.map((d) => `@${d.name}`).join(" "),
+      description: `${consecutiveDecorators.length} decorators stacked in \`${file2.path}:${consecutiveDecorators[0].line}\` (${consecutiveDecorators.map((d) => `@${d.name}`).join(", ")}) \u2014 LLMs stack decorators from framework training data; evaluate whether each decorator adds domain value or is cargo-cult pattern matching; prefer explicit function calls for complex behavior composition`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+function dedupIssues24(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildCargoCultContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Cargo-Cult Architecture Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain boilerplate patterns from LLM training data rather than domain requirements:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCargoCultBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Cargo-Cult Architecture Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate code, they reproduce patterns from training data \u2014 unnecessary abstraction layers, interfaces with single implementations, deep inheritance chains, and decorator stacks. These add structural complexity without domain value.*
+</details>
+`;
+  return body;
+}
+function detectCargoCultArchitecture(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectEnterpriseFacade(file2));
+    allIssues.push(...detectSingletonMisuse(file2));
+    allIssues.push(...detectDecoratorStack(file2));
+  }
+  allIssues.push(...detectInterfaceForSingleImpl(diffFiles));
+  allIssues.push(...detectDeepInheritance(diffFiles));
+  const issues = dedupIssues24(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCargoCultContext(result);
+  result.bodySummary = buildCargoCultBodySummary(result);
+  if (issues.length > 0) {
+    core72.info(`Cargo-cult architecture detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/confabulated-api-detector.ts
+import * as core73 from "@actions/core";
+function stripPrefix6(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges6(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var CONFABULATED_METHODS = [
+  // String methods that don't exist in standard JS
+  { pattern: /\.contains\s*\(/, language: "Java/Rust", correctAlternative: "includes()" },
+  { pattern: /\.startsWith\s*\(/, language: "standard", correctAlternative: "valid but check type" },
+  { pattern: /\.isEmpty\s*\(/, language: "Java", correctAlternative: ".length === 0" },
+  { pattern: /\.isBlank\s*\(/, language: "Java", correctAlternative: ".trim().length === 0" },
+  { pattern: /\.size\s*\(\s*\)/, language: "Java/C++", correctAlternative: ".length or .size (without parens for Map/Set)" },
+  { pattern: /\.trimLeft\s*\(/, language: "deprecated", correctAlternative: "trimStart()" },
+  { pattern: /\.trimRight\s*\(/, language: "deprecated", correctAlternative: "trimEnd()" },
+  // Array methods that don't exist or are commonly misused
+  { pattern: /\.add\s*\(/, language: "Java List", correctAlternative: "push()" },
+  { pattern: /\.remove\s*\(\s*\d+\s*\)/, language: "Java List", correctAlternative: "splice()" },
+  { pattern: /\.get\s*\(\s*\d+\s*\)/, language: "Java List", correctAlternative: "bracket notation [index]" },
+  { pattern: /\.first\s*\(\s*\)/, language: "Rails/Lodash", correctAlternative: "[0]" },
+  { pattern: /\.last\s*\(\s*\)/, language: "Rails/Lodash", correctAlternative: ".at(-1) or [arr.length-1]" },
+  { pattern: /\.flatten\s*\(\s*\)/, language: "Ruby/Lodash", correctAlternative: ".flat()" },
+  { pattern: /\.collect\s*\(/, language: "Ruby", correctAlternative: ".map()" },
+  { pattern: /\.select\s*\(/, language: "Ruby", correctAlternative: ".filter()" },
+  { pattern: /\.reject\s*\(/, language: "Ruby", correctAlternative: ".filter() with negation" },
+  // Map/Object methods that don't exist
+  { pattern: /\.hasKey\s*\(/, language: "Java Map", correctAlternative: ".has() (Map) or 'key' in obj" },
+  { pattern: /\.has_value\s*\(/, language: "Ruby Hash", correctAlternative: ".has() (Map) or Object.values().includes()" },
+  { pattern: /\.keys\s*\(\s*\)/, language: "Java Map", correctAlternative: "Object.keys() or Map.keys() (without parens for iterator)" },
+  // Promise/async methods
+  { pattern: /\.await\s*\(/, language: "C#", correctAlternative: "await (keyword, not method)" },
+  { pattern: /\.thenApply\s*\(/, language: "Java CompletableFuture", correctAlternative: ".then()" },
+  { pattern: /\.exceptionally\s*\(/, language: "Java", correctAlternative: ".catch()" },
+  // Number methods
+  { pattern: /\.toInt\s*\(\s*\)/, language: "Kotlin/Scala", correctAlternative: "parseInt() or Number()" },
+  { pattern: /\.toString\s*\(\s*\d+\s*\)/, language: "Java (radix)", correctAlternative: ".toString(radix) is valid JS but check intent" },
+  { pattern: /\.abs\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.abs()" },
+  { pattern: /\.ceil\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.ceil()" },
+  { pattern: /\.floor\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.floor()" },
+  { pattern: /\.round\s*\(\s*\)/, language: "method on number", correctAlternative: "Math.round()" }
+];
+var ARITY_KNOWN = /* @__PURE__ */ new Map([
+  ["parseInt", { min: 1, max: 2, display: "parseInt(string, radix?)" }],
+  ["parseFloat", { min: 1, max: 1, display: "parseFloat(string)" }],
+  ["isNaN", { min: 1, max: 1, display: "isNaN(value)" }],
+  ["isFinite", { min: 1, max: 1, display: "isFinite(value)" }],
+  ["encodeURI", { min: 1, max: 1, display: "encodeURI(string)" }],
+  ["decodeURI", { min: 1, max: 1, display: "decodeURI(string)" }],
+  ["encodeURIComponent", { min: 1, max: 1, display: "encodeURIComponent(string)" }],
+  ["decodeURIComponent", { min: 1, max: 1, display: "decodeURIComponent(string)" }],
+  ["Object.keys", { min: 1, max: 1, display: "Object.keys(obj)" }],
+  ["Object.values", { min: 1, max: 1, display: "Object.values(obj)" }],
+  ["Object.entries", { min: 1, max: 1, display: "Object.entries(obj)" }],
+  ["Object.assign", { min: 2, max: Infinity, display: "Object.assign(target, ...sources)" }],
+  ["Array.isArray", { min: 1, max: 1, display: "Array.isArray(value)" }],
+  ["Array.from", { min: 1, max: 3, display: "Array.from(iterable, mapFn?, thisArg?)" }],
+  ["JSON.parse", { min: 1, max: 2, display: "JSON.parse(text, reviver?)" }],
+  ["JSON.stringify", { min: 1, max: 3, display: "JSON.stringify(value, replacer?, space?)" }],
+  ["Promise.all", { min: 1, max: 1, display: "Promise.all(iterable)" }],
+  ["Promise.race", { min: 1, max: 1, display: "Promise.race(iterable)" }],
+  ["Math.max", { min: 0, max: Infinity, display: "Math.max(...values)" }],
+  ["Math.min", { min: 0, max: Infinity, display: "Math.min(...values)" }],
+  ["Math.abs", { min: 1, max: 1, display: "Math.abs(x)" }],
+  ["Math.ceil", { min: 1, max: 1, display: "Math.ceil(x)" }],
+  ["Math.floor", { min: 1, max: 1, display: "Math.floor(x)" }],
+  ["Math.round", { min: 1, max: 1, display: "Math.round(x)" }],
+  ["Math.sqrt", { min: 1, max: 1, display: "Math.sqrt(x)" }],
+  ["Math.pow", { min: 2, max: 2, display: "Math.pow(base, exp)" }],
+  ["Math.log", { min: 1, max: 1, display: "Math.log(x)" }],
+  ["console.log", { min: 0, max: Infinity, display: "console.log(...data)" }]
+]);
+var PRIMITIVE_LITERAL_RE = /(?:\d+\.?\d*|true|false|null|undefined|['"][^'"]*['"])\s*\?\./;
+var CONFABULATED_IMPORTS = [
+  { modulePattern: /^node:fs$/, wrongExports: ["fetch", "Request", "Response"], correctModule: "node:http / undici" },
+  { modulePattern: /^node:path$/, wrongExports: ["join", "resolve", "dirname"], correctModule: "these ARE valid \u2014 skip" },
+  { modulePattern: /^node:http$/, wrongExports: ["readFile", "writeFile", "createReadStream"], correctModule: "node:fs" },
+  { modulePattern: /^node:crypto$/, wrongExports: ["hash", "encrypt", "decrypt"], correctModule: "node:crypto (check method names)" },
+  { modulePattern: /^fs$/, wrongExports: ["fetch", "Request"], correctModule: "node:http" },
+  { modulePattern: /^path$/, wrongExports: ["fetch"], correctModule: "node:http" },
+  { modulePattern: /^react$/, wrongExports: ["useState", "useEffect", "useCallback", "useMemo", "useRef"], correctModule: "react (these are valid \u2014 skip)" },
+  { modulePattern: /^axios$/, wrongExports: ["get", "post", "put", "delete", "patch"], correctModule: "axios (these are valid \u2014 skip)" },
+  { modulePattern: /^lodash$/, wrongExports: ["chain"], correctModule: "lodash (chain is valid in full lodash)" },
+  { modulePattern: /^express$/, wrongExports: ["Router"], correctModule: "express (Router is valid \u2014 skip)" }
+];
+var SKIP_LINE_RE19 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function detectNonExistentMethod(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    if (/^\s*(?:public|private|protected|static|async|export)?\s*\w+\s*\(/.test(trimmed) && !/^\s*(?:if|for|while|switch|catch|return|throw|const|let|var)\b/.test(trimmed)) continue;
+    if (/^\s*(?:class|interface|type|enum)\b/.test(trimmed)) continue;
+    for (const { pattern, language, correctAlternative } of CONFABULATED_METHODS) {
+      if (pattern.test(trimmed)) {
+        const methodMatch = trimmed.match(/\.(\w+)\s*\(/);
+        const methodName = methodMatch?.[1] || "unknown";
+        issues.push({
+          category: "non-existent-method",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Method \`.${methodName}()\` in \`${file2.path}:${change.line}\` may not exist \u2014 LLMs confabulate methods from ${language} training data; use \`${correctAlternative}\` instead`,
+          severity: "warning"
+        });
+        break;
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectWrongArity(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    for (const [funcName, arity] of ARITY_KNOWN) {
+      const escaped = funcName.replace(".", "\\.");
+      const callRe = new RegExp(`\\b${escaped}\\s*\\(([^)]*)\\)`);
+      const callMatch = trimmed.match(callRe);
+      if (callMatch) {
+        const argsStr = callMatch[1].trim();
+        const argCount = argsStr.length === 0 ? 0 : argsStr.split(",").length;
+        if (argCount < arity.min || argCount > arity.max) {
+          issues.push({
+            category: "wrong-arity",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `\`${funcName}()\` called with ${argCount} argument(s) in \`${file2.path}:${change.line}\` \u2014 expected ${arity.display}; LLMs generate calls with wrong argument counts from training data; check the function signature`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function detectFantasyOptionalChain(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    if (PRIMITIVE_LITERAL_RE.test(trimmed)) {
+      const chainMatch = trimmed.match(/([\d]+|true|false|null|undefined|['"][^'"]*['"])\s*\?\.\s*(\w+)/);
+      if (chainMatch) {
+        issues.push({
+          category: "fantasy-optional-chain",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Optional chaining \`${chainMatch[1]}?.${chainMatch[2]}\` on primitive in \`${file2.path}:${change.line}\` \u2014 LLMs add \`?.\` defensively on primitives that cannot be null/undefined; remove the \`?\` since the base value is never nullable`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues.slice(0, 3);
+}
+function detectConfabulatedImport(file2) {
+  const issues = [];
+  const added = getAddedChanges6(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE19.test(change.content)) continue;
+    const trimmed = stripPrefix6(change.content);
+    const importMatch = trimmed.match(/import\s+(?:{([^}]+)}\s+from\s+)?['"]([^'"]+)['"]/);
+    if (!importMatch) continue;
+    const symbols = importMatch[1] ? importMatch[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0].trim()) : [];
+    const modulePath = importMatch[2];
+    for (const { modulePattern, wrongExports, correctModule } of CONFABULATED_IMPORTS) {
+      if (modulePattern.test(modulePath)) {
+        if (correctModule.includes("skip")) continue;
+        for (const symbol21 of symbols) {
+          if (wrongExports.includes(symbol21)) {
+            issues.push({
+              category: "confabulated-import",
+              file: file2.path,
+              line: change.line,
+              code: trimmed,
+              description: `Symbol \`${symbol21}\` imported from \`${modulePath}\` in \`${file2.path}:${change.line}\` \u2014 this symbol is not exported by \`${modulePath}\`; LLMs confabulate import paths from training data; use \`${correctModule}\` instead`,
+              severity: "critical"
+            });
+          }
+        }
+      }
+    }
+  }
+  return issues.slice(0, 5);
+}
+function dedupIssues25(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildConfabulatedAPIContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Confabulated API Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain API calls that don't exist \u2014 a common LLM hallucination pattern:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildConfabulatedAPIBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Confabulated API Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate code, they invent API methods from training data rather than reading actual library docs. Detected patterns: methods that don't exist on JS types, wrong argument counts, optional chaining on non-nullable values, and imports of symbols not exported by the module.*
+</details>
+`;
+  return body;
+}
+function detectConfabulatedAPI(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectNonExistentMethod(file2));
+    allIssues.push(...detectWrongArity(file2));
+    allIssues.push(...detectFantasyOptionalChain(file2));
+    allIssues.push(...detectConfabulatedImport(file2));
+  }
+  const issues = dedupIssues25(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildConfabulatedAPIContext(result);
+  result.bodySummary = buildConfabulatedAPIBodySummary(result);
+  if (issues.length > 0) {
+    core73.info(`Confabulated API detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/partial-security-control-detector.ts
+import * as core74 from "@actions/core";
+function stripPrefix7(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges7(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE20 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var AUTH_PATTERNS = [
+  /\b(?:authenticate|verifyToken|verify_token|checkAuth|check_auth|isAuthenticated|is_authenticated|login|signIn|sign_in)\b/i,
+  /\bverify\s*\(\s*(?:token|jwt|credential|session)\s*\)/i,
+  /\b(?:jwt|token)\s*\.\s*verify\s*\(/i
+];
+var AUTHZ_PATTERNS = [
+  /\b(?:authorize|checkRole|check_role|hasRole|has_role|hasPermission|has_permission|checkPermission|check_permission|requireRole|require_role|requirePermission|require_permission|isAuthorized|is_authorized)\b/i,
+  /\b(?:role|permission|scope|privilege)\s*(?:===|!==|includes|check|verify)\b/i
+];
+var ENCRYPT_PATTERNS = [
+  /\b(?:encrypt|cipher|sign|hmac)\s*\(/i,
+  /\bcrypto\s*\.\s*(?:createCipher|createSign|createHmac|publicEncrypt|privateEncrypt)\s*\(/i,
+  /\bcrypto\s*\.\s*(?:createCipheriv|createDecipheriv)\s*\(/i,
+  /\bhash\s*\(\s*(?:password|secret|key|credential)\s*\)/i
+];
+var KDF_PATTERNS = [
+  /\b(?:deriveKey|derive_key|keyDerive|key_derive|pbkdf|scrypt|argon|bcrypt|salt|deriveBits|derive_bits)\b/i,
+  /\bcrypto\s*\.\s*(?:pbkdf2|scrypt|generateKeyPair|createSecretKey)\s*\(/i
+];
+var VALIDATE_PATTERNS = [
+  /\b(?:validate|check|verify|assert|ensure)\s*(?:Input|Form|Data|Field|Param|Request|Payload|Body|Query)\s*\(/i,
+  /\bvalidate\s*\(\s*(?:input|data|payload|body|param|request|form|field)\s*\)/i,
+  /\bjoi\s*\.\s*(?:object|string|number|array)\s*\(\s*\)/i,
+  /\bzod\s*\.\s*(?:object|string|number|array)\s*\(\s*\)/i,
+  /\bschema\s*\.\s*validate\s*\(/i
+];
+var SANITIZE_PATTERNS = [
+  /\b(?:sanitize|escape|encode|purify|strip|clean|filter|scrub|normalize|defang|xss|htmlEscape|html_escape)\b/i,
+  /\bDOMPurify\s*\.\s*sanitize\s*\(/i,
+  /\b(?:encoder|sanitizer|purifier)\s*\.\s*(?:encode|sanitize|escape|purify)\s*\(/i
+];
+var RATE_COUNT_PATTERNS = [
+  /\b(?:rateLimiter|rate_limiter|RateLimiter|throttleQueue|requestCounter|request_counter)\b/i,
+  /\b(?:requestCount|request_count|hitCount|hit_count|callCount|call_count)\s*(?:\+\+|\+=|==|>=)/i,
+  /\b(?:increment|incr)\s*\(\s*(?:count|counter|hits|requests)\s*\)/i,
+  /\b(?:window|bucket|token)\s*(?:Count|_count|Size|_size)\b/i
+];
+var RATE_ENFORCE_PATTERNS = [
+  /\b(?:reject|throttle|block|deny|drop|rejectWith|reject_with|limit|rateLimit|rate_limit|slowDown|slow_down|pause|queue)\b/i,
+  /\b(?:429|too.?many|rate.?limit|rate.?exceeded)\b/i,
+  /\b(?:throw|return)\s+.*(?:429|TooManyRequests|RateLimitError|RateLimitExceeded)\b/i
+];
+function collectSignals(file2) {
+  const signals = {
+    authFound: [],
+    authzFound: [],
+    encryptFound: [],
+    kdfFound: [],
+    validateFound: [],
+    sanitizeFound: [],
+    rateCountFound: [],
+    rateEnforceFound: []
+  };
+  const added = getAddedChanges7(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE20.test(change.content)) continue;
+    const trimmed = stripPrefix7(change.content);
+    for (const re2 of AUTH_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.authFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of AUTHZ_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.authzFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of ENCRYPT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.encryptFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of KDF_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.kdfFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of VALIDATE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.validateFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of SANITIZE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.sanitizeFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of RATE_COUNT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.rateCountFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of RATE_ENFORCE_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.rateEnforceFound.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+  }
+  return signals;
+}
+function aggregateSignals(diffFiles) {
+  const agg = {
+    authFiles: /* @__PURE__ */ new Map(),
+    authzFiles: /* @__PURE__ */ new Map(),
+    encryptFiles: /* @__PURE__ */ new Map(),
+    kdfFiles: /* @__PURE__ */ new Map(),
+    validateFiles: /* @__PURE__ */ new Map(),
+    sanitizeFiles: /* @__PURE__ */ new Map(),
+    rateCountFiles: /* @__PURE__ */ new Map(),
+    rateEnforceFiles: /* @__PURE__ */ new Map()
+  };
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const signals = collectSignals(file2);
+    if (signals.authFound.length > 0) agg.authFiles.set(file2.path, signals.authFound);
+    if (signals.authzFound.length > 0) agg.authzFiles.set(file2.path, signals.authzFound);
+    if (signals.encryptFound.length > 0) agg.encryptFiles.set(file2.path, signals.encryptFound);
+    if (signals.kdfFound.length > 0) agg.kdfFiles.set(file2.path, signals.kdfFound);
+    if (signals.validateFound.length > 0) agg.validateFiles.set(file2.path, signals.validateFound);
+    if (signals.sanitizeFound.length > 0) agg.sanitizeFiles.set(file2.path, signals.sanitizeFound);
+    if (signals.rateCountFound.length > 0) agg.rateCountFiles.set(file2.path, signals.rateCountFound);
+    if (signals.rateEnforceFound.length > 0) agg.rateEnforceFiles.set(file2.path, signals.rateEnforceFound);
+  }
+  return agg;
+}
+function checkSecurityPair(category, firstLabel, secondLabel, firstFiles, secondFiles) {
+  const issues = [];
+  if (firstFiles.size > 0 && secondFiles.size === 0) {
+    for (const [filePath, entries] of firstFiles) {
+      for (const entry of entries.slice(0, 2)) {
+        issues.push({
+          category,
+          file: filePath,
+          line: entry.line,
+          code: entry.code,
+          description: `${firstLabel} detected (\`${entry.match}\`) in \`${filePath}:${entry.line}\` but no ${secondLabel} found anywhere in the PR \u2014 LLMs implement partial security controls: they add authentication without authorization, creating privilege escalation paths; the CSA 2026 reports 322% surge in such paths from AI-generated code; add the corresponding ${secondLabel}`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  for (const [filePath, entries] of firstFiles) {
+    if (!secondFiles.has(filePath)) {
+      for (const entry of entries.slice(0, 1)) {
+        if (secondFiles.size > 0) {
+          issues.push({
+            category,
+            file: filePath,
+            line: entry.line,
+            code: entry.code,
+            description: `${firstLabel} detected (\`${entry.match}\`) in \`${filePath}:${entry.line}\` but ${secondLabel} is in a different file \u2014 LLMs implement security controls in separate scopes; ensure authorization is checked at the same call site as authentication`,
+            severity: "warning"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues26(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildPartialSecurityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Partial Security Control Detection (${result.issues.length})
+`;
+  ctx += "This PR may contain incomplete security control pairs \u2014 LLMs implement partial controls:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildPartialSecurityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Partial Security Control Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*When LLMs generate security code, they implement partial controls \u2014 authentication without authorization, encryption without key derivation, validation without sanitization. The CSA 2026 reports a 322% surge in privilege escalation paths from AI-generated code. Ensure security control pairs are always implemented together.*
+</details>
+`;
+  return body;
+}
+function detectPartialSecurityControls(diffFiles) {
+  const agg = aggregateSignals(diffFiles);
+  const allIssues = [];
+  allIssues.push(...checkSecurityPair(
+    "auth-without-authz",
+    "Authentication",
+    "authorization",
+    agg.authFiles,
+    agg.authzFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "encrypt-without-kdf",
+    "Encryption/hashing",
+    "key derivation/salting",
+    agg.encryptFiles,
+    agg.kdfFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "validate-without-sanitize",
+    "Input validation",
+    "sanitization/escaping",
+    agg.validateFiles,
+    agg.sanitizeFiles
+  ));
+  allIssues.push(...checkSecurityPair(
+    "rate-count-without-enforce",
+    "Rate counting",
+    "rate enforcement/rejection",
+    agg.rateCountFiles,
+    agg.rateEnforceFiles
+  ));
+  const issues = dedupIssues26(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildPartialSecurityContext(result);
+  result.bodySummary = buildPartialSecurityBodySummary(result);
+  if (issues.length > 0) {
+    core74.info(`Partial security control detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/paradigm-clash-detector.ts
+import * as core75 from "@actions/core";
+function stripPrefix8(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges8(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE21 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var REACT_CLASS_PATTERNS = [
+  /\bclass\s+\w+\s+extends\s+(?:React\.Component|Component|PureComponent|React\.PureComponent)\b/,
+  /\bcomponentDidMount\s*\(/,
+  /\bcomponentDidUpdate\s*\(/,
+  /\bcomponentWillUnmount\s*\(/,
+  /\bshouldComponentUpdate\s*\(/,
+  /\bgetSnapshotBeforeUpdate\s*\(/,
+  /\bgetDerivedStateFromProps\s*\(/,
+  /\bsetState\s*\(/,
+  /\bthis\.state\b/,
+  /\bthis\.props\b/,
+  /\bthis\.setState\b/
+];
+var REACT_HOOKS_PATTERNS = [
+  /\buse[A-Z]\w*\s*\(/,
+  // useState, useEffect, useRef, useMemo, useCallback, etc.
+  /\bReact\.use[A-Z]\w*\s*\(/,
+  /\buseContext\s*\(/,
+  /\buseReducer\s*\(/,
+  /\buseRef\s*\(/,
+  /\buseMemo\s*\(/,
+  /\buseCallback\s*\(/,
+  /\buseEffect\s*\(/,
+  /\buseState\s*\(/
+];
+var CALLBACK_PATTERNS = [
+  /\b(?:callback|cb|done|next)\s*\)?\s*(?:=>|\(|\{)/,
+  /\(err(?:,\s*\w+)*\)\s*=>/,
+  /\(error(?:,\s*\w+)*\)\s*=>/,
+  /\bfunction\s*\(\s*(?:err|error)\s*(?:,\s*\w+)*\s*\)\s*\{/,
+  /\.then\s*\(/,
+  /\.catch\s*\(/,
+  /\.finally\s*\(/,
+  /(?:,\s*(?:callback|cb|done)\s*)\)?\s*(?:=>|\(|\{|\n)/,
+  /\bcallback\s*\(/
+];
+var ASYNC_AWAIT_PATTERNS = [
+  /\basync\s+function\s+\w+\s*\(/,
+  /\basync\s+\w+\s*=>/,
+  /\basync\s+\(/,
+  /\bawait\s+/,
+  /\breturn\s+await\s+/
+];
+var OOP_PATTERNS = [
+  /\bclass\s+\w+/,
+  /\bextends\s+/,
+  /\bimplements\s+/,
+  /\bnew\s+\w+\s*\(/,
+  /\bthis\.\w+\s*=/,
+  /\bsuper\s*\(/,
+  /\bprivate\s+\w+/,
+  /\bprotected\s+\w+/,
+  /\bpublic\s+\w+/,
+  /#\w+\s*(?:=|\(|\.)/
+  // JS private fields
+];
+var FUNCTIONAL_PATTERNS = [
+  /\.map\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.filter\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.reduce\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.flatMap\s*\(\s*(?:\(\w+(?:,\s*\w+)*\)|\w+)\s*=>/,
+  /\.pipe\s*\(/,
+  /\bcompose\s*\(/,
+  /\.compose\s*\(/,
+  /\bR\.\w+\s*\(/,
+  // Ramda
+  /\bfp\.\w+\s*\(/,
+  // lodash/fp
+  /(?:const|let)\s+\w+\s*=\s*(?:\w+\.)?pipe\s*\(/
+];
+var FRAMEWORK_PAIRS = [
+  // jQuery + React
+  {
+    first: [/\$\s*\(/, /\$\s*\.\s*ajax/, /\$\s*\.\s*get/, /\$\s*\.\s*post/, /jQuery/],
+    second: [/\bReact\b/, /\bReactDOM\b/, /from\s+['"]react['"]/, /from\s+['"]react-dom['"]/],
+    label: "jQuery + React"
+  },
+  // Angular + Vue
+  {
+    first: [/@angular/, /@NgModule/, /@Component.*selector/, /\bNgZone\b/, /\bInjectable\b/],
+    second: [/\bVue\b/, /Vue\.\s*createApp/, /from\s+['"]vue['"]/, /\bcreateApp\b/, /\bdefineComponent\b/, /\bv-if\b/, /\bv-for\b/],
+    label: "Angular + Vue"
+  },
+  // Angular + React
+  {
+    first: [/@angular/, /@NgModule/, /@Component.*selector/],
+    second: [/\bReact\b/, /from\s+['"]react['"]/, /\buseState\b/, /\buseEffect\b/],
+    label: "Angular + React"
+  },
+  // Express + Koa
+  {
+    first: [/\bexpress\s*\(\)/, /from\s+['"]express['"]/, /\bapp\.\s*(?:get|post|put|delete|use)\s*\(/, /\bRouter\s*\(/],
+    second: [/\bKoa\b/, /from\s+['"]koa['"]/, /\bctx\.\w+/, /\bnext\s*\)?\s*(?:=>|\{)/, /\bapp\.use\s*\(/],
+    label: "Express + Koa"
+  },
+  // React + Vue
+  {
+    first: [/\bReact\b/, /from\s+['"]react['"]/, /\buseState\b/],
+    second: [/\bVue\b/, /Vue\.\s*createApp/, /from\s+['"]vue['"]/, /\bcreateApp\b/, /\bv-if\b/, /\bv-for\b/],
+    label: "React + Vue (SFC)"
+  },
+  // Mocha + Jest
+  {
+    first: [/from\s+['"]mocha['"]/, /\bdescribe\s*\(/, /\bit\s*\(/, /\bbeforeEach\b/],
+    second: [/\bjest\s*\./, /\bexpect\s*\(.*\)\.to(?:Be|Equal|Contain|Match|Throw)/, /\btest\s*\(/],
+    label: "Mocha + Jest"
+  }
+];
+function collectSignals2(file2) {
+  const signals = {
+    reactClass: [],
+    reactHooks: [],
+    callback: [],
+    asyncAwait: [],
+    oop: [],
+    functional: [],
+    frameworks: /* @__PURE__ */ new Map()
+  };
+  const added = getAddedChanges8(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE21.test(change.content)) continue;
+    const trimmed = stripPrefix8(change.content);
+    for (const re2 of REACT_CLASS_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.reactClass.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of REACT_HOOKS_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.reactHooks.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of CALLBACK_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.callback.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of ASYNC_AWAIT_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.asyncAwait.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of OOP_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.oop.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const re2 of FUNCTIONAL_PATTERNS) {
+      const m = trimmed.match(re2);
+      if (m) {
+        signals.functional.push({ line: change.line, code: trimmed, match: m[0] });
+        break;
+      }
+    }
+    for (const pair of FRAMEWORK_PAIRS) {
+      for (const re2 of pair.first) {
+        const m = trimmed.match(re2);
+        if (m) {
+          const key = `${pair.label}:first`;
+          if (!signals.frameworks.has(key)) signals.frameworks.set(key, []);
+          signals.frameworks.get(key).push({ line: change.line, code: trimmed, match: m[0] });
+          break;
+        }
+      }
+      for (const re2 of pair.second) {
+        const m = trimmed.match(re2);
+        if (m) {
+          const key = `${pair.label}:second`;
+          if (!signals.frameworks.has(key)) signals.frameworks.set(key, []);
+          signals.frameworks.get(key).push({ line: change.line, code: trimmed, match: m[0] });
+          break;
+        }
+      }
+    }
+  }
+  return signals;
+}
+function checkReactClash(signals, filePath) {
+  const issues = [];
+  if (signals.reactClass.length > 0 && signals.reactHooks.length > 0) {
+    for (const hook2 of signals.reactHooks.slice(0, 2)) {
+      issues.push({
+        category: "react-class-and-hooks",
+        file: filePath,
+        line: hook2.line,
+        code: hook2.code,
+        description: `React hook \`${hook2.match}\` detected in a class component file \`${filePath}:${hook2.line}\` \u2014 LLMs mix class components and hooks, but hooks cannot be used inside class components; convert to a functional component or use a HOC/render prop pattern instead`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function checkCallbackAsyncClash(signals, filePath) {
+  const issues = [];
+  if (signals.callback.length > 0 && signals.asyncAwait.length > 0) {
+    for (const cb of signals.callback.slice(0, 2)) {
+      issues.push({
+        category: "callback-and-async-await",
+        file: filePath,
+        line: cb.line,
+        code: cb.code,
+        description: `Callback pattern \`${cb.match}\` mixed with async/await in \`${filePath}:${cb.line}\` \u2014 LLMs produce "paradigm soup" by mixing error-first callbacks and async/await in the same file; standardize on one asynchronous pattern per module to avoid unhandled rejections and callback-promise interaction bugs`,
+        severity: "warning"
+      });
+    }
+    for (const aw of signals.asyncAwait.slice(0, 1)) {
+      issues.push({
+        category: "callback-and-async-await",
+        file: filePath,
+        line: aw.line,
+        code: aw.code,
+        description: `async/await pattern \`${aw.match}\` mixed with callbacks in \`${filePath}:${aw.line}\` \u2014 LLMs mix async styles, creating code where promise rejections go unhandled because some code paths use callbacks and others throw; pick one async paradigm per module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function checkOopFunctionalClash(signals, filePath) {
+  const issues = [];
+  if (signals.oop.length > 0 && signals.functional.length > 0) {
+    for (const oop of signals.oop.slice(0, 2)) {
+      issues.push({
+        category: "oop-and-functional-mix",
+        file: filePath,
+        line: oop.line,
+        code: oop.code,
+        description: `OOP pattern \`${oop.match}\` mixed with functional pipeline style in \`${filePath}:${oop.line}\` \u2014 LLMs blend paradigms: class hierarchies with .map/.filter/.reduce pipelines create confusion about where state lives and how data flows; consolidate on one paradigm per module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function checkFrameworkClash(signals, filePath) {
+  const issues = [];
+  for (const pair of FRAMEWORK_PAIRS) {
+    const firstKey = `${pair.label}:first`;
+    const secondKey = `${pair.label}:second`;
+    const firstEntries = signals.frameworks.get(firstKey);
+    const secondEntries = signals.frameworks.get(secondKey);
+    if (firstEntries && firstEntries.length > 0 && secondEntries && secondEntries.length > 0) {
+      const entry = firstEntries[0];
+      issues.push({
+        category: "framework-clash",
+        file: filePath,
+        line: entry.line,
+        code: entry.code,
+        description: `Framework clash: ${pair.label} detected in \`${filePath}:${entry.line}\` \u2014 LLMs mix frameworks from their training data; using ${pair.label.split(" + ")[0]} and ${pair.label.split(" + ")[1]} in the same file creates conflicting lifecycle management, state models, and rendering pipelines; split into separate modules or choose one framework`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function dedupIssues27(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildParadigmClashContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Paradigm Clash Detection (${result.issues.length})
+`;
+  ctx += 'This PR mixes incompatible programming paradigms \u2014 LLMs produce "paradigm soup":\n\n';
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildParadigmClashBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Paradigm Clash Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs trained on diverse codebases produce paradigm soup \u2014 mixing React class components with hooks, callbacks with async/await, OOP with functional pipelines, and competing frameworks in the same file. These clashes create maintenance nightmares and subtle bugs from paradigm interaction effects. Standardize on one paradigm per module.*
+</details>
+`;
+  return body;
+}
+function detectParadigmClashes(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const signals = collectSignals2(file2);
+    allIssues.push(...checkReactClash(signals, file2.path));
+    allIssues.push(...checkCallbackAsyncClash(signals, file2.path));
+    allIssues.push(...checkOopFunctionalClash(signals, file2.path));
+    allIssues.push(...checkFrameworkClash(signals, file2.path));
+  }
+  const issues = dedupIssues27(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildParadigmClashContext(result);
+  result.bodySummary = buildParadigmClashBodySummary(result);
+  if (issues.length > 0) {
+    core75.info(`Paradigm clash detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/velocity-risk-detector.ts
+import * as core76 from "@actions/core";
+function stripPrefix9(content) {
+  return content.replace(/^\+/, "").trim();
+}
+function getAddedChanges9(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+function getRemovedChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "delete");
+}
+var LARGE_NEW_FILE_THRESHOLD = 100;
+var BOILERPLATE_SIMILARITY_THRESHOLD = 3;
+var SWEEP_REFACTOR_RATIO = 0.6;
+var COPY_PASTE_MIN_WORDS = 4;
+var COPY_PASTE_MIN_FILES = 3;
+function detectLargeNewFiles(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const isNew = file2.status === "added";
+    const isLarge = added.length > LARGE_NEW_FILE_THRESHOLD;
+    if (isNew && isLarge) {
+      const hasTest = file2.path.includes("test") || file2.path.includes("spec") || file2.path.includes("__tests__");
+      const addedContent = added.map((c) => stripPrefix9(c.content)).join("\n");
+      const hasAssertions = /\bexpect\s*\(|\bassert\s*\(|\bshould\b|\bAssertions\b/i.test(addedContent);
+      if (!hasTest && !hasAssertions) {
+        const baseName = file2.path.replace(/\.\w+$/, "").split("/").pop() || "";
+        const testCoverage = diffFiles.some(
+          (f) => f.path !== file2.path && (f.path.includes("test") || f.path.includes("spec") || f.path.includes("__tests__")) && f.path.includes(baseName)
+        );
+        if (!testCoverage) {
+          issues.push({
+            category: "large-new-file",
+            file: file2.path,
+            line: 1,
+            code: `${added.length} added lines`,
+            description: `New file \`${file2.path}\` has ${added.length} added lines with no test coverage \u2014 LLMs generate large files at machine speed but tests lag behind; high-velocity PRs with 100+ new lines and no tests have 3x higher defect density than PRs with test coverage; add unit tests before merging`,
+            severity: "critical"
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+function extractSignature(line) {
+  const funcMatch = line.match(/(?:export\s+)?(?:async\s+)?(?:function|const|let|var)\s+(\w+)\s*(?:=|\(|<)/);
+  if (funcMatch) return funcMatch[1];
+  const classMatch = line.match(/(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/);
+  if (classMatch) return classMatch[1];
+  const methodMatch = line.match(/^\s+(?:public|private|protected|static|async)?\s*(?:get|set)?\s*(\w+)\s*\(/);
+  if (methodMatch) return `method:${methodMatch[1]}`;
+  return "";
+}
+function detectBoilerplateProliferation(diffFiles) {
+  const issues = [];
+  const sigFiles = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const sigs = /* @__PURE__ */ new Set();
+    for (const change of added) {
+      if (/^\+\s*(\/\/|\/\*|\*|import\s+type|export\s+type)/.test(change.content)) continue;
+      const sig = extractSignature(stripPrefix9(change.content));
+      if (sig) sigs.add(sig);
+    }
+    for (const sig of sigs) {
+      if (!sigFiles.has(sig)) sigFiles.set(sig, []);
+      sigFiles.get(sig).push(file2.path);
+    }
+  }
+  for (const [sig, files] of sigFiles) {
+    if (files.length >= BOILERPLATE_SIMILARITY_THRESHOLD) {
+      issues.push({
+        category: "boilerplate-proliferation",
+        file: files[0],
+        line: 1,
+        code: `\`${sig}\` in ${files.length} files`,
+        description: `Function/class signature \`${sig}\` appears in ${files.length} files (\`${files.slice(0, 3).join("`, `")}\`) \u2014 LLMs generate boilerplate by repeating patterns across files instead of extracting shared abstractions; this proliferation creates maintenance burden where a fix must be applied to all copies; extract to a shared module`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectSweepNoSafety(diffFiles) {
+  const issues = [];
+  let totalAdded = 0;
+  let totalRemoved = 0;
+  let typeAnnotations = 0;
+  let testAdditions = 0;
+  const refactoredFiles = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    const removed = getRemovedChanges(file2);
+    totalAdded += added.length;
+    totalRemoved += removed.length;
+    const addedContent = added.map((c) => stripPrefix9(c.content)).join("\n");
+    const typeMatches = addedContent.match(/:\s*(?:string|number|boolean|void|never|unknown|any|Record|Map|Set|Promise|Array|\w+\[\]|\w+<)/g);
+    if (typeMatches) typeAnnotations += typeMatches.length;
+    const assertionMatches = addedContent.match(/\bexpect\s*\(|\bassert\s*\(|\bshould\b|\bAssertions\b/gi);
+    if (assertionMatches) testAdditions += assertionMatches.length;
+    if (removed.length > 0 && removed.length >= added.length) {
+      refactoredFiles.push(file2.path);
+    }
+  }
+  const totalChanges = totalAdded + totalRemoved;
+  if (totalChanges > 0 && totalRemoved / totalChanges > SWEEP_REFACTOR_RATIO) {
+    const safetyRatio = (typeAnnotations + testAdditions) / totalAdded;
+    if (totalAdded > 20 && safetyRatio < 0.1) {
+      issues.push({
+        category: "sweep-no-safety",
+        file: refactoredFiles[0] || diffFiles[0]?.path || "unknown",
+        line: 1,
+        code: `${totalRemoved} removed, ${totalAdded} added, ${typeAnnotations} types, ${testAdditions} tests`,
+        description: `PR is ${Math.round(totalRemoved / totalChanges * 100)}% removals (sweep refactor) with ${totalAdded} additions but only ${typeAnnotations} type annotations and ${testAdditions} test assertions \u2014 LLMs perform large-scale refactors at machine speed but skip adding type safety and tests; sweeping refactors without validation have 2.5x regression rate; add type annotations and test coverage for refactored code`,
+        severity: "warning"
+      });
+    }
+  }
+  return issues;
+}
+function detectCopyPastePattern(diffFiles) {
+  const issues = [];
+  const fileContents = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges9(file2);
+    if (added.length < 5) continue;
+    const lines = [];
+    for (const change of added) {
+      if (/^\+\s*(\/\/|\/\*|\*|import\s|export\s+type)/.test(change.content)) continue;
+      const trimmed = stripPrefix9(change.content);
+      if (trimmed.length > 20) lines.push(trimmed);
+    }
+    if (lines.length > 0) fileContents.set(file2.path, lines);
+  }
+  const ngramFiles = /* @__PURE__ */ new Map();
+  for (const [filePath, lines] of fileContents) {
+    for (const line of lines) {
+      const words = line.split(/\s+/).filter((w) => w.length > 1);
+      if (words.length < COPY_PASTE_MIN_WORDS) continue;
+      for (let i = 0; i <= words.length - COPY_PASTE_MIN_WORDS; i++) {
+        const ngram = words.slice(i, i + COPY_PASTE_MIN_WORDS).join(" ");
+        const normalized = ngram.replace(/['"`][^'"]*['"`]/g, "STR").replace(/\b\d+\b/g, "NUM").replace(/\b[a-z]\b/g, "x");
+        if (normalized.length > 10) {
+          if (!ngramFiles.has(normalized)) ngramFiles.set(normalized, /* @__PURE__ */ new Set());
+          ngramFiles.get(normalized).add(filePath);
+        }
+      }
+    }
+  }
+  for (const [ngram, files] of ngramFiles) {
+    if (files.size >= COPY_PASTE_MIN_FILES) {
+      const fileList = [...files];
+      issues.push({
+        category: "copy-paste-pattern",
+        file: fileList[0],
+        line: 1,
+        code: `"${ngram.slice(0, 50)}..." in ${files.size} files`,
+        description: `5+ word code sequence appears in ${files.size} files (\`${fileList.slice(0, 3).join("`, `")}\`) \u2014 LLMs copy-paste code across files instead of extracting shared helpers; duplicated logic means bugs must be fixed in every copy; extract the repeated code into a shared utility`,
+        severity: "warning"
+      });
+    }
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const filtered = issues.filter((issue2) => {
+    const dedupKey = `${issue2.category}:${issue2.file}`;
+    if (seen.has(dedupKey)) return false;
+    seen.add(dedupKey);
+    return true;
+  });
+  return filtered.slice(0, 10);
+}
+function dedupIssues28(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildVelocityRiskContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Velocity Risk Detection (${result.issues.length})
+`;
+  ctx += "This PR shows high-velocity AI-generated code patterns \u2014 ship speed exceeds review validation:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildVelocityRiskBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Velocity Risk Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs generate code at machine speed \u2014 500+ lines in seconds \u2014 but human review can't keep up. High-velocity PRs with large new files, boilerplate proliferation, sweep refactors without tests, or copy-paste patterns have significantly higher defect density. Slow down, add tests, extract shared code.*
+</details>
+`;
+  return body;
+}
+function detectVelocityRisks(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectLargeNewFiles(diffFiles));
+  allIssues.push(...detectBoilerplateProliferation(diffFiles));
+  allIssues.push(...detectSweepNoSafety(diffFiles));
+  allIssues.push(...detectCopyPastePattern(diffFiles));
+  const issues = dedupIssues28(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildVelocityRiskContext(result);
+  result.bodySummary = buildVelocityRiskBodySummary(result);
+  if (issues.length > 0) {
+    core76.info(`Velocity risk detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/rules-file-integrity-detector.ts
+import * as core77 from "@actions/core";
+function stripPrefix10(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes);
+}
+var RULES_FILES = [
+  "CLAUDE.md",
+  "REVIEW.md",
+  ".github/mizumi.yml",
+  ".github/mizumi.yaml",
+  ".eslintrc",
+  ".eslintrc.js",
+  ".eslintrc.json",
+  ".eslintrc.yml",
+  "eslint.config.js",
+  "eslint.config.mjs",
+  ".prettierrc",
+  ".prettierrc.js",
+  ".prettierrc.json",
+  "tsconfig.json",
+  "biome.json",
+  ".rubocop.yml",
+  "pyproject.toml"
+];
+function isRulesFile(path27) {
+  return RULES_FILES.some((rf) => path27.endsWith(rf) || path27 === rf);
+}
+var DISABLE_PATTERNS = [
+  { re: /\b(?:self_critique|compliance_check|linter_scan|auto_labels|rule_engine):\s+false/i, label: "disabling a core review feature" },
+  { re: /\b(?:taint_analysis|blast_radius|spec_compliance|auth_boundary):\s+false/i, label: "disabling a security detector" },
+  { re: /\b(?:secret_entropy|safety_score|fatigue_dashboard|org_memory):\s+false/i, label: "disabling a safety feature" },
+  { re: /\b(?:swarm_review|review_learning|delta_review|chunk_review):\s+false/i, label: "disabling a review optimization" },
+  { re: /\b(?:ast_contract_analysis|behavioral_summary|ownership_routing):\s+false/i, label: "disabling an analysis feature" },
+  { re: /\bprofile:\s*chill/i, label: "changing review profile to chill (least assertive)" },
+  { re: /\bno.review\b|\bdisable.review\b|\bskip.review\b/i, label: "disabling review" }
+];
+var SECURITY_EXCLUSION_PATTERNS = [
+  { re: /(?:^|-)\s*(?:\*\*\/auth|\*\*\/crypto|\*\*\/sql|\*\*\/secret|\*\*\/password)/, label: "removing a security path from monitoring" },
+  { re: /security_paths:\s*\[\s*\]/, label: "emptying security paths array" },
+  { re: /(?:^|-)\s*(?:src\/\*\*|\*\*\/\*\*|\/)/, label: "adding overly broad path to security exclusions" }
+];
+var THRESHOLD_PATTERNS = [
+  { re: /\bconfidence_threshold:\s*(?:[0-7]\d?|[1-7])\b/, label: "lowering confidence threshold below 80" },
+  { re: /\bmax_comments:\s*(?:[0-9]|1[0-4])\b/, label: "reducing max comments below 15" },
+  { re: /\bgate_threshold:\s*none/i, label: "disabling merge gate" },
+  { re: /\bspend_threshold:\s*0\b/, label: "disabling spend limit" },
+  { re: /\bauto_pause_after:\s*(?:[6-9]\d|[1-9]\d{2,})/, label: "increasing auto-pause threshold significantly" }
+];
+var EXCLUDE_PATTERNS = [
+  { re: /-\s+'?\*\*\/\*'?|-\s+'?\*$|-\s+'?src\/\*\*'?|-\s+\.\.\//, label: "adding wildcard exclusion that hides entire directories" },
+  { re: /-\s+'?\*\*\/(?:test|spec|__tests__)/, label: "excluding test directories from review" },
+  { re: /-\s+'?\*\*\/(?:secret|key|credential|auth)/, label: "excluding security-sensitive directories from review" }
+];
+var SECURITY_PATH_REMOVE = [
+  { re: /\*\*\/auth\/\*\*/, label: "removing auth directory from security monitoring" },
+  { re: /\*\*\/crypto\/\*\*/, label: "removing crypto directory from security monitoring" },
+  { re: /\*\*\/sql\/\*\*/, label: "removing SQL directory from security monitoring" },
+  { re: /\*\*\/secret\*/, label: "removing secret paths from security monitoring" },
+  { re: /\*\*\/password\*/, label: "removing password paths from security monitoring" }
+];
+function analyzeRulesFile(file2) {
+  const issues = [];
+  const changes = getChanges(file2);
+  for (const change of changes) {
+    const trimmed = stripPrefix10(change.content);
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const isAdded = change.type === "add";
+    const isRemoved = change.type === "delete";
+    if (isAdded) {
+      for (const { re: re2, label } of DISABLE_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "rule-softening",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Rule softening in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs may modify review rules to silence their own findings; lowering review rigor weakens the entire review pipeline; this change should be reviewed by a human with security context`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of THRESHOLD_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "threshold-manipulation",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Threshold manipulation in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs may lower review thresholds to make their own code pass review more easily; reduced thresholds mean fewer findings reach reviewers; keep thresholds at project defaults unless explicitly approved`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of EXCLUDE_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "exclude-expansion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Exclude expansion in \`${file2.path}:${change.line}\`: ${label} \u2014 Broad exclusions hide files from review, including security-sensitive code; LLMs add exclusions to prevent their mistakes from being caught; only project owners should modify exclusion patterns`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+      for (const { re: re2, label } of SECURITY_EXCLUSION_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "security-exclusion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Security exclusion in \`${file2.path}:${change.line}\`: ${label} \u2014 Removing security paths from monitoring creates blind spots; LLMs may exclude security directories to prevent their own security mistakes from being flagged; never remove security path monitoring without security team approval`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+    if (isRemoved) {
+      for (const { re: re2, label } of SECURITY_PATH_REMOVE) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "security-exclusion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Security path removal in \`${file2.path}:${change.line}\`: ${label} \u2014 Removing security monitoring paths is the AI equivalent of disabling the alarm before a break-in; this change should require security team review`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues29(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildRulesIntegrityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Rules File Integrity Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies code review rules or configuration \u2014 LLMs may alter review settings to silence their own findings:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildRulesIntegrityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Rules File Integrity Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs may modify review rules to silence their own findings \u2014 disabling detectors, lowering thresholds, excluding security paths, and expanding exclusion patterns. These changes weaken the review pipeline. Any modification to review configuration should require human approval.*
+</details>
+`;
+  return body;
+}
+function detectRulesFileIntegrity(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!isRulesFile(file2.path)) continue;
+    allIssues.push(...analyzeRulesFile(file2));
+  }
+  const issues = dedupIssues29(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildRulesIntegrityContext(result);
+  result.bodySummary = buildRulesIntegrityBodySummary(result);
+  if (issues.length > 0) {
+    core77.info(`Rules file integrity detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/spec-drift-detector.ts
+import * as core78 from "@actions/core";
+function stripPrefix11(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges10(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE22 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var TODO_LINE_RE = /\b(?:TODO|FIXME|HACK)\b/i;
+var STUB_PATTERNS = [
+  /\bTODO\b.*(?:implement|fill|replace|placeholder|stub)/i,
+  /\bFIXME\b.*(?:implement|replace|hack|workaround)/i,
+  /\bHACK\b/i,
+  /\breturn\s+(?:null|undefined|0|"")\s*;?\s*\/\/\s*(?:todo|fixme|implement)/i,
+  /\bthrow\s+new\s+Error\s*\(\s*['"](?:NotImplemented|TODO|not implemented)/i,
+  /return\s+\[\]\s*;\s*\/\/\s*(?:todo|placeholder)/i,
+  /return\s+{}\s*;\s*\/\/\s*(?:todo|placeholder)/i
+];
+function detectUnimplementedSpec(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content) && !TODO_LINE_RE.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      for (const re2 of STUB_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "unimplemented-spec",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unimplemented spec in \`${file2.path}:${change.line}\` \u2014 LLMs leave TODO/FIXME/stub markers where the spec requires implementation; shipped stub code passes type checks but fails at runtime; implement the actual logic or mark as explicitly deferred with a tracking issue`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+var ASYNC_FUNC_RE2 = /\basync\s+function\s+(\w+)\s*\(/;
+function detectSpecMismatch(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    let insideAsyncFunc = false;
+    let braceDepth = 0;
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      if (ASYNC_FUNC_RE2.test(trimmed)) {
+        insideAsyncFunc = true;
+        braceDepth = 0;
+      }
+      if (insideAsyncFunc) {
+        braceDepth += (trimmed.match(/\{/g) || []).length;
+        braceDepth -= (trimmed.match(/\}/g) || []).length;
+        if (/\breturn\s+(?!await\b)\w/i.test(trimmed) && !/\bawait\s+/.test(trimmed)) {
+          issues.push({
+            category: "spec-implementation-mismatch",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Spec mismatch in \`${file2.path}:${change.line}\`: async function returning without await \u2014 LLMs declare async signatures but implement synchronous returns; verify the implementation matches the declared contract`,
+            severity: "warning"
+          });
+        }
+        if (braceDepth <= 0 && trimmed.includes("}")) {
+          insideAsyncFunc = false;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectOrphanedSpec(diffFiles) {
+  const issues = [];
+  const exportedSymbols = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      const trimmed = stripPrefix11(change.content);
+      const exportMatch = trimmed.match(
+        /(?:export\s+(?:default\s+)?)?(?:function|class|const|let|var|interface|type|enum)\s+(\w+)/
+      );
+      if (exportMatch) {
+        exportedSymbols.set(exportMatch[1], {
+          file: file2.path,
+          line: change.line,
+          code: trimmed
+        });
+      }
+    }
+  }
+  const referencedSymbols = /* @__PURE__ */ new Set();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const allChanges = file2.hunks.flatMap((h) => h.changes);
+    for (const change of allChanges) {
+      const trimmed = stripPrefix11(change.content);
+      if (/^\s*(?:import\s+type|export\s+type)\s/.test(trimmed)) continue;
+      for (const [symbol21] of exportedSymbols) {
+        const defLine = exportedSymbols.get(symbol21);
+        if (defLine.file === file2.path && defLine.line === change.line) continue;
+        const refPattern = new RegExp(`\\b${symbol21}\\b`);
+        if (refPattern.test(trimmed) && !trimmed.includes(`function ${symbol21}`) && !trimmed.includes(`class ${symbol21}`) && !trimmed.includes(`const ${symbol21} =`) && !trimmed.includes(`interface ${symbol21}`) && !trimmed.includes(`type ${symbol21} =`) && !trimmed.includes(`enum ${symbol21}`)) {
+          referencedSymbols.add(symbol21);
+        }
+      }
+    }
+  }
+  for (const [symbol21, info76] of exportedSymbols) {
+    if (!referencedSymbols.has(symbol21)) {
+      const isLikelyEntry = info76.file.includes("index") || info76.file.includes("main") || info76.file.includes("mod");
+      const isDefaultExport = info76.code.includes("export default");
+      const isTypeExport = info76.code.includes("interface ") || info76.code.includes("type ");
+      if (!isLikelyEntry && !isDefaultExport && !isTypeExport) {
+        issues.push({
+          category: "orphaned-spec",
+          file: info76.file,
+          line: info76.line,
+          code: info76.code,
+          description: `Orphaned export \`${symbol21}\` in \`${info76.file}:${info76.line}\` is not referenced by any other file in this PR \u2014 LLMs generate "defensive exports" that create API surface without consumers; unused exports increase bundle size and maintenance burden; remove if not needed or add explicit consumers`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+var CONTRACT_EROSION_PATTERNS = [
+  // Widened parameter type (any replacing specific type)
+  { re: /:\s+any\b/g, label: "widened parameter/return type to `any`" },
+  // Optional chaining on method that may need required access
+  { re: /\?\.\w+\s*\(/, label: "optional chaining on method that may need required access" },
+  // Empty catch block (swallows errors contract says should propagate)
+  { re: /\bcatch\s*\(\s*\w+\s*\)\s*\{\s*\}/, label: "empty catch block swallows errors from declared contract" },
+  // Non-null assertion (!) without null check
+  { re: /\w+!\.\w+/, label: "non-null assertion without preceding null check" }
+];
+function detectContractErosion(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      for (const { re: re2, label } of CONTRACT_EROSION_PATTERNS) {
+        if (re2.global) re2.lastIndex = 0;
+        if (re2.test(trimmed)) {
+          if (file2.path.includes("test") || file2.path.includes("spec") || file2.path.includes("__tests__")) {
+            continue;
+          }
+          if (label.includes("any") && !/:\s*any/.test(trimmed)) continue;
+          issues.push({
+            category: "contract-erosion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Contract erosion in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs weaken contracts by widening types, adding optional chaining where required access was intended, swallowing errors, or adding non-null assertions; these changes compile but violate the semantic contract`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues30(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildSpecDriftContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Spec Drift Detection (${result.issues.length})
+`;
+  ctx += "This PR shows implementation-spec divergence \u2014 LLMs implement code that appears to satisfy the spec but actually drifts:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildSpecDriftBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Spec Drift Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs implement code that appears to satisfy the spec but actually drifts \u2014 stub markers where implementation is needed, signatures that don't match declared types, exports without consumers, and contracts weakened by widened types or swallowed errors. Review each finding to ensure the implementation matches the intended specification.*
+</details>
+`;
+  return body;
+}
+function detectSpecDrift(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectUnimplementedSpec(diffFiles));
+  allIssues.push(...detectSpecMismatch(diffFiles));
+  allIssues.push(...detectOrphanedSpec(diffFiles));
+  allIssues.push(...detectContractErosion(diffFiles));
+  const issues = dedupIssues30(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildSpecDriftContext(result);
+  result.bodySummary = buildSpecDriftBodySummary(result);
+  if (issues.length > 0) {
+    core78.info(`Spec drift detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/iac-vulnerability-detector.ts
+import * as core79 from "@actions/core";
+function stripPrefix12(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges11(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var DOCKERFILE_RE = /(?:^|\/)Dockerfile(?:\.\w+)?$/i;
+var TF_RE = /\.tf(?:vars)?$/i;
+var CF_RE = /\.ya?ml$/i;
+var CICD_RE = /(?:^|\/)\.github\/workflows\/.+\.ya?ml$/i;
+var CFLOUDORMATION_RE = /(?:cloudformation|cfn|stack)/i;
+function isDockerfile(path27) {
+  return DOCKERFILE_RE.test(path27);
+}
+function isTerraform(path27) {
+  return TF_RE.test(path27);
+}
+function isCloudFormation(path27) {
+  return CF_RE.test(path27) && CFLOUDORMATION_RE.test(path27);
+}
+function isCICD(path27) {
+  return CICD_RE.test(path27);
+}
+var DOCKER_PATTERNS = [
+  { re: /^\s*FROM\s+\S+:latest\b/i, label: "uses :latest tag \u2014 non-deterministic builds, supply chain risk", severity: "critical" },
+  { re: /^\s*FROM\s+[a-zA-Z][\w./-]+(?<!:\S+)\s*$/i, label: "FROM without tag \u2014 defaults to :latest, non-deterministic builds", severity: "warning" },
+  { re: /^\s*--privileged\b/i, label: "privileged container \u2014 grants host-level access, escapes container boundary", severity: "critical" },
+  { re: /^\s*RUN\s+.*--no-auth\b/i, label: "disables authentication in container build \u2014 never disable auth in production images", severity: "critical" },
+  { re: /^\s*RUN\s+.*chmod\s+777/i, label: "chmod 777 \u2014 world-writable files in container, privilege escalation risk", severity: "critical" },
+  { re: /^\s*EXPOSE\s+(?:22|3389)\b/i, label: "exposes SSH/RDP port in container \u2014 containers should not run SSH daemons", severity: "warning" },
+  { re: /^\s*RUN\s+.*apt-get\s+install\b(?!.*--no-install-recommends)/i, label: "apt-get install without --no-install-recommends \u2014 bloated image with unnecessary packages, larger attack surface", severity: "warning" }
+];
+var DOCKERFILE_NO_ROOT_RE = /^\s*USER\s+/i;
+var DOCKERFILE_HEALTHCHECK_RE = /^\s*HEALTHCHECK\b/i;
+function detectDockerInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  let hasUserDirective = false;
+  let hasHealthcheck = false;
+  let hasFromDirective = false;
+  for (const change of added) {
+    const trimmed = stripPrefix12(change.content);
+    if (DOCKERFILE_NO_ROOT_RE.test(trimmed)) hasUserDirective = true;
+    if (DOCKERFILE_HEALTHCHECK_RE.test(trimmed)) hasHealthcheck = true;
+    if (/^\s*FROM\s+/i.test(trimmed)) hasFromDirective = true;
+    for (const { re: re2, label, severity } of DOCKER_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "docker-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Docker insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 IOActive 2026 study found 70-97% vulnerability rates in AI-generated Dockerfiles; LLMs default to insecure configurations; fix this before merging`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  if (hasFromDirective && !hasUserDirective) {
+    issues.push({
+      category: "docker-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No USER directive",
+      description: `Docker insecurity in \`${file2.path}\`: no USER directive \u2014 container runs as root by default; IOActive found root containers in AI-generated Dockerfiles are the most common vulnerability; add \`USER node\` or similar non-root user`,
+      severity: "critical"
+    });
+  }
+  if (hasFromDirective && !hasHealthcheck) {
+    issues.push({
+      category: "docker-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No HEALTHCHECK instruction",
+      description: `Docker insecurity in \`${file2.path}\`: no HEALTHCHECK instruction \u2014 orchestrators cannot detect unhealthy containers; LLMs rarely add health checks; add a HEALTHCHECK for production readiness`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+var TF_PATTERNS = [
+  { re: /\bserver_side_encryption\s*=\s*false/i, label: "server_side_encryption disabled \u2014 data at rest is unencrypted", severity: "critical" },
+  { re: /cidr_blocks\s*=\s*\[\s*"0\.0\.0\.0\/0"\s*\]/, label: "security group open to 0.0.0.0/0 \u2014 allows ingress from the entire internet", severity: "critical" },
+  { re: /\bpublic_access\s*=\s*true/i, label: "public access enabled \u2014 resource exposed to the internet", severity: "critical" },
+  { re: /\bencrypt\s*=\s*false/i, label: "encryption disabled \u2014 data at rest is unencrypted", severity: "critical" },
+  { re: /\bssl\s*=\s*false/i, label: "SSL disabled \u2014 data in transit is unencrypted", severity: "critical" },
+  { re: /\benforce_https\s*=\s*false/i, label: "HTTPS enforcement disabled \u2014 data in transit is unencrypted", severity: "critical" },
+  { re: /\baccess_key\s*=\s*["']/i, label: "hardcoded access key in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bsecret_key\s*=\s*["']/i, label: "hardcoded secret key in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bpassword\s*=\s*["'][^"']+["']/i, label: "hardcoded password in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bprevent_destroy\s*=\s*false/i, label: "prevent_destroy disabled \u2014 resource can be accidentally destroyed", severity: "warning" }
+];
+function detectTerraformInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of TF_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "tf-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Terraform insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate IaC with insecure defaults; IOActive found 70-97% vulnerability rates in AI-generated infrastructure code; fix this before applying`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+var CICD_PATTERNS = [
+  { re: /^\s*permissions:\s*write-all/i, label: "write-all permissions \u2014 workflow has unrestricted write access to repository", severity: "critical" },
+  { re: /^\s*-\s*uses:\s*actions\/checkout@v1\b/, label: "checkout@v1 \u2014 vulnerable to repo confusion attacks; use v4+ with persist-credentials: false", severity: "warning" },
+  { re: /pull_request_target/i, label: "pull_request_target trigger \u2014 can execute untrusted code with repo token; use with extreme caution", severity: "critical" },
+  { re: /\$\{\{\s*github\.event\.pull_request\.body\s*\}\}/i, label: "PR body interpolation \u2014 untrusted input injected into workflow, script injection risk", severity: "critical" },
+  { re: /\$\{\{\s*github\.event(?:\.(?:head|base)_repo)?\.clone_url\s*\}\}/i, label: "clone_url interpolation \u2014 attacker can redirect to malicious repo", severity: "critical" },
+  { re: /actions\s+token\s+debugging.*:\s*true/i, label: " Actions token debugging enabled \u2014 leaks OIDC token in logs", severity: "warning" }
+];
+function detectCICDInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  const allContent = added.map((c) => stripPrefix12(c.content)).join("\n");
+  const hasOnTrigger = /\bon:\s*$/m.test(allContent) || /\bon:\s*\[?\s*(?:push|pull_request|workflow_dispatch)/m.test(allContent);
+  const hasPermissions = /^\s*permissions\s*:/m.test(allContent);
+  if (hasOnTrigger && !hasPermissions) {
+    issues.push({
+      category: "cicd-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No permissions block",
+      description: `CI/CD insecurity in \`${file2.path}\`: workflow has no permissions block \u2014 GitHub Actions defaults to write token; LLMs generate workflows without permission boundaries; add explicit \`permissions:\` with minimum required scopes`,
+      severity: "warning"
+    });
+  }
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of CICD_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "cicd-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `CI/CD insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate CI/CD pipelines with insecure defaults; CSA 2026 reports 10x surge in IaC security findings; fix before enabling the workflow`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+var CF_PATTERNS = [
+  { re: /\bAction:\s*["']?\*["']?/i, label: "Allow action * \u2014 IAM policy grants all actions, violates least privilege", severity: "critical" },
+  { re: /\bResource:\s*["']?\*["']?/i, label: "Resource * \u2014 IAM policy targets all resources, violates least privilege", severity: "critical" },
+  { re: /\bEncryptionConfiguration:\s*\{[^}]*Enabled:\s*false/i, label: "encryption disabled \u2014 S3/EFS/EBS data at rest is unencrypted", severity: "critical" },
+  { re: /\bPublicAccessBlockConfiguration:\s*\{[^}]*BlockPublicAcls:\s*false/i, label: "public access not blocked \u2014 S3 bucket allows public ACLs", severity: "critical" },
+  { re: /\bCidrIp:\s*["']0\.0\.0\.0\/0["']/i, label: "security group open to 0.0.0.0/0 \u2014 allows ingress from the entire internet", severity: "critical" },
+  { re: /\bEngine:\s*aurora\b/i, label: "Aurora engine without encryption check \u2014 ensure StorageEncrypted is true", severity: "warning" }
+];
+function detectCloudFormationInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of CF_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "cloudformation-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `CloudFormation insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate CloudFormation with overly permissive IAM and unencrypted resources; IOActive found 70-97% vulnerability rates in AI-generated infrastructure; fix before deploying`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues31(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildIaCVulnerabilityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## IaC/Infrastructure Vulnerability Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies infrastructure code with insecure defaults \u2014 IOActive 2026 found 70-97% vulnerability rates in AI-generated IaC:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildIaCVulnerabilityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>IaC/Infrastructure Vulnerability Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*IOActive 2026 found 70-97% vulnerability rates in AI-generated infrastructure code \u2014 Dockerfiles with root users and latest tags, Terraform with open security groups and unencrypted storage, CI/CD workflows without permission boundaries, CloudFormation with overly permissive IAM. These are the highest-risk code patterns LLMs produce. Review and fix before deploying.*
+</details>
+`;
+  return body;
+}
+function detectIaCVulnerabilities(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (isDockerfile(file2.path)) {
+      allIssues.push(...detectDockerInsecurity(file2));
+    }
+    if (isTerraform(file2.path)) {
+      allIssues.push(...detectTerraformInsecurity(file2));
+    }
+    if (isCICD(file2.path)) {
+      allIssues.push(...detectCICDInsecurity(file2));
+    }
+    if (isCloudFormation(file2.path)) {
+      allIssues.push(...detectCloudFormationInsecurity(file2));
+    }
+  }
+  const issues = dedupIssues31(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildIaCVulnerabilityContext(result);
+  result.bodySummary = buildIaCVulnerabilityBodySummary(result);
+  if (issues.length > 0) {
+    core79.info(`IaC vulnerability detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
+// src/credential-exposure-detector.ts
+import * as core80 from "@actions/core";
+function stripPrefix13(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges12(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+function shannonEntropy2(str) {
+  const freq = /* @__PURE__ */ new Map();
+  for (const ch of str) {
+    freq.set(ch, (freq.get(ch) || 0) + 1);
+  }
+  let entropy = 0;
+  const len = str.length;
+  for (const count of freq.values()) {
+    const p = count / len;
+    if (p > 0) entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+var HIGH_ENTROPY_THRESHOLD = 4.5;
+var MIN_SECRET_LENGTH = 20;
+var SKIP_LINE_RE23 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var CLOUD_KEY_PREFIXES = [
+  /\bAKIA[0-9A-Z]{16}\b/,
+  // AWS access key
+  /\bASI[A-Z0-9]{16}\b/,
+  // AWS secret access key prefix
+  /\bAGPA[A-Z0-9]{16}\b/,
+  // AWS IAM role
+  /\bAIDA[A-Z0-9]{16}\b/,
+  // AWS IAM user
+  /\bAROA[A-Z0-9]{16}\b/,
+  // AWS IAM role
+  /\byo\d{30}\b/
+  // GCP service account key
+];
+var API_KEY_PATTERNS = [
+  /\bsk-[a-zA-Z0-9]{20,}/,
+  // OpenAI-style API key
+  /\bsk_live_[a-zA-Z0-9]{20,}/,
+  // Stripe live key
+  /\bsk_test_[a-zA-Z0-9]{20,}/,
+  // Stripe test key
+  /\bkey_[a-zA-Z0-9]{20,}/,
+  // Generic API key
+  /\btoken_[a-zA-Z0-9]{20,}/,
+  // Generic token
+  /\bBearer\s+[A-Za-z0-9+/._-]{20,}/,
+  // Bearer tokens
+  /\bghp_[a-zA-Z0-9]{36}\b/,
+  // GitHub PAT
+  /\bgho_[a-zA-Z0-9]{36}\b/,
+  // GitHub OAuth
+  /\bgithub_pat_[a-zA-Z0-9_]{20,}/,
+  // GitHub fine-grained PAT
+  /\bglpat-[a-zA-Z0-9\-]{20,}/,
+  // GitLab PAT
+  /\bxox[bpar]-[a-zA-Z0-9-]{20,}/
+  // Slack tokens
+];
+function isHighEntropySecret(value) {
+  if (value.length < MIN_SECRET_LENGTH) return false;
+  const entropy = shannonEntropy2(value);
+  return entropy >= HIGH_ENTROPY_THRESHOLD;
+}
+function matchCloudKeyPrefix(value) {
+  return CLOUD_KEY_PREFIXES.some((re2) => re2.test(value));
+}
+function matchAPIKeyPattern(value) {
+  return API_KEY_PATTERNS.some((re2) => re2.test(value));
+}
+var ENV_INLINE_FALLBACK_RE = /process\.env\.(\w+)\s*\|\|\s*["']([^"']+)["']/g;
+function detectScaffoldWithInlineSecret(file2) {
+  const issues = [];
+  const added = getAddedChanges12(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE23.test(change.content)) continue;
+    const trimmed = stripPrefix13(change.content);
+    if (file2.path.includes("test") || file2.path.includes("__tests__")) continue;
+    ENV_INLINE_FALLBACK_RE.lastIndex = 0;
+    let match2;
+    while ((match2 = ENV_INLINE_FALLBACK_RE.exec(trimmed)) !== null) {
+      const varName = match2[1];
+      const fallback = match2[2];
+      if (isHighEntropySecret(fallback) || matchAPIKeyPattern(fallback) || matchCloudKeyPrefix(fallback)) {
+        issues.push({
+          category: "scaffold-with-inline-secret",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Scaffold secret in \`${file2.path}:${change.line}\`: env var \`${varName}\` has high-entropy inline fallback \u2014 LLMs scaffold config with example credentials that devs forget to replace; CSA 2026 reports 2x secret exposure rate for AI-assisted devs; remove the inline fallback and use proper secrets management`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+var CONFIG_KEY_RE = /(?:apiKey|api_key|secretKey|secret_key|accessKey|access_key|password|passwd|token|authToken|auth_token|privateKey|private_key|credentials|connectionString|connection_string)\s*[:=]\s*["']([^"']+)["']/gi;
+function detectConfigObjectLiteralSecret(file2) {
+  const issues = [];
+  const added = getAddedChanges12(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE23.test(change.content)) continue;
+    const trimmed = stripPrefix13(change.content);
+    if (file2.path.includes("test") || file2.path.includes("__tests__")) continue;
+    CONFIG_KEY_RE.lastIndex = 0;
+    const match2 = CONFIG_KEY_RE.exec(trimmed);
+    if (match2) {
+      const value = match2[1];
+      if (isHighEntropySecret(value) || matchAPIKeyPattern(value) || matchCloudKeyPrefix(value)) {
+        issues.push({
+          category: "config-object-literal-secret",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Config literal secret in \`${file2.path}:${change.line}\`: config object has high-entropy key value \u2014 LLMs scaffold SDK connections with inline credentials; Escape.tech found 400+ leaked secrets in AI-coded apps; use env vars or secrets manager instead`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+var CONSTRUCTOR_CRED_RE = /new\s+(?:Client|SDK|Service|Connection|Provider)\s*\(\s*\{[^}]*(?:key|token|secret|password|credential)\s*:\s*["']([^"']+)["']/gis;
+function detectConstructorHardcodedCredential(file2) {
+  const issues = [];
+  const added = getAddedChanges12(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE23.test(change.content)) continue;
+    const trimmed = stripPrefix13(change.content);
+    if (file2.path.includes("test") || file2.path.includes("__tests__")) continue;
+    CONSTRUCTOR_CRED_RE.lastIndex = 0;
+    const match2 = CONSTRUCTOR_CRED_RE.exec(trimmed);
+    if (match2) {
+      const value = match2[1];
+      if (isHighEntropySecret(value) || matchAPIKeyPattern(value) || matchCloudKeyPrefix(value)) {
+        issues.push({
+          category: "constructor-hardcoded-credential",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Constructor secret in \`${file2.path}:${change.line}\`: SDK client instantiated with inline credential \u2014 LLMs provide example credentials in constructors that reach production; use env vars or secrets manager for initialization`,
+          severity: "critical"
+        });
+      }
+    }
+  }
+  return issues;
+}
+var PLACEHOLDER_COMMENT_RE = /\/\/.*(?:replace|update|insert|fill|change|add)\s+(?:with\s+)?(?:your|the|actual|real|valid)/i;
+var NEARBY_STRING_LITERAL_RE = /["']([A-Za-z0-9+/=_-]{8,})["']/g;
+function detectExamplePlaceholderSecret(file2) {
+  const issues = [];
+  const added = getAddedChanges12(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE23.test(change.content)) continue;
+    const trimmed = stripPrefix13(change.content);
+    if (file2.path.includes("test") || file2.path.includes("__tests__")) continue;
+    if (PLACEHOLDER_COMMENT_RE.test(trimmed)) {
+      NEARBY_STRING_LITERAL_RE.lastIndex = 0;
+      let match2;
+      while ((match2 = NEARBY_STRING_LITERAL_RE.exec(trimmed)) !== null) {
+        const value = match2[1];
+        if (isHighEntropySecret(value) || matchAPIKeyPattern(value) || matchCloudKeyPrefix(value)) {
+          issues.push({
+            category: "example-placeholder-secret",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Placeholder secret in \`${file2.path}:${change.line}\`: "replace with your" comment near hardcoded secret \u2014 LLMs add placeholder comments but devs often miss them; remove the hardcoded value and use env vars`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues32(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue2) => {
+    const key = `${issue2.category}:${issue2.file}:${issue2.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildCredentialExposureContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Credential Exposure Accelerator Detection (${result.issues.length})
+`;
+  ctx += "This PR contains AI-scaffolded credential patterns \u2014 CSA 2026 reports 2x secret exposure rate for AI-assisted devs:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildCredentialExposureBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Credential Exposure Accelerator Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*AI-assisted devs expose secrets at 2x the rate of non-AI devs (CSA 2026). LLMs scaffold config with example credentials \u2014 inline env var fallbacks, config object literals, SDK constructor credentials, placeholder comments near hardcoded values. Remove all inline secrets and use env vars or secrets management.*
+</details>
+`;
+  return body;
+}
+function detectCredentialExposure(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectScaffoldWithInlineSecret(file2));
+    allIssues.push(...detectConfigObjectLiteralSecret(file2));
+    allIssues.push(...detectConstructorHardcodedCredential(file2));
+    allIssues.push(...detectExamplePlaceholderSecret(file2));
+  }
+  const issues = dedupIssues32(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildCredentialExposureContext(result);
+  result.bodySummary = buildCredentialExposureBodySummary(result);
+  if (issues.length > 0) {
+    core80.info(`Credential exposure detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
-var RetryingOctokit = Octokit.plugin(retry);
+var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
   try {
     const config2 = loadConfig();
     let manualInstructions = "";
     const ctx = github.context;
-    const token = process.env.GITHUB_TOKEN || core45.getInput("github_token");
+    const token = process.env.GITHUB_TOKEN || core81.getInput("github_token");
     if (!token) {
-      core45.setFailed("GITHUB_TOKEN is required");
+      core81.setFailed("GITHUB_TOKEN is required");
       return;
     }
     const octokit = new RetryingOctokit({ auth: token });
     const rateLimiter = createRateLimiter(config2.provider);
     const prNumber = getPrNumber(ctx);
     if (!prNumber) {
-      core45.info("No PR number found \xE2\u20AC\u201D skipping review");
+      core81.info("No PR number found \xE2\u20AC\u201D skipping review");
       return;
     }
     const owner = ctx.repo.owner;
     const repo = ctx.repo.repo;
     const isManualTrigger = ctx.eventName === "issue_comment";
-    core45.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
-    if (config2.dryRun) core45.info("DRY RUN: review will be logged but not posted");
+    core81.info(`Mizumi reviewing ${owner}/${repo}#${prNumber} with ${config2.provider}/${config2.model}`);
+    if (config2.dryRun) core81.info("DRY RUN: review will be logged but not posted");
     const workspace = process.env.GITHUB_WORKSPACE || ".";
     const headSha = ctx.payload.pull_request?.head?.sha || ctx.sha;
     const deliveryId = ctx.payload.delivery_id || "";
@@ -90947,7 +105925,7 @@ async function run() {
     if (isManualTrigger) {
       const cmd = parseCommand(ctx.payload.comment?.body || "");
       if (cmd?.command === "describe") {
-        core45.info("Running /mizumi describe...");
+        core81.info("Running /mizumi describe...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
         await rateLimiter.acquire();
@@ -90964,7 +105942,7 @@ async function run() {
           issue_number: prNumber,
           body: description
         });
-        core45.info("Description posted");
+        core81.info("Description posted");
         return;
       }
       if (cmd?.command === "improve") {
@@ -90977,7 +105955,7 @@ async function run() {
           });
           return;
         }
-        core45.info("Running /mizumi improve...");
+        core81.info("Running /mizumi improve...");
         const result = await generateFix(octokit, owner, repo, prNumber, config2);
         await octokit.rest.issues.createComment({
           owner,
@@ -90988,7 +105966,7 @@ async function run() {
         return;
       }
       if (cmd?.command === "test") {
-        core45.info("Running /mizumi test...");
+        core81.info("Running /mizumi test...");
         const diff2 = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
         const recentFindings = await getLatestFindings(octokit, owner, repo, prNumber);
         await rateLimiter.acquire();
@@ -90997,49 +105975,49 @@ async function run() {
         return;
       }
       if (cmd?.command === "spend") {
-        core45.info("Running /mizumi spend...");
+        core81.info("Running /mizumi spend...");
         const entries = readSpendLog(workspace);
         await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: formatSpendDigest(entries) });
         return;
       }
       if (cmd?.command === "review" && cmd.args) {
         manualInstructions = cmd.args;
-        core45.info("Custom review instructions: " + manualInstructions);
+        core81.info("Custom review instructions: " + manualInstructions);
       }
     }
     if (!config2.autoReview && !isManualTrigger) {
-      core45.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
+      core81.info("auto_review is false \xE2\u20AC\u201D skipping. Use /mizumi to trigger.");
       return;
     }
     if (!isManualTrigger && config2.autoPauseAfter > 0) {
       const reviewCount = await countMizumiReviews(octokit, owner, repo, prNumber);
       if (reviewCount >= config2.autoPauseAfter) {
-        core45.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
+        core81.info(`Auto-paused: ${reviewCount} reviews already posted (limit=${config2.autoPauseAfter}). Use /mizumi to resume.`);
         return;
       }
     }
     if (checkAndMarkDelivery(workspace, deliveryId)) {
-      core45.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
+      core81.info("Duplicate webhook delivery \xE2\u20AC\u201D skipping");
       return;
     }
     if (!isManualTrigger && checkAndMarkSha(workspace, headSha)) {
-      core45.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
+      core81.info(`Already reviewed SHA ${headSha.slice(0, 7)} \xE2\u20AC\u201D skipping. Use /mizumi to force.`);
       return;
     }
     if (config2.autoFix) {
       try {
         const autoFixed = await processReactionApprovals(octokit, owner, repo, prNumber, config2);
         if (autoFixed > 0) {
-          core45.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
-          core45.setOutput("auto_fixed", autoFixed);
+          core81.info(`Auto-fixed ${autoFixed} suggestion(s) via \xF0\u0178\u2018\x8D reaction approval`);
+          core81.setOutput("auto_fixed", autoFixed);
         }
       } catch (e) {
-        core45.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Auto-fix processing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.ciValidatedFix && config2.improveEnabled) {
       try {
-        core45.info("Running CI-validated fix loop...");
+        core81.info("Running CI-validated fix loop...");
         const ciResult = await runCIFixLoop(octokit, owner, repo, prNumber, {
           enabled: config2.ciValidatedFix,
           timeoutSeconds: config2.ciFixTimeout,
@@ -91051,15 +106029,15 @@ async function run() {
         const ciRetries = ciResult.retriesUsed;
         const ciReverted = ciResult.reverted;
         const ciStatus = ciResult.ciStatus;
-        core45.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
+        core81.info("CI fix loop: success=" + ciSuccess + ", retries=" + ciRetries + ", reverted=" + ciReverted + ", ciStatus=" + ciStatus);
       } catch (e) {
-        core45.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("CI fix loop failed: " + (e instanceof Error ? e.message : String(e)));
       }
     } else if (config2.ciValidatedFix && !config2.improveEnabled) {
-      core45.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
+      core81.warning("ci_validated_fix requires improve_enabled=true. Enable both to use CI-validated fixes.");
     }
     const diff = await fetchDiff(octokit, owner, repo, prNumber, config2.excludePatterns);
-    core45.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
+    core81.info(`Diff: ${diff.files.length} files, +${diff.totalAdditions}/-${diff.totalDeletions}`);
     let deltaBody = "";
     if (config2.deltaReview) {
       try {
@@ -91075,24 +106053,24 @@ async function run() {
         );
         if (deltaResult.isIncremental && deltaResult.incrementalDiff) {
           if (deltaResult.incrementalDiff.files.length === 0) {
-            core45.info("Delta review: no new changes since last review - skipping");
+            core81.info("Delta review: no new changes since last review - skipping");
             return;
           }
-          core45.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
+          core81.info(`Delta review: incremental ${deltaResult.incrementalDiff.files.length} files, ${deltaResult.savings.percentSaved}% token savings`);
           diff.files = deltaResult.incrementalDiff.files;
           diff.totalAdditions = deltaResult.incrementalDiff.totalAdditions;
           diff.totalDeletions = deltaResult.incrementalDiff.totalDeletions;
           diff.rawDiff = deltaResult.incrementalDiff.rawDiff;
           deltaBody = formatDeltaSummary(deltaResult);
         } else {
-          core45.info("Delta review: full review (no previous SHA or non-incremental)");
+          core81.info("Delta review: full review (no previous SHA or non-incremental)");
         }
       } catch (e) {
-        core45.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Delta review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (diff.files.length === 0) {
-      core45.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
+      core81.info("No changed files after exclusions \xE2\u20AC\u201D skipping review");
       return;
     }
     const prClassification = classifyPR(
@@ -91100,14 +106078,14 @@ async function run() {
       diff.totalAdditions,
       diff.totalDeletions
     );
-    core45.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
+    core81.info(`PR classification: ${prClassification.category} (${prClassification.reason})`);
     const classification = classifyDiff(
       diff.totalAdditions + diff.totalDeletions,
       diff.files.length,
       diff.files.map((f) => f.path),
       config2
     );
-    core45.info(`Classification: ${classification.tier} (${classification.reason})`);
+    core81.info(`Classification: ${classification.tier} (${classification.reason})`);
     const slopResult = detectSlop(
       diff.rawDiff,
       diff.totalAdditions,
@@ -91116,17 +106094,17 @@ async function run() {
       diff.files.map((f) => f.path)
     );
     if (slopResult.isSlop) {
-      core45.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
+      core81.info(`Slop detected: score=${slopResult.score}, reasons: ${slopResult.reasons.join(", ")}`);
     }
     const lineMap = buildLineMapFromRawDiff(diff.rawDiff);
     const ruleFindings = runRules(diff.files);
-    core45.info(`Rules: ${ruleFindings.length} deterministic findings`);
+    core81.info(`Rules: ${ruleFindings.length} deterministic findings`);
     const adrs = discoverADRs(workspace);
     let engineFindings = [];
     try {
       const engineResult = executeRuleEngine(diff.files, workspace, `${owner}/${repo}`);
       engineFindings = engineResult.findings;
-      core45.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
+      core81.info(`Rule engine: ${engineResult.findings.length} finding(s), ${engineResult.rulesUsed} rule(s) used, ${engineResult.discoveredNew} discovered, ${engineResult.decayed} decayed`);
       let adrViolations = [];
       if (adrs.length > 0) {
         try {
@@ -91140,14 +106118,14 @@ async function run() {
               message: v.message,
               rule: v.rule
             }))];
-            core45.info("ADR violations: " + adrViolations.length);
+            core81.info("ADR violations: " + adrViolations.length);
           }
         } catch (e) {
-          core45.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("ADR enforcement failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     } catch (e) {
-      core45.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
+      core81.warning(`Rule engine failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     let astViolations = [];
     if (config2.astContractAnalysis) {
@@ -91155,12 +106133,12 @@ async function run() {
         const astResult = runASTContractAnalysis(diff.files, workspace);
         astViolations = astResult.violations;
         if (astViolations.length > 0) {
-          core45.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
+          core81.info("AST contracts: " + astResult.violations.length + " violation(s), " + astResult.filesAnalyzed + " files analyzed");
         } else {
-          core45.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
+          core81.info("AST contracts: no violations (" + astResult.filesAnalyzed + " files analyzed)");
         }
       } catch (e) {
-        core45.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("AST contract analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let taintResult = null;
@@ -91168,7 +106146,7 @@ async function run() {
       try {
         taintResult = runTaintAnalysis(diff.files);
       } catch (e) {
-        core45.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Taint analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let concurrencyResult = null;
@@ -91176,10 +106154,374 @@ async function run() {
       try {
         concurrencyResult = analyzeConcurrency(diff.files);
         if (concurrencyResult.hazards.length > 0) {
-          core45.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
+          core81.info("Concurrency analysis: " + concurrencyResult.hazards.length + " hazards detected");
         }
       } catch (e) {
-        core45.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Concurrency analysis failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let crossPRConflictResult = null;
+    if (config2.crossprConflictDetection) {
+      try {
+        const openPRs = await octokit.rest.pulls.list({ owner, repo, state: "open", per_page: 100 });
+        const otherPRSummaries = [];
+        for (const pr of openPRs.data) {
+          if (pr.number === prNumber) continue;
+          try {
+            const prDiff = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: pr.number });
+            const prFiles = prDiff.data.map((f) => ({
+              path: f.filename,
+              status: f.status === "removed" ? "deleted" : f.status === "renamed" ? "modified" : f.status || "modified",
+              additions: f.additions || 0,
+              deletions: f.deletions || 0,
+              hunks: []
+            }));
+            otherPRSummaries.push(buildOpenPRSummary(pr.number, pr.title, prFiles));
+          } catch {
+          }
+        }
+        crossPRConflictResult = detectCrossPRConflicts(diff.files, otherPRSummaries);
+        if (crossPRConflictResult.conflicts.length > 0) {
+          core81.info("Cross-PR conflicts: " + crossPRConflictResult.conflicts.length + " detected against " + otherPRSummaries.length + " open PRs");
+        }
+      } catch (e) {
+        core81.warning("Cross-PR conflict detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let driftResult = null;
+    if (config2.architectureDriftDetection) {
+      try {
+        const archModel = loadArchitectureModel(workspace);
+        if (archModel) {
+          driftResult = detectArchitectureDrift(diff.files, archModel);
+          if (driftResult.violations.length > 0) {
+            core81.info("Architecture drift: " + driftResult.violations.length + " violations detected");
+          }
+        }
+      } catch (e) {
+        core81.warning("Architecture drift detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let assertionAuditResult = null;
+    if (config2.testAssertionAudit) {
+      try {
+        assertionAuditResult = auditTestAssertions(diff.files);
+        if (assertionAuditResult.issues.length > 0) {
+          core81.info("Test assertion audit: " + assertionAuditResult.issues.length + " quality issues detected");
+        }
+      } catch (e) {
+        core81.warning("Test assertion audit failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let breakingChangeResult = null;
+    if (config2.breakingChangeRadar) {
+      try {
+        breakingChangeResult = detectBreakingChanges(diff.files);
+        if (breakingChangeResult.changes.length > 0) {
+          core81.info("Breaking change radar: " + breakingChangeResult.changes.length + " detected");
+        }
+      } catch (e) {
+        core81.warning("Breaking change radar failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let importCycleResult = null;
+    if (config2.importCycleDetector) {
+      try {
+        importCycleResult = detectImportCycles(diff.files);
+        if (importCycleResult.cycles.length > 0) {
+          core81.info("Import cycle detection: " + importCycleResult.cycles.length + " cycle(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Import cycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let deadCodeResult = null;
+    if (config2.deadCodeDetector) {
+      try {
+        deadCodeResult = detectDeadCode(diff.files);
+        if (deadCodeResult.issues.length > 0) {
+          core81.info("Dead code detection: " + deadCodeResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Dead code detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let typeErosionResult = null;
+    if (config2.typeSafetyErosion) {
+      try {
+        typeErosionResult = detectTypeSafetyErosion(diff.files);
+        if (typeErosionResult.issues.length > 0) {
+          core81.info("Type safety erosion: " + typeErosionResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Type safety erosion detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let techDebtResult = null;
+    if (config2.todoDebtDetector) {
+      try {
+        techDebtResult = detectTechDebt(diff.files);
+        if (techDebtResult.issues.length > 0) {
+          core81.info("Tech debt detection: " + techDebtResult.issues.length + " marker(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Tech debt detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let magicNumberResult = null;
+    if (config2.magicNumberDetector) {
+      try {
+        magicNumberResult = detectMagicNumbers(diff.files);
+        if (magicNumberResult.issues.length > 0) {
+          core81.info("Magic number detection: " + magicNumberResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Magic number detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let errorHandlingResult = null;
+    if (config2.errorHandlingDetector) {
+      try {
+        errorHandlingResult = detectErrorHandlingGaps(diff.files);
+        if (errorHandlingResult.issues.length > 0) {
+          core81.info("Error handling gap detection: " + errorHandlingResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Error handling gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let perfAntiPatternResult = null;
+    if (config2.performanceAntipatternDetector) {
+      try {
+        perfAntiPatternResult = detectPerformanceAntiPatterns(diff.files);
+        if (perfAntiPatternResult.issues.length > 0) {
+          core81.info("Performance anti-pattern detection: " + perfAntiPatternResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Performance anti-pattern detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let resourceLifecycleResult = null;
+    if (config2.resourceLifecycleDetector) {
+      try {
+        resourceLifecycleResult = detectResourceLifecycleViolations(diff.files);
+        if (resourceLifecycleResult.issues.length > 0) {
+          core81.info("Resource lifecycle detection: " + resourceLifecycleResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Resource lifecycle detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let observabilityGapResult = null;
+    if (config2.observabilityGapDetector) {
+      try {
+        observabilityGapResult = detectObservabilityGaps(diff.files);
+        if (observabilityGapResult.issues.length > 0) {
+          core81.info("Observability gap detection: " + observabilityGapResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Observability gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let concurrencyHazardResult = null;
+    if (config2.concurrencyHazardDetector) {
+      try {
+        concurrencyHazardResult = detectConcurrencyHazards(diff.files);
+        if (concurrencyHazardResult.issues.length > 0) {
+          core81.info("Concurrency hazard detection: " + concurrencyHazardResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Concurrency hazard detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let lifecycleProtocolResult = null;
+    if (config2.lifecycleProtocolDetector) {
+      try {
+        lifecycleProtocolResult = detectLifecycleProtocolViolations(diff.files);
+        if (lifecycleProtocolResult.issues.length > 0) {
+          core81.info("Lifecycle protocol detection: " + lifecycleProtocolResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Lifecycle protocol detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let semanticConfusionResult = null;
+    if (config2.semanticTypeConfusionDetector) {
+      try {
+        semanticConfusionResult = detectSemanticTypeConfusion(diff.files);
+        if (semanticConfusionResult.issues.length > 0) {
+          core81.info("Semantic type confusion detection: " + semanticConfusionResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Semantic type confusion detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let dataFlowBoundaryResult = null;
+    if (config2.dataFlowBoundaryDetector) {
+      try {
+        dataFlowBoundaryResult = detectDataFlowBoundaryViolations(diff.files);
+        if (dataFlowBoundaryResult.issues.length > 0) {
+          core81.info("Data flow boundary detection: " + dataFlowBoundaryResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Data flow boundary detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let nullGuardResult = null;
+    if (config2.nullGuardDetector) {
+      try {
+        nullGuardResult = detectNullGuardGaps(diff.files);
+        if (nullGuardResult.issues.length > 0) {
+          core81.info("Null guard detection: " + nullGuardResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Null guard detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let aiPathologyResult = null;
+    if (config2.aiCodePathologyDetector) {
+      try {
+        aiPathologyResult = detectAICodePathologies(diff.files);
+        if (aiPathologyResult.issues.length > 0) {
+          core81.info("AI code pathology detection: " + aiPathologyResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("AI code pathology detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let ungatedReturnResult = null;
+    if (config2.ungatedCriticalReturnDetector) {
+      try {
+        ungatedReturnResult = detectUngatedCriticalReturns(diff.files);
+        if (ungatedReturnResult.issues.length > 0) {
+          core81.info("Ungated critical return detection: " + ungatedReturnResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Ungated critical return detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let hardcodedConfigResult = null;
+    if (config2.hardcodedConfigDetector) {
+      try {
+        hardcodedConfigResult = detectHardcodedConfig(diff.files);
+        if (hardcodedConfigResult.issues.length > 0) {
+          core81.info("Hardcoded config detection: " + hardcodedConfigResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Hardcoded config detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let debugArtifactResult = null;
+    if (config2.debugArtifactDetector) {
+      try {
+        debugArtifactResult = detectDebugArtifacts(diff.files);
+        if (debugArtifactResult.issues.length > 0) {
+          core81.info("Debug artifact detection: " + debugArtifactResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Debug artifact detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let callbackMisuseResult = null;
+    if (config2.callbackMisuseDetector) {
+      try {
+        callbackMisuseResult = detectCallbackMisuse(diff.files);
+        if (callbackMisuseResult.issues.length > 0) {
+          core81.info("Callback misuse detection: " + callbackMisuseResult.issues.length + " issue(s) detected");
+        }
+      } catch (e) {
+        core81.warning("Callback misuse detection failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    let staleClosureResult = null;
+    if (config2.staleClosureDetector) {
+      staleClosureResult = detectStaleClosures(diff.files);
+      if (staleClosureResult.issues.length > 0) {
+        core81.info("Stale closure detection: " + staleClosureResult.issues.length + " issue(s)");
+      }
+    }
+    let hallucinatedDepResult = null;
+    if (config2.hallucinatedDependencyDetector) {
+      hallucinatedDepResult = detectHallucinatedDeps(diff.files);
+      if (hallucinatedDepResult.issues.length > 0) {
+        core81.info("Hallucinated dependency detection: " + hallucinatedDepResult.issues.length + " issue(s)");
+      }
+    }
+    let tautologicalTestResult = null;
+    if (config2.tautologicalTestDetector) {
+      tautologicalTestResult = detectTautologicalTests(diff.files);
+      if (tautologicalTestResult.issues.length > 0) {
+        core81.info("Tautological test detection: " + tautologicalTestResult.issues.length + " issue(s)");
+      }
+    }
+    let contextAmplificationResult = null;
+    if (config2.contextAmplificationDetector) {
+      contextAmplificationResult = detectContextAmplification(diff.files);
+      if (contextAmplificationResult.issues.length > 0) {
+        core81.info("Context amplification detection: " + contextAmplificationResult.issues.length + " issue(s)");
+      }
+    }
+    let cargoCultResult = null;
+    if (config2.cargoCultArchitectureDetector) {
+      cargoCultResult = detectCargoCultArchitecture(diff.files);
+      if (cargoCultResult.issues.length > 0) {
+        core81.info("Cargo-cult architecture detection: " + cargoCultResult.issues.length + " issue(s)");
+      }
+    }
+    let confabulatedAPIResult = null;
+    if (config2.confabulatedAPIDetector) {
+      confabulatedAPIResult = detectConfabulatedAPI(diff.files);
+      if (confabulatedAPIResult.issues.length > 0) {
+        core81.info("Confabulated API detection: " + confabulatedAPIResult.issues.length + " issue(s)");
+      }
+    }
+    let partialSecurityResult = null;
+    if (config2.partialSecurityControlDetector) {
+      partialSecurityResult = detectPartialSecurityControls(diff.files);
+      if (partialSecurityResult.issues.length > 0) {
+        core81.info("Partial security control detection: " + partialSecurityResult.issues.length + " issue(s)");
+      }
+    }
+    let paradigmClashResult = null;
+    if (config2.paradigmClashDetector) {
+      paradigmClashResult = detectParadigmClashes(diff.files);
+      if (paradigmClashResult.issues.length > 0) {
+        core81.info("Paradigm clash detection: " + paradigmClashResult.issues.length + " issue(s)");
+      }
+    }
+    let velocityRiskResult = null;
+    if (config2.velocityRiskDetector) {
+      velocityRiskResult = detectVelocityRisks(diff.files);
+      if (velocityRiskResult.issues.length > 0) {
+        core81.info("Velocity risk detection: " + velocityRiskResult.issues.length + " issue(s)");
+      }
+    }
+    let rulesIntegrityResult = null;
+    if (config2.rulesFileIntegrityDetector) {
+      rulesIntegrityResult = detectRulesFileIntegrity(diff.files);
+      if (rulesIntegrityResult.issues.length > 0) {
+        core81.info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
+      }
+    }
+    let specDriftResult = null;
+    if (config2.specDriftDetector) {
+      specDriftResult = detectSpecDrift(diff.files);
+      if (specDriftResult.issues.length > 0) {
+        core81.info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
+      }
+    }
+    let iacVulnResult = null;
+    if (config2.iacVulnerabilityDetector) {
+      iacVulnResult = detectIaCVulnerabilities(diff.files);
+      if (iacVulnResult.issues.length > 0) {
+        core81.info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
+      }
+    }
+    let credExposureResult = null;
+    if (config2.credentialExposureDetector) {
+      credExposureResult = detectCredentialExposure(diff.files);
+      if (credExposureResult.issues.length > 0) {
+        core81.info("Credential exposure detection: " + credExposureResult.issues.length + " issue(s)");
       }
     }
     let learningResult = null;
@@ -91187,7 +106529,7 @@ async function run() {
       try {
         learningResult = runReviewLearning(workspace);
       } catch (e) {
-        core45.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Review learning failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let blastResult = null;
@@ -91195,7 +106537,7 @@ async function run() {
       try {
         blastResult = runBlastRadiusAnalysis(diff.files);
       } catch (e) {
-        core45.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Blast radius analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let specComplianceResults = [];
@@ -91211,9 +106553,9 @@ async function run() {
           diff.files,
           config2
         );
-        if (specComplianceResults.length > 0) core45.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
+        if (specComplianceResults.length > 0) core81.info(`Spec compliance: ${specComplianceResults.length} issue(s) checked`);
       } catch (e) {
-        core45.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Spec compliance check failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let businessContextResult = null;
@@ -91228,11 +106570,11 @@ async function run() {
             mcpEndpoints
           );
           if (businessContextResult.totalTickets > 0) {
-            core45.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
+            core81.info("Business context: " + businessContextResult.totalTickets + " ticket(s) fetched");
           }
         }
       } catch (e) {
-        core45.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Business context fetch failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let orgMemoryResult = null;
@@ -91245,11 +106587,11 @@ async function run() {
           prNumber
         );
         if (orgMemoryResult.similarPRs.length > 0) {
-          core45.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
+          core81.info("Org memory: " + orgMemoryResult.similarPRs.length + " similar PR(s) found (total indexed: " + orgMemoryResult.totalIndexed + ")");
         }
         pruneOldHistory(workspace, `${owner}/${repo}`, 180);
       } catch (e) {
-        core45.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Org memory retrieval failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let testGapResult = null;
@@ -91258,10 +106600,10 @@ async function run() {
         const _tgr = runTestGapDetection(diff.files, workspace);
         testGapResult = _tgr;
         if (_tgr.gaps.length > 0) {
-          core45.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
+          core81.info("Test gap detection: " + _tgr.gaps.length + " untested change(s) (" + Math.round(_tgr.coverageRatio * 100) + "% coverage ratio)");
         }
       } catch (e) {
-        core45.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Test gap detection failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let complexityResult = null;
@@ -91274,9 +106616,9 @@ async function run() {
           blastResult?.totalImpact ?? 0,
           taintResult?.traces.length ?? 0
         );
-        core45.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
+        core81.info("Complexity: score=" + complexityResult.score + "/10, estimated=" + complexityResult.estimatedMinutes + "min, category=" + complexityResult.category);
       } catch (e) {
-        core45.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Complexity prediction failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let splitResult = null;
@@ -91284,10 +106626,10 @@ async function run() {
       try {
         splitResult = suggestPRSplits(diff.files, complexityResult.score, complexityResult.category);
         if (splitResult.shouldSplit) {
-          core45.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
+          core81.info("PR split: " + splitResult.suggestions.length + " suggestion(s)");
         }
       } catch (e) {
-        core45.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("PR split suggestions failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let lifecycleResult = null;
@@ -91297,10 +106639,10 @@ async function run() {
         const prev = loadPreviousFindings(workspace, owner, repo, prNumber);
         lifecyclePromptCtx = prev.promptContext;
         if (prev.previousSnapshot) {
-          core45.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
+          core81.info("Finding lifecycle: previous iteration " + prev.previousSnapshot.iteration + " with " + prev.previousSnapshot.findings.length + " findings");
         }
       } catch (e) {
-        core45.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Finding lifecycle load failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let intentResult = null;
@@ -91308,10 +106650,10 @@ async function run() {
       try {
         intentResult = classifyIntents(diff.files);
         if (intentResult.fileIntents.length > 0) {
-          core45.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
+          core81.info("Intent classification: dominant=" + intentResult.dominantIntent + ", " + Object.entries(intentResult.intentCounts).filter(([, v]) => v > 0).map(([k, v]) => k + ":" + v).join(", "));
         }
       } catch (e) {
-        core45.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Intent classification failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let depImpactResult = null;
@@ -91319,10 +106661,10 @@ async function run() {
       try {
         depImpactResult = analyzeDepImpact(diff.files);
         if (depImpactResult.changes.length > 0) {
-          core45.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
+          core81.info("Dep impact: " + depImpactResult.changes.length + " changes, risk=" + depImpactResult.riskLevel + ", prod=" + depImpactResult.prodChanges + ", dev=" + depImpactResult.devChanges);
         }
       } catch (e) {
-        core45.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Dep impact analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let threadContinuityResult = null;
@@ -91333,11 +106675,11 @@ async function run() {
         if (prAuthor) {
           threadContinuityResult = await analyzeThreadContinuity(octokit, owner, repo, prNumber, prAuthor);
           if (threadContinuityResult.dismissalCount > 0) {
-            core45.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
+            core81.info("Thread continuity: " + threadContinuityResult.dismissalCount + " author dismissals found");
           }
         }
       } catch (e) {
-        core45.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Thread continuity analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let authBoundaryResult = null;
@@ -91355,7 +106697,7 @@ async function run() {
           });
         }
       } catch (e) {
-        core45.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Auth boundary analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let fatigueDashboardBody = "";
@@ -91366,10 +106708,10 @@ async function run() {
         const fatigueResult = buildFatigueDashboard(workspace, suppressed);
         if (fatigueResult.categories.length > 0) {
           fatigueDashboardBody = formatFatigueDashboard(fatigueResult);
-          core45.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
+          core81.info(`Fatigue dashboard: ${fatigueResult.categories.length} categories, ${fatigueResult.totalFindings} findings, ${fatigueResult.overallAcceptance}% acceptance`);
         }
       } catch (e) {
-        core45.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Fatigue dashboard failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let entropyResult = null;
@@ -91387,24 +106729,24 @@ async function run() {
           });
         }
       } catch (e) {
-        core45.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Entropy analysis failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let linterFindings = [];
     try {
       linterFindings = runLinters(workspace, diff.files.map((f) => f.path));
-      if (linterFindings.length > 0) core45.info(`Linters: ${linterFindings.length} finding(s)`);
+      if (linterFindings.length > 0) core81.info(`Linters: ${linterFindings.length} finding(s)`);
     } catch (e) {
-      core45.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
+      core81.warning(`Linter scan failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const depFindings = runDependencyAudit(workspace);
       if (depFindings.length > 0) {
         linterFindings.push(...depFindings);
-        core45.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
+        core81.info(`Dependency audit: ${depFindings.length} CVE finding(s)`);
       }
     } catch (e) {
-      core45.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core81.debug(`Dependency audit skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const preLearningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     const preFeedbackStore = readFeedbackStore(workspace);
@@ -91428,19 +106770,19 @@ ${manualInstructions}`;
         context3.rulesContent += `
 
 ` + projectIndex.contextText;
-        core45.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
+        core81.info(`Project index: ~${projectIndex.totalFiles} files, ~${projectIndex.totalDirs} dirs, ${projectIndex.keyFiles.length} key files, ${projectIndex.language}/${projectIndex.framework}`);
       }
     } catch (e) {
-      core45.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core81.debug(`Project index skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     try {
       const repoHealth = computeRepoHealth(workspace, projectIndex ? projectIndex.keyFiles : []);
       if (repoHealth.contextText) {
         context3.rulesContent += "\n\n" + repoHealth.contextText;
-        core45.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
+        core81.info(`Repo health: ${repoHealth.score}/100 (Grade: ${repoHealth.grade}), ${repoHealth.recommendations.length} recommendation(s)`);
       }
     } catch (e) {
-      core45.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core81.debug(`Repo health skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     let chunkPlan;
     try {
@@ -91448,18 +106790,18 @@ ${manualInstructions}`;
         chunkPlan = planChunkedReview(diff.files);
         if (chunkPlan.contextText) {
           context3.rulesContent += "\n\n" + chunkPlan.contextText;
-          core45.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
+          core81.info(`Chunked review: ${chunkPlan.strategy} strategy, ${chunkPlan.chunks.length} chunk(s), ${chunkPlan.totalFiles} files`);
         }
       }
     } catch (e) {
-      core45.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
+      core81.debug(`Chunked review planning skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
     const adrContextStr = buildADRContext(adrs);
     if (adrContextStr) {
       context3.rulesContent += String.raw`
 
 ${adrContextStr}`;
-      core45.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
+      core81.info(String.raw`ADR enforcement: ${adrs.length} ADR(s) discovered, ${adrs.filter((a) => a.status === "accepted").length} active`);
     }
     if (taintResult && taintResult.traces.length > 0) {
       const taintContextStr = buildTaintContext(taintResult);
@@ -91474,6 +106816,114 @@ ${taintContextStr}`;
       if (concurrencyCtx) {
         context3.rulesContent += "\n\n" + concurrencyCtx;
       }
+    }
+    if (crossPRConflictResult && crossPRConflictResult.contextText) {
+      context3.rulesContent += "\n\n" + crossPRConflictResult.contextText;
+    }
+    if (driftResult && driftResult.contextText) {
+      context3.rulesContent += "\n\n" + driftResult.contextText;
+    }
+    if (assertionAuditResult && assertionAuditResult.contextText) {
+      context3.rulesContent += "\n\n" + assertionAuditResult.contextText;
+    }
+    if (breakingChangeResult && breakingChangeResult.contextText) {
+      context3.rulesContent += "\n\n" + breakingChangeResult.contextText;
+    }
+    if (importCycleResult && importCycleResult.contextText) {
+      context3.rulesContent += "\n\n" + importCycleResult.contextText;
+    }
+    if (deadCodeResult && deadCodeResult.contextText) {
+      context3.rulesContent += "\n\n" + deadCodeResult.contextText;
+    }
+    if (typeErosionResult && typeErosionResult.contextText) {
+      context3.rulesContent += "\n\n" + typeErosionResult.contextText;
+    }
+    if (techDebtResult && techDebtResult.contextText) {
+      context3.rulesContent += "\n\n" + techDebtResult.contextText;
+    }
+    if (magicNumberResult && magicNumberResult.contextText) {
+      context3.rulesContent += "\n\n" + magicNumberResult.contextText;
+    }
+    if (errorHandlingResult && errorHandlingResult.contextText) {
+      context3.rulesContent += "\n\n" + errorHandlingResult.contextText;
+    }
+    if (perfAntiPatternResult && perfAntiPatternResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + perfAntiPatternResult.contextText;
+    }
+    if (resourceLifecycleResult && resourceLifecycleResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + resourceLifecycleResult.contextText;
+    }
+    if (lifecycleProtocolResult && lifecycleProtocolResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lifecycleProtocolResult.contextText;
+    }
+    if (semanticConfusionResult && semanticConfusionResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + semanticConfusionResult.contextText;
+    }
+    if (dataFlowBoundaryResult && dataFlowBoundaryResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dataFlowBoundaryResult.contextText;
+    }
+    if (nullGuardResult && nullGuardResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + nullGuardResult.contextText;
+    }
+    if (aiPathologyResult && aiPathologyResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiPathologyResult.contextText;
+    }
+    if (ungatedReturnResult && ungatedReturnResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + ungatedReturnResult.contextText;
+    }
+    if (hardcodedConfigResult && hardcodedConfigResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + hardcodedConfigResult.contextText;
+    }
+    if (concurrencyHazardResult && concurrencyHazardResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + concurrencyHazardResult.contextText;
+    }
+    if (observabilityGapResult && observabilityGapResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + observabilityGapResult.contextText;
+    }
+    if (debugArtifactResult && debugArtifactResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + debugArtifactResult.contextText;
+    }
+    if (callbackMisuseResult && callbackMisuseResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + callbackMisuseResult.contextText;
+    }
+    if (staleClosureResult && staleClosureResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + staleClosureResult.contextText;
+    }
+    if (hallucinatedDepResult && hallucinatedDepResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + hallucinatedDepResult.contextText;
+    }
+    if (tautologicalTestResult && tautologicalTestResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + tautologicalTestResult.contextText;
+    }
+    if (contextAmplificationResult && contextAmplificationResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + contextAmplificationResult.contextText;
+    }
+    if (cargoCultResult && cargoCultResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + cargoCultResult.contextText;
+    }
+    if (confabulatedAPIResult && confabulatedAPIResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + confabulatedAPIResult.contextText;
+    }
+    if (partialSecurityResult && partialSecurityResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + partialSecurityResult.contextText;
+    }
+    if (paradigmClashResult && paradigmClashResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + paradigmClashResult.contextText;
+    }
+    if (velocityRiskResult && velocityRiskResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + velocityRiskResult.contextText;
+    }
+    if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + rulesIntegrityResult.contextText;
+    }
+    if (specDriftResult && specDriftResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + specDriftResult.contextText;
+    }
+    if (iacVulnResult && iacVulnResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iacVulnResult.contextText;
+    }
+    if (credExposureResult && credExposureResult.contextText) {
+      context3.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -91564,7 +107014,7 @@ ${testGapResult.contextText}`;
     if (config2.adaptiveStrategy) {
       const strategyPrompt = buildStrategyPrompt(prClassification.category);
       context3.rulesContent += strategyPrompt;
-      core45.info(`Adaptive strategy: ${prClassification.category}`);
+      core81.info(`Adaptive strategy: ${prClassification.category}`);
     }
     if (config2.defenseFramework) {
       try {
@@ -91578,14 +107028,14 @@ ${testGapResult.contextText}`;
         if (context3.ghostContent) {
           context3.ghostContent = defendInput(context3.ghostContent, "retrieved", "ghost-context");
         }
-        core45.info("Defense framework: input provenance tags applied");
+        core81.info("Defense framework: input provenance tags applied");
       } catch (e) {
-        core45.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Defense input tagging failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const guarded = guardContextWindow(context3.diffText, config2.provider);
     if (guarded.truncated) {
-      core45.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
+      core81.warning(`Diff truncated: ${guarded.estimatedTokens} tokens (exceeds context limit for ${config2.provider})`);
     }
     context3.diffText = guarded.text;
     if (slopResult.isSlop) {
@@ -91597,7 +107047,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let swarmResult = null;
     if (config2.swarmReview && classification.tier !== "light") {
       try {
-        core45.info("Running swarm review (3 specialist agents in parallel)...");
+        core81.info("Running swarm review (3 specialist agents in parallel)...");
         swarmResult = await runSwarmReview(
           context3.diffText,
           positionHint,
@@ -91605,16 +107055,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           classification
         );
         if (swarmResult.findings.length > 0) {
-          core45.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
+          core81.info("Swarm review: " + swarmResult.findings.length + " finding(s) from specialist agents");
         }
       } catch (e) {
-        core45.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Swarm review failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let agentContext = "";
     if (classification.tier !== "light") {
       try {
-        core45.info("Running agent context gathering...");
+        core81.info("Running agent context gathering...");
         agentContext = await runAgentContextGathering(
           context3.diffText,
           config2,
@@ -91628,7 +107078,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           context3.ghostContent += "\n\n## Agent-Explored Context\n" + agentContext;
         }
       } catch (e) {
-        core45.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Agent context failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (swarmResult && swarmResult.findings.length > 0) {
@@ -91644,16 +107094,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           content: f.hunks.flatMap((h) => h.changes).map((c) => c.content).join("\n")
         })));
         if (reviewPlan.cached.length > 0) {
-          core45.info(formatCacheStats(reviewPlan.stats));
+          core81.info(formatCacheStats(reviewPlan.stats));
         }
         if (reviewPlan.toReview.length < diff.files.length) {
-          core45.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
+          core81.info(`Review cache: ${reviewPlan.cached.length}/${diff.files.length} files cached, ${reviewPlan.toReview.length} need re-review`);
         }
       } catch (e) {
-        core45.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
+        core81.debug("Review cache check skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core45.info("Running review pass...");
+    core81.info("Running review pass...");
     const { output: review, usage: reviewUsage } = await runReview(
       context3.diffText,
       positionHint,
@@ -91664,7 +107114,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       classification,
       context3.learningContent
     );
-    core45.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
+    core81.info(`First pass: ${review.comments.length} findings, decision=${review.decision} (${reviewUsage.inputTokens + reviewUsage.outputTokens} tokens)`);
     if (config2.reviewCache && review.comments.length > 0) {
       try {
         const filesByPath = new Map(diff.files.map((f) => [f.path, f]));
@@ -91684,16 +107134,16 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           cacheReviewResults(workspace, cacheInput);
         }
       } catch (e) {
-        core45.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
+        core81.debug("Review cache store skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core45.info("Running self-critique pass...");
+    core81.info("Running self-critique pass...");
     await rateLimiter.acquire();
     const filtered = await runCritique(review, config2);
-    core45.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
+    core81.info(`After critique: ${filtered.comments.length} findings (threshold=${config2.confidenceThreshold})`);
     const learningWeights = computeLearningWeights(workspace, owner + "/" + repo);
     if (Object.keys(learningWeights).length > 0) {
-      core45.info("Learning weights: " + JSON.stringify(learningWeights));
+      core81.info("Learning weights: " + JSON.stringify(learningWeights));
       const adjusted = applyLearningWeights(filtered.comments, learningWeights);
       filtered.comments = adjusted;
     }
@@ -91701,13 +107151,13 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       const feedbackStore = readFeedbackStore(workspace);
       const suppressed = computeSuppressedPatterns(feedbackStore);
       if (suppressed.size > 0) {
-        core45.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
+        core81.info(`Adaptive noise: ${suppressed.size} suppressed patterns \xE2\u20AC\u201D ${[...suppressed].join(", ")}`);
         filtered.comments = applyNoiseReduction(filtered.comments, suppressed);
         if (learningResult && learningResult.newRules.length > 0) {
           filtered.comments = applyNegativeRules(filtered.comments, learningResult.newRules);
         }
         const reduced = filtered.comments.filter((c) => c.confidence < config2.confidenceThreshold).length;
-        if (reduced > 0) core45.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
+        if (reduced > 0) core81.info(`Adaptive noise: ${reduced} findings confidence-reduced below threshold`);
       }
     } catch {
     }
@@ -91720,7 +107170,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
     let complianceResults = [];
     if (config2.confidenceCalibration || config2.complianceCheck) {
       const calibrationPromise = config2.confidenceCalibration ? calibrateConfidence(filtered, config2).catch((e) => {
-        core45.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Calibration failed: " + (e instanceof Error ? e.message : String(e)));
         return null;
       }) : Promise.resolve(null);
       const compliancePromise = config2.complianceCheck ? (async () => {
@@ -91738,7 +107188,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             config2
           );
         } catch (e) {
-          core45.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Compliance check failed: " + (e instanceof Error ? e.message : String(e)));
           return [];
         }
       })() : Promise.resolve([]);
@@ -91746,12 +107196,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       if (calibrated) {
         const highCount = calibrated.filter((c) => c.calibratedConfidence === "high").length;
         const lowCount = calibrated.filter((c) => c.calibratedConfidence === "low").length;
-        core45.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
+        core81.info("Calibration: " + highCount + " high, " + (calibrated.length - highCount - lowCount) + " medium, " + lowCount + " low");
         filtered.comments = calibrated;
       }
       complianceResults = compliance;
       if (complianceResults.length > 0) {
-        core45.info("Compliance: " + complianceResults.length + " issue(s) checked");
+        core81.info("Compliance: " + complianceResults.length + " issue(s) checked");
       }
     }
     const mergedComments = [
@@ -91798,10 +107248,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         mergedComments.length = 0;
         mergedComments.push(...supFiltered);
         if (supResult.suppressedCount > 0) {
-          core45.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
+          core81.info("Suppression memories: " + supResult.suppressedCount + " finding(s) auto-suppressed");
         }
       } catch (e) {
-        core45.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Suppression memory filter failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const mergedReview = { ...filtered, comments: mergedComments };
@@ -91810,15 +107260,15 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         const { dedupFindings: dedup, formatDedupStats: fmtDedup } = await Promise.resolve().then(() => (init_finding_dedup(), finding_dedup_exports));
         const dedupResult = dedup([{ name: "merged", findings: mergedReview.comments }]);
         if (dedupResult.stats.duplicatesRemoved > 0 || dedupResult.stats.proximityMerges > 0) {
-          core45.info(fmtDedup(dedupResult.stats));
+          core81.info(fmtDedup(dedupResult.stats));
           mergedReview.comments = dedupResult.findings;
         }
       } catch (e) {
-        core45.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
+        core81.debug("Finding dedup skipped: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (suppressionResult && suppressionResult.contextText) {
-      core45.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
+      core81.info("Suppression memory context: " + suppressionResult.suppressedCount + " finding(s) suppressed");
     }
     let ownershipBody = "";
     let crossPRResult = null;
@@ -91829,10 +107279,10 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
           const ownership = matchOwnership(diff.files, ownershipRules);
           mergedReview.comments = applyOwnershipToFindings(mergedReview.comments, ownership);
           ownershipBody = buildOwnershipSummary(ownership);
-          if (ownershipBody) core45.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
+          if (ownershipBody) core81.info("Ownership: " + ownershipRules.length + " rule(s), " + ownership.filter((o) => o.owners.length > 0).length + " file(s) matched");
         }
       } catch (e) {
-        core45.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Ownership routing failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     let behavioralBody = "";
@@ -91840,9 +107290,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       try {
         const behavioralResult = await generateBehavioralSummary(diff.rawDiff, diff.files, config2);
         behavioralBody = formatBehavioralSummary(behavioralResult);
-        core45.info("Behavioral summary: " + behavioralResult.headline);
+        core81.info("Behavioral summary: " + behavioralResult.headline);
       } catch (e) {
-        core45.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Behavioral summary failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     const currentFindings = mergedReview.comments.map((c) => ({
@@ -91857,12 +107307,12 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
       prNumber,
       currentFindings
     );
-    if (deletedCount > 0) core45.info(`Cleaned up ${deletedCount} outdated comment(s)`);
+    if (deletedCount > 0) core81.info(`Cleaned up ${deletedCount} outdated comment(s)`);
     if (config2.defenseFramework) {
       try {
         const defenseValidation = validateReviewOutput(mergedReview);
         if (!defenseValidation.valid) {
-          core45.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
+          core81.warning("Defense: review output anomalies detected: " + defenseValidation.anomalies.join("; "));
           for (const c of mergedReview.comments) {
             c.message = defendOutput(c.message);
           }
@@ -91871,21 +107321,21 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             c.message = defendOutput(c.message);
           }
         }
-        core45.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
+        core81.info("Defense framework: output screened, anomalies=" + defenseValidation.anomalies.length);
       } catch (e) {
-        core45.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Defense output validation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.dryRun) {
-      core45.info("DRY RUN: Skipping review post. Findings:");
+      core81.info("DRY RUN: Skipping review post. Findings:");
       for (const c of mergedReview.comments) {
-        core45.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
+        core81.info(`  [${c.severity}] ${c.file}:${c.line} \xE2\u20AC\u201D ${c.category}: ${c.message.slice(0, 200)}`);
       }
-      core45.setOutput("review_id", 0);
-      core45.setOutput("finding_count", mergedReview.comments.length);
-      core45.setOutput("risk_score", mergedReview.riskScore);
+      core81.setOutput("review_id", 0);
+      core81.setOutput("finding_count", mergedReview.comments.length);
+      core81.setOutput("risk_score", mergedReview.riskScore);
     } else {
-      core45.info("Posting review...");
+      core81.info("Posting review...");
       const result = await postReview(
         octokit,
         owner,
@@ -91897,7 +107347,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
         config2,
         diff.files
       );
-      core45.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
+      core81.info(`Review posted: id=${result.reviewId}, findings=${result.findingCount}, risk=${result.riskScore}`);
       if (config2.checksApi && !config2.dryRun) {
         try {
           const checkResult = await createCheckRun(
@@ -91908,9 +107358,9 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             mergedReview.comments,
             mergedReview.riskScore
           );
-          core45.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
+          core81.info(`Check Run created: id=${checkResult.checkRunId}, annotations=${checkResult.annotationCount}, conclusion=${checkResult.conclusion}`);
         } catch (e) {
-          core45.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Checks API post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (behavioralBody) {
@@ -91922,7 +107372,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: behavioralBody
           });
         } catch (e) {
-          core45.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Behavioral summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (fatigueDashboardBody) {
@@ -91934,7 +107384,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: fatigueDashboardBody
           });
         } catch (e) {
-          core45.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Fatigue dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (lifecycleResult) {
@@ -91950,7 +107400,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
                 body: lifecycleBody
               });
             } catch (e) {
-              core45.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+              core81.warning("Finding lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
           }
         }
@@ -91964,7 +107414,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: intentResult.bodySummary
           });
         } catch (e) {
-          core45.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Intent classification comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (depImpactResult && depImpactResult.bodySummary) {
@@ -91976,7 +107426,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: depImpactResult.bodySummary
           });
         } catch (e) {
-          core45.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Dep impact comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (threadContinuityResult && threadContinuityResult.bodySummary) {
@@ -91988,7 +107438,7 @@ This PR appears to contain low-quality AI-generated code (score: ${slopResult.sc
             body: threadContinuityResult.bodySummary
           });
         } catch (e) {
-          core45.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Thread continuity comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (ownershipBody) {
@@ -92006,7 +107456,7 @@ ${ownershipBody}
             body: ownershipComment
           });
         } catch (e) {
-          core45.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Ownership summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (deltaBody) {
@@ -92024,22 +107474,22 @@ ${deltaBody}
             body: deltaComment
           });
         } catch (e) {
-          core45.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Delta summary comment failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
       if (config2.deltaReview) {
         try {
           recordReviewedSha(workspace, owner, repo, prNumber, headSha);
         } catch (e) {
-          core45.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Failed to record reviewed SHA: " + (e instanceof Error ? e.message : String(e)));
         }
       }
-      core45.setOutput("review_id", result.reviewId);
-      core45.setOutput("finding_count", result.findingCount);
-      core45.setOutput("risk_score", result.riskScore);
+      core81.setOutput("review_id", result.reviewId);
+      core81.setOutput("finding_count", result.findingCount);
+      core81.setOutput("risk_score", result.riskScore);
       if (complianceResults.length > 0) {
         const topCompliance = complianceResults[0].compliance;
-        core45.setOutput("compliance", topCompliance);
+        core81.setOutput("compliance", topCompliance);
         const complianceBody = formatCompliance(complianceResults);
         if (complianceBody) {
           await octokit.rest.issues.createComment({
@@ -92050,13 +107500,13 @@ ${deltaBody}
           });
         }
       } else {
-        core45.setOutput("compliance", "none");
+        core81.setOutput("compliance", "none");
       }
       if (config2.autoLabels) {
         try {
           await applyLabels(octokit, owner, repo, prNumber, mergedReview.comments, mergedReview.riskScore);
         } catch (e) {
-          core45.warning("Auto-labeling failed: " + (e?.message || String(e)));
+          core81.warning("Auto-labeling failed: " + (e?.message || String(e)));
         }
       }
     }
@@ -92073,9 +107523,9 @@ ${deltaBody}
           threshold: config2.gateThreshold,
           findingCount: mergedReview.comments.length
         });
-        core45.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
+        core81.info(`Merge gate: ${gateResult} (threshold=${config2.gateThreshold})`);
       } catch (e) {
-        core45.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Gate status post failed: " + (e instanceof Error ? e.message : String(e)));
       }
       if (config2.safetyScore && !config2.dryRun) {
         try {
@@ -92087,9 +107537,9 @@ ${deltaBody}
           };
           const safetyResult = computeSafetyScore(safetyInput);
           await postSafetyScore(octokit, owner, repo, headSha, prNumber, safetyResult.score);
-          core45.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
+          core81.info("Safety score: " + safetyResult.score + "/100 (findingPenalty=" + safetyResult.factors.findingPenalty + ", blastRadius=" + safetyResult.factors.blastRadiusPenalty + ", attribution=" + safetyResult.factors.attributionAdjustment + ", risk=" + safetyResult.factors.riskAdjustment + ")");
         } catch (e) {
-          core45.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
+          core81.warning("Safety score post failed: " + (e instanceof Error ? e.message : String(e)));
         }
       }
     }
@@ -92119,29 +107569,461 @@ ${digest}
 ---
 *Posted by Mizumi*`;
         await createOrUpdateSpendComment(octokit, owner, repo, prNumber, dashboardBody);
-        core45.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
+        core81.info(`Spend dashboard posted: ${spendEntry.totalTokens} tokens exceeded threshold of ${config2.spendThreshold}`);
       } catch (e) {
-        core45.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Spend dashboard comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.findingLifecycle) {
       try {
         lifecycleResult = trackFindings(workspace, owner, repo, prNumber, headSha, mergedReview.comments);
         if (lifecycleResult.currentIteration > 1) {
-          core45.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
+          core81.info("Finding lifecycle: iter=" + lifecycleResult.currentIteration + ", persisted=" + lifecycleResult.persisted.length + ", resolved=" + lifecycleResult.resolved.length + ", new=" + lifecycleResult.newFindings.length);
         }
       } catch (e) {
-        core45.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Finding lifecycle tracking failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.crossPRPersistence) {
       try {
         crossPRResult = trackCrossPRFindings(workspace, `${owner}/${repo}#${prNumber}`, mergedReview.comments);
         if (crossPRResult.recurringFindings.length > 0) {
-          core45.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
+          core81.info("Cross-PR: " + crossPRResult.recurringFindings.length + " recurring patterns, " + crossPRResult.totalPatterns + " total tracked");
         }
       } catch (e) {
-        core45.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Cross-PR persistence failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (assertionAuditResult && assertionAuditResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: assertionAuditResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Test assertion audit comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (breakingChangeResult && breakingChangeResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: breakingChangeResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Breaking change radar comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (importCycleResult && importCycleResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: importCycleResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Import cycle detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (deadCodeResult && deadCodeResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: deadCodeResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Dead code detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (typeErosionResult && typeErosionResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: typeErosionResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Type safety erosion comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (techDebtResult && techDebtResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: techDebtResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Tech debt detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (magicNumberResult && magicNumberResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: magicNumberResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Magic number detection comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (errorHandlingResult && errorHandlingResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: errorHandlingResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Error handling gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (perfAntiPatternResult && perfAntiPatternResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: perfAntiPatternResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Performance anti-pattern comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (resourceLifecycleResult && resourceLifecycleResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: resourceLifecycleResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Resource lifecycle comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (observabilityGapResult && observabilityGapResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: observabilityGapResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Observability gap comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (concurrencyHazardResult && concurrencyHazardResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: concurrencyHazardResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Concurrency hazard comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (lifecycleProtocolResult && lifecycleProtocolResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: lifecycleProtocolResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Lifecycle protocol comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (semanticConfusionResult && semanticConfusionResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: semanticConfusionResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Semantic type confusion comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (dataFlowBoundaryResult && dataFlowBoundaryResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: dataFlowBoundaryResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Data flow boundary comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (nullGuardResult && nullGuardResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: nullGuardResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Null guard comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (aiPathologyResult && aiPathologyResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: aiPathologyResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("AI code pathology comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (ungatedReturnResult && ungatedReturnResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: ungatedReturnResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Ungated critical return comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (hardcodedConfigResult && hardcodedConfigResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: hardcodedConfigResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Hardcoded config comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (debugArtifactResult && debugArtifactResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: debugArtifactResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Debug artifact comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (callbackMisuseResult && callbackMisuseResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: callbackMisuseResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Callback misuse comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+      if (staleClosureResult && staleClosureResult.bodySummary) {
+        try {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body: staleClosureResult.bodySummary
+          });
+        } catch (e) {
+          core81.warning("Stale closure comment failed: " + (e instanceof Error ? e.message : String(e)));
+        }
+        if (hallucinatedDepResult && hallucinatedDepResult.bodySummary) {
+          try {
+            await octokit.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body: hallucinatedDepResult.bodySummary
+            });
+          } catch (e) {
+            core81.warning("Hallucinated dependency comment failed: " + (e instanceof Error ? e.message : String(e)));
+          }
+          if (tautologicalTestResult && tautologicalTestResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: tautologicalTestResult.bodySummary
+              });
+            } catch (e) {
+              core81.warning("Tautological test comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+          if (contextAmplificationResult && contextAmplificationResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: contextAmplificationResult.bodySummary
+              });
+            } catch (e) {
+              core81.warning("Context amplification comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+          if (cargoCultResult && cargoCultResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: cargoCultResult.bodySummary
+              });
+            } catch (e) {
+              core81.warning("Cargo-cult architecture comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+          if (confabulatedAPIResult && confabulatedAPIResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: confabulatedAPIResult.bodySummary
+              });
+            } catch (e) {
+              core81.warning("Confabulated API comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+          if (partialSecurityResult && partialSecurityResult.bodySummary) {
+            try {
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: partialSecurityResult.bodySummary
+              });
+              if (paradigmClashResult && paradigmClashResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: paradigmClashResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post paradigm clash summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (velocityRiskResult && velocityRiskResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: velocityRiskResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post velocity risk summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (rulesIntegrityResult && rulesIntegrityResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: rulesIntegrityResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (specDriftResult && specDriftResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: specDriftResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (iacVulnResult && iacVulnResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: iacVulnResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+              if (credExposureResult && credExposureResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: credExposureResult.bodySummary
+                  });
+                } catch (e) {
+                  core81.warning("Failed to post credential exposure summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
+            } catch (e) {
+              core81.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
+            }
+          }
+        }
+      }
+    }
+    if (driftResult && driftResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: driftResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Architecture drift comment failed: " + (e instanceof Error ? e.message : String(e)));
+      }
+    }
+    if (crossPRConflictResult && crossPRConflictResult.bodySummary) {
+      try {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: crossPRConflictResult.bodySummary
+        });
+      } catch (e) {
+        core81.warning("Cross-PR conflict comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (crossPRResult && crossPRResult.bodySummary) {
@@ -92153,24 +108035,24 @@ ${digest}
           body: crossPRResult.bodySummary
         });
       } catch (e) {
-        core45.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Cross-PR comment failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.sarifExport && mergedReview.comments.length > 0) {
       try {
         const sarif = generateSARIF(mergedReview.comments, `https://github.com/${owner}/${repo}`);
         const sarifPath = writeSARIF(workspace, sarif);
-        core45.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
+        core81.info("SARIF: wrote " + mergedReview.comments.length + " findings to " + sarifPath);
         if (!config2.dryRun) {
           const uploadId = await uploadSARIF(octokit, owner, repo, headSha, sarifPath);
           if (uploadId) {
-            core45.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
+            core81.info("SARIF: uploaded to Code Scanning (id=" + uploadId + ")");
           } else {
-            core45.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
+            core81.info("SARIF: upload skipped (Code Scanning may not be enabled or token lacks security_events scope)");
           }
         }
       } catch (e) {
-        core45.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("SARIF export failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewPriority && mergedReview.comments.length > 0) {
@@ -92183,7 +108065,7 @@ ${digest}
           recurrenceCount: crossPRResult ? crossPRResult.recurringFindings.find((r) => r.inCurrentPR && r.category === c.category)?.prCount ?? 0 : 0
         }));
         const priorityResult = prioritizeFindings(priorityInputs);
-        core45.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
+        core81.info("Priority: avg " + priorityResult.averagePriority + "/10, " + priorityResult.findings.filter((f) => f.priorityLevel === "critical").length + " critical");
         if (priorityResult.bodySummary) {
           try {
             await octokit.rest.issues.createComment({
@@ -92193,11 +108075,11 @@ ${digest}
               body: priorityResult.bodySummary
             });
           } catch (e) {
-            core45.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
+            core81.warning("Priority comment failed: " + (e instanceof Error ? e.message : String(e)));
           }
         }
       } catch (e) {
-        core45.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Review priority scoring failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     recordFindings(
@@ -92223,21 +108105,21 @@ ${digest}
           mergedReview.riskScore
         );
       } catch (e) {
-        core45.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Org memory record failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     writeMemory(workspace, context3.memoryContent, memoryUpdate);
     const updatedMemory = readMemory(workspace);
     const generatedSkills = autoGenerateSkills(updatedMemory, workspace);
-    if (generatedSkills.length > 0) core45.info(`Auto-generated ${generatedSkills.length} skill(s)`);
+    if (generatedSkills.length > 0) core81.info(`Auto-generated ${generatedSkills.length} skill(s)`);
     try {
       const defaultBranch = github.context.payload.repository?.default_branch || "main";
       const persistResult = await persistLearningData(octokit, owner, repo, defaultBranch, workspace);
       if (persistResult.committed) {
-        core45.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
+        core81.info("Learning data persisted: " + persistResult.filesPushed + " file(s), sha=" + persistResult.commitSha);
       }
     } catch (e) {
-      core45.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
+      core81.warning("Learning persistence failed: " + (e instanceof Error ? e.message : String(e)));
     }
     if (config2.auditTrail) {
       try {
@@ -92251,6 +108133,42 @@ ${digest}
         if (config2.linterScan) auditBuilder.logStage("linter", 0, true);
         if (config2.taintAnalysis) auditBuilder.logStage("taint", 0, true);
         if (config2.concurrencyAnalysis) auditBuilder.logStage("concurrency", 0, true);
+        if (config2.crossprConflictDetection) auditBuilder.logStage("crosspr-conflict", 0, true);
+        if (config2.architectureDriftDetection) auditBuilder.logStage("architecture-drift", 0, true);
+        if (config2.testAssertionAudit) auditBuilder.logStage("test-assertion-audit", 0, true);
+        if (config2.breakingChangeRadar) auditBuilder.logStage("breaking-change-radar", 0, true);
+        if (config2.importCycleDetector) auditBuilder.logStage("import-cycle-detector", 0, true);
+        if (config2.deadCodeDetector) auditBuilder.logStage("dead-code-detector", 0, true);
+        if (config2.typeSafetyErosion) auditBuilder.logStage("type-safety-erosion", 0, true);
+        if (config2.todoDebtDetector) auditBuilder.logStage("todo-debt-detector", 0, true);
+        if (config2.magicNumberDetector) auditBuilder.logStage("magic-number-detector", 0, true);
+        if (config2.errorHandlingDetector) auditBuilder.logStage("error-handling-detector", 0, true);
+        if (config2.performanceAntipatternDetector) auditBuilder.logStage("performance-antipattern-detector", 0, true);
+        if (config2.resourceLifecycleDetector) auditBuilder.logStage("resource-lifecycle-detector", 0, true);
+        if (config2.observabilityGapDetector) auditBuilder.logStage("observability-gap-detector", 0, true);
+        if (config2.concurrencyHazardDetector) auditBuilder.logStage("concurrency-hazard-detector", 0, true);
+        if (config2.lifecycleProtocolDetector) auditBuilder.logStage("lifecycle-protocol-detector", 0, true);
+        if (config2.semanticTypeConfusionDetector) auditBuilder.logStage("semantic-type-confusion-detector", 0, true);
+        if (config2.dataFlowBoundaryDetector) auditBuilder.logStage("data-flow-boundary-detector", 0, true);
+        if (config2.nullGuardDetector) auditBuilder.logStage("null-guard-detector", 0, true);
+        if (config2.aiCodePathologyDetector) auditBuilder.logStage("ai-code-pathology-detector", 0, true);
+        if (config2.ungatedCriticalReturnDetector) auditBuilder.logStage("ungated-critical-return-detector", 0, true);
+        if (config2.hardcodedConfigDetector) auditBuilder.logStage("hardcoded-config-detector", 0, true);
+        if (config2.debugArtifactDetector) auditBuilder.logStage("debug-artifact-detector", 0, true);
+        if (config2.callbackMisuseDetector) auditBuilder.logStage("callback-misuse-detector", 0, true);
+        if (config2.staleClosureDetector) auditBuilder.logStage("stale-closure-detect", 0, true);
+        if (config2.hallucinatedDependencyDetector) auditBuilder.logStage("hallucinated-dep-detect", 0, true);
+        if (config2.tautologicalTestDetector) auditBuilder.logStage("tautological-test-detect", 0, true);
+        if (config2.contextAmplificationDetector) auditBuilder.logStage("context-amplification-detect", 0, true);
+        if (config2.cargoCultArchitectureDetector) auditBuilder.logStage("cargo-cult-arch-detect", 0, true);
+        if (config2.confabulatedAPIDetector) auditBuilder.logStage("confabulated-api-detect", 0, true);
+        if (config2.partialSecurityControlDetector) auditBuilder.logStage("partial-security-detect", 0, true);
+        if (config2.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
+        if (config2.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
+        if (config2.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
+        if (config2.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
+        if (config2.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-detect", 0, true);
+        if (config2.credentialExposureDetector) auditBuilder.logStage("credential-exposure-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
@@ -92260,9 +108178,9 @@ ${digest}
         auditBuilder.setConfigSnapshot(config2);
         const trail = auditBuilder.build();
         writeAuditTrail(workspace, trail);
-        core45.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
+        core81.info("Audit trail: " + trail.meta.runId + " (" + trail.stages.length + " stages, " + trail.findings.length + " findings)");
       } catch (e) {
-        core45.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Audit trail failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewDashboard) {
@@ -92270,9 +108188,9 @@ ${digest}
         const dashMetrics = collectDashboardMetrics({ workspace, repoId: owner + "/" + repo });
         const dashHtml = generateDashboardHTML(dashMetrics, owner + "/" + repo);
         writeDashboard(workspace, dashHtml);
-        core45.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
+        core81.info("Review dashboard: " + dashMetrics.totalReviews + " reviews, " + dashMetrics.totalFindings + " findings");
       } catch (e) {
-        core45.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Review dashboard generation failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
     if (config2.reviewReplay && config2.auditTrail) {
@@ -92294,18 +108212,18 @@ ${timelineBody}
 *Posted by Mizumi*`
             });
           }
-          core45.info("Review replay: posted timeline with " + prRuns.length + " runs");
+          core81.info("Review replay: posted timeline with " + prRuns.length + " runs");
         }
       } catch (e) {
-        core45.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
+        core81.warning("Review replay failed: " + (e instanceof Error ? e.message : String(e)));
       }
     }
-    core45.info("Mizumi review complete");
+    core81.info("Mizumi review complete");
   } catch (error52) {
-    core45.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
-    core45.setOutput("review_id", 0);
-    core45.setOutput("finding_count", 0);
-    core45.setOutput("risk_score", -1);
+    core81.error(`Mizumi error: ${error52 instanceof Error ? error52.stack || error52.message : String(error52)}`);
+    core81.setOutput("review_id", 0);
+    core81.setOutput("finding_count", 0);
+    core81.setOutput("risk_score", -1);
   }
 }
 function getPrNumber(ctx) {
@@ -92321,11 +108239,22 @@ function getPrNumber(ctx) {
   return null;
 }
 void run().catch((e) => {
-  core45.setFailed(`Fatal: ${e}`);
+  core81.setFailed(`Fatal: ${e}`);
   process.exit(0);
 });
 /*! Bundled license information:
 
+content-type/dist/index.js:
+  (*!
+   * content-type
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
 @octokit/request-error/dist-src/index.js:
   (* v8 ignore else -- @preserve -- Bug with vitest coverage where it sees an else branch that doesn't exist *)
+
+@octokit/request/dist-bundle/index.js:
+  (* v8 ignore next -- @preserve *)
+  (* v8 ignore else -- @preserve *)
 */

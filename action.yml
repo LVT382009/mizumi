@@ -473,6 +473,10 @@ default: 'true'
     description: 'Detect security defaults in AI-generated infrastructure code (Dockerfiles, Terraform, CloudFormation, CI/CD)'
     required: false
     default: 'true'
+  credential_exposure_detector:
+    description: 'Detect AI-scaffolded credentials: env var inline fallbacks, config object literals, SDK constructor credentials, placeholder comments near secrets'
+    required: false
+    default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:

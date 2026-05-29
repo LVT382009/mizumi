@@ -199,6 +199,7 @@ nullGuardDetector: true,
   rulesFileIntegrityDetector: true,
   specDriftDetector: true,
   iacVulnerabilityDetector: true,
+    credentialExposureDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

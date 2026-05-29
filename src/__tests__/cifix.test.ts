@@ -159,6 +159,7 @@ nullGuardDetector: true,
   rulesFileIntegrityDetector: true,
   specDriftDetector: true,
   iacVulnerabilityDetector: true,
+    credentialExposureDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

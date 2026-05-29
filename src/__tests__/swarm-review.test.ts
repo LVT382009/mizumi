@@ -325,6 +325,7 @@ nullGuardDetector: true,
   rulesFileIntegrityDetector: true,
   specDriftDetector: true,
   iacVulnerabilityDetector: true,
+    credentialExposureDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

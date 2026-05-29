@@ -114,6 +114,7 @@ import { detectVelocityRisks } from "./velocity-risk-detector.js";
 import { detectRulesFileIntegrity } from "./rules-file-integrity-detector.js";
 import { detectSpecDrift } from "./spec-drift-detector.js";
 import { detectIaCVulnerabilities } from "./iac-vulnerability-detector.js";
+import { detectCredentialExposure } from "./credential-exposure-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -838,6 +839,15 @@ if (config.iacVulnerabilityDetector) {
     core.info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zl. Credential exposure accelerator detector — detect AI-scaffolded credential patterns
+let credExposureResult: import("./credential-exposure-detector.js").CredentialExposureResult | null = null;
+if (config.credentialExposureDetector) {
+  credExposureResult = detectCredentialExposure(diff.files);
+  if (credExposureResult.issues.length > 0) {
+    core.info("Credential exposure detection: " + credExposureResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1310,6 +1320,9 @@ if (specDriftResult && specDriftResult.contextText) {
 }
 if (iacVulnResult && iacVulnResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iacVulnResult.contextText;
+}
+if (credExposureResult && credExposureResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
 
 
@@ -2392,6 +2405,18 @@ if (iacVulnResult && iacVulnResult.bodySummary) {
     core.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (credExposureResult && credExposureResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: credExposureResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post credential exposure summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2575,6 +2600,7 @@ if (config.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0
 if (config.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
 if (config.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
 if (config.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-detect", 0, true);
+if (config.credentialExposureDetector) auditBuilder.logStage("credential-exposure-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
