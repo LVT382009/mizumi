@@ -124,6 +124,7 @@ import { detectAgentSafetyBypass } from "./agent-safety-bypass-detector.js";
 import { detectAgencyEscalation } from "./agency-escalation-detector.js";
 import { detectTaintPaths } from "./taint-path-detector.js";
 import { detectSymbolImpact } from "./symbol-impact-detector.js";
+import { detectDependencyRisk } from "./dependency-risk-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -938,6 +939,15 @@ if (config.symbolImpactDetector) {
     core.info("Symbol impact: " + symbolImpactResult.issues.length + " symbol(s) with consumers");
   }
 }
+// 4a3zv. Dependency risk detector — major bumps, unused deps, downgrades, typosquatting
+let dependencyRiskResult: import("./dependency-risk-detector.js").DepRiskResult | null = null;
+if (config.dependencyRiskDetector) {
+  dependencyRiskResult = detectDependencyRisk(diff.files);
+  if (dependencyRiskResult.issues.length > 0) {
+    core.info("Dependency risk: " + dependencyRiskResult.issues.length + " issue(s)");
+  }
+}
+
 
 
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
@@ -1443,6 +1453,9 @@ if (taintPathResult && taintPathResult.contextText) {
 }
 if (symbolImpactResult && symbolImpactResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + symbolImpactResult.contextText;
+}
+if (dependencyRiskResult && dependencyRiskResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + dependencyRiskResult.contextText;
 }
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -2637,6 +2650,18 @@ if (symbolImpactResult && symbolImpactResult.bodySummary) {
     core.warning("Failed to post symbol impact summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (dependencyRiskResult && dependencyRiskResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: dependencyRiskResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post dependency risk summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2842,6 +2867,7 @@ if (config.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass
 if (config.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-detect", 0, true);
 if (config.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true);
 if (config.symbolImpactDetector) auditBuilder.logStage("symbol-impact-detect", 0, true);
+if (config.dependencyRiskDetector) auditBuilder.logStage("dependency-risk-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

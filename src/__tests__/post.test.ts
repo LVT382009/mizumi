@@ -135,6 +135,7 @@ nullGuardDetector: true,
     agencyEscalationDetector: true,
     taintPathDetector: true,
     symbolImpactDetector: true,
+    dependencyRiskDetector: true,
     ...overrides,
   };
 }

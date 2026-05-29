@@ -514,6 +514,10 @@ symbol_impact_detector:
   description: "Detect symbol-level impact: map changed exported symbols to downstream callers, classify API handlers vs tests, compute impact score"
   required: false
   default: "true"
+dependency_risk_detector:
+  description: "Detect dependency risk: major version bumps, unused new dependencies, downgrades, typosquatting suspects"
+  required: false
+  default: "true"
 jira_api_token:
   description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
   required: false
