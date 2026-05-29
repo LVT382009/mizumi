@@ -952,3 +952,22 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Key features**: security PR intent detection via title/body, whitelist for migration/deprecation context, test file exclusion, comment skipping, severity sorting (custom-crypto + training-era-drift = critical, overengineered = warning), deduplication
 - **Full pipeline integration**: config.ts, main.ts (4a3zo), action.yml, 8 test stubs, audit trail
 - **6740 tests** passing, 0 TS errors, bundle rebuilt
+
+
+### Trust Boundary Erosion Detector (2026-05-29)
+- **src/trust-boundary-detector.ts** — 39 tests, zero LLM cost
+- **Competitive gap**: No AI code reviewer detects architectural privilege escalation paths. CSA 2026: privilege escalation +322%, design flaws +153%. Code is syntactically correct — SAST sees nothing wrong. This detector finds *architecturally absent* controls.
+- **3 detection categories**:
+  1. **over-permissive-iam**: Action:"*", Resource:"*", Principal:"*", s3:*/secretsmanager:*/iam:* in CloudFormation/Terraform/CDK files
+  2. **missing-auth-middleware**: Express/Flask/Spring/.NET route handlers without auth guards (POST/PUT/DELETE/PATCH = critical, GET = warning)
+  3. **absent-audit-logging**: Security events (login, password reset, permission escalation, user creation) without logging/audit trail
+- **Full pipeline integration**: config.ts, main.ts (4a3zp), action.yml, 8 test stubs, audit trail
+
+### AI Configuration Integrity Detector (2026-05-29)
+- **src/ai-config-integrity-detector.ts** — 31 tests, zero LLM cost
+- **Competitive gap**: Zero competitors scan AI config files. CSA ShadowPrompt and slopsquatting document real attacks that are invisible to every existing code review tool.
+- **2 detection categories**:
+  1. **hidden-unicode-control**: Zero-width chars (U+200B-200F), bidi overrides (U+202A-202E), BOM (U+FEFF), soft hyphens in .cursorrules, CLAUDE.md, .mcp.json, copilot-instructions
+  2. **malicious-mcp-redirect**: Suspicious MCP server URLs — phishing TLDs, IP addresses, ngrok tunnels, localhost in prod, URL shorteners
+- **Full pipeline integration**: config.ts, main.ts (4a3zq), action.yml, 8 test stubs, audit trail
+- **6810 tests** passing, 0 TS errors, bundle rebuilt
