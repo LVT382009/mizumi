@@ -56561,6 +56561,7 @@ function loadConfig() {
   const trustBoundaryDetector = getInput("trust_boundary_detector") !== "false";
   const aiConfigIntegrityDetector = getInput("ai_config_integrity_detector") !== "false";
   const agentSafetyBypassDetector = getInput("agent_safety_bypass_detector") !== "false";
+  const agencyEscalationDetector = getInput("agency_escalation_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56715,7 +56716,8 @@ function loadConfig() {
     securityParadoxDetector,
     trustBoundaryDetector,
     aiConfigIntegrityDetector,
-    agentSafetyBypassDetector
+    agentSafetyBypassDetector,
+    agencyEscalationDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -127342,6 +127344,224 @@ function detectAgentSafetyBypass(diffFiles) {
   return result;
 }
 
+// src/agency-escalation-detector.ts
+function stripPrefix20(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges19(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE30 = /^[-+]\s*(?:[\/][\/]|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var TEST_PATH_RE5 = /(?:__tests__|\.test\.|\.spec\.|_test\.|_spec\.|tests?\/)/;
+var UNRESTRICTED_PARAM_PATTERNS = [
+  // File path parameters without allowlisting
+  { re: /(?:filePath|filepath|path|dest|destination|outputPath|output)\s*[=:]\s*(?:req|request|params|query|body|input|args|ctx)\b/i, sink: "file" },
+  // Shell command parameters without allowlisting
+  { re: /(?:command|cmd|shell|exec|script)\s*[=:]\s*(?:req|request|params|query|body|input|args|ctx)\b/i, sink: "exec" },
+  // URL parameters from user/agent input
+  { re: /(?:url|endpoint|host|server|baseUrl|apiUrl)\s*[=:]\s*(?:req|request|params|query|body|input|args|ctx)\b/i, sink: "network" },
+  // Function signature with dangerous params with no validation guard
+  { re: /(?:function|(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?)\s*\w+\s*\([^)]*(?:filePath|filepath|cmd|command|exec_path|script).*(?:\)|\{)/i, sink: "param" }
+];
+var VALIDATION_GUARD_RE = [
+  /(?:startsWith|includes|indexOf|match|test)\s*\(/i,
+  /(?:ALLOWED|WHITELIST|SAFE|VALID)_(?:PATHS|COMMANDS|URLS|DOMAINS)/i,
+  /allowlist|whitelist|safeList/i,
+  /(?:path\.normalize|path\.resolve|path\.basename)\s*\(/i,
+  /(?:sanitize|validate|check|restrict)\w*\s*\(/i
+];
+var EXCESSIVE_AUTONOMY_PATTERNS = [
+  // Auto-deploy/auto-approve without confirmation
+  { re: /auto[_-]?deploy\s*[:=]\s*true/i, description: "auto-deploy enabled \u2014 code deploys without human confirmation gate" },
+  { re: /auto[_-]?approve\s*[:=]\s*true/i, description: "auto-approve enabled \u2014 agent approves its own output" },
+  { re: /auto[_-]?merge\s*[:=]\s*true/i, description: "auto-merge enabled \u2014 PRs merge without human review" },
+  { re: /skip[_-]?(?:review|approval|confirm|gate)\s*[:=]\s*true/i, description: "review/approval gate skipped in source code" },
+  // Cron/scheduled execution without human initiation
+  { re: /(?:cron|schedule)\s*[:=]\s*['"](?:\*|0|@)/i, description: "scheduled execution \u2014 agent runs without human initiation" },
+  // Force/unattended operations
+  { re: /(?:force|confirm!?)\s*[=:]\s*true/i, description: "force mode \u2014 operations proceed without confirmation dialogs" },
+  // No-human-in-the-loop patterns
+  { re: /no[_-]?human[_-]?in[_-]?loop/i, description: "no-human-in-the-loop \u2014 agent operates without any human oversight" },
+  // Autonomous agent patterns
+  { re: /(?:autonomous|unattended|headless)\s*[:=]\s*true/i, description: "autonomous mode \u2014 agent runs without human-in-the-loop" },
+  // Continuous agent loops
+  { re: /while\s*\(\s*true\s*\)/i, description: "infinite agent loop \u2014 runs perpetually without termination gate" },
+  // Agent self-modification code
+  { re: /(?:write|update|modify|patch|edit)File\s*\([^)]*(?:config|settings|rules|policy)/i, description: "agent writes to governance/config files \u2014 self-modification capability" }
+];
+var DANGEROUS_SINK_PATTERNS = [
+  // eval with dynamic content
+  { re: /\beval\s*\(/i, sink: "eval" },
+  // Function constructor
+  { re: /\bnew\s+Function\s*\(/i, sink: "Function constructor" },
+  // child_process.exec/execSync with variable input
+  { re: /(?:child_process\.)?exec(?:Sync)?\s*\(\s*(?!['"`]\/)/i, sink: "child_process.exec" },
+  // child_process.spawn without path restriction
+  { re: /(?:child_process\.)?spawn(?:Sync)?\s*\(\s*(?:`|\$\{)/i, sink: "child_process.spawn" },
+  // vm module
+  { re: /vm\.(?:runIn(?:New)?Context|runInThisContext|compileFunction)\s*\(/i, sink: "vm module" },
+  // fs.writeFile with variable path
+  { re: /fs\.(?:writeFile|writeFileSync|appendFile|appendFileSync)\s*\(\s*(?!['"`](?:\.|\/tmp|\/var|os\.tmpdir))/i, sink: "fs.writeFile" },
+  // Dynamic import with variable
+  { re: /import\s*\(\s*(?!['"][a-z@])/i, sink: "dynamic import" },
+  // Process execution from agent context
+  { re: /\.exec\s*\(\s*(?:`|\$\{|llm|agent|prompt|model|response|output|result|completion)/i, sink: "exec from agent output" }
+];
+var LLM_OUTPUT_SOURCE_RE = /\b(?:llm|agent|model|prompt|completion|response|output|result|chat|message|reply|answer|generated)\w*\b/i;
+function detectUnrestrictedToolParam(file2) {
+  const issues = [];
+  if (TEST_PATH_RE5.test(file2.path)) return issues;
+  const added = getAddedChanges19(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE30.test(change.content)) continue;
+    const trimmed = stripPrefix20(change.content);
+    if (VALIDATION_GUARD_RE.some((re2) => re2.test(trimmed))) continue;
+    for (const { re: re2, sink } of UNRESTRICTED_PARAM_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "unrestricted-tool-parameter",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Unrestricted tool parameter in \`${file2.path}:${change.line}\`: ${sink} parameter from untrusted input without allowlisting; OWASP LLM06:2025 Excessive Agency; Microsoft CVE-2026-25592: AI-controlled localFilePath reached dangerous sink without path validation \u2014 map to allowlist pattern: validate against an array of permitted values before use`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function detectExcessiveAutonomy(file2) {
+  const issues = [];
+  if (TEST_PATH_RE5.test(file2.path)) return issues;
+  const added = getAddedChanges19(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE30.test(change.content)) continue;
+    const trimmed = stripPrefix20(change.content);
+    for (const { re: re2, description } of EXCESSIVE_AUTONOMY_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "excessive-autonomy",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Excessive autonomy in \`${file2.path}:${change.line}\`: ${description}; OWASP LLM06:2025 Excessive Agency defines excessive autonomy as "systems that can take actions without oversight"; Snyk ToxicSkills: 91% of malicious skills pair prompt injection with code execution; add human-in-the-loop confirmation for this operation`,
+          severity: "warning"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function detectDangerousSinkFromLLM(file2) {
+  const issues = [];
+  if (TEST_PATH_RE5.test(file2.path)) return issues;
+  const added = getAddedChanges19(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE30.test(change.content)) continue;
+    const trimmed = stripPrefix20(change.content);
+    if (VALIDATION_GUARD_RE.some((re2) => re2.test(trimmed))) continue;
+    for (const { re: re2, sink } of DANGEROUS_SINK_PATTERNS) {
+      if (re2.test(trimmed)) {
+        const hasLLMSource = LLM_OUTPUT_SOURCE_RE.test(trimmed);
+        const severity = hasLLMSource ? "critical" : "warning";
+        issues.push({
+          category: "dangerous-sink-from-llm-output",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Dangerous sink in \`${file2.path}:${change.line}\`: ${sink}${hasLLMSource ? " with LLM-controlled input" : " \u2014 reachable from LLM output taint path"}; OWASP LLM06:2025 Excessive Agency; Microsoft CVE-2026-26030: AI-controlled parameters crossed container boundaries; add input validation, allowlisting, and sandboxing before ${sink}`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues39(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAgencyEscalationContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Agency Escalation Detection (${result.issues.length})
+`;
+  ctx += "This PR introduces excessive agency \u2014 AI agents gain capabilities without proper guardrails:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAgencyEscalationBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Agency Escalation Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*OWASP LLM06:2025 Excessive Agency \u2014 unrestricted tool parameters, excessive autonomy, dangerous sinks from LLM output. Microsoft CVE-2026-25592: AI-controlled parameters reach dangerous sinks without validation. Snyk ToxicSkills: 13.4% of agent skills contain critical security issues. Zero competitors detect agent capability escalation in source code.*
+</details>
+`;
+  return body;
+}
+function detectAgencyEscalation(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectUnrestrictedToolParam(file2));
+    allIssues.push(...detectExcessiveAutonomy(file2));
+    allIssues.push(...detectDangerousSinkFromLLM(file2));
+  }
+  const issues = dedupIssues39(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAgencyEscalationContext(result);
+  result.bodySummary = buildAgencyEscalationBodySummary(result);
+  if (issues.length > 0) {
+    info(`Agency escalation detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -128014,6 +128234,13 @@ async function run() {
       agentSafetyBypassResult = detectAgentSafetyBypass(diff.files);
       if (agentSafetyBypassResult.issues.length > 0) {
         info("Agent safety bypass detection: " + agentSafetyBypassResult.issues.length + " issue(s)");
+      }
+    }
+    let agencyEscalationResult = null;
+    if (config2.agencyEscalationDetector) {
+      agencyEscalationResult = detectAgencyEscalation(diff.files);
+      if (agencyEscalationResult.issues.length > 0) {
+        info("Agency escalation detection: " + agencyEscalationResult.issues.length + " issue(s)");
       }
     }
     let learningResult = null;
@@ -129562,6 +129789,18 @@ ${digest}
                   warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (agencyEscalationResult && agencyEscalationResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: agencyEscalationResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post agency escalation summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
               if (credExposureResult && credExposureResult.bodySummary) {
                 try {
                   await octokit.rest.issues.createComment({
@@ -129754,6 +129993,7 @@ ${digest}
         if (config2.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
         if (config2.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
         if (config2.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
+        if (config2.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

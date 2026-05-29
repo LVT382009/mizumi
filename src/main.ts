@@ -121,6 +121,7 @@ import { detectSecurityParadox } from "./security-paradox-detector.js";
 import { detectTrustBoundaryErosion } from "./trust-boundary-detector.js";
 import { detectAIConfigIntegrity } from "./ai-config-integrity-detector.js";
 import { detectAgentSafetyBypass } from "./agent-safety-bypass-detector.js";
+import { detectAgencyEscalation } from "./agency-escalation-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -910,6 +911,15 @@ if (config.agentSafetyBypassDetector) {
   }
 
 }
+// 4a3zs. Agency escalation detector — OWASP LLM06 Excessive Agency
+let agencyEscalationResult: import("./agency-escalation-detector.js").AgencyEscalationResult | null = null;
+if (config.agencyEscalationDetector) {
+  agencyEscalationResult = detectAgencyEscalation(diff.files);
+  if (agencyEscalationResult.issues.length > 0) {
+    core.info("Agency escalation detection: " + agencyEscalationResult.issues.length + " issue(s)");
+  }
+}
+
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -2559,6 +2569,18 @@ if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
     core.warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
   }
  }
+ if (agencyEscalationResult && agencyEscalationResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: agencyEscalationResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post agency escalation summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+ }
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2761,6 +2783,7 @@ if (config.securityParadoxDetector) auditBuilder.logStage("security-paradox-dete
 if (config.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
 if (config.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
 if (config.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
+if (config.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

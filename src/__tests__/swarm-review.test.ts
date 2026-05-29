@@ -332,6 +332,7 @@ nullGuardDetector: true,
       trustBoundaryDetector: true,
       aiConfigIntegrityDetector: true,
     agentSafetyBypassDetector: true,
+    agencyEscalationDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);
