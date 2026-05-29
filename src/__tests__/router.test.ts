@@ -114,6 +114,7 @@ nullGuardDetector: true,
     agentSafetyBypassDetector: true,
     agencyEscalationDetector: true,
     taintPathDetector: true,
+    symbolImpactDetector: true,
 };
 
 describe("classifyDiff", () => {

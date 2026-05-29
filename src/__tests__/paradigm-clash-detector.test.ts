@@ -105,6 +105,36 @@ describe("detectParadigmClashes — react-class-and-hooks", () => {
     const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("detects componentDidUpdate alongside useEffect", () => {
+    const file = makeFile("src/Life.tsx", [
+      "componentDidUpdate(prev) { }",
+      "useEffect(() => { syncData(); }, []);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects componentWillUnmount alongside useContext", () => {
+    const file = makeFile("src/Ctx.tsx", [
+      "componentWillUnmount() { }",
+      "const theme = useContext(ThemeContext);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects this.setState alongside useReducer", () => {
+    const file = makeFile("src/State.tsx", [
+      "this.setState({ loading: true });",
+      "const [state, dispatch] = useReducer(reducer, initState);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -183,6 +213,36 @@ describe("detectParadigmClashes — callback-and-async-await", () => {
     const issues = result.issues.filter((i) => i.category === "callback-and-async-await");
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("detects .finally() mixed with async arrow", () => {
+    const file = makeFile("src/finally.ts", [
+      "promise.finally(() => cleanup());",
+      "const fetch = async (url) => { return await http(url); };",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "callback-and-async-await");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects error-first callback function mixed with await", () => {
+    const file = makeFile("src/errcb.ts", [
+      "function (err, data) { if (err) throw err; }",
+      "const result = await fetchData();",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "callback-and-async-await");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects async IIFE mixed with callback(done) pattern", () => {
+    const file = makeFile("src/iife.ts", [
+      "async (req, res, next) => { await process(req); next(); }",
+      "task(done => { done(); });",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "callback-and-async-await");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -257,6 +317,46 @@ describe("detectParadigmClashes — oop-and-functional-mix", () => {
       "const total = items.reduce((sum, item) => sum + item.price, 0);",
     ]);
 
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects implements with lodash/fp usage", () => {
+    const file = makeFile("src/fp-mix.ts", [
+      "class Handler implements IService { }",
+      "const result = fp.map(fp.get('name'), items);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects super() call with .flatMap functional pipeline", () => {
+    const file = makeFile("src/super-flat.ts", [
+      "super(options);",
+      "const enriched = items.flatMap(item => expand(item));",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects private field with functional .pipe pattern", () => {
+    const file = makeFile("src/priv-pipe.ts", [
+      "#value = 42;",
+      "const output = data.pipe(normalize, validate);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects protected field with compose pattern", () => {
+    const file = makeFile("src/prot-comp.ts", [
+      "protected cache: Map<string, any>;",
+      "const pipeline = compose(fetch, transform, save);",
+    ]);
     const result = detectParadigmClashes([file]);
     const issues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
     expect(issues.length).toBeGreaterThanOrEqual(1);
@@ -350,6 +450,58 @@ describe("detectParadigmClashes — framework-clash", () => {
     const issues = result.issues.filter((i) => i.category === "framework-clash");
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("detects Angular + React clash", () => {
+    const file = makeFile("src/hybrid-ng.ts", [
+      "@NgModule({ declarations: [] })",
+      "const [count, setCount] = useState(0);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "framework-clash");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("Angular");
+    expect(issues[0].description).toContain("React");
+  });
+
+  it("detects jQuery $.ajax with React", () => {
+    const file = makeFile("src/jquery-react.ts", [
+      "$.ajax({ url: '/api', method: 'GET' });",
+      "import React from 'react';",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "framework-clash");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Express Router with Koa ctx pattern", () => {
+    const file = makeFile("src/express-koa.ts", [
+      "const router = Router();",
+      "ctx.body = result;",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "framework-clash");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Vue v-if directive with React import", () => {
+    const file = makeFile("src/vue-react.ts", [
+      "import React from 'react';",
+      '<div v-if="showItem">',
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "framework-clash");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag file with only jQuery", () => {
+    const file = makeFile("src/jquery-only.ts", [
+      "$('.modal').show();",
+      "$.ajax({ url: '/api' });",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const fwIssues = result.issues.filter((i) => i.category === "framework-clash");
+    expect(fwIssues).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -407,6 +559,73 @@ describe("detectParadigmClashes — edge cases", () => {
     const result = detectParadigmClashes([file]);
     const oopIssues = result.issues.filter((i) => i.category === "oop-and-functional-mix");
     expect(oopIssues).toHaveLength(0);
+  });
+
+  it("skips block comment lines starting with *", () => {
+    const file = makeFile("src/block.ts", [
+      "* class MyClass extends React.Component { }",
+      "* const [x, setX] = useState(0);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles file with mixed add and delete change types", () => {
+    const file: DiffFile = {
+      path: "src/mixed-types.ts",
+      status: "modified",
+      hunks: [{
+        header: "@@ -1 +1 @@",
+        changes: [
+          { type: "delete", content: "-class Old extends React.Component { }", line: 1, oldLine: 1 },
+          { type: "add", content: "+class New extends React.Component { }", line: 2, ln: 2 },
+          { type: "add", content: "+const [val, setVal] = useState(0);", line: 3, ln: 3 },
+        ],
+      }],
+    };
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips export type lines for framework detection", () => {
+    const file = makeFile("src/types.ts", [
+      "export type ReactNode = string | JSX.Element;",
+    ]);
+    const result = detectParadigmClashes([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("does not flag shouldComponentUpdate alone as a clash", () => {
+    const file = makeFile("src/should.ts", [
+      "shouldComponentUpdate(nextProps) { return true; }",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("caps react-class-and-hooks issues at 2 hooks", () => {
+    const file = makeFile("src/capped.ts", [
+      "class Big extends React.Component { }",
+      "const [a, setA] = useState(0);",
+      "const [b, setB] = useState(1);",
+      "const [c, setC] = useState(2);",
+      "const [d, setD] = useState(3);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeLessThanOrEqual(2);
+  });
+
+  it("detects getSnapshotBeforeUpdate alongside useMemo", () => {
+    const file = makeFile("src/snapshot.ts", [
+      "getSnapshotBeforeUpdate(prev, state) { return null; }",
+      "const memo = useMemo(() => compute(), []);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const issues = result.issues.filter((i) => i.category === "react-class-and-hooks");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -515,5 +734,60 @@ describe("detectParadigmClashes — context and summary", () => {
     const result = detectParadigmClashes([file]);
     const categories = new Set(result.issues.map((i) => i.category));
     expect(categories.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("contextText includes both critical and warning sections", () => {
+    const file = makeFile("src/multi.ts", [
+      "class Comp extends React.Component { }",
+      "const [x, setX] = useState(0);",
+      "promise.then(res => res.json());",
+      "const data = await fetch('/api');",
+    ]);
+    const result = detectParadigmClashes([file]);
+    if (result.issues.some((i) => i.severity === "critical")) {
+      expect(result.contextText).toContain("### Critical");
+    }
+    if (result.issues.some((i) => i.severity === "warning")) {
+      expect(result.contextText).toContain("### Warnings");
+    }
+  });
+
+  it("body summary table row contains category label with spaces", () => {
+    const file = makeFile("src/Component.tsx", [
+      "class MyComponent extends React.Component { }",
+      "const [count, setCount] = useState(0);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    if (result.issues.length > 0) {
+      // Category names in table should have dashes replaced with spaces
+      expect(result.bodySummary).toContain("react class and hooks");
+    }
+  });
+
+  it("caps callback-and-async-await at 2 callback + 1 async issues per file", () => {
+    const file = makeFile("src/many.ts", [
+      "promise.then(r => r.json());",
+      "promise.catch(e => log(e));",
+      "promise.finally(() => clean());",
+      "callback(result);",
+      "const a = await fetch('/a');",
+      "const b = await fetch('/b');",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const cbAw = result.issues.filter((i) => i.category === "callback-and-async-await");
+    // checkCallbackAsyncClash slices to 2 callback + 1 async
+    expect(cbAw.length).toBeLessThanOrEqual(3);
+  });
+
+  it("caps oop-and-functional-mix issues at 2 oop issues per file", () => {
+    const file = makeFile("src/many-oop.ts", [
+      "class A { }",
+      "class B { }",
+      "class C { }",
+      "const result = items.map(x => x.value).filter(v => v > 0);",
+    ]);
+    const result = detectParadigmClashes([file]);
+    const oopFn = result.issues.filter((i) => i.category === "oop-and-functional-mix");
+    expect(oopFn.length).toBeLessThanOrEqual(2);
   });
 });

@@ -123,6 +123,7 @@ import { detectAIConfigIntegrity } from "./ai-config-integrity-detector.js";
 import { detectAgentSafetyBypass } from "./agent-safety-bypass-detector.js";
 import { detectAgencyEscalation } from "./agency-escalation-detector.js";
 import { detectTaintPaths } from "./taint-path-detector.js";
+import { detectSymbolImpact } from "./symbol-impact-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -929,6 +930,15 @@ if (config.taintPathDetector) {
     core.info("Taint path detection: " + taintPathResult.issues.length + " issue(s)");
   }
 }
+// 4a3zu. Symbol impact detector — map changed exported symbols to downstream callers
+let symbolImpactResult: import("./symbol-impact-detector.js").SymbolImpactResult | null = null;
+if (config.symbolImpactDetector) {
+  symbolImpactResult = detectSymbolImpact(diff.files);
+  if (symbolImpactResult.issues.length > 0) {
+    core.info("Symbol impact: " + symbolImpactResult.issues.length + " symbol(s) with consumers");
+  }
+}
+
 
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
@@ -1422,6 +1432,18 @@ if (trustBoundaryResult && trustBoundaryResult.contextText) {
 
 if (aiConfigIntegrityResult && aiConfigIntegrityResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiConfigIntegrityResult.contextText;
+if (agentSafetyBypassResult && agentSafetyBypassResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + agentSafetyBypassResult.contextText;
+}
+if (agencyEscalationResult && agencyEscalationResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + agencyEscalationResult.contextText;
+}
+if (taintPathResult && taintPathResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + taintPathResult.contextText;
+}
+if (symbolImpactResult && symbolImpactResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + symbolImpactResult.contextText;
+}
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
@@ -2603,6 +2625,18 @@ if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
     core.warning("Failed to post taint path summary: " + (e instanceof Error ? e.message : String(e)));
   }
  }
+if (symbolImpactResult && symbolImpactResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: symbolImpactResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post symbol impact summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2807,6 +2841,7 @@ if (config.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity
 if (config.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
 if (config.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-detect", 0, true);
 if (config.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true);
+if (config.symbolImpactDetector) auditBuilder.logStage("symbol-impact-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

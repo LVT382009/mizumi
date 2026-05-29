@@ -117,6 +117,7 @@ observabilityGapDetector: boolean;
   agentSafetyBypassDetector: boolean;
   agencyEscalationDetector: boolean;
   taintPathDetector: boolean;
+ symbolImpactDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -257,6 +258,7 @@ const aiConfigIntegrityDetector = core.getInput("ai_config_integrity_detector") 
 const agentSafetyBypassDetector = core.getInput("agent_safety_bypass_detector") !== "false"; // default true
 const agencyEscalationDetector = core.getInput("agency_escalation_detector") !== "false"; // default true
 const taintPathDetector = core.getInput("taint_path_detector") !== "false"; // default true
+const symbolImpactDetector = core.getInput("symbol_impact_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -416,6 +418,7 @@ observabilityGapDetector,
     agentSafetyBypassDetector,
     agencyEscalationDetector,
     taintPathDetector,
+  symbolImpactDetector,
   };
 }
 

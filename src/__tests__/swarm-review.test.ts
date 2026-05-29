@@ -334,6 +334,7 @@ nullGuardDetector: true,
     agentSafetyBypassDetector: true,
     agencyEscalationDetector: true,
     taintPathDetector: true,
+    symbolImpactDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

@@ -510,6 +510,10 @@ taint_path_detector:
   description: "Detect cross-file taint paths: untrusted input reaching exec/eval/file-write, unvalidated redirects, cross-file variable taint"
   required: false
   default: "true"
+symbol_impact_detector:
+  description: "Detect symbol-level impact: map changed exported symbols to downstream callers, classify API handlers vs tests, compute impact score"
+  required: false
+  default: "true"
 jira_api_token:
   description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
   required: false
