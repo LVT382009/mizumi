@@ -113,6 +113,7 @@ import { detectParadigmClashes } from "./paradigm-clash-detector.js";
 import { detectVelocityRisks } from "./velocity-risk-detector.js";
 import { detectRulesFileIntegrity } from "./rules-file-integrity-detector.js";
 import { detectSpecDrift } from "./spec-drift-detector.js";
+import { detectIaCVulnerabilities } from "./iac-vulnerability-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -828,6 +829,15 @@ if (config.specDriftDetector) {
     core.info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zk. IaC vulnerability detector — detect security defaults in AI-generated infrastructure
+let iacVulnResult: import("./iac-vulnerability-detector.js").IaCVulnerabilityResult | null = null;
+if (config.iacVulnerabilityDetector) {
+  iacVulnResult = detectIaCVulnerabilities(diff.files);
+  if (iacVulnResult.issues.length > 0) {
+    core.info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1297,6 +1307,9 @@ if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
 }
 if (specDriftResult && specDriftResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + specDriftResult.contextText;
+}
+if (iacVulnResult && iacVulnResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iacVulnResult.contextText;
 }
 
 
@@ -2367,6 +2380,18 @@ if (specDriftResult && specDriftResult.bodySummary) {
     core.warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (iacVulnResult && iacVulnResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: iacVulnResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2549,6 +2574,7 @@ if (config.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect",
 if (config.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
 if (config.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
 if (config.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
+if (config.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

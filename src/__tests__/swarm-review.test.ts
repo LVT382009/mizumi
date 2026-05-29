@@ -319,6 +319,12 @@ nullGuardDetector: true,
         contextAmplificationDetector: true,
         cargoCultArchitectureDetector: true,
         confabulatedAPIDetector: true,
+  partialSecurityControlDetector: true,
+  paradigmClashDetector: true,
+  velocityRiskDetector: true,
+  rulesFileIntegrityDetector: true,
+  specDriftDetector: true,
+  iacVulnerabilityDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

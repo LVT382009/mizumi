@@ -56553,6 +56553,7 @@ function loadConfig() {
   const velocityRiskDetector = getInput("velocity_risk_detector") !== "false";
   const rulesFileIntegrityDetector = getInput("rules_file_integrity_detector") !== "false";
   const specDriftDetector = getInput("spec_drift_detector") !== "false";
+  const iacVulnerabilityDetector = getInput("iac_vulnerability_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56699,7 +56700,8 @@ function loadConfig() {
     paradigmClashDetector,
     velocityRiskDetector,
     rulesFileIntegrityDetector,
-    specDriftDetector
+    specDriftDetector,
+    iacVulnerabilityDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -125244,6 +125246,285 @@ function detectSpecDrift(diffFiles) {
   return result;
 }
 
+// src/iac-vulnerability-detector.ts
+function stripPrefix12(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges11(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var DOCKERFILE_RE = /(?:^|\/)Dockerfile(?:\.\w+)?$/i;
+var TF_RE = /\.tf(?:vars)?$/i;
+var CF_RE = /\.ya?ml$/i;
+var CICD_RE = /(?:^|\/)\.github\/workflows\/.+\.ya?ml$/i;
+var CFLOUDORMATION_RE = /(?:cloudformation|cfn|stack)/i;
+function isDockerfile(path27) {
+  return DOCKERFILE_RE.test(path27);
+}
+function isTerraform(path27) {
+  return TF_RE.test(path27);
+}
+function isCloudFormation(path27) {
+  return CF_RE.test(path27) && CFLOUDORMATION_RE.test(path27);
+}
+function isCICD(path27) {
+  return CICD_RE.test(path27);
+}
+var DOCKER_PATTERNS = [
+  { re: /^\s*FROM\s+\S+:latest\b/i, label: "uses :latest tag \u2014 non-deterministic builds, supply chain risk", severity: "critical" },
+  { re: /^\s*FROM\s+[a-zA-Z][\w./-]+(?<!:\S+)\s*$/i, label: "FROM without tag \u2014 defaults to :latest, non-deterministic builds", severity: "warning" },
+  { re: /^\s*--privileged\b/i, label: "privileged container \u2014 grants host-level access, escapes container boundary", severity: "critical" },
+  { re: /^\s*RUN\s+.*--no-auth\b/i, label: "disables authentication in container build \u2014 never disable auth in production images", severity: "critical" },
+  { re: /^\s*RUN\s+.*chmod\s+777/i, label: "chmod 777 \u2014 world-writable files in container, privilege escalation risk", severity: "critical" },
+  { re: /^\s*EXPOSE\s+(?:22|3389)\b/i, label: "exposes SSH/RDP port in container \u2014 containers should not run SSH daemons", severity: "warning" },
+  { re: /^\s*RUN\s+.*apt-get\s+install\b(?!.*--no-install-recommends)/i, label: "apt-get install without --no-install-recommends \u2014 bloated image with unnecessary packages, larger attack surface", severity: "warning" }
+];
+var DOCKERFILE_NO_ROOT_RE = /^\s*USER\s+/i;
+var DOCKERFILE_HEALTHCHECK_RE = /^\s*HEALTHCHECK\b/i;
+function detectDockerInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  let hasUserDirective = false;
+  let hasHealthcheck = false;
+  let hasFromDirective = false;
+  for (const change of added) {
+    const trimmed = stripPrefix12(change.content);
+    if (DOCKERFILE_NO_ROOT_RE.test(trimmed)) hasUserDirective = true;
+    if (DOCKERFILE_HEALTHCHECK_RE.test(trimmed)) hasHealthcheck = true;
+    if (/^\s*FROM\s+/i.test(trimmed)) hasFromDirective = true;
+    for (const { re: re2, label, severity } of DOCKER_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "docker-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Docker insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 IOActive 2026 study found 70-97% vulnerability rates in AI-generated Dockerfiles; LLMs default to insecure configurations; fix this before merging`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  if (hasFromDirective && !hasUserDirective) {
+    issues.push({
+      category: "docker-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No USER directive",
+      description: `Docker insecurity in \`${file2.path}\`: no USER directive \u2014 container runs as root by default; IOActive found root containers in AI-generated Dockerfiles are the most common vulnerability; add \`USER node\` or similar non-root user`,
+      severity: "critical"
+    });
+  }
+  if (hasFromDirective && !hasHealthcheck) {
+    issues.push({
+      category: "docker-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No HEALTHCHECK instruction",
+      description: `Docker insecurity in \`${file2.path}\`: no HEALTHCHECK instruction \u2014 orchestrators cannot detect unhealthy containers; LLMs rarely add health checks; add a HEALTHCHECK for production readiness`,
+      severity: "warning"
+    });
+  }
+  return issues;
+}
+var TF_PATTERNS = [
+  { re: /\bserver_side_encryption\s*=\s*false/i, label: "server_side_encryption disabled \u2014 data at rest is unencrypted", severity: "critical" },
+  { re: /cidr_blocks\s*=\s*\[\s*"0\.0\.0\.0\/0"\s*\]/, label: "security group open to 0.0.0.0/0 \u2014 allows ingress from the entire internet", severity: "critical" },
+  { re: /\bpublic_access\s*=\s*true/i, label: "public access enabled \u2014 resource exposed to the internet", severity: "critical" },
+  { re: /\bencrypt\s*=\s*false/i, label: "encryption disabled \u2014 data at rest is unencrypted", severity: "critical" },
+  { re: /\bssl\s*=\s*false/i, label: "SSL disabled \u2014 data in transit is unencrypted", severity: "critical" },
+  { re: /\benforce_https\s*=\s*false/i, label: "HTTPS enforcement disabled \u2014 data in transit is unencrypted", severity: "critical" },
+  { re: /\baccess_key\s*=\s*["']/i, label: "hardcoded access key in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bsecret_key\s*=\s*["']/i, label: "hardcoded secret key in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bpassword\s*=\s*["'][^"']+["']/i, label: "hardcoded password in Terraform \u2014 use variables or secrets management", severity: "critical" },
+  { re: /\bprevent_destroy\s*=\s*false/i, label: "prevent_destroy disabled \u2014 resource can be accidentally destroyed", severity: "warning" }
+];
+function detectTerraformInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of TF_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "tf-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Terraform insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate IaC with insecure defaults; IOActive found 70-97% vulnerability rates in AI-generated infrastructure code; fix this before applying`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+var CICD_PATTERNS = [
+  { re: /^\s*permissions:\s*write-all/i, label: "write-all permissions \u2014 workflow has unrestricted write access to repository", severity: "critical" },
+  { re: /^\s*-\s*uses:\s*actions\/checkout@v1\b/, label: "checkout@v1 \u2014 vulnerable to repo confusion attacks; use v4+ with persist-credentials: false", severity: "warning" },
+  { re: /pull_request_target/i, label: "pull_request_target trigger \u2014 can execute untrusted code with repo token; use with extreme caution", severity: "critical" },
+  { re: /\$\{\{\s*github\.event\.pull_request\.body\s*\}\}/i, label: "PR body interpolation \u2014 untrusted input injected into workflow, script injection risk", severity: "critical" },
+  { re: /\$\{\{\s*github\.event(?:\.(?:head|base)_repo)?\.clone_url\s*\}\}/i, label: "clone_url interpolation \u2014 attacker can redirect to malicious repo", severity: "critical" },
+  { re: /actions\s+token\s+debugging.*:\s*true/i, label: " Actions token debugging enabled \u2014 leaks OIDC token in logs", severity: "warning" }
+];
+function detectCICDInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  const allContent = added.map((c) => stripPrefix12(c.content)).join("\n");
+  const hasOnTrigger = /\bon:\s*$/m.test(allContent) || /\bon:\s*\[?\s*(?:push|pull_request|workflow_dispatch)/m.test(allContent);
+  const hasPermissions = /^\s*permissions\s*:/m.test(allContent);
+  if (hasOnTrigger && !hasPermissions) {
+    issues.push({
+      category: "cicd-insecurity",
+      file: file2.path,
+      line: 1,
+      code: "No permissions block",
+      description: `CI/CD insecurity in \`${file2.path}\`: workflow has no permissions block \u2014 GitHub Actions defaults to write token; LLMs generate workflows without permission boundaries; add explicit \`permissions:\` with minimum required scopes`,
+      severity: "warning"
+    });
+  }
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of CICD_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "cicd-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `CI/CD insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate CI/CD pipelines with insecure defaults; CSA 2026 reports 10x surge in IaC security findings; fix before enabling the workflow`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+var CF_PATTERNS = [
+  { re: /\bAction:\s*["']?\*["']?/i, label: "Allow action * \u2014 IAM policy grants all actions, violates least privilege", severity: "critical" },
+  { re: /\bResource:\s*["']?\*["']?/i, label: "Resource * \u2014 IAM policy targets all resources, violates least privilege", severity: "critical" },
+  { re: /\bEncryptionConfiguration:\s*\{[^}]*Enabled:\s*false/i, label: "encryption disabled \u2014 S3/EFS/EBS data at rest is unencrypted", severity: "critical" },
+  { re: /\bPublicAccessBlockConfiguration:\s*\{[^}]*BlockPublicAcls:\s*false/i, label: "public access not blocked \u2014 S3 bucket allows public ACLs", severity: "critical" },
+  { re: /\bCidrIp:\s*["']0\.0\.0\.0\/0["']/i, label: "security group open to 0.0.0.0/0 \u2014 allows ingress from the entire internet", severity: "critical" },
+  { re: /\bEngine:\s*aurora\b/i, label: "Aurora engine without encryption check \u2014 ensure StorageEncrypted is true", severity: "warning" }
+];
+function detectCloudFormationInsecurity(file2) {
+  const issues = [];
+  const added = getAddedChanges11(file2);
+  for (const change of added) {
+    if (/^\+\s*(#|\/\/)/.test(change.content)) continue;
+    const trimmed = stripPrefix12(change.content);
+    for (const { re: re2, label, severity } of CF_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "cloudformation-insecurity",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `CloudFormation insecurity in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs generate CloudFormation with overly permissive IAM and unencrypted resources; IOActive found 70-97% vulnerability rates in AI-generated infrastructure; fix before deploying`,
+          severity
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues31(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildIaCVulnerabilityContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## IaC/Infrastructure Vulnerability Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies infrastructure code with insecure defaults \u2014 IOActive 2026 found 70-97% vulnerability rates in AI-generated IaC:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildIaCVulnerabilityBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>IaC/Infrastructure Vulnerability Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*IOActive 2026 found 70-97% vulnerability rates in AI-generated infrastructure code \u2014 Dockerfiles with root users and latest tags, Terraform with open security groups and unencrypted storage, CI/CD workflows without permission boundaries, CloudFormation with overly permissive IAM. These are the highest-risk code patterns LLMs produce. Review and fix before deploying.*
+</details>
+`;
+  return body;
+}
+function detectIaCVulnerabilities(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (isDockerfile(file2.path)) {
+      allIssues.push(...detectDockerInsecurity(file2));
+    }
+    if (isTerraform(file2.path)) {
+      allIssues.push(...detectTerraformInsecurity(file2));
+    }
+    if (isCICD(file2.path)) {
+      allIssues.push(...detectCICDInsecurity(file2));
+    }
+    if (isCloudFormation(file2.path)) {
+      allIssues.push(...detectCloudFormationInsecurity(file2));
+    }
+  }
+  const issues = dedupIssues31(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildIaCVulnerabilityContext(result);
+  result.bodySummary = buildIaCVulnerabilityBodySummary(result);
+  if (issues.length > 0) {
+    info(`IaC vulnerability detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -125862,6 +126143,13 @@ async function run() {
         info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
       }
     }
+    let iacVulnResult = null;
+    if (config2.iacVulnerabilityDetector) {
+      iacVulnResult = detectIaCVulnerabilities(diff.files);
+      if (iacVulnResult.issues.length > 0) {
+        info("IaC vulnerability detection: " + iacVulnResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -126256,6 +126544,9 @@ ${taintContextStr}`;
     }
     if (specDriftResult && specDriftResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + specDriftResult.contextText;
+    }
+    if (iacVulnResult && iacVulnResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iacVulnResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -127303,6 +127594,18 @@ ${digest}
                   warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (iacVulnResult && iacVulnResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: iacVulnResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post IaC vulnerability summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
             } catch (e) {
               warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
@@ -127475,6 +127778,7 @@ ${digest}
         if (config2.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
         if (config2.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
         if (config2.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
+        if (config2.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
