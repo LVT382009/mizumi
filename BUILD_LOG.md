@@ -977,3 +977,13 @@ Research identified 5 highest-impact remaining detector gaps:
 - **trust-boundary-detector.ts**: Added optional quotes around IAM keys for JSON CloudFormation templates
 - **Test expansion** across 6 modules: +107 new tests total
 - **6917 tests** passing, 0 TS errors, bundle rebuilt
+
+### Agent Self-Referential Safety Bypass Detector (2026-05-29)
+- **src/agent-safety-bypass-detector.ts** — 39 tests, zero LLM cost
+- **Competitive gap**: Zero competitors detect when AI agents modify their own governance files. Vectimus CVE-2025-54135 (CurXecute): README injection caused Cursor to rewrite MCP config. CSA 2026: privilege escalation +322%. OWASP LLM06:2025 Excessive Agency.
+- **3 detection categories**:
+  1. **governance-config-modification**: PR touches BOTH agent governance files (settings.json, MCP configs, .claude/, hooks/) AND source code — self-referential change
+  2. **safety-hook-disabling**: Removes/nullifies safety hooks (autoApprove:true, skip_review, empty protected branches, pre-commit removal)
+  3. **agent-permission-expansion**: Adds MCP servers, broadens tool permissions, unattended mode, --yes/--force flags
+- **Full pipeline integration**: config.ts, main.ts (4a3zr), action.yml, 8 test stubs, audit trail
+- **6956 tests** passing, 0 TS errors, bundle rebuilt
