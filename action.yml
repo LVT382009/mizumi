@@ -522,6 +522,10 @@ lockfile_integrity_detector:
   description: "Detect lockfile integrity issues: missing lockfile updates, orphan lockfile changes, lockfile version drift"
   required: false
   default: "true"
+gitignore_gap_detector:
+  description: "Detect gitignore gaps: sensitive files, build artifacts, OS/IDE artifacts that should be gitignored"
+  required: false
+  default: "true"
 jira_api_token:
   description: "Jira API token for authentication. Also set via MIZUMI_JIRA_API_TOKEN env var."
   required: false

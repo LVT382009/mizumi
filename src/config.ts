@@ -120,6 +120,7 @@ observabilityGapDetector: boolean;
  symbolImpactDetector: boolean;
  dependencyRiskDetector: boolean;
  lockfileIntegrityDetector: boolean;
+ gitignoreGapDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -263,6 +264,7 @@ const taintPathDetector = core.getInput("taint_path_detector") !== "false"; // d
 const symbolImpactDetector = core.getInput("symbol_impact_detector") !== "false"; // default true
 const dependencyRiskDetector = core.getInput("dependency_risk_detector") !== "false"; // default true
 const lockfileIntegrityDetector = core.getInput("lockfile_integrity_detector") !== "false"; // default true
+const gitignoreGapDetector = core.getInput("gitignore_gap_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -425,6 +427,7 @@ observabilityGapDetector,
   symbolImpactDetector,
   dependencyRiskDetector,
   lockfileIntegrityDetector,
+  gitignoreGapDetector,
   };
 }
 

@@ -226,7 +226,7 @@ function detectUnusedNewDependency(
     for (const change of addedChanges) {
       const trimmed = stripPrefix(change.content);
       // import ... from 'pkg' or require('pkg')
-      const importMatch = trimmed.match(/(?:import\s+.*from\s+|require\s*\(\s*)['"](@?[\w\-./@]+)['"]/);
+      const importMatch = trimmed.match(/(?:import\s+.*?\s+from\s+|require\s*\(\s*|import\s*\(\s*)['"](@?[\w\-./@]+)['"]/);
       if (importMatch) {
         // Only root package name (first segment before /)
         const rootPkg = importMatch[1].startsWith("@")

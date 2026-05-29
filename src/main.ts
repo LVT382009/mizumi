@@ -126,6 +126,7 @@ import { detectTaintPaths } from "./taint-path-detector.js";
 import { detectSymbolImpact } from "./symbol-impact-detector.js";
 import { detectDependencyRisk } from "./dependency-risk-detector.js";
 import { detectLockfileIntegrity } from "./lockfile-integrity-detector.js";
+import { detectGitignoreGaps } from "./gitignore-gap-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -956,6 +957,15 @@ if (config.lockfileIntegrityDetector) {
     core.info("Lockfile integrity: " + lockfileIntegrityResult.issues.length + " issue(s)");
   }
 }
+// 4a3zx. Gitignore gap detector — sensitive files, build artifacts, OS/IDE artifacts
+let gitignoreGapResult: import("./gitignore-gap-detector.js").GitignoreResult | null = null;
+if (config.gitignoreGapDetector) {
+  gitignoreGapResult = detectGitignoreGaps(diff.files);
+  if (gitignoreGapResult.issues.length > 0) {
+    core.info("Gitignore gap: " + gitignoreGapResult.issues.length + " file(s) should be gitignored");
+  }
+}
+
 
 
 
@@ -1469,6 +1479,9 @@ if (dependencyRiskResult && dependencyRiskResult.contextText) {
 }
 if (lockfileIntegrityResult && lockfileIntegrityResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + lockfileIntegrityResult.contextText;
+}
+if (gitignoreGapResult && gitignoreGapResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + gitignoreGapResult.contextText;
 }
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -2687,6 +2700,18 @@ if (lockfileIntegrityResult && lockfileIntegrityResult.bodySummary) {
     core.warning("Failed to post lockfile integrity summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (gitignoreGapResult && gitignoreGapResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: gitignoreGapResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post gitignore gap summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2894,6 +2919,7 @@ if (config.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true
 if (config.symbolImpactDetector) auditBuilder.logStage("symbol-impact-detect", 0, true);
 if (config.dependencyRiskDetector) auditBuilder.logStage("dependency-risk-detect", 0, true);
 if (config.lockfileIntegrityDetector) auditBuilder.logStage("lockfile-integrity-detect", 0, true);
+if (config.gitignoreGapDetector) auditBuilder.logStage("gitignore-gap-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

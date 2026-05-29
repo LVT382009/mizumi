@@ -137,6 +137,7 @@ nullGuardDetector: true,
     symbolImpactDetector: true,
     dependencyRiskDetector: true,
     lockfileIntegrityDetector: true,
+    gitignoreGapDetector: true,
     ...overrides,
   };
 }
