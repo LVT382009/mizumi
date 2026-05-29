@@ -987,3 +987,13 @@ Research identified 5 highest-impact remaining detector gaps:
   3. **agent-permission-expansion**: Adds MCP servers, broadens tool permissions, unattended mode, --yes/--force flags
 - **Full pipeline integration**: config.ts, main.ts (4a3zr), action.yml, 8 test stubs, audit trail
 - **6956 tests** passing, 0 TS errors, bundle rebuilt
+
+### Agency Escalation Detector (2026-05-29)
+- **src/agency-escalation-detector.ts** — 33 tests, zero LLM cost
+- **Competitive gap**: Zero competitors detect OWASP LLM06 Excessive Agency in source code. Microsoft CVE-2026-26030/25592: AI-controlled parameters reach dangerous sinks without validation. Snyk ToxicSkills: 13.4% of agent skills contain critical issues.
+- **3 detection categories**:
+  1. **unrestricted-tool-parameter**: File path, command, URL params from untrusted input without allowlisting
+  2. **excessive-autonomy**: auto-deploy, auto-approve, skip_review, cron, while(true) loops, agent self-modification code
+  3. **dangerous-sink-from-llm-output**: eval(), new Function(), child_process.exec, vm module, dynamic import from LLM taint paths
+- **Full pipeline integration**: config.ts, main.ts (4a3zs), action.yml, 8 test stubs, audit trail
+- **6989 tests** passing, 0 TS errors, bundle rebuilt
