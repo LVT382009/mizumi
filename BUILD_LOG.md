@@ -1043,3 +1043,16 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Multi-lockfile support**: package-lock.json, yarn.lock, pnpm-lock.yaml
 - **Full pipeline integration**: config.ts, main.ts (4a3zw), action.yml, 8 test stubs
 - **7215 tests** passing, 134 files, 0 TS errors, bundle rebuilt
+
+### Gitignore Gap Detector (2026-05-29)
+- **src/gitignore-gap-detector.ts** — 24 tests, zero LLM cost
+- **Competitive gap**: No AI code reviewer checks gitignore coverage. LLMs generate .env files, build artifacts, and IDE configs that should never be committed.
+- **3 detection categories**:
+1. **sensitive-file-added**: .env, credentials, secrets, private keys, .pem/.jks/.p12, .npmrc (critical)
+2. **build-artifact-added**: dist/, build/, node_modules/, .next/, __pycache__/, target/ (warning)
+3. **os-ide-artifact-added**: .DS_Store, Thumbs.db, Desktop.ini, .idea/, .eclipse/ (warning)
+- **Smart detection**: Sensitive file check applies to both added AND modified files (should never be in repo). Build/OS artifact checks only apply to newly added files.
+- **Full pipeline integration**: config.ts, main.ts (4a3zx), action.yml, 8 test stubs
+- **Fix**: dependency-risk-detector now recognizes dynamic `import("pkg")` usage alongside static `import ... from` and `require()`
+- **Test expansion**: dependency-risk 24→43 (background agent: major bumps, downgrade, typosquatting patterns)
+- **7258 tests** passing, 135 files, 0 TS errors, bundle rebuilt
