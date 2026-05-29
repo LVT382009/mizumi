@@ -971,3 +971,9 @@ Research identified 5 highest-impact remaining detector gaps:
   2. **malicious-mcp-redirect**: Suspicious MCP server URLs — phishing TLDs, IP addresses, ngrok tunnels, localhost in prod, URL shorteners
 - **Full pipeline integration**: config.ts, main.ts (4a3zq), action.yml, 8 test stubs, audit trail
 - **6810 tests** passing, 0 TS errors, bundle rebuilt
+
+### Test Coverage Expansion + Detector Regex Fixes (2026-05-29)
+- **security-paradox-detector.ts**: Added CamelCase crypto pattern for implementAES-style names, broadened XOR pattern for security-context variables
+- **trust-boundary-detector.ts**: Added optional quotes around IAM keys for JSON CloudFormation templates
+- **Test expansion** across 6 modules: +107 new tests total
+- **6917 tests** passing, 0 TS errors, bundle rebuilt
