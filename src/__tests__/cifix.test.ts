@@ -161,6 +161,7 @@ nullGuardDetector: true,
   iacVulnerabilityDetector: true,
     credentialExposureDetector: true,
     illusoryValidationDetector: true,
+    iterationStrippingDetector: true,
 };
 
 const defaultCIConfig: CIFixConfig = {

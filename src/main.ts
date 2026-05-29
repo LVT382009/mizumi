@@ -116,6 +116,7 @@ import { detectSpecDrift } from "./spec-drift-detector.js";
 import { detectIaCVulnerabilities } from "./iac-vulnerability-detector.js";
 import { detectCredentialExposure } from "./credential-exposure-detector.js";
 import { detectIllusoryValidation } from "./illusory-validation-detector.js";
+import { detectIterationStripping } from "./iteration-stripping-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -859,6 +860,15 @@ if (config.illusoryValidationDetector) {
   }
 }
 
+
+// 4a3zn. Iteration stripping detector — detect LLM refactoring removing security controls
+let iterStrippingResult: import("./iteration-stripping-detector.js").IterationStrippingResult | null = null;
+if (config.iterationStrippingDetector) {
+  iterStrippingResult = detectIterationStripping(diff.files);
+  if (iterStrippingResult.issues.length > 0) {
+    core.info("Iteration stripping detection: " + iterStrippingResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1336,7 +1346,10 @@ if (iacVulnResult && iacVulnResult.contextText) {
 if (illusoryResult && illusoryResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + illusoryResult.contextText;
 }
-if (credExposureResult && credExposureResult.contextText) {
+
+if (iterStrippingResult && iterStrippingResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iterStrippingResult.contextText;
+}if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
 
@@ -2433,6 +2446,18 @@ if (illusoryResult && illusoryResult.bodySummary) {
     core.warning("Failed to post illusory validation summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (iterStrippingResult && iterStrippingResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: iterStrippingResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post iteration stripping summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2629,6 +2654,8 @@ if (config.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integri
 if (config.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
 if (config.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-detect", 0, true);
 if (config.credentialExposureDetector) auditBuilder.logStage("credential-exposure-detect", 0, true);
+if (config.illusoryValidationDetector) auditBuilder.logStage("illusory-validation-detect", 0, true);
+if (config.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

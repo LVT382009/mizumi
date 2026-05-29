@@ -481,6 +481,10 @@ default: 'true'
     description: 'Detect security-shaped code that doesn't actually protect: dead validation, sanitizer-sink mismatches, voided crypto params, decorative imports'
     required: false
     default: 'true'
+iteration_stripping_detector:
+  description: "Detect LLM refactoring that strips security controls: auth decorators, validation guards, parameterized queries, specific error handling"
+  required: false
+  default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:
