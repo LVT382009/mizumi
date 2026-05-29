@@ -56560,6 +56560,7 @@ function loadConfig() {
   const securityParadoxDetector = getInput("security_paradox_detector") !== "false";
   const trustBoundaryDetector = getInput("trust_boundary_detector") !== "false";
   const aiConfigIntegrityDetector = getInput("ai_config_integrity_detector") !== "false";
+  const agentSafetyBypassDetector = getInput("agent_safety_bypass_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56713,7 +56714,8 @@ function loadConfig() {
     iterationStrippingDetector,
     securityParadoxDetector,
     trustBoundaryDetector,
-    aiConfigIntegrityDetector
+    aiConfigIntegrityDetector,
+    agentSafetyBypassDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -126999,6 +127001,347 @@ function detectAIConfigIntegrity(diffFiles) {
   return result;
 }
 
+// src/agent-safety-bypass-detector.ts
+function stripPrefix19(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges18(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+function getRemovedChanges3(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "delete");
+}
+function getAllChanges(file2) {
+  return file2.hunks.flatMap((h) => h.changes);
+}
+var AGENT_GOVERNANCE_PATHS = [
+  /(?:^|[\\/])\.claude[\\/](?:settings|instructions|config)/i,
+  /(?:^|[\\/])\.cursor[\\/](?:rules|mcp)/i,
+  /(?:^|[\\/])\.cursorrules/i,
+  /(?:^|[\\/])\.continue[\\/]/i,
+  /(?:^|[\\/])\.serena[\\/]/i,
+  /(?:^|[\\/])\.specweave[\\/]/i,
+  /(?:^|[\\/])\.openclaude[\\/]/i,
+  /(?:^|[\\/])\.mcp\.json$/i,
+  /(?:^|[\\/])mcp\.json$/i,
+  /(?:^|[\\/])claude_desktop_config\.json$/i,
+  /(?:^|[\\/])\.vscode[\\/]settings\.json$/i,
+  /(?:^|[\\/])\.vscode[\\/]extensions\.json$/i,
+  /(?:^|[\\/])\.vscode[\\/]launch\.json$/i,
+  /(?:^|[\\/])\.github[\\/]workflows[\\/]/i,
+  /(?:^|[\\/])\.pre-commit/i,
+  /(?:^|[\\/])hooks[\\/]/i,
+  /(?:^|[\\/])\.husky[\\/]/i,
+  /(?:^|[\\/])CLAUDE\.md$/i,
+  /(?:^|[\\/])AGENTS?\.md$/i,
+  /(?:^|[\\/])copilot-instructions/i,
+  /(?:^|[\\/])\.github[\\/]copilot/i
+];
+var SOURCE_CODE_RE = /\.(?:ts|tsx|js|jsx|py|rb|go|rs|java|kt|cs|php|c|cpp|h|hpp|swift|dart|lua|pl|sh|rs|zig)$/i;
+function isGovernanceFile(filePath) {
+  return AGENT_GOVERNANCE_PATHS.some((re2) => re2.test(filePath));
+}
+function isSourceCodeFile(filePath) {
+  return SOURCE_CODE_RE.test(filePath);
+}
+var SKIP_LINE_RE29 = /^[-+]\s*(?:[\/][\/]|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var TEST_PATH_RE4 = /(?:__tests__|\.test\.|\.spec\.|_test\.|_spec\.|tests?\/)/;
+var SAFETY_HOOK_DISABLE_PATTERNS = [
+  {
+    re: /["']?autoApprove["']?\s*[:=]\s*true/i,
+    description: "autoApprove enabled \u2014 agent can approve its own changes without human review"
+  },
+  {
+    re: /["']?auto_approve["']?\s*[:=]\s*true/i,
+    description: "auto_approve enabled \u2014 agent can approve its own changes without human review"
+  },
+  {
+    re: /["']?auto[_-]?merge["']?\s*[:=]\s*true/i,
+    description: "auto-merge enabled \u2014 changes merge without human review gate"
+  },
+  {
+    re: /["']?skip[_-]?review["']?\s*[:=]\s*true/i,
+    description: "skip_review enabled \u2014 bypasses PR review requirement"
+  },
+  {
+    re: /"(?:tools|permissions)"\s*:\s*\{[^}]*"deny"\s*:\s*\[\s*\]/s,
+    description: "empty tool deny list \u2014 no tools are restricted, agent has unrestricted capability"
+  },
+  {
+    re: /["']?protected[_-]?branches?["']?\s*[:=]\s*\[\s*\]/i,
+    description: "empty protected branches \u2014 no branch protection rules active"
+  },
+  {
+    re: /["']?required[_-]?reviewers["']?\s*[:=]\s*0/i,
+    description: "zero required reviewers \u2014 PRs can merge without review"
+  },
+  {
+    re: /["']?required[_-]?status[_-]?checks["']?\s*[:=]\s*\[\s*\]/i,
+    description: "empty required status checks \u2014 CI no longer gates merges"
+  },
+  {
+    re: /["']?(?:enforce|strict|require)["']?\s*[:=]\s*false/i,
+    description: "safety enforcement disabled \u2014 protection rule turned off"
+  },
+  {
+    re: /["']?allow(?:ed|-)?[_-]?(?:all|any|every|unrestricted)["']?\s*[:=]\s*true/i,
+    description: "unrestricted allow rule \u2014 grants unlimited access"
+  },
+  {
+    re: /"deny"\s*:\s*\[\s*\]/i,
+    description: "empty deny list \u2014 no restrictions on agent tool access"
+  },
+  {
+    re: /["']?always_allow["']?\s*[:=]\s*true/i,
+    description: "always_allow enabled \u2014 agent bypasses permission prompts"
+  }
+];
+var SAFETY_HOOK_REMOVAL_PATTERNS = [
+  {
+    re: /pre-commit/i,
+    description: "pre-commit hook removed \u2014 safety checks no longer run before commits"
+  },
+  {
+    re: /(?:husky|lint-staged)/i,
+    description: "git hook framework removed \u2014 automated safety checks no longer enforced"
+  },
+  {
+    re: /protected[_-]?branches?/i,
+    description: "branch protection removed \u2014 branches can be force-pushed or deleted"
+  },
+  {
+    re: /required[_-]?review/i,
+    description: "required review removed \u2014 PRs can merge without approval"
+  },
+  {
+    re: /required[_-]?status/i,
+    description: "required status check removed \u2014 CI no longer gates merges"
+  },
+  {
+    re: /"(?:deny|block|forbidden|restricted)"/i,
+    description: "tool restriction removed from agent configuration"
+  }
+];
+var PERMISSION_EXPANSION_PATTERNS = [
+  {
+    re: /["']?mcpServers?["']?\s*[:=]\s*\{/i,
+    description: "new MCP server added \u2014 agent gains new external tool capability"
+  },
+  {
+    re: /["']?allowedTools["']?\s*[:=]\s*\[/i,
+    description: "allowedTools expanded \u2014 agent gains additional tool permissions"
+  },
+  {
+    re: /["']?allow(?:ed|-)?Tools?["']?\s*[:=]\s*\[/i,
+    description: "tool allow list \u2014 agent granted specific tool access"
+  },
+  {
+    re: /["']?permissions["']?\s*[:=]\s*\{[^}]*(?:read|write|execute|admin|full_access|all)/i,
+    description: "broad permission scope \u2014 agent granted wide-reaching access"
+  },
+  {
+    re: /["']?command["']?\s*[:=]\s*['"](?!echo|print|cat|ls|pwd)[^'"]+/i,
+    description: "agent command execution \u2014 agent can run arbitrary commands"
+  },
+  {
+    re: /["']?allowedCommands["']?\s*[:=]\s*\[/i,
+    description: "allowedCommands \u2014 agent granted command execution capability"
+  },
+  {
+    re: /["']?files["']?\s*[:=]\s*['"]\//i,
+    description: "root filesystem access \u2014 agent can access files at system root"
+  },
+  {
+    re: /(?:read|write|access)\s*[:=]\s*['"]\/(?:etc|root|var|tmp|home)/i,
+    description: "sensitive directory access \u2014 agent can access system directories"
+  },
+  {
+    re: /--yes|--force|-y\b/i,
+    description: "force/yes flag \u2014 auto-approve destructive operations without confirmation"
+  },
+  {
+    re: /["']?unattended["']?\s*[:=]\s*true/i,
+    description: "unattended mode \u2014 agent runs without human-in-the-loop"
+  }
+];
+function detectGovernanceConfigModification(diffFiles) {
+  const issues = [];
+  const governanceFiles = [];
+  const sourceFiles = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (TEST_PATH_RE4.test(file2.path)) continue;
+    if (isGovernanceFile(file2.path)) {
+      governanceFiles.push(file2.path);
+    } else if (isSourceCodeFile(file2.path)) {
+      sourceFiles.push(file2.path);
+    }
+  }
+  if (governanceFiles.length > 0 && sourceFiles.length > 0) {
+    for (const gPath of governanceFiles) {
+      const govFile = diffFiles.find((f) => f.path === gPath);
+      if (!govFile) continue;
+      const added = getAddedChanges18(govFile);
+      const representativeLine = added.length > 0 ? added[0] : getAllChanges(govFile)[0];
+      if (!representativeLine) continue;
+      issues.push({
+        category: "governance-config-modification",
+        file: gPath,
+        line: representativeLine.line,
+        code: stripPrefix19(representativeLine.content),
+        description: `Self-referential governance change in \`${gPath}\` \u2014 this PR modifies agent governance files AND source code (${sourceFiles.slice(0, 3).join(", ")}); Vectimus CVE-2025-54135: AI agents modify their own safety configuration within the same PR; changes are "silent and persistent" \u2014 once safety settings are disabled, all subsequent actions proceed without restriction; separate governance changes into a dedicated human-reviewed PR`,
+        severity: "critical"
+      });
+    }
+  }
+  return issues;
+}
+function detectSafetyHookDisabling(file2) {
+  const issues = [];
+  if (!isGovernanceFile(file2.path)) return issues;
+  if (TEST_PATH_RE4.test(file2.path)) return issues;
+  const added = getAddedChanges18(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE29.test(change.content)) continue;
+    const trimmed = stripPrefix19(change.content);
+    for (const { re: re2, description } of SAFETY_HOOK_DISABLE_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "safety-hook-disabling",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Safety hook disabled in \`${file2.path}:${change.line}\`: ${description}; CSA 2026: privilege escalation +322% in AI-generated code; Microsoft CVE-2026-25592: AI-controlled parameters crossed container boundaries without validation; restore the safety control or document why it is intentionally disabled`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  const removed = getRemovedChanges3(file2);
+  for (const change of removed) {
+    const trimmed = stripPrefix19(change.content);
+    for (const { re: re2, description } of SAFETY_HOOK_REMOVAL_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "safety-hook-disabling",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Safety hook removed in \`${file2.path}:${change.line}\`: ${description}; CSA 2026: "architectural design flaws rose 153%" in AI-iterated code; removing safety controls without replacement is a critical governance gap; add replacement controls or document the removal justification`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function detectAgentPermissionExpansion(file2) {
+  const issues = [];
+  if (!isGovernanceFile(file2.path)) return issues;
+  if (TEST_PATH_RE4.test(file2.path)) return issues;
+  const added = getAddedChanges18(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE29.test(change.content)) continue;
+    const trimmed = stripPrefix19(change.content);
+    for (const { re: re2, description } of PERMISSION_EXPANSION_PATTERNS) {
+      if (re2.test(trimmed)) {
+        issues.push({
+          category: "agent-permission-expansion",
+          file: file2.path,
+          line: change.line,
+          code: trimmed,
+          description: `Agent permission expanded in \`${file2.path}:${change.line}\`: ${description}; OWASP LLM06:2025 Excessive Agency \u2014 AI agents with unchecked permissions can autonomously execute destructive operations; Snyk ToxicSkills: 13.4% of agent skills contain critical security issues; verify this permission expansion is intentional and scoped to minimum necessary capability`,
+          severity: "warning"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues38(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAgentSafetyBypassContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Agent Self-Referential Safety Bypass Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies AI agent governance files \u2014 self-referential safety changes:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAgentSafetyBypassBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Agent Self-Referential Safety Bypass Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*Agent self-referential safety bypass \u2014 Vectimus CVE-2025-54135: AI agents modify their own safety configuration. OWASP LLM06:2025 Excessive Agency. CSA 2026: privilege escalation +322%. Microsoft RCE: AI-controlled parameters cross trust boundaries without validation. Zero competitors detect agent governance self-modification.*
+</details>
+`;
+  return body;
+}
+function detectAgentSafetyBypass(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectGovernanceConfigModification(diffFiles));
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    allIssues.push(...detectSafetyHookDisabling(file2));
+    allIssues.push(...detectAgentPermissionExpansion(file2));
+  }
+  const issues = dedupIssues38(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAgentSafetyBypassContext(result);
+  result.bodySummary = buildAgentSafetyBypassBodySummary(result);
+  if (issues.length > 0) {
+    info(`Agent safety bypass detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -127664,6 +128007,13 @@ async function run() {
       aiConfigIntegrityResult = detectAIConfigIntegrity(diff.files);
       if (aiConfigIntegrityResult.issues.length > 0) {
         info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
+      }
+    }
+    let agentSafetyBypassResult = null;
+    if (config2.agentSafetyBypassDetector) {
+      agentSafetyBypassResult = detectAgentSafetyBypass(diff.files);
+      if (agentSafetyBypassResult.issues.length > 0) {
+        info("Agent safety bypass detection: " + agentSafetyBypassResult.issues.length + " issue(s)");
       }
     }
     let learningResult = null;
@@ -129200,6 +129550,18 @@ ${digest}
                   warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: agentSafetyBypassResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
               if (credExposureResult && credExposureResult.bodySummary) {
                 try {
                   await octokit.rest.issues.createComment({
@@ -129391,6 +129753,7 @@ ${digest}
         if (config2.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
         if (config2.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
         if (config2.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
+        if (config2.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }

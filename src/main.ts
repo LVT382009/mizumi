@@ -120,6 +120,7 @@ import { detectIterationStripping } from "./iteration-stripping-detector.js";
 import { detectSecurityParadox } from "./security-paradox-detector.js";
 import { detectTrustBoundaryErosion } from "./trust-boundary-detector.js";
 import { detectAIConfigIntegrity } from "./ai-config-integrity-detector.js";
+import { detectAgentSafetyBypass } from "./agent-safety-bypass-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -898,6 +899,16 @@ if (config.aiConfigIntegrityDetector) {
   if (aiConfigIntegrityResult.issues.length > 0) {
     core.info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
   }
+}
+
+// 4a3zr. Agent self-referential safety bypass detector
+let agentSafetyBypassResult: import("./agent-safety-bypass-detector.js").AgentSafetyBypassResult | null = null;
+if (config.agentSafetyBypassDetector) {
+  agentSafetyBypassResult = detectAgentSafetyBypass(diff.files);
+  if (agentSafetyBypassResult.issues.length > 0) {
+    core.info("Agent safety bypass detection: " + agentSafetyBypassResult.issues.length + " issue(s)");
+  }
+
 }
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
@@ -2536,7 +2547,19 @@ if (aiConfigIntegrityResult && aiConfigIntegrityResult.bodySummary) {
     core.warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
-if (credExposureResult && credExposureResult.bodySummary) {
+if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: agentSafetyBypassResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post agent safety bypass summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+ }
+ if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
       owner,
@@ -2737,6 +2760,7 @@ if (config.iterationStrippingDetector) auditBuilder.logStage("iteration-strippin
 if (config.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
 if (config.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
 if (config.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
+if (config.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

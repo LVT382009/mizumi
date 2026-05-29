@@ -205,6 +205,7 @@ nullGuardDetector: true,
       securityParadoxDetector: true,
       trustBoundaryDetector: true,
       aiConfigIntegrityDetector: true,
+    agentSafetyBypassDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

@@ -207,6 +207,7 @@ nullGuardDetector: true,
       securityParadoxDetector: true,
       trustBoundaryDetector: true,
       aiConfigIntegrityDetector: true,
+    agentSafetyBypassDetector: true,
     ...overrides,
   };
 }
