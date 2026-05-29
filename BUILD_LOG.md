@@ -924,3 +924,12 @@ Research identified 5 highest-impact remaining detector gaps:
 - Spec drift detector: 29→53 tests
 - Credential exposure detector: 33→54 tests
 - **+72 new tests** across 3 detectors
+
+
+### Iteration Security Stripping Detector (2026-05-29)
+- **+41 tests** in `src/__tests__/iteration-stripping-detector.test.ts`
+- **6591 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects when LLM refactoring removes existing security controls. IEEE-ISTAS (arxiv 2506.11022v2) found 37.6% critical vuln increase after 5 LLM iterations. CSA 2026: privilege escalation +322%, architectural design flaws +153%, syntax errors -76% — the "illusion of improvement."
+- **4 detection categories**: auth-decorator-stripped (analyzes REMOVED lines for @login_required, @require_auth, @UseGuards, @preAuthorize, @app.before_request, app.use(authenticate)), validation-guard-stripped (removed if-checks with isValid, validateInput() calls, status 400/401/403 returns, throw ValidationError, sanitizeInput), parameterization-loss (removed parameterized query + added string concatenation = critical; removed parameterization without replacement = warning), error-handling-weakened (removed specific catch + added broad empty catch/pass)
+- **Key features**: unique REMOVED diff line analysis (type=delete), cross-reference removed parameterized queries with added string concat queries, cross-reference removed specific catches with added broad catch/pass, test file exclusion, comment skipping, severity sorting, deduplication
+- **Full pipeline integration**: config.ts, main.ts (4a3zn), action.yml, 8 test stubs, audit trail
