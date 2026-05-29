@@ -133,6 +133,7 @@ nullGuardDetector: true,
     iterationStrippingDetector: true,
       securityParadoxDetector: true,
       trustBoundaryDetector: true,
+      aiConfigIntegrityDetector: true,
   })),
 }));
 

@@ -113,6 +113,7 @@ observabilityGapDetector: boolean;
   iterationStrippingDetector: boolean;
   securityParadoxDetector: boolean;
   trustBoundaryDetector: boolean;
+  aiConfigIntegrityDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -249,6 +250,7 @@ const illusoryValidationDetector = core.getInput("illusory_validation_detector")
 const iterationStrippingDetector = core.getInput("iteration_stripping_detector") !== "false"; // default true
 const securityParadoxDetector = core.getInput("security_paradox_detector") !== "false"; // default true
 const trustBoundaryDetector = core.getInput("trust_boundary_detector") !== "false"; // default true
+const aiConfigIntegrityDetector = core.getInput("ai_config_integrity_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -404,6 +406,7 @@ observabilityGapDetector,
     iterationStrippingDetector,
   securityParadoxDetector,
     trustBoundaryDetector,
+    aiConfigIntegrityDetector,
   };
 }
 

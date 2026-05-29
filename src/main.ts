@@ -119,6 +119,7 @@ import { detectIllusoryValidation } from "./illusory-validation-detector.js";
 import { detectIterationStripping } from "./iteration-stripping-detector.js";
 import { detectSecurityParadox } from "./security-paradox-detector.js";
 import { detectTrustBoundaryErosion } from "./trust-boundary-detector.js";
+import { detectAIConfigIntegrity } from "./ai-config-integrity-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -889,6 +890,15 @@ if (config.trustBoundaryDetector) {
     core.info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zq. AI config integrity detector — scan AI rule/config files for hidden Unicode and malicious redirects
+let aiConfigIntegrityResult: import("./ai-config-integrity-detector.js").AIConfigResult | null = null;
+if (config.aiConfigIntegrityDetector) {
+  aiConfigIntegrityResult = detectAIConfigIntegrity(diff.files);
+  if (aiConfigIntegrityResult.issues.length > 0) {
+    core.info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1377,6 +1387,10 @@ if (secParadoxResult && secParadoxResult.contextText) {
 
 if (trustBoundaryResult && trustBoundaryResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + trustBoundaryResult.contextText;
+}
+
+if (aiConfigIntegrityResult && aiConfigIntegrityResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiConfigIntegrityResult.contextText;
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
@@ -2510,6 +2524,18 @@ if (trustBoundaryResult && trustBoundaryResult.bodySummary) {
     core.warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (aiConfigIntegrityResult && aiConfigIntegrityResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: aiConfigIntegrityResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2710,6 +2736,7 @@ if (config.illusoryValidationDetector) auditBuilder.logStage("illusory-validatio
 if (config.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
 if (config.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
 if (config.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
+if (config.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

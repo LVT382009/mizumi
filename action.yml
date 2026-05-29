@@ -492,6 +492,10 @@ trust_boundary_detector:
   description: "Detect trust boundary erosion: over-permissive IAM, missing auth middleware on data routes, absent audit logging on security events"
   required: false
   default: "true"
+ai_config_integrity_detector:
+  description: "Scan AI config files (.cursorrules, CLAUDE.md, MCP configs) for hidden Unicode control characters and malicious server redirects"
+  required: false
+  default: "true"
   default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false

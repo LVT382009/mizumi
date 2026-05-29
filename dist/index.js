@@ -56559,6 +56559,7 @@ function loadConfig() {
   const iterationStrippingDetector = getInput("iteration_stripping_detector") !== "false";
   const securityParadoxDetector = getInput("security_paradox_detector") !== "false";
   const trustBoundaryDetector = getInput("trust_boundary_detector") !== "false";
+  const aiConfigIntegrityDetector = getInput("ai_config_integrity_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56711,7 +56712,8 @@ function loadConfig() {
     illusoryValidationDetector,
     iterationStrippingDetector,
     securityParadoxDetector,
-    trustBoundaryDetector
+    trustBoundaryDetector,
+    aiConfigIntegrityDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -126807,6 +126809,194 @@ function detectTrustBoundaryErosion(diffFiles) {
   return result;
 }
 
+// src/ai-config-integrity-detector.ts
+function stripPrefix18(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges17(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var AI_CONFIG_PATH_RE = /(?:\.cursorrules|copilot-instructions|CLAUDE\.md|\.claude\/|\.github\/copilot|mcp\.json|\.mcp\.json|claude_desktop_config|\.cursor\/|\.continue\/|\.specweave\/|\.serena\/|\.openclaude\/|AGENT\.md|\.agent\/)/i;
+var UNICODE_CONTROL_CHARS = [
+  // Zero-width characters — invisible text that can hide instructions
+  { code: 8203, name: "ZERO-WIDTH SPACE", severity: "critical" },
+  { code: 8204, name: "ZERO-WIDTH NON-JOINER", severity: "warning" },
+  { code: 8205, name: "ZERO-WIDTH JOINER", severity: "warning" },
+  { code: 8206, name: "LEFT-TO-RIGHT MARK", severity: "warning" },
+  { code: 8207, name: "RIGHT-TO-LEFT MARK", severity: "critical" },
+  // Bidi overrides — can reverse text direction to hide commands
+  { code: 8234, name: "LEFT-TO-RIGHT EMBEDDING", severity: "critical" },
+  { code: 8235, name: "RIGHT-TO-LEFT EMBEDDING", severity: "critical" },
+  { code: 8236, name: "POP DIRECTIONAL FORMATTING", severity: "warning" },
+  { code: 8237, name: "LEFT-TO-RIGHT OVERRIDE", severity: "critical" },
+  { code: 8238, name: "RIGHT-TO-LEFT OVERRIDE", severity: "critical" },
+  // Format characters
+  { code: 8288, name: "WORD JOINER", severity: "warning" },
+  { code: 8294, name: "LEFT-TO-RIGHT ISOLATE", severity: "warning" },
+  { code: 8295, name: "RIGHT-TO-LEFT ISOLATE", severity: "warning" },
+  { code: 8296, name: "FIRST STRONG ISOLATE", severity: "warning" },
+  { code: 8297, name: "POP DIRECTIONAL ISOLATE", severity: "warning" },
+  { code: 65279, name: "BYTE ORDER MARK", severity: "warning" },
+  // Soft hyphen — can split words to evade filters
+  { code: 173, name: "SOFT HYPHEN", severity: "warning" }
+];
+var CONTROL_CHAR_MAP = new Map(UNICODE_CONTROL_CHARS.map((c) => [c.code, c]));
+var SUSPICIOUS_MCP_URL_PATTERNS = [
+  // Non-standard TLDs commonly used in phishing
+  /\bhttps?:\/\/[a-z0-9-]+\.(?:xyz|top|click|buzz|loan|work|party|review|trade|date|loan|racing|win|accountant)\b/i,
+  // IP addresses instead of domain names
+  /\bhttps?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/i,
+  // Data exfiltration patterns
+  /\b(?:exfil|steal|capture|harvest|collect|dump|send(?:All|Data|Keys|Secrets|Tokens))\b/i,
+  // URL shortener domains (can redirect anywhere)
+  /\bhttps?:\/\/(?:bit\.ly|t\.co|tinyurl|rb\.gy|shorturl|is\.gd|v\.gd|ow\.ly|buff\.ly)\b/i,
+  // ngrok/logmein tunnels (temporary, unverified endpoints)
+  /\bhttps?:\/\/[a-z0-9-]+\.(?:ngrok|ngrok-free|logmein|hamachi)\.(?:io|com|app)\b/i,
+  // localhost/loopback in production configs (dev artifacts)
+  /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)\b/i
+];
+var KNOWN_SAFE_MCP_DOMAINS = [
+  /modelcontextprotocol\.org/i,
+  /github\.com/i,
+  /npmjs\.com/i,
+  /pypi\.org/i,
+  /files\.pythonhosted\.org/i,
+  /registry\.npmjs\.org/i
+];
+function detectHiddenUnicodeControl(file2) {
+  const issues = [];
+  const added = getAddedChanges17(file2);
+  for (const change of added) {
+    const raw = change.content.replace(/^[-+]/, "");
+    for (let i = 0; i < raw.length; i++) {
+      const code = raw.codePointAt(i);
+      if (code === void 0) continue;
+      const charInfo = CONTROL_CHAR_MAP.get(code);
+      if (charInfo) {
+        const hexCode = `U+${code.toString(16).toUpperCase().padStart(4, "0")}`;
+        issues.push({
+          category: "hidden-unicode-control",
+          file: file2.path,
+          line: change.line,
+          code: `${hexCode} (${charInfo.name})`,
+          description: `Hidden Unicode control character in \`${file2.path}:${change.line}\`: ${hexCode} ${charInfo.name} \u2014 CSA ShadowPrompt: zero-width and bidi override characters embedded in AI config files can invisibly alter agent behavior; attacker hides instructions that override visible rules; remove this character and audit the full file for other hidden content`,
+          severity: charInfo.severity
+        });
+        break;
+      }
+      if (code > 65535) i++;
+    }
+  }
+  return issues;
+}
+function detectMaliciousMCPRedirect(file2) {
+  const issues = [];
+  const added = getAddedChanges17(file2);
+  for (const change of added) {
+    if (SKIP_LINE_RE28.test(change.content)) continue;
+    const trimmed = stripPrefix18(change.content);
+    const urlMatch = /\b(https?:\/\/[^\s"'`,;)\]]+)/i.exec(trimmed);
+    if (!urlMatch) continue;
+    const url2 = urlMatch[1];
+    if (KNOWN_SAFE_MCP_DOMAINS.some((re2) => re2.test(url2))) continue;
+    for (const re2 of SUSPICIOUS_MCP_URL_PATTERNS) {
+      if (re2.test(url2)) {
+        issues.push({
+          category: "malicious-mcp-redirect",
+          file: file2.path,
+          line: change.line,
+          code: url2.length > 60 ? url2.slice(0, 50) + "..." : url2,
+          description: `Suspicious MCP server URL in \`${file2.path}:${change.line}\`: ${url2.length > 60 ? url2.slice(0, 50) + "..." : url2} \u2014 CSA slopsquatting: malicious MCP server redirects can exfiltrate data; verify this URL is intentional and points to a trusted endpoint; compare against known-safe MCP server registry`,
+          severity: "critical"
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+var SKIP_LINE_RE28 = /^[-+]\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+function dedupIssues37(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildAIConfigContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## AI Configuration Integrity Detection (${result.issues.length})
+`;
+  ctx += "This PR modifies AI configuration files with potentially dangerous content:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildAIConfigBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>AI Configuration Integrity Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*AI configuration integrity \u2014 CSA ShadowPrompt: hidden Unicode control characters (zero-width, bidi overrides) invisibly alter agent behavior. CSA slopsquatting: malicious MCP server redirects exfiltrate data. Zero competitors scan AI config files \u2014 this attack surface is invisible to all existing code review tools.*
+</details>
+`;
+  return body;
+}
+function detectAIConfigIntegrity(diffFiles) {
+  const allIssues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    if (!AI_CONFIG_PATH_RE.test(file2.path)) continue;
+    allIssues.push(...detectHiddenUnicodeControl(file2));
+    allIssues.push(...detectMaliciousMCPRedirect(file2));
+  }
+  const issues = dedupIssues37(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildAIConfigContext(result);
+  result.bodySummary = buildAIConfigBodySummary(result);
+  if (issues.length > 0) {
+    info(`AI config integrity detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -127467,6 +127657,13 @@ async function run() {
         info("Trust boundary erosion detection: " + trustBoundaryResult.issues.length + " issue(s)");
       }
     }
+    let aiConfigIntegrityResult = null;
+    if (config2.aiConfigIntegrityDetector) {
+      aiConfigIntegrityResult = detectAIConfigIntegrity(diff.files);
+      if (aiConfigIntegrityResult.issues.length > 0) {
+        info("AI config integrity detection: " + aiConfigIntegrityResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -127876,6 +128073,9 @@ ${taintContextStr}`;
     }
     if (trustBoundaryResult && trustBoundaryResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + trustBoundaryResult.contextText;
+    }
+    if (aiConfigIntegrityResult && aiConfigIntegrityResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + aiConfigIntegrityResult.contextText;
     }
     if (credExposureResult && credExposureResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
@@ -128986,6 +129186,18 @@ ${digest}
                   warning("Failed to post trust boundary summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (aiConfigIntegrityResult && aiConfigIntegrityResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: aiConfigIntegrityResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post AI config integrity summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
               if (credExposureResult && credExposureResult.bodySummary) {
                 try {
                   await octokit.rest.issues.createComment({
@@ -129176,6 +129388,7 @@ ${digest}
         if (config2.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
         if (config2.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
         if (config2.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect", 0, true);
+        if (config2.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
