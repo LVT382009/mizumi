@@ -111,6 +111,44 @@ describe("detectVelocityRisks — large-new-file", () => {
     // Has assertions, so should not flag
     expect(issues).toHaveLength(0);
   });
+
+  it("does not flag exactly 100 lines (boundary)", () => {
+    const file = makeLargeNewFile("src/boundary.ts", 100);
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "large-new-file");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("flags 101 lines in new file", () => {
+    const file = makeLargeNewFile("src/just-over.ts", 101);
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "large-new-file");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag .spec.ts file even if large", () => {
+    const lines = Array.from({ length: 150 }, (_, i) => `it('test ${i}', () => { /* body */ });`);
+    const file = makeFile("src/service.spec.ts", lines, "added");
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "large-new-file");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag test/ directory file even if large", () => {
+    const lines = Array.from({ length: 150 }, (_, i) => `const line${i} = ${i};`);
+    const file = makeFile("test/service.ts", lines, "added");
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "large-new-file");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag when matching test file exists with different extension", () => {
+    const file = makeLargeNewFile("src/parser.ts", 150);
+    const testFile = makeFile("src/parser.test.ts", ["test('works', () => { expect(1).toBe(1); })"], "added");
+    const result = detectVelocityRisks([file, testFile]);
+    const issues = result.issues.filter((i) => i.category === "large-new-file");
+    expect(issues).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -162,6 +200,41 @@ describe("detectVelocityRisks — boilerplate-proliferation", () => {
     const issues = result.issues.filter((i) => i.category === "boilerplate-proliferation");
     expect(issues).toHaveLength(0);
   });
+
+  it("detects async function proliferation in 3+ files", () => {
+    const files = [
+      makeFile("src/a.ts", ["export async function fetchItems(query: string) { return []; }"]),
+      makeFile("src/b.ts", ["export async function fetchItems(query: string) { return []; }"]),
+      makeFile("src/c.ts", ["export async function fetchItems(query: string) { return []; }"]),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "boilerplate-proliferation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects class method proliferation across files", () => {
+    const files = [
+      makeFile("src/a.ts", ["export class Handler { process() {} }"]),
+      makeFile("src/b.ts", ["export class Handler { process() {} }"]),
+      makeFile("src/c.ts", ["export class Handler { process() {} }"]),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "boilerplate-proliferation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("lists multiple files in description", () => {
+    const files = [
+      makeFile("src/a.ts", ["export function init() { }"]),
+      makeFile("src/b.ts", ["export function init() { }"]),
+      makeFile("src/c.ts", ["export function init() { }"]),
+      makeFile("src/d.ts", ["export function init() { }"]),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "boilerplate-proliferation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("4 files");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -208,6 +281,55 @@ describe("detectVelocityRisks — sweep-no-safety", () => {
     const result = detectVelocityRisks([file]);
     const issues = result.issues.filter((i) => i.category === "sweep-no-safety");
     expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag when removals < 60% of total changes", () => {
+    const addedLines = Array.from({ length: 50 }, (_, i) => `const line${i} = ${i};`);
+    const removedLines = Array.from({ length: 20 }, (_, i) => `const old${i} = ${i};`);
+    const file = makeFileWithRemoved("src/balanced.ts", addedLines, removedLines);
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "sweep-no-safety");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag when additions have sufficient test coverage", () => {
+    const addedLines = [
+      ...Array.from({ length: 15 }, (_, i) => `expect(result${i}).toBe(${i});`),
+      ...Array.from({ length: 20 }, (_, i) => `const line${i} = ${i};`),
+    ];
+    const removedLines = Array.from({ length: 60 }, (_, i) => `const old${i} = ${i};`);
+    const file = makeFileWithRemoved("src/covered.ts", addedLines, removedLines);
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "sweep-no-safety");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("reports percentage of removals in description", () => {
+    const file = makeFileWithRemoved(
+      "src/sweep.ts",
+      Array.from({ length: 25 }, (_, i) => `const line${i} = ${i};`),
+      Array.from({ length: 80 }, (_, i) => `const old${i} = ${i};`),
+    );
+    const result = detectVelocityRisks([file]);
+    const issues = result.issues.filter((i) => i.category === "sweep-no-safety");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("% removals");
+  });
+
+  it("handles multiple files for sweep detection", () => {
+    const files = [
+      makeFileWithRemoved("src/a.ts",
+        Array.from({ length: 15 }, (_, i) => `const a${i} = ${i};`),
+        Array.from({ length: 45 }, (_, i) => `const oldA${i} = ${i};`),
+      ),
+      makeFileWithRemoved("src/b.ts",
+        Array.from({ length: 15 }, (_, i) => `const b${i} = ${i};`),
+        Array.from({ length: 45 }, (_, i) => `const oldB${i} = ${i};`),
+      ),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "sweep-no-safety");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -260,6 +382,68 @@ describe("detectVelocityRisks — copy-paste-pattern", () => {
     const result = detectVelocityRisks(files);
     const issues = result.issues.filter((i) => i.category === "copy-paste-pattern");
     expect(issues).toHaveLength(0);
+  });
+
+  it("skips files with fewer than 5 added lines", () => {
+    const files = [
+      makeFile("src/a.ts", ["const x = 1;"]),
+      makeFile("src/b.ts", ["const x = 1;"]),
+      makeFile("src/c.ts", ["const x = 1;"]),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "copy-paste-pattern");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("normalizes string literals in n-gram comparison", () => {
+    const blockA = [
+      "async function processUserDataFromExternalService(endpoint: string) {",
+      " const response = await fetch(endpoint);",
+      " const parsedData = await response.json();",
+      ' console.log("Processing user data from service");',
+      " return parsedData.filter(item => item.isActive);",
+      "}",
+    ];
+    const blockB = [
+      "async function processUserDataFromExternalService(endpoint: string) {",
+      " const response = await fetch(endpoint);",
+      " const parsedData = await response.json();",
+      ' console.log("Processing admin data from service");',
+      " return parsedData.filter(item => item.isActive);",
+      "}",
+    ];
+    const blockC = [
+      "async function processUserDataFromExternalService(endpoint: string) {",
+      " const response = await fetch(endpoint);",
+      " const parsedData = await response.json();",
+      ' console.log("Processing guest data from service");',
+      " return parsedData.filter(item => item.isActive);",
+      "}",
+    ];
+    const files = [
+      makeFile("src/a.ts", blockA),
+      makeFile("src/b.ts", blockB),
+      makeFile("src/c.ts", blockC),
+    ];
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "copy-paste-pattern");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("caps output at 10 issues for copy-paste", () => {
+    const block = [
+      "async function fetchAndParseDataFromExternalAPI(endpoint: string) {",
+      " const response = await fetch(endpoint);",
+      " const data = await response.json();",
+      " return data.items.filter(item => item.active);",
+      "}",
+    ];
+    const files = Array.from({ length: 15 }, (_, i) =>
+      makeFile(`src/file${i}.ts`, block)
+    );
+    const result = detectVelocityRisks(files);
+    const issues = result.issues.filter((i) => i.category === "copy-paste-pattern");
+    expect(issues.length).toBeLessThanOrEqual(10);
   });
 });
 

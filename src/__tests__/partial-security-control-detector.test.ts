@@ -88,6 +88,50 @@ describe("detectPartialSecurityControls — auth-without-authz", () => {
     const issues = result.issues.filter((i) => i.category === "auth-without-authz");
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("detects signIn without hasPermission", () => {
+    const file = makeFile("src/signin.ts", [
+      "async function signIn(credentials: Creds) { return verifyToken(credentials.token); }",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "auth-without-authz");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects jwt.verify without role check", () => {
+    const file = makeFile("src/jwt.ts", [
+      "const payload = jwt.verify(token, secret);",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "auth-without-authz");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag when requireRole is present", () => {
+    const file = makeFile("src/auth.ts", [
+      "function authenticate(token: string) { return jwt.verify(token, secret); }",
+      "function requireRole(role: string) { return user.role === role; }",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const criticalIssues = result.issues.filter(
+      (i) => i.category === "auth-without-authz" && i.severity === "critical"
+    );
+    expect(criticalIssues).toHaveLength(0);
+  });
+
+  it("flags warning when authz is in separate file from auth", () => {
+    const auth = makeFile("src/auth.ts", [
+      "function authenticate(token: string) { return jwt.verify(token, secret); }",
+    ]);
+    const authz = makeFile("src/permissions.ts", [
+      "function checkRole(role: string) { return user.role === role; }",
+    ]);
+    const result = detectPartialSecurityControls([auth, authz]);
+    const warnings = result.issues.filter(
+      (i) => i.category === "auth-without-authz" && i.severity === "warning"
+    );
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -141,6 +185,36 @@ describe("detectPartialSecurityControls — encrypt-without-kdf", () => {
     // bcrypt IS a KDF, so it should match KDF patterns and prevent the false positive
     expect(encryptIssues).toHaveLength(0);
   });
+
+  it("detects crypto.createSign without deriveKey", () => {
+    const file = makeFile("src/sign.ts", [
+      "const signer = crypto.createSign('RSA-SHA256');",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "encrypt-without-kdf");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects hash(password) without salt", () => {
+    const file = makeFile("src/weak-hash.ts", [
+      "const digest = hash(password);",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "encrypt-without-kdf");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag when scrypt is present alongside encryption", () => {
+    const file = makeFile("src/crypto.ts", [
+      "const key = await crypto.scrypt(password, salt, 32);",
+      "const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const criticalIssues = result.issues.filter(
+      (i) => i.category === "encrypt-without-kdf" && i.severity === "critical"
+    );
+    expect(criticalIssues).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -190,6 +264,36 @@ describe("detectPartialSecurityControls — validate-without-sanitize", () => {
       (i) => i.category === "validate-without-sanitize" && i.severity === "critical"
     );
     expect(criticalIssues).toHaveLength(0);
+  });
+
+  it("detects schema.validate without escape", () => {
+    const file = makeFile("src/schema.ts", [
+      "const result = schema.validate(input);",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "validate-without-sanitize");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag when htmlEscape is present with validation", () => {
+    const file = makeFile("src/escape.ts", [
+      "function validateInput(data: string) { return schema.check(data); }",
+      "const safe = htmlEscape(input);",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const criticalIssues = result.issues.filter(
+      (i) => i.category === "validate-without-sanitize" && i.severity === "critical"
+    );
+    expect(criticalIssues).toHaveLength(0);
+  });
+
+  it("detects zod validation without sanitization in separate file", () => {
+    const file = makeFile("src/validate.ts", [
+      "const schema = zod.object({ email: zod.string().email() });",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "validate-without-sanitize");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -246,6 +350,48 @@ describe("detectPartialSecurityControls — rate-count-without-enforce", () => {
     const issues = result.issues.filter((i) => i.category === "rate-count-without-enforce");
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("detects requestCounter increment without rejection", () => {
+    const file = makeFile("src/counter.ts", [
+      "function trackHit() { requestCount++; }",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "rate-count-without-enforce");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects windowSize tracking without block", () => {
+    const file = makeFile("src/window.ts", [
+      "const windowSize = 60000;",
+      "function check() { return hits; }",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const issues = result.issues.filter((i) => i.category === "rate-count-without-enforce");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag when reject with 429 is present", () => {
+    const file = makeFile("src/rate.ts", [
+      "let requestCount = 0;",
+      "if (requestCount > MAX) return res.status(429).send('Too Many Requests');",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const criticalIssues = result.issues.filter(
+      (i) => i.category === "rate-count-without-enforce" && i.severity === "critical"
+    );
+    expect(criticalIssues).toHaveLength(0);
+  });
+
+  it("does not flag when throttle and rate limiter coexist", () => {
+    const file = makeFile("src/rate.ts", [
+      "class rateLimiter { check() { if (over) this.throttle(); } }",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    const criticalIssues = result.issues.filter(
+      (i) => i.category === "rate-count-without-enforce" && i.severity === "critical"
+    );
+    expect(criticalIssues).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -291,6 +437,48 @@ describe("detectPartialSecurityControls — edge cases", () => {
     ]);
     const result = detectPartialSecurityControls([file]);
     expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles multiple categories in one PR", () => {
+    const authFile = makeFile("src/auth.ts", [
+      "async function authenticate(token: string) { return jwt.verify(token, secret); }",
+    ]);
+    const encryptFile = makeFile("src/crypto.ts", [
+      "const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);",
+    ]);
+    const rateFile = makeFile("src/rate.ts", [
+      "class rateLimiter { check() { this.requestCount++; } }",
+    ]);
+    const result = detectPartialSecurityControls([authFile, encryptFile, rateFile]);
+    expect(result.issues.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("skips comment-only changes", () => {
+    const file = makeFile("src/auth.ts", [
+      "// We should add authenticate(token) function",
+    ]);
+    const result = detectPartialSecurityControls([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles mix of critical and warning for same category", () => {
+    const authFile = makeFile("src/auth.ts", [
+      "function authenticate(token: string) { return jwt.verify(token, secret); }",
+    ]);
+    const authzFile = makeFile("src/perm.ts", [
+      "function authorize(user: User, role: string) { return user.hasPermission(role); }",
+    ]);
+    const result = detectPartialSecurityControls([authFile, authzFile]);
+    const critical = result.issues.filter(
+      (i) => i.category === "auth-without-authz" && i.severity === "critical"
+    );
+    const warnings = result.issues.filter(
+      (i) => i.category === "auth-without-authz" && i.severity === "warning"
+    );
+    // auth.ts has auth but no authz (in same file) → warning since authz exists elsewhere
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    // No global absence since authz exists somewhere
+    expect(critical).toHaveLength(0);
   });
 });
 
