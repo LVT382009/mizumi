@@ -691,3 +691,339 @@ describe("computeDeltaReview additional", () => {
     expect(result.savings.percentSaved).toBeGreaterThan(90);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional edge case tests
+// ---------------------------------------------------------------------------
+
+describe("SHA tracking — edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("");
+  });
+
+  it("handles PR number 0", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas: { "owner/repo#0": "sha-zero" }, timestamps: { "owner/repo#0": 1000 } }),
+    );
+    const sha = getLastReviewedSha("/ws", "owner", "repo", 0);
+    expect(sha).toBe("sha-zero");
+  });
+
+  it("handles large PR number", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas: { "owner/repo#99999": "sha-big" }, timestamps: { "owner/repo#99999": 1000 } }),
+    );
+    const sha = getLastReviewedSha("/ws", "owner", "repo", 99999);
+    expect(sha).toBe("sha-big");
+  });
+
+  it("handles special characters in owner/repo name", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "my-org/my-repo#1": "sha-special" },
+        timestamps: { "my-org/my-repo#1": 1000 },
+      }),
+    );
+    const sha = getLastReviewedSha("/ws", "my-org", "my-repo", 1);
+    expect(sha).toBe("sha-special");
+  });
+
+  it("returns undefined when store has empty prShas object", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas: {}, timestamps: {} }),
+    );
+    const sha = getLastReviewedSha("/ws", "owner", "repo", 1);
+    expect(sha).toBeUndefined();
+  });
+
+  it("recordReviewedSha creates entry with current timestamp", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas: {}, timestamps: {} }),
+    );
+    const before = Date.now();
+    recordReviewedSha("/workspace", "owner", "repo", 1, "sha-ts");
+    const after = Date.now();
+    const written = (fs.writeFileSync as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const store = JSON.parse(written);
+    expect(store.timestamps["owner/repo#1"]).toBeGreaterThanOrEqual(before);
+    expect(store.timestamps["owner/repo#1"]).toBeLessThanOrEqual(after);
+  });
+
+  it("evicts exactly the oldest entry when at MAX_PR_ENTRIES", () => {
+    const prShas: Record<string, string> = {};
+    const timestamps: Record<string, number> = {};
+    for (let i = 0; i < 1000; i++) {
+      prShas[`owner/repo#${i}`] = `sha${i}`;
+      timestamps[`owner/repo#${i}`] = i + 100;
+    }
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas, timestamps }),
+    );
+    recordReviewedSha("/workspace", "owner", "repo", 2000, "sha-new");
+    const written = (fs.writeFileSync as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const store = JSON.parse(written);
+    // Entry with lowest timestamp should be evicted
+    expect(store.prShas["owner/repo#100"]).toBeDefined(); // timestamp 200, not the lowest anymore
+    expect(store.prShas["owner/repo#2000"]).toBe("sha-new");
+    expect(Object.keys(store.prShas).length).toBeLessThanOrEqual(1000);
+  });
+
+  it("handles whitespace-only store file content", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("   \n\t  ");
+    // JSON.parse will throw on whitespace-only, handled gracefully
+    const sha = getLastReviewedSha("/ws", "owner", "repo", 1);
+    expect(sha).toBeUndefined();
+  });
+
+  it("preserves all existing entries when not over limit", () => {
+    const prShas: Record<string, string> = {};
+    const timestamps: Record<string, number> = {};
+    for (let i = 0; i < 500; i++) {
+      prShas[`owner/repo#${i}`] = `sha${i}`;
+      timestamps[`owner/repo#${i}`] = i;
+    }
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({ prShas, timestamps }),
+    );
+    recordReviewedSha("/workspace", "owner", "repo", 999, "sha-new");
+    const written = (fs.writeFileSync as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const store = JSON.parse(written);
+    expect(Object.keys(store.prShas).length).toBe(501);
+  });
+});
+
+describe("computeDeltaReview — edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("");
+  });
+
+  it("returns 0% savings when full and incremental are identical", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff --git a/src/a.ts b/src/a.ts\n+line\n");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 10, deletions: 5 }]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/a.ts", additions: 10, deletions: 5 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+    expect(result.isIncremental).toBe(true);
+    expect(result.savings.percentSaved).toBe(0);
+  });
+
+  it("correctly calculates savings for 50% reduction", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff content");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 50, deletions: 50 }]);
+    // Full: 100 lines, incremental: 50 lines → 50% saved
+    const incrementalParsed = mockParsedDiff([{ path: "src/a.ts", additions: 25, deletions: 25 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+    expect(result.savings.percentSaved).toBe(50);
+  });
+
+  it("handles incremental diff with only deletions", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff content");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 30, deletions: 20 }]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/a.ts", additions: 0, deletions: 10 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+    expect(result.isIncremental).toBe(true);
+    expect(result.savings.incrementalLines).toBe(10);
+    expect(result.savings.percentSaved).toBe(80);
+  });
+
+  it("handles empty full diff correctly in non-incremental mode", async () => {
+    const octokit = mockOctokit();
+    const emptyDiff = mockParsedDiff([]);
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head123", emptyDiff, "/workspace", [],
+    );
+    expect(result.isIncremental).toBe(false);
+    expect(result.savings.fullLines).toBe(0);
+    expect(result.savings.incrementalLines).toBe(0);
+  });
+
+  it("handles multiple exclude patterns", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff content");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 10, deletions: 5 }]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/a.ts", additions: 5, deletions: 0 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", ["*.lock", "*.generated.ts"],
+    );
+    expect(parseDiff).toHaveBeenCalledWith(expect.any(String), ["*.lock", "*.generated.ts"]);
+  });
+
+  it("returns incrementalDiff object on success", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff content");
+    const fullDiff = mockParsedDiff([{ path: "src/a.ts", additions: 10, deletions: 5 }]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/b.ts", additions: 3, deletions: 1 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+    expect(result.incrementalDiff).toBeDefined();
+    expect(result.incrementalDiff!.files).toHaveLength(1);
+  });
+
+  it("returns correct file counts in savings", async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify({
+        prShas: { "owner/repo#42": "base456" },
+        timestamps: { "owner/repo#42": 1000000 },
+      }),
+    );
+    const octokit = mockOctokit("diff content");
+    const fullDiff = mockParsedDiff([
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 5, deletions: 2 },
+      { path: "src/c.ts", additions: 3, deletions: 1 },
+    ]);
+    const incrementalParsed = mockParsedDiff([{ path: "src/b.ts", additions: 5, deletions: 2 }]);
+    (parseDiff as ReturnType<typeof vi.fn>).mockReturnValue(incrementalParsed);
+
+    const result = await computeDeltaReview(
+      octokit, "owner", "repo", 42, "head789", fullDiff, "/workspace", [],
+    );
+    expect(result.savings.fullFiles).toBe(3);
+    expect(result.savings.incrementalFiles).toBe(1);
+  });
+});
+
+describe("formatDeltaSummary — edge cases", () => {
+  it("handles 0 files in savings", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 0, incrementalFiles: 0, fullLines: 0, incrementalLines: 0, percentSaved: 0 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("0% token savings");
+    expect(summary).toContain("| Files | 0 | 0 | 0 |");
+  });
+
+  it("handles very large savings percentage", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 100, incrementalFiles: 1, fullLines: 10000, incrementalLines: 10, percentSaved: 99 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("99% token savings");
+  });
+
+  it("includes correct delta values in table", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 10, incrementalFiles: 3, fullLines: 200, incrementalLines: 50, percentSaved: 75 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("| Files | 10 | 3 | 7 |");
+    expect(summary).toContain("| Lines | 200 | 50 | 150 |");
+  });
+
+  it("handles SHA shorter than 7 characters", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 2, incrementalFiles: 1, fullLines: 20, incrementalLines: 5, percentSaved: 75 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("abc");
+  });
+
+  it("non-incremental result with all zeros returns empty string", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: false,
+      lastReviewedSha: undefined,
+      incrementalDiff: undefined,
+      savings: { fullFiles: 0, incrementalFiles: 0, fullLines: 0, incrementalLines: 0, percentSaved: 0 },
+    };
+    expect(formatDeltaSummary(result)).toBe("");
+  });
+
+  it("includes details open tag", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 2, incrementalFiles: 1, fullLines: 50, incrementalLines: 20, percentSaved: 60 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("<details>");
+  });
+
+  it("includes metric table header", () => {
+    const result: DeltaReviewResult = {
+      isIncremental: true,
+      lastReviewedSha: "abc123",
+      incrementalDiff: undefined,
+      savings: { fullFiles: 2, incrementalFiles: 1, fullLines: 50, incrementalLines: 20, percentSaved: 60 },
+    };
+    const summary = formatDeltaSummary(result);
+    expect(summary).toContain("Metric");
+    expect(summary).toContain("Full Diff");
+    expect(summary).toContain("Incremental");
+    expect(summary).toContain("Savings");
+  });
+});

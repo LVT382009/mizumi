@@ -398,3 +398,264 @@ describe("generateDescription", () => {
     expect(parseCommand("/Mizumi describe")).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// parseCommand — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("parseCommand — edge cases", () => {
+  it("returns null for whitespace-only input", () => {
+    expect(parseCommand("   ")).toBeNull();
+  });
+
+  it("parses /mizumi with tab between command and args", () => {
+    const result = parseCommand("/mizumi\treview\tfocus");
+    // The regex uses \s+ which matches tabs
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("review");
+  });
+
+  it("parses /mizumi with single character subcommand", () => {
+    const result = parseCommand("/mizumi x");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("x");
+  });
+
+  it("parses /mizumi with numeric subcommand-like arg", () => {
+    const result = parseCommand("/mizumi review 12345");
+    expect(result?.args).toBe("12345");
+  });
+
+  it("returns null for /mizumi with only trailing slash", () => {
+    // "/mizumi/" doesn't match /^\/mizumi\s+(\w+) because no space before subcommand
+    expect(parseCommand("/mizumi/")).toBeNull();
+  });
+
+  it("returns null for just slash", () => {
+    expect(parseCommand("/")).toBeNull();
+  });
+
+  it("parses /mizumi with special characters in args", () => {
+    const result = parseCommand("/mizumi review check @mention #123");
+    expect(result?.args).toContain("@mention");
+    expect(result?.args).toContain("#123");
+  });
+
+  it("matches only ASCII word chars for subcommand (unicode in input)", () => {
+    // \w matches [a-zA-Z0-9_], so "résumé" starts with "r" which is \w
+    // but "é" is not \w, so the regex \w+ matches just "r"
+    // There's a space before "résumé", so it becomes the subcommand
+    const result = parseCommand("/mizumi résumé");
+    expect(result).not.toBeNull();
+    expect(result!.command).toBe("r");
+    // "ésumé" is not captured as args because there's no whitespace between "r" and "é"
+    expect(result!.args).toBe("");
+  });
+
+  it("args default to empty string when only command is present", () => {
+    const result = parseCommand("/mizumi review");
+    expect(result?.command).toBe("review");
+    expect(result?.args).toBe("");
+  });
+
+  it("handles very long args string", () => {
+    const longArgs = "a".repeat(1000);
+    const result = parseCommand(`/mizumi review ${longArgs}`);
+    expect(result?.args).toBe(longArgs);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateDescription — additional edge cases
+// ---------------------------------------------------------------------------
+
+describe("generateDescription — edge cases", () => {
+  beforeEach(() => {
+    mockGenerateObject.mockReset();
+  });
+
+  function makeConfig() {
+    return {
+      provider: "openai" as const, model: "gpt-4.1-mini", baseUrl: "",
+      profile: "chill" as const, maxComments: 15, language: "en-US",
+      selfCritique: true, confidenceThreshold: 80, autoReview: true,
+      autoPauseAfter: 5, excludePatterns: [], tierRouting: true,
+      smallDiffThreshold: 50, securityPaths: [],
+    };
+  }
+
+  it("handles changes list with single item", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Small fix", summary: "Minimal change", changes: ["Fix typo"],
+        testing: "Visual", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 20 },
+    } as any);
+
+    const result = await generateDescription("diff", "Fix", "typo", makeConfig());
+    expect(result).toContain("- Fix typo");
+    expect(result).not.toContain("\n- \n"); // No empty bullet
+  });
+
+  it("handles empty changes list gracefully", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "No changes", summary: "Empty diff", changes: [],
+        testing: "None", breaking: "None",
+      },
+      usage: { inputTokens: 10, outputTokens: 5 },
+    } as any);
+
+    const result = await generateDescription("diff", "Empty", "nothing", makeConfig());
+    expect(result).toContain("## No changes");
+  });
+
+  it("truncates diff at 50000 characters", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "T", changes: ["T"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const diff = "y".repeat(60000);
+    await generateDescription(diff, "title", "body", makeConfig());
+
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    // The raw diff portion is sliced to 50000 before being embedded in prompt
+    const diffPart = callOpts.prompt.split("Diff:\n")[1];
+    expect(diffPart.length).toBeLessThanOrEqual(51000); // includes surrounding prompt text after diff
+  });
+
+  it("handles PR title with special characters", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Fix XSS", summary: "Security fix", changes: ["Sanitize input"],
+        testing: "Security scan", breaking: "None",
+      },
+      usage: { inputTokens: 100, outputTokens: 50 },
+    } as any);
+
+    const result = await generateDescription("diff", 'Fix <script>alert("xss")</script>', "body", makeConfig());
+    expect(result).toContain("Fix XSS");
+  });
+
+  it("handles very long breaking changes text", async () => {
+    const longBreaking = "B".repeat(5000);
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "API v2", summary: "Major breaking change", changes: ["Rewrite API"],
+        testing: "Full suite", breaking: longBreaking,
+      },
+      usage: { inputTokens: 200, outputTokens: 100 },
+    } as any);
+
+    const result = await generateDescription("diff", "API", "body", makeConfig());
+    expect(result).toContain("### Breaking Changes");
+    expect(result).toContain(longBreaking);
+  });
+
+  it("generates markdown heading with ## prefix for title", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Update dependencies", summary: "Bump deps", changes: ["Bump axios"],
+        testing: "CI", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    const result = await generateDescription("diff", "Deps", "body", makeConfig());
+    expect(result).toMatch(/^## Update dependencies/m);
+  });
+
+  it("includes proper sections in output order", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C1"], testing: "Test", breaking: "Breaking!",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    const result = await generateDescription("diff", "T", "B", makeConfig());
+    const titleIdx = result.indexOf("## T");
+    const changesIdx = result.indexOf("### Changes");
+    const testingIdx = result.indexOf("### Testing");
+    const breakingIdx = result.indexOf("### Breaking Changes");
+    const attributionIdx = result.indexOf("Generated by Mizumi");
+
+    expect(titleIdx).toBeLessThan(changesIdx);
+    expect(changesIdx).toBeLessThan(testingIdx);
+    expect(testingIdx).toBeLessThan(breakingIdx);
+    expect(breakingIdx).toBeLessThan(attributionIdx);
+  });
+
+  it("handles diffFiles with exactly 2 files (triggers diagram check)", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    const diffFiles = [
+      { path: "src/a.ts", additions: 10, deletions: 5 },
+      { path: "src/b.ts", additions: 15, deletions: 3 },
+    ];
+    const result = await generateDescription("diff", "T", "B", makeConfig(), diffFiles);
+    // generateArchDiagram is mocked to return null so no diagram in output
+    expect(result).not.toContain("Change Architecture");
+  });
+
+  it("handles diffFiles with empty array (no diagram)", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    const result = await generateDescription("diff", "T", "B", makeConfig(), []);
+    expect(result).not.toContain("Change Architecture");
+  });
+
+  it("uses sanitized inputs in prompt", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    await generateDescription("diff content", "My Title", "My Body", makeConfig());
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.prompt).toContain("My Title");
+    expect(callOpts.prompt).toContain("My Body");
+  });
+
+  it("passes model from createModel to generateObject", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    await generateDescription("diff", "T", "B", makeConfig());
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.model).toBe("mock-model");
+  });
+
+  it("passes schema to generateObject", async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "T", summary: "S", changes: ["C"], testing: "T", breaking: "None",
+      },
+      usage: { inputTokens: 50, outputTokens: 25 },
+    } as any);
+
+    await generateDescription("diff", "T", "B", makeConfig());
+    const callOpts = mockGenerateObject.mock.calls[0][0] as any;
+    expect(callOpts.schema).toBeDefined();
+  });
+});

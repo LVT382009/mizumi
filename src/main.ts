@@ -112,6 +112,7 @@ import { detectPartialSecurityControls } from "./partial-security-control-detect
 import { detectParadigmClashes } from "./paradigm-clash-detector.js";
 import { detectVelocityRisks } from "./velocity-risk-detector.js";
 import { detectRulesFileIntegrity } from "./rules-file-integrity-detector.js";
+import { detectSpecDrift } from "./spec-drift-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -818,6 +819,15 @@ if (config.rulesFileIntegrityDetector) {
     core.info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zj. Spec drift detector — detect when implementation diverges from specification or API contracts
+let specDriftResult: import("./spec-drift-detector.js").SpecDriftResult | null = null;
+if (config.specDriftDetector) {
+  specDriftResult = detectSpecDrift(diff.files);
+  if (specDriftResult.issues.length > 0) {
+    core.info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1284,6 +1294,9 @@ if (velocityRiskResult && velocityRiskResult.contextText) {
 }
 if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + rulesIntegrityResult.contextText;
+}
+if (specDriftResult && specDriftResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + specDriftResult.contextText;
 }
 
 
@@ -2342,6 +2355,18 @@ if (rulesIntegrityResult && rulesIntegrityResult.bodySummary) {
     core.warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (specDriftResult && specDriftResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: specDriftResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
   } catch (e) {
     core.warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
   }
@@ -2523,6 +2548,7 @@ if (config.partialSecurityControlDetector) auditBuilder.logStage("partial-securi
 if (config.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
 if (config.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
 if (config.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
+if (config.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

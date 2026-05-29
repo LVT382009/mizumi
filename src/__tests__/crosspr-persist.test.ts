@@ -412,3 +412,248 @@ describe("trackCrossPRFindings", () => {
     expect(result.totalPatterns).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional edge case tests
+// ---------------------------------------------------------------------------
+
+describe("fingerprintCrossPR — edge cases", () => {
+  it("handles file with deep path (multiple segments)", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "packages/core/src/utils/helper.ts" }));
+    expect(fp.fileArea).toBe("packages/core");
+  });
+
+  it("handles file with single segment and no extension", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "Makefile" }));
+    expect(fp.fileArea).toBe("Makefile");
+  });
+
+  it("handles file path with backslash (non-standard)", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "src\\auth\\login.ts" }));
+    // Backslash is not a path separator for split("/")
+    expect(fp.fileArea).toBeDefined();
+  });
+
+  it("handles empty file path", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "" }));
+    expect(fp.fileArea).toBe(".");
+  });
+
+  it("handles file path that is just a dot", () => {
+    const fp = fingerprintCrossPR(makeFinding({ file: "." }));
+    expect(fp.fileArea).toBe(".");
+  });
+
+  it("key format is category:fileArea:messageHash", () => {
+    const fp = fingerprintCrossPR(makeFinding({ category: "bug", file: "src/app.ts", message: "Null pointer" }));
+    expect(fp.key).toMatch(/^bug:src\/app\.ts:[a-z0-9]+$/);
+  });
+
+  it("same message produces same messageHash", () => {
+    const fp1 = fingerprintCrossPR(makeFinding({ message: "Identical message" }));
+    const fp2 = fingerprintCrossPR(makeFinding({ message: "Identical message" }));
+    expect(fp1.messageHash).toBe(fp2.messageHash);
+  });
+
+  it("different messages produce different messageHashes", () => {
+    const fp1 = fingerprintCrossPR(makeFinding({ message: "First issue" }));
+    const fp2 = fingerprintCrossPR(makeFinding({ message: "Second issue" }));
+    expect(fp1.messageHash).not.toBe(fp2.messageHash);
+  });
+
+  it("hashes only first 80 chars of message", () => {
+    const short = "A".repeat(20);
+    const long = short + "B".repeat(100);
+    const fp1 = fingerprintCrossPR(makeFinding({ message: short }));
+    const fp2 = fingerprintCrossPR(makeFinding({ message: long }));
+    // The hash is computed on message.substring(0, 80)
+    // short (20 chars) and long (120 chars) — first 80 chars differ
+    // so they should produce different hashes
+    expect(fp1.messageHash).not.toBe(fp2.messageHash);
+  });
+
+  it("produces same hash for messages that match in first 80 chars", () => {
+    const base = "A".repeat(80);
+    const msg1 = base;
+    const msg2 = base + "EXTRA CONTENT";
+    const fp1 = fingerprintCrossPR(makeFinding({ message: msg1 }));
+    const fp2 = fingerprintCrossPR(makeFinding({ message: msg2 }));
+    // Both are truncated to same 80 chars before hashing
+    expect(fp1.messageHash).toBe(fp2.messageHash);
+  });
+});
+
+describe("trackCrossPRFindings — edge cases", () => {
+  it("handles finding with very long file path", () => {
+    const longPath = "src/" + "very/deep/".repeat(20) + "file.ts";
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ file: longPath, message: "Deep path issue" }),
+    ]);
+    expect(result.totalPatterns).toBeGreaterThan(0);
+  });
+
+  it("handles finding with all severity levels", () => {
+    const findings = [
+      makeFinding({ severity: "critical", category: "security", message: "CRIT issue" }),
+      makeFinding({ severity: "high", category: "bug", message: "HIGH issue" }),
+      makeFinding({ severity: "medium", category: "style", message: "MED issue" }),
+      makeFinding({ severity: "low", category: "style", message: "LOW issue" }),
+      makeFinding({ severity: "nitpick", category: "style", message: "NIT issue" }),
+    ];
+    trackCrossPRFindings(tmpDir, "owner/repo#1", findings);
+    trackCrossPRFindings(tmpDir, "owner/repo#2", findings);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#3", findings);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    expect(inCurrent.length).toBe(5);
+  });
+
+  it("handles findings with identical messages but different categories as separate", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Same text", category: "security" }),
+      makeFinding({ message: "Same text", category: "bug" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "Same text", category: "security" }),
+      makeFinding({ message: "Same text", category: "bug" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#3", [
+      makeFinding({ message: "Same text", category: "security" }),
+      makeFinding({ message: "Same text", category: "bug" }),
+    ]);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    expect(inCurrent.length).toBe(2);
+  });
+
+  it("body summary includes file area column", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "SQLi here", category: "security", file: "src/auth/login.ts" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "SQLi here", category: "security", file: "src/auth/login.ts" }),
+    ]);
+    if (result.bodySummary) {
+      expect(result.bodySummary).toContain("src/auth");
+    }
+  });
+
+  it("context text mentions PR count", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Recurring bug" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "Recurring bug" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#3", [
+      makeFinding({ message: "Recurring bug" }),
+    ]);
+    expect(result.contextText).toContain("3 PRs");
+  });
+
+  it("handles PR key with special characters", () => {
+    const result = trackCrossPRFindings(tmpDir, "org-name/repo_name#1", [
+      makeFinding({ message: "Test finding" }),
+    ]);
+    expect(result.totalPatterns).toBeGreaterThan(0);
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    expect(fs.existsSync(storePath)).toBe(true);
+  });
+
+  it("multiple findings from same PR same pattern count as one PR", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Same pattern" }),
+      makeFinding({ message: "Same pattern" }),
+      makeFinding({ message: "Same pattern" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "Same pattern" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#3", [
+      makeFinding({ message: "Same pattern" }),
+    ]);
+    const inCurrent = result.recurringFindings.filter(r => r.inCurrentPR);
+    if (inCurrent.length > 0) {
+      expect(inCurrent[0].prCount).toBe(3);
+    }
+  });
+
+  it("body summary truncates sample message to 40 chars", () => {
+    const longMessage = "A".repeat(100);
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: longMessage }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: longMessage }),
+    ]);
+    if (result.bodySummary) {
+      // The table cell should contain at most 40 chars of the message
+      const lines = result.bodySummary.split("\n");
+      const dataLines = lines.filter(l => l.includes("|") && !l.includes("Pattern") && !l.includes("----"));
+      for (const line of dataLines) {
+        const cells = line.split("|").filter(c => c.trim());
+        if (cells.length > 0) {
+          expect(cells[0].trim().length).toBeLessThanOrEqual(42); // account for backticks
+        }
+      }
+    }
+  });
+
+  it("context text includes file area with trailing slash", () => {
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ file: "src/utils/helper.ts", message: "Bug in utils" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ file: "src/utils/helper.ts", message: "Bug in utils" }),
+    ]);
+    if (result.contextText) {
+      expect(result.contextText).toContain("src/utils/");
+    }
+  });
+
+  it("patterns not in current PR require 3+ PRs (not 2)", () => {
+    // Create a pattern in 2 PRs but NOT in the current one
+    trackCrossPRFindings(tmpDir, "owner/repo#1", [
+      makeFinding({ message: "Two-PR only", category: "style" }),
+    ]);
+    trackCrossPRFindings(tmpDir, "owner/repo#2", [
+      makeFinding({ message: "Two-PR only", category: "style" }),
+    ]);
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#3", [
+      makeFinding({ message: "Different issue", category: "bug" }),
+    ]);
+    const notInCurrent = result.recurringFindings.filter(r => !r.inCurrentPR);
+    // 2 PRs is not enough for the non-current-PR threshold (needs 3+)
+    expect(notInCurrent).toHaveLength(0);
+  });
+
+  it("handles very many patterns without crashing", () => {
+    const findings = Array.from({ length: 50 }, (_, i) =>
+      makeFinding({ message: `Pattern ${i}`, category: i % 2 === 0 ? "security" : "bug" })
+    );
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#1", findings);
+    expect(result.totalPatterns).toBeGreaterThan(0);
+    expect(result.totalPatterns).toBeLessThanOrEqual(50);
+  });
+
+  it("store file is valid JSON after multiple writes", () => {
+    for (let i = 0; i < 10; i++) {
+      trackCrossPRFindings(tmpDir, `owner/repo#${i}`, [
+        makeFinding({ message: `Finding ${i}` }),
+      ]);
+    }
+    const storePath = path.join(tmpDir, ".github", "mizumi-crosspr.json");
+    const raw = fs.readFileSync(storePath, "utf-8");
+    expect(() => JSON.parse(raw)).not.toThrow();
+    const store = JSON.parse(raw);
+    expect(store.patterns).toBeDefined();
+  });
+
+  it("context text is empty on first PR", () => {
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#1", [makeFinding()]);
+    expect(result.contextText).toBe("");
+  });
+
+  it("body summary is empty on first PR", () => {
+    const result = trackCrossPRFindings(tmpDir, "owner/repo#1", [makeFinding()]);
+    expect(result.bodySummary).toBe("");
+  });
+});

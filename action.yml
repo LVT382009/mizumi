@@ -464,6 +464,11 @@ default: 'true'
     description: 'Detect suspicious changes to code review rules and configuration'
     required: false
     default: 'true'
+
+  spec_drift_detector:
+    description: 'Detect when implementation diverges from specification or API contracts'
+    required: false
+    default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false
 jira_api_token:

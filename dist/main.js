@@ -56552,6 +56552,7 @@ function loadConfig() {
   const paradigmClashDetector = getInput("paradigm_clash_detector") !== "false";
   const velocityRiskDetector = getInput("velocity_risk_detector") !== "false";
   const rulesFileIntegrityDetector = getInput("rules_file_integrity_detector") !== "false";
+  const specDriftDetector = getInput("spec_drift_detector") !== "false";
   let securityPaths = [...DEFAULT_SECURITY_PATHS];
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
   let excludePatterns = [...DEFAULT_EXCLUDE];
@@ -56697,7 +56698,8 @@ function loadConfig() {
     partialSecurityControlDetector,
     paradigmClashDetector,
     velocityRiskDetector,
-    rulesFileIntegrityDetector
+    rulesFileIntegrityDetector,
+    specDriftDetector
   };
 }
 function parseSimpleYaml(text2) {
@@ -124988,6 +124990,260 @@ function detectRulesFileIntegrity(diffFiles) {
   return result;
 }
 
+// src/spec-drift-detector.ts
+function stripPrefix11(content) {
+  return content.replace(/^[-+]/, "").trim();
+}
+function getAddedChanges10(file2) {
+  return file2.hunks.flatMap((h) => h.changes).filter((c) => c.type === "add");
+}
+var SKIP_LINE_RE22 = /^\+\s*(\/\/|\/\*|\*|import\s+type\s|export\s+type\s)/;
+var TODO_LINE_RE = /\b(?:TODO|FIXME|HACK)\b/i;
+var STUB_PATTERNS = [
+  /\bTODO\b.*(?:implement|fill|replace|placeholder|stub)/i,
+  /\bFIXME\b.*(?:implement|replace|hack|workaround)/i,
+  /\bHACK\b/i,
+  /\breturn\s+(?:null|undefined|0|"")\s*;?\s*\/\/\s*(?:todo|fixme|implement)/i,
+  /\bthrow\s+new\s+Error\s*\(\s*['"](?:NotImplemented|TODO|not implemented)/i,
+  /return\s+\[\]\s*;\s*\/\/\s*(?:todo|placeholder)/i,
+  /return\s+{}\s*;\s*\/\/\s*(?:todo|placeholder)/i
+];
+function detectUnimplementedSpec(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content) && !TODO_LINE_RE.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      for (const re2 of STUB_PATTERNS) {
+        if (re2.test(trimmed)) {
+          issues.push({
+            category: "unimplemented-spec",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Unimplemented spec in \`${file2.path}:${change.line}\` \u2014 LLMs leave TODO/FIXME/stub markers where the spec requires implementation; shipped stub code passes type checks but fails at runtime; implement the actual logic or mark as explicitly deferred with a tracking issue`,
+            severity: "critical"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+var ASYNC_FUNC_RE2 = /\basync\s+function\s+(\w+)\s*\(/;
+function detectSpecMismatch(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    let insideAsyncFunc = false;
+    let braceDepth = 0;
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      if (ASYNC_FUNC_RE2.test(trimmed)) {
+        insideAsyncFunc = true;
+        braceDepth = 0;
+      }
+      if (insideAsyncFunc) {
+        braceDepth += (trimmed.match(/\{/g) || []).length;
+        braceDepth -= (trimmed.match(/\}/g) || []).length;
+        if (/\breturn\s+(?!await\b)\w/i.test(trimmed) && !/\bawait\s+/.test(trimmed)) {
+          issues.push({
+            category: "spec-implementation-mismatch",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Spec mismatch in \`${file2.path}:${change.line}\`: async function returning without await \u2014 LLMs declare async signatures but implement synchronous returns; verify the implementation matches the declared contract`,
+            severity: "warning"
+          });
+        }
+        if (braceDepth <= 0 && trimmed.includes("}")) {
+          insideAsyncFunc = false;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function detectOrphanedSpec(diffFiles) {
+  const issues = [];
+  const exportedSymbols = /* @__PURE__ */ new Map();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      const trimmed = stripPrefix11(change.content);
+      const exportMatch = trimmed.match(
+        /(?:export\s+(?:default\s+)?)?(?:function|class|const|let|var|interface|type|enum)\s+(\w+)/
+      );
+      if (exportMatch) {
+        exportedSymbols.set(exportMatch[1], {
+          file: file2.path,
+          line: change.line,
+          code: trimmed
+        });
+      }
+    }
+  }
+  const referencedSymbols = /* @__PURE__ */ new Set();
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const allChanges = file2.hunks.flatMap((h) => h.changes);
+    for (const change of allChanges) {
+      const trimmed = stripPrefix11(change.content);
+      if (/^\s*(?:import\s+type|export\s+type)\s/.test(trimmed)) continue;
+      for (const [symbol21] of exportedSymbols) {
+        const defLine = exportedSymbols.get(symbol21);
+        if (defLine.file === file2.path && defLine.line === change.line) continue;
+        const refPattern = new RegExp(`\\b${symbol21}\\b`);
+        if (refPattern.test(trimmed) && !trimmed.includes(`function ${symbol21}`) && !trimmed.includes(`class ${symbol21}`) && !trimmed.includes(`const ${symbol21} =`) && !trimmed.includes(`interface ${symbol21}`) && !trimmed.includes(`type ${symbol21} =`) && !trimmed.includes(`enum ${symbol21}`)) {
+          referencedSymbols.add(symbol21);
+        }
+      }
+    }
+  }
+  for (const [symbol21, info2] of exportedSymbols) {
+    if (!referencedSymbols.has(symbol21)) {
+      const isLikelyEntry = info2.file.includes("index") || info2.file.includes("main") || info2.file.includes("mod");
+      const isDefaultExport = info2.code.includes("export default");
+      const isTypeExport = info2.code.includes("interface ") || info2.code.includes("type ");
+      if (!isLikelyEntry && !isDefaultExport && !isTypeExport) {
+        issues.push({
+          category: "orphaned-spec",
+          file: info2.file,
+          line: info2.line,
+          code: info2.code,
+          description: `Orphaned export \`${symbol21}\` in \`${info2.file}:${info2.line}\` is not referenced by any other file in this PR \u2014 LLMs generate "defensive exports" that create API surface without consumers; unused exports increase bundle size and maintenance burden; remove if not needed or add explicit consumers`,
+          severity: "warning"
+        });
+      }
+    }
+  }
+  return issues;
+}
+var CONTRACT_EROSION_PATTERNS = [
+  // Widened parameter type (any replacing specific type)
+  { re: /:\s+any\b/g, label: "widened parameter/return type to `any`" },
+  // Optional chaining on method that may need required access
+  { re: /\?\.\w+\s*\(/, label: "optional chaining on method that may need required access" },
+  // Empty catch block (swallows errors contract says should propagate)
+  { re: /\bcatch\s*\(\s*\w+\s*\)\s*\{\s*\}/, label: "empty catch block swallows errors from declared contract" },
+  // Non-null assertion (!) without null check
+  { re: /\w+!\.\w+/, label: "non-null assertion without preceding null check" }
+];
+function detectContractErosion(diffFiles) {
+  const issues = [];
+  for (const file2 of diffFiles) {
+    if (file2.status === "deleted") continue;
+    const added = getAddedChanges10(file2);
+    for (const change of added) {
+      if (SKIP_LINE_RE22.test(change.content)) continue;
+      const trimmed = stripPrefix11(change.content);
+      for (const { re: re2, label } of CONTRACT_EROSION_PATTERNS) {
+        if (re2.global) re2.lastIndex = 0;
+        if (re2.test(trimmed)) {
+          if (file2.path.includes("test") || file2.path.includes("spec") || file2.path.includes("__tests__")) {
+            continue;
+          }
+          if (label.includes("any") && !/:\s*any/.test(trimmed)) continue;
+          issues.push({
+            category: "contract-erosion",
+            file: file2.path,
+            line: change.line,
+            code: trimmed,
+            description: `Contract erosion in \`${file2.path}:${change.line}\`: ${label} \u2014 LLMs weaken contracts by widening types, adding optional chaining where required access was intended, swallowing errors, or adding non-null assertions; these changes compile but violate the semantic contract`,
+            severity: "warning"
+          });
+          break;
+        }
+      }
+    }
+  }
+  return issues;
+}
+function dedupIssues30(issues) {
+  const seen = /* @__PURE__ */ new Set();
+  return issues.filter((issue3) => {
+    const key = `${issue3.category}:${issue3.file}:${issue3.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildSpecDriftContext(result) {
+  if (result.issues.length === 0) return "";
+  const critical = result.issues.filter((i) => i.severity === "critical");
+  const warnings = result.issues.filter((i) => i.severity === "warning");
+  let ctx = `## Spec Drift Detection (${result.issues.length})
+`;
+  ctx += "This PR shows implementation-spec divergence \u2014 LLMs implement code that appears to satisfy the spec but actually drifts:\n\n";
+  if (critical.length > 0) {
+    ctx += "### Critical\n";
+    for (const i of critical.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  if (warnings.length > 0) {
+    ctx += "### Warnings\n";
+    for (const i of warnings.slice(0, 10)) {
+      ctx += `- ${i.description}
+`;
+    }
+  }
+  return ctx.trim();
+}
+function buildSpecDriftBodySummary(result) {
+  if (result.issues.length === 0) return "";
+  let body = `<details><summary><strong>Spec Drift Detection</strong> \u2014 ${result.issues.length} issue(s)</summary>
+
+`;
+  body += "| Category | File | Line | Severity |\n";
+  body += "|----------|------|------|----------|\n";
+  for (const i of result.issues.slice(0, 15)) {
+    const catLabel = i.category.replace(/-/g, " ");
+    body += `| ${catLabel} | \`${i.file}\` | ${i.line} | ${i.severity} |
+`;
+  }
+  if (result.issues.length > 15) {
+    body += `| ... | | | ${result.issues.length - 15} more |
+`;
+  }
+  body += `
+*LLMs implement code that appears to satisfy the spec but actually drifts \u2014 stub markers where implementation is needed, signatures that don't match declared types, exports without consumers, and contracts weakened by widened types or swallowed errors. Review each finding to ensure the implementation matches the intended specification.*
+</details>
+`;
+  return body;
+}
+function detectSpecDrift(diffFiles) {
+  const allIssues = [];
+  allIssues.push(...detectUnimplementedSpec(diffFiles));
+  allIssues.push(...detectSpecMismatch(diffFiles));
+  allIssues.push(...detectOrphanedSpec(diffFiles));
+  allIssues.push(...detectContractErosion(diffFiles));
+  const issues = dedupIssues30(allIssues);
+  issues.sort((a, b) => {
+    const sv = (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1);
+    if (sv !== 0) return sv;
+    return a.file.localeCompare(b.file) || a.line - b.line;
+  });
+  const result = {
+    issues,
+    contextText: "",
+    bodySummary: ""
+  };
+  result.contextText = buildSpecDriftContext(result);
+  result.bodySummary = buildSpecDriftBodySummary(result);
+  if (issues.length > 0) {
+    info(`Spec drift detection: ${issues.length} issue(s) detected (${issues.filter((i) => i.severity === "critical").length} critical)`);
+  }
+  return result;
+}
+
 // src/main.ts
 var RetryingOctokit = Octokit2.plugin(retry);
 async function run() {
@@ -125599,6 +125855,13 @@ async function run() {
         info("Rules file integrity detection: " + rulesIntegrityResult.issues.length + " issue(s)");
       }
     }
+    let specDriftResult = null;
+    if (config2.specDriftDetector) {
+      specDriftResult = detectSpecDrift(diff.files);
+      if (specDriftResult.issues.length > 0) {
+        info("Spec drift detection: " + specDriftResult.issues.length + " issue(s)");
+      }
+    }
     let learningResult = null;
     if (config2.reviewLearning) {
       try {
@@ -125990,6 +126253,9 @@ ${taintContextStr}`;
     }
     if (rulesIntegrityResult && rulesIntegrityResult.contextText) {
       context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + rulesIntegrityResult.contextText;
+    }
+    if (specDriftResult && specDriftResult.contextText) {
+      context4.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + specDriftResult.contextText;
     }
     if (learningResult && learningResult.newRules.length > 0) {
       const learningContextStr = buildLearningContext(learningResult);
@@ -127025,6 +127291,18 @@ ${digest}
                   warning("Failed to post rules integrity summary: " + (e instanceof Error ? e.message : String(e)));
                 }
               }
+              if (specDriftResult && specDriftResult.bodySummary) {
+                try {
+                  await octokit.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body: specDriftResult.bodySummary
+                  });
+                } catch (e) {
+                  warning("Failed to post spec drift summary: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }
             } catch (e) {
               warning("Partial security control comment failed: " + (e instanceof Error ? e.message : String(e)));
             }
@@ -127196,6 +127474,7 @@ ${digest}
         if (config2.paradigmClashDetector) auditBuilder.logStage("paradigm-clash-detect", 0, true);
         if (config2.velocityRiskDetector) auditBuilder.logStage("velocity-risk-detect", 0, true);
         if (config2.rulesFileIntegrityDetector) auditBuilder.logStage("rules-file-integrity-detect", 0, true);
+        if (config2.specDriftDetector) auditBuilder.logStage("spec-drift-detect", 0, true);
         for (const c of mergedReview.comments) {
           auditBuilder.logFinding({ fingerprint: c.fingerprint || c.file + ":" + c.line + ":" + c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: c.source || "llm", modifications: c.modifications || [], finalConfidence: c.confidence || 0 });
         }
