@@ -477,3 +477,206 @@ describe("detectHallucinatedDeps — dedup and sort", () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("detectHallucinatedDeps — expanded unknown-import", () => {
+  it("detects multiple unknown imports in single file", () => {
+    const file = makeFile("src/app.ts", [
+      "import foo from 'phantom-pkg';",
+      "import bar from 'ghost-utils';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("detects unknown package with hyphens and numbers", () => {
+    const file = makeFile("src/api.ts", [
+      "import thing from 'ai-sdk-helpers-v3';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag @types packages (TypeScript type definitions)", () => {
+    const file = makeFile("src/app.ts", [
+      "import type { Request } from '@types/custom-types';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag Node.js builtins in require", () => {
+    const file = makeFile("src/server.js", [
+      "const crypto = require('crypto');",
+      "const stream = require('stream');",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects unknown package via dynamic import", () => {
+    const file = makeFile("src/lazy.ts", [
+      "const mod = await import('ai-ml-utils');",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectHallucinatedDeps — expanded slopsquatting-signal", () => {
+  it("detects quick-X-helper pattern", () => {
+    const file = makeFile("src/app.ts", [
+      "import quickDb from 'quick-db-helper';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects simple-X-validator pattern", () => {
+    const file = makeFile("src/validate.ts", [
+      "import simpleValidate from 'simple-input-validator';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects X-extra suffix pattern", () => {
+    const file = makeFile("src/app.ts", [
+      "import extras from 'express-extra';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects google-utils pattern", () => {
+    const file = makeFile("src/cloud.ts", [
+      "import gu from 'google-utils';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectHallucinatedDeps — expanded phantom-scoped-import", () => {
+  it("detects multiple unknown scoped packages", () => {
+    const file = makeFile("src/app.ts", [
+      "import { A } from '@mycompany/phantom-service';",
+      "import { B } from '@myteam/ghost-adapter';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "phantom-scoped-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag @types scoped packages with type import", () => {
+    const file = makeFile("src/app.ts", [
+      "import type { Config } from '@myorg/types';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "phantom-scoped-import");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectHallucinatedDeps — expanded version-mismatch", () => {
+  it("detects .v4 versioned API access", () => {
+    const file = makeFile("src/api.ts", [
+      "const result = sdk.v4.compute();",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "version-mismatch");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag property access that is not versioned", () => {
+    const file = makeFile("src/api.ts", [
+      "const result = api.getData();",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "version-mismatch");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectHallucinatedDeps — expanded edge cases", () => {
+  it("does not flag pnpm-lock.yaml packages as unknown", () => {
+    const lockfile = makeFileWithMixed("pnpm-lock.yaml", [
+      { type: "add", content: "+  /lodash@4.17.21:", line: 1 },
+    ]);
+    const source = makeFile("src/app.ts", [
+      "import _ from 'lodash';",
+    ]);
+    const result = detectHallucinatedDeps([lockfile, source]);
+    const unknownIssues = result.issues.filter((i) => i.category === "unknown-import" && i.description.includes("lodash"));
+    expect(unknownIssues).toHaveLength(0);
+  });
+
+  it("handles empty lockfile", () => {
+    const lockfile: DiffFile = {
+      path: "package-lock.json",
+      status: "modified",
+      hunks: [{ header: "@@ -0 +0 @@", changes: [] }],
+    };
+    const source = makeFile("src/app.ts", [
+      "import foo from 'phantom-pkg';",
+    ]);
+    const result = detectHallucinatedDeps([lockfile, source]);
+    const issues = result.issues.filter((i) => i.category === "unknown-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles .jsx files", () => {
+    const file = makeFile("src/Component.jsx", [
+      "import foo from 'react-ai-helper-lite';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles .mjs files", () => {
+    const file = makeFile("src/module.mjs", [
+      "import bar from 'ghost-validator-core';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    const issues = result.issues.filter((i) => i.category === "slopsquatting-signal");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("body summary truncates at 15 issues", () => {
+    const files = [];
+    for (let i = 0; i < 20; i++) {
+      files.push(makeFile(`src/mod${i}.ts`, [
+        `import m${i} from 'phantom-pkg-${i}';`,
+      ]));
+    }
+    const result = detectHallucinatedDeps(files);
+    if (result.issues.length > 15) {
+      expect(result.bodySummary).toContain("more");
+    }
+  });
+
+  it("generates body summary table headers", () => {
+    const file = makeFile("src/app.ts", [
+      "import foo from 'phantom-pkg';",
+    ]);
+    const result = detectHallucinatedDeps([file]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+      expect(result.bodySummary).toContain("|----------|");
+    }
+  });
+});

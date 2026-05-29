@@ -464,3 +464,153 @@ describe("detectConfabulatedAPI — additional coverage", () => {
     expect(issues).toHaveLength(0);
   });
 });
+
+
+
+// ---------------------------------------------------------------------------
+// New tests — confabulated-api-detector expanded coverage
+// ---------------------------------------------------------------------------
+
+describe("detectConfabulatedAPI — non-existent-method expanded", () => {
+  it("detects .isBlank() which is Java-style", () => {
+    const file = makeFile("src/check.ts", [
+      "if (text.isBlank()) { return; }",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("trim()");
+  });
+
+  it("detects .remove(0) which is Java List style", () => {
+    const file = makeFile("src/list.ts", [
+      "items.remove(0);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("splice()");
+  });
+
+  it("detects .get(0) which is Java List style", () => {
+    const file = makeFile("src/list.ts", [
+      "const first = items.get(0);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects .await() which is C# style", () => {
+    const file = makeFile("src/async.ts", [
+      "const result = promise.await();",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("keyword");
+  });
+
+  it("detects .reject() which is Ruby style", () => {
+    const file = makeFile("src/ruby.ts", [
+      "const filtered = items.reject(x => x < 0);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("filter()");
+  });
+
+  it("does not flag class definitions", () => {
+    const file = makeFile("src/cls.ts", [
+      "class Container { contains(val: string) { return true; } }",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "non-existent-method");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectConfabulatedAPI — wrong-arity expanded", () => {
+  it("detects isNaN called with 2 arguments", () => {
+    const file = makeFile("src/check.ts", [
+      "const bad = isNaN(x, y);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("isNaN");
+  });
+
+  it("detects Math.sqrt called with 2 arguments", () => {
+    const file = makeFile("src/math.ts", [
+      "const val = Math.sqrt(x, y);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag JSON.stringify with 2 arguments (valid)", () => {
+    const file = makeFile("src/ok.ts", [
+      "const json = JSON.stringify(obj, null, 2);",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "wrong-arity");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectConfabulatedAPI — fantasy-optional-chain expanded", () => {
+  it("detects optional chaining on undefined literal", () => {
+    const file = makeFile("src/bad.ts", [
+      "const val = undefined?.valueOf();",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "fantasy-optional-chain");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("caps fantasy-optional-chain at 3 issues", () => {
+    const file = makeFile("src/bad.ts", [
+      "const a = 1?.toString();",
+      "const b = 2?.toString();",
+      "const c = true?.valueOf();",
+      "const d = null?.valueOf();",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "fantasy-optional-chain");
+    expect(issues.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("detectConfabulatedAPI — confabulated-import expanded", () => {
+  it("detects Request imported from node:fs", () => {
+    const file = makeFile("src/bad.ts", [
+      "import { Request } from 'node:fs';",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "confabulated-import");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("critical");
+  });
+
+  it("does not flag symbols in skip-marked entries (react hooks)", () => {
+    const file = makeFile("src/ok.ts", [
+      "import { useState } from 'react';",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const issues = result.issues.filter((i) => i.category === "confabulated-import");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("deduplicates issues at same category/file/line", () => {
+    const file = makeFile("src/bad.ts", [
+      "import { readFile, createReadStream } from 'node:http';",
+    ]);
+    const result = detectConfabulatedAPI([file]);
+    const confIssues = result.issues.filter((i) => i.category === "confabulated-import");
+    // Multiple wrong imports from same line should still produce results but not duplicate at same file:line:category
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
+});

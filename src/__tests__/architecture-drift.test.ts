@@ -498,3 +498,127 @@ describe('detectArchitectureDrift — edge cases (expanded)', () => {
     }
   });
 });
+
+
+
+// ---------------------------------------------------------------------------
+// New tests — architecture-drift expanded coverage
+// ---------------------------------------------------------------------------
+
+describe("parseArchitectureYaml — edge cases", () => {
+  it("handles layer with no patterns (empty patterns list)", () => {
+    const yaml = `layers:
+  emptyLayer:
+    allowed_deps: "api"
+`;
+    const model = parseArchitectureYaml(yaml);
+    expect(model.layers).toHaveLength(1);
+    expect(model.layers[0].name).toBe("emptyLayer");
+    expect(model.layers[0].patterns).toHaveLength(0);
+  });
+
+  it("handles allowedDeps key (camelCase variant)", () => {
+    const yaml = `layers:
+  ui:
+    patterns:
+      - "src/ui/**"
+    allowedDeps: "domain"
+`;
+    const model = parseArchitectureYaml(yaml);
+    expect(model.layers[0].allowedDeps).toEqual(["domain"]);
+  });
+
+  it("handles multiple comma-separated allowedDeps with quotes", () => {
+    const yaml = `layers:
+  ui:
+    patterns:
+      - "src/ui/**"
+    allowed_deps: "api, domain, shared"
+`;
+    const model = parseArchitectureYaml(yaml);
+    expect(model.layers[0].allowedDeps).toEqual(["api", "domain", "shared"]);
+  });
+
+  it("defaults strict to false when not specified", () => {
+    const yaml = `layers:
+  ui:
+    patterns:
+      - "src/ui/**"
+`;
+    const model = parseArchitectureYaml(yaml);
+    expect(model.strict).toBe(false);
+  });
+});
+
+describe("detectArchitectureDrift — cross-layer and boundary interactions", () => {
+  it("allows api to import from domain (per SIMPLE_MODEL)", () => {
+    const files = [makeFile("src/api/users.ts", ['+import { User } from "../domain/User"'])];
+    const result = detectArchitectureDrift(files, SIMPLE_MODEL);
+    const layerViolations = result.violations.filter((v) => v.kind === "layer-violation" && v.sourceLayer === "api" && v.targetLayer === "domain");
+    expect(layerViolations).toHaveLength(0);
+  });
+
+  it("flags api importing from infrastructure when not allowed", () => {
+    const files = [makeFile("src/api/users.ts", ['+import { db } from "../infra/connection"'])];
+    const result = detectArchitectureDrift(files, SIMPLE_MODEL);
+    const layerViolations = result.violations.filter((v) => v.kind === "layer-violation");
+    expect(layerViolations.length).toBeGreaterThanOrEqual(1);
+    expect(layerViolations[0].sourceLayer).toBe("api");
+  });
+
+  it("does not flag same-layer imports", () => {
+    const files = [makeFile("src/ui/App.tsx", ['+import { Header } from "../ui/Header"'])];
+    const result = detectArchitectureDrift(files, SIMPLE_MODEL);
+    const layerViolations = result.violations.filter((v) => v.kind === "layer-violation");
+    expect(layerViolations).toHaveLength(0);
+  });
+
+  it("handles model with no contexts gracefully", () => {
+    const model: ArchitectureModel = { layers: [{ name: "app", patterns: ["src/**"], allowedDeps: [] }] };
+    const files = [makeFile("src/app/main.ts", ['+import { x } from "../other/y"'])];
+    const result = detectArchitectureDrift(files, model);
+    expect(result.violations.filter((v) => v.kind === "boundary-violation")).toHaveLength(0);
+  });
+});
+
+describe("detectArchitectureDrift — context and body edge cases", () => {
+  it("context text includes boundary crossing section for boundary violations", () => {
+    const files = [makeFile("src/billing/Invoice.ts", ['+import { User } from "../auth/session"'])];
+    const result = detectArchitectureDrift(files, CONTEXT_MODEL);
+    if (result.violations.some((v) => v.kind === "boundary-violation")) {
+      expect(result.contextText).toContain("Boundary Crossings");
+    }
+  });
+
+  it("body summary includes model layer count", () => {
+    const files = [makeFile("src/ui/App.tsx", ['+import { db } from "../db/connection"'])];
+    const result = detectArchitectureDrift(files, SIMPLE_MODEL);
+    if (result.violations.length > 0) {
+      expect(result.bodySummary).toContain("4 layers");
+    }
+  });
+
+  it("body summary mentions contexts when present in model", () => {
+    const files = [makeFile("src/billing/Invoice.ts", ['+import { User } from "../auth/session"'])];
+    const result = detectArchitectureDrift(files, CONTEXT_MODEL);
+    if (result.violations.length > 0 && CONTEXT_MODEL.contexts) {
+      expect(result.bodySummary).toContain("2 contexts");
+    }
+  });
+});
+
+describe("detectArchitectureDrift — file matching edge cases", () => {
+  it("does not flag files that do not match any layer pattern", () => {
+    const model: ArchitectureModel = {
+      layers: [{ name: "ui", patterns: ["src/ui/**"], allowedDeps: [] }],
+    };
+    const files = [makeFile("scripts/build.sh", ['+import { x } from "./utils"'])];
+    const result = detectArchitectureDrift(files, model);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it("infrastructure layer has no allowedDeps in SIMPLE_MODEL", () => {
+    const infraLayer = SIMPLE_MODEL.layers.find((l) => l.name === "infrastructure");
+    expect(infraLayer!.allowedDeps).toHaveLength(0);
+  });
+});

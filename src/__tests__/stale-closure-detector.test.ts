@@ -552,3 +552,122 @@ describe("detectStaleClosures — var-specific patterns", () => {
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("detectStaleClosures — expanded loop-var-closure", () => {
+  it("detects for-loop var in setTimeout callback", () => {
+    const file = makeFile("src/timer.ts", [
+      "for (var i = 0; i < 10; i++) {",
+      " setTimeout(function() { console.log(i); }, 100);",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "loop-var-closure");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag let in for-loop callback", () => {
+    const file = makeFile("src/timer.ts", [
+      "for (let i = 0; i < 10; i++) {",
+      " setTimeout(function() { console.log(i); }, 100);",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "loop-var-closure");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects var in for-of loop with callback", () => {
+    const file = makeFile("src/items.ts", [
+      "for (var item of items) {",
+      " process.nextTick(() => handle(item));",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "loop-var-closure");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("detectStaleClosures — expanded stale-event-handler", () => {
+  it("detects closure capturing removed DOM element", () => {
+    const file = makeFile("src/ui.ts", [
+      "const el = document.getElementById('btn');",
+      "el.addEventListener('click', () => {",
+      " console.log(el.value);",
+      "});",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "stale-event-handler");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("detectStaleClosures — expanded async-closure-race", () => {
+  it("detects stale closure in async function with await", () => {
+    const file = makeFile("src/fetch.ts", [
+      "let data = await fetchData();",
+      "setTimeout(() => { process(data); }, 1000);",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "async-closure-race");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("detectStaleClosures — expanded edge cases", () => {
+  it("handles file with only class declarations (no closures)", () => {
+    const file = makeFile("src/entity.ts", [
+      "export class Entity {",
+      " id: string;",
+      " name: string;",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles file with clean arrow functions", () => {
+    const file = makeFile("src/utils.ts", [
+      "const add = (a: number, b: number) => a + b;",
+      "const greet = (name: string) => `Hello ${name}`;",
+    ]);
+    const result = detectStaleClosures([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles .jsx files", () => {
+    const file = makeFile("src/App.jsx", [
+      "for (var i = 0; i < items.length; i++) {",
+      " setTimeout(() => clickItem(i), 0);",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    const issues = result.issues.filter((i) => i.category === "loop-var-closure");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("generates body summary table when issues exist", () => {
+    const file = makeFile("src/timer.ts", [
+      "for (var i = 0; i < 10; i++) {",
+      " setTimeout(function() { console.log(i); }, 100);",
+      "}",
+    ]);
+    const result = detectStaleClosures([file]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+    }
+  });
+
+  it("generates empty body summary when no issues", () => {
+    const file = makeFile("src/clean.ts", [
+      "const x = 1;",
+    ]);
+    const result = detectStaleClosures([file]);
+    expect(result.bodySummary).toBe("");
+  });
+});

@@ -261,3 +261,81 @@ describe("buildStrategyPrompt additional edge cases", () => {
     expect(prompt).not.toContain("authentication");
   });
 });
+
+
+
+// ---------------------------------------------------------------------------
+// New tests — review-strategy edge cases, false-positive avoidance, context
+// ---------------------------------------------------------------------------
+
+describe("getReviewStrategy — exhaustive field coverage", () => {
+  it("security skipAreas includes documentation quality", () => {
+    const strategy = getReviewStrategy("security");
+    expect(strategy.skipAreas).toContain("documentation quality");
+    expect(strategy.skipAreas).toContain("code organization");
+  });
+
+  it("logic focusAreas includes off-by-one and race conditions", () => {
+    const strategy = getReviewStrategy("logic");
+    expect(strategy.focusAreas).toContain("off-by-one");
+    expect(strategy.focusAreas).toContain("race conditions");
+  });
+
+  it("docs focusAreas includes broken links and code examples", () => {
+    const strategy = getReviewStrategy("docs");
+    expect(strategy.focusAreas).toContain("broken links");
+    expect(strategy.focusAreas).toContain("code examples");
+  });
+
+  it("tests skipAreas includes naming in test files", () => {
+    const strategy = getReviewStrategy("tests");
+    expect(strategy.skipAreas).toContain("naming in test files");
+  });
+
+  it("config focusAreas includes security settings and misconfigurations", () => {
+    const strategy = getReviewStrategy("config");
+    expect(strategy.focusAreas).toContain("security settings");
+  });
+
+  it("cosmetic riskBias is the minimum value (-2)", () => {
+    const strategy = getReviewStrategy("cosmetic");
+    expect(strategy.riskBias).toBe(-2);
+  });
+});
+
+describe("buildStrategyPrompt — prompt structure edge cases", () => {
+  it("logic prompt includes standard review guidance", () => {
+    const prompt = buildStrategyPrompt("logic");
+    expect(prompt).toContain("standard review");
+  });
+
+  it("security prompt contains path traversal check", () => {
+    const prompt = buildStrategyPrompt("security");
+    expect(prompt).toContain("path traversal");
+  });
+
+  it("docs prompt mentions factually wrong as high severity exception", () => {
+    const prompt = buildStrategyPrompt("docs");
+    expect(prompt).toContain("factually wrong");
+  });
+
+  it("tests prompt mentions shared state flaky pattern", () => {
+    const prompt = buildStrategyPrompt("tests");
+    expect(prompt).toContain("shared state");
+  });
+
+  it("config prompt mentions logging removal check", () => {
+    const prompt = buildStrategyPrompt("config");
+    expect(prompt).toContain("logging");
+  });
+
+  it("risk bias shows absolute value for negative bias", () => {
+    const prompt = buildStrategyPrompt("docs");
+    expect(prompt).toContain("2 level");
+  });
+
+  it("risk bias shows absolute value for positive bias", () => {
+    const prompt = buildStrategyPrompt("security");
+    expect(prompt).toContain("1 level");
+  });
+});

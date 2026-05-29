@@ -429,3 +429,154 @@ describe("detectNullGuardGaps — edge cases", () => {
     expect(result.issues).toHaveLength(0);
   });
 });
+
+
+
+// ---------------------------------------------------------------------------
+// New tests — null-guard-detector expanded coverage
+// ---------------------------------------------------------------------------
+
+describe("detectNullGuardGaps — deep access expanded", () => {
+  it("detects payload.data.items deep access", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const items = payload.data.items;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const deep = result.issues.filter((i) => i.category === "deep-access-without-guard");
+    expect(deep.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects document.body.style deep access", () => {
+    const files = [makeFile("src/dom.ts", [
+      "+const s = document.body.style;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const deep = result.issues.filter((i) => i.category === "deep-access-without-guard");
+    expect(deep).toHaveLength(1);
+  });
+
+  it("does not flag non-nullable source like str.prop.inner", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const x = str.prop.inner;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const deep = result.issues.filter((i) => i.category === "deep-access-without-guard");
+    expect(deep).toHaveLength(0);
+  });
+
+  it("skips export lines from deep access detection", () => {
+    const files = [makeFile("src/app.ts", [
+      "+export { data.user.name };",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const deep = result.issues.filter((i) => i.category === "deep-access-without-guard");
+    expect(deep).toHaveLength(0);
+  });
+});
+
+describe("detectNullGuardGaps — array index expanded", () => {
+  it("detects response[0].body array access", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const body = response[0].body;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const arr = result.issues.filter((i) => i.category === "array-index-without-check");
+    expect(arr).toHaveLength(1);
+  });
+
+  it("detects item[0].name array access", () => {
+    const files = [makeFile("src/list.ts", [
+      "+const name = item[0].name;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const arr = result.issues.filter((i) => i.category === "array-index-without-check");
+    expect(arr).toHaveLength(1);
+  });
+
+  it("does not flag array access on non-nullable like arr[0].x", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const x = arr[0].x;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const arr = result.issues.filter((i) => i.category === "array-index-without-check");
+    expect(arr).toHaveLength(0);
+  });
+});
+
+describe("detectNullGuardGaps — assertive access expanded", () => {
+  it("detects error!.message non-null assertion", () => {
+    const files = [makeFile("src/err.ts", [
+      "+const msg = error!.message;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const assert = result.issues.filter((i) => i.category === "assertive-access-on-optional");
+    expect(assert).toHaveLength(1);
+  });
+
+  it("does not flag assertion guarded by && operator", () => {
+    const files = [makeFile("src/api.ts", [
+      "+if (data && data!.user) { return data.user; }",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const assert = result.issues.filter((i) => i.category === "assertive-access-on-optional");
+    expect(assert).toHaveLength(0);
+  });
+
+  it("does not flag assertion guarded by !== undefined", () => {
+    const files = [makeFile("src/api.ts", [
+      "+if (data !== undefined) const db = data!.db;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const assert = result.issues.filter((i) => i.category === "assertive-access-on-optional");
+    expect(assert).toHaveLength(0);
+  });
+});
+
+describe("detectNullGuardGaps — context and body edge cases", () => {
+  it("body summary includes severity column", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const x = data.user.name;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("Severity");
+    }
+  });
+
+  it("context text includes method chains in descriptions", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const x = data.user.name;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    if (result.issues.length > 0) {
+      expect(result.contextText).toContain("data.user.name");
+    }
+  });
+});
+
+describe("detectNullGuardGaps — dedup and sorting", () => {
+  it("deduplicates same category/file/line", () => {
+    const files = [makeFile("src/api.ts", [
+      "+const a = data.user.name;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const deep = result.issues.filter((i) => i.category === "deep-access-without-guard");
+    expect(deep).toHaveLength(1);
+  });
+
+  it("sorts critical issues before warning issues", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const name = data.user.name;",
+      "+const first = data[0].id;",
+      "+const val = result!.value;",
+    ])];
+    const result = detectNullGuardGaps(files);
+    const criticals = result.issues.filter((i) => i.severity === "critical");
+    const warnings = result.issues.filter((i) => i.severity === "warning");
+    if (criticals.length > 0 && warnings.length > 0) {
+      const lastCritIdx = result.issues.indexOf(criticals[criticals.length - 1]);
+      const firstWarnIdx = result.issues.indexOf(warnings[0]);
+      expect(lastCritIdx).toBeLessThan(firstWarnIdx);
+    }
+  });
+});

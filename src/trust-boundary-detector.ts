@@ -135,7 +135,7 @@ function detectOverPermissiveIAM(file: DiffFile): TrustBoundaryIssue[] {
     if (TEST_PATH_RE.test(file.path)) continue;
 
     // Check for star actions (CloudFormation YAML: Action: "*", Terraform: actions = ["*"])
-    if (/(?:Action|actions?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Action|actions?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file.path,
@@ -148,7 +148,7 @@ function detectOverPermissiveIAM(file: DiffFile): TrustBoundaryIssue[] {
     }
 
     // Check for star resources (CloudFormation: Resource: "*", Terraform: resources = ["*"])
-    if (/(?:Resource|resources?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Resource|resources?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file.path,
@@ -161,7 +161,7 @@ function detectOverPermissiveIAM(file: DiffFile): TrustBoundaryIssue[] {
     }
 
     // Check for star principal (public access)
-    if (/(?:Principal|principals?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Principal|principals?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file.path,

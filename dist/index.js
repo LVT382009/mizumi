@@ -126330,12 +126330,14 @@ var CUSTOM_CRYPTO_PATTERNS = [
   /\b(?:encrypt|decrypt|cipher)\w*\s*\([^)]*\bxor\b/i,
   /\bxor\s*[\^=]\s*0x/i,
   /\bcharcode\b.*?\bxor\b/i,
+  /\b\w+\s*\^\s*\w+.*(?:encrypt|key|secret|cipher)/i,
   /\bdata\s*\^\s*\w+/i,
   // Custom RSA/EC implementation
   /\bmodpow\b/i,
   /\bmodexp\b/i,
   /\binversemod\b/i,
   /(?:implement|custom|hand-rolled|own|manual|write|build)\s+(?:rsa|aes|ec|ed25519|curve25519|chacha|salsa)/i,
+  /\b(?:implement|custom)(?:RSA|AES|EC|Ed25519|Curve25519|ChaCha|Salsa)\w*\b/i,
   // SubtleCrypto replaced with custom implementation
   /\bcrypto\.subtle\b.*?(?:replac|remove|delet)/i,
   // Node crypto replaced with manual operations
@@ -126633,7 +126635,7 @@ function detectOverPermissiveIAM(file2) {
     if (SKIP_LINE_RE27.test(change.content)) continue;
     const trimmed = stripPrefix17(change.content);
     if (TEST_PATH_RE3.test(file2.path)) continue;
-    if (/(?:Action|actions?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Action|actions?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file2.path,
@@ -126644,7 +126646,7 @@ function detectOverPermissiveIAM(file2) {
       });
       continue;
     }
-    if (/(?:Resource|resources?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Resource|resources?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file2.path,
@@ -126655,7 +126657,7 @@ function detectOverPermissiveIAM(file2) {
       });
       continue;
     }
-    if (/(?:Principal|principals?)\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
+    if (/["']?(?:Principal|principals?)["']?\s*[:=]\s*\[?["']\*["']\]?/i.test(trimmed)) {
       issues.push({
         category: "over-permissive-iam",
         file: file2.path,

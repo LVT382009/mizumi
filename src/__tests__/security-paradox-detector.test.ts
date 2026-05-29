@@ -525,3 +525,248 @@ describe("detectSecurityParadox — context and summary", () => {
     expect(issues.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion — security paradox
+// ---------------------------------------------------------------------------
+
+describe("detectSecurityParadox — custom-crypto expanded", () => {
+  it("detects XOR data ^ key pattern", () => {
+    const file = makeDiffFile("src/encrypt.ts", [
+      "const encrypted = data ^ secretKey;",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects custom AES implementation intent", () => {
+    const file = makeDiffFile("src/crypto.ts", [
+      "function implementAes(key, data) {",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects atob used as decrypt", () => {
+    const file = makeDiffFile("src/decode.ts", [
+      "const decrypted = atob(encoded); // decrypt payload",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Buffer.from base64 as encryption", () => {
+    const file = makeDiffFile("src/secure.ts", [
+      "Buffer.from(data).toString('base64'); // encrypt for storage",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects custom MAC function", () => {
+    const file = makeDiffFile("src/hmac.ts", [
+      "function computeMac(data, key) {",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag test fixture files", () => {
+    const file = makeDiffFile("src/__tests__/crypto.test.ts", [
+      "const encrypted = data ^ secretKey;",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "custom-crypto");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag spec files", () => {
+    const file = makeDiffFile("src/crypto.spec.ts", [
+      "const hash = md5(input);",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag type-only imports", () => {
+    const file = makeDiffFile("src/types.ts", [
+      "import type { CryptoKey } from './crypto';",
+    ]);
+    const result = detectSecurityParadox([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+});
+
+describe("detectSecurityParadox — training-era-drift expanded", () => {
+  it("detects Node crypto createHash md5", () => {
+    const file = makeDiffFile("src/hash.ts", [
+      "crypto.createHash('md5').update(data).digest('hex');",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Node crypto createHash sha1", () => {
+    const file = makeDiffFile("src/hash.ts", [
+      "crypto.createHash('sha1').update(data).digest();",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects 3DES usage", () => {
+    const file = makeDiffFile("src/cipher.ts", [
+      "const cipher = createCipher('des-ede3-cbc', key);",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects EC directive", () => {
+    const file = makeDiffFile("src/config.ts", [
+      "cipher: 'ecb',",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects hardcoded IV exactly at 4+ chars", () => {
+    const file = makeDiffFile("src/crypto.ts", [
+      'iv: "1234"',
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects hardcoded salt exactly at 4+ chars", () => {
+    const file = makeDiffFile("src/kdf.ts", [
+      'salt = "abcd"',
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag lines with TODO/FIXME comments marking deprecated", () => {
+    const file = makeDiffFile("src/hash.ts", [
+      "/* TODO: remove md5 usage */ const hash = md5(input);",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag migration code replacing SHA1", () => {
+    const file = makeDiffFile("src/hash.ts", [
+      "Migrate: replace sha1 with sha256",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectSecurityParadox — overengineered-encryption expanded", () => {
+  it("detects double AES in code", () => {
+    const file = makeDiffFile("src/secure.ts", [
+      "const doubleEnc = aes(aes(data, k1), k2);",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "overengineered-encryption");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects additional security layer", () => {
+    const file = makeDiffFile("src/secure.ts", [
+      "Apply additional encrypt layer for compliance",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "overengineered-encryption");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects double encrypt keyword", () => {
+    const file = makeDiffFile("src/vault.ts", [
+      "const result = doubleEncrypt(payload);",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "overengineered-encryption");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag comment lines with double encryption discussion", () => {
+    const file = makeDiffFile("src/secure.ts", [
+      "// Do not double-encrypt data",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "overengineered-encryption");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectSecurityParadox — whitelisting edge cases", () => {
+  it("whitelist migration upgrade from des", () => {
+    const file = makeDiffFile("src/cipher.ts", [
+      "upgrade: replace des with aes-gcm",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("whitelist migration replace ecb", () => {
+    const file = makeDiffFile("src/cipher.ts", [
+      "replace ecb with cbc mode",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("handles mixed-line file with both patterns and clean lines", () => {
+    const file = makeDiffFile("src/app.ts", [
+      "const x = 1;",
+      "const hash = md5(input);",
+      "const y = 2;",
+    ]);
+    const result = detectSecurityParadox([file]);
+    const issues = result.issues.filter((i) => i.category === "training-era-drift");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag deleted files", () => {
+    const file: DiffFile = { path: "src/crypto.ts", status: "deleted", hunks: [] };
+    const result = detectSecurityParadox([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles empty hunks gracefully", () => {
+    const file: DiffFile = {
+      path: "src/crypto.ts",
+      status: "modified",
+      hunks: [{ header: "@@ -0 +0 @@@@", changes: [] }],
+    };
+    const result = detectSecurityParadox([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles multiple files with different categories", () => {
+    const file1 = makeDiffFile("src/hash.ts", ["crypto.createHash('md5')"]);
+    const file2 = makeDiffFile("src/secure.ts", ["const enc = encrypt(encrypt(d, k1), k2);"]);
+    const file3 = makeDiffFile("src/crypto.ts", ["const encrypted = data ^ secretKey;"]);
+    const result = detectSecurityParadox([file1, file2, file3]);
+    const categories = new Set(result.issues.map((i) => i.category));
+    expect(categories.size).toBe(3);
+  });
+});
