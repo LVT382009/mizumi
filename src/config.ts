@@ -111,6 +111,7 @@ observabilityGapDetector: boolean;
   credentialExposureDetector: boolean;
   illusoryValidationDetector: boolean;
   iterationStrippingDetector: boolean;
+  securityParadoxDetector: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -245,6 +246,7 @@ const iacVulnerabilityDetector = core.getInput("iac_vulnerability_detector") !==
 const credentialExposureDetector = core.getInput("credential_exposure_detector") !== "false"; // default true
 const illusoryValidationDetector = core.getInput("illusory_validation_detector") !== "false"; // default true
 const iterationStrippingDetector = core.getInput("iteration_stripping_detector") !== "false"; // default true
+const securityParadoxDetector = core.getInput("security_paradox_detector") !== "false"; // default true
 let securityPaths = [...DEFAULT_SECURITY_PATHS];
 
   const configPath = path.join(process.env.GITHUB_WORKSPACE || ".", ".github", "mizumi.yml");
@@ -398,6 +400,7 @@ observabilityGapDetector,
   credentialExposureDetector,
   illusoryValidationDetector,
     iterationStrippingDetector,
+  securityParadoxDetector,
   };
 }
 

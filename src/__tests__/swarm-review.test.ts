@@ -328,6 +328,7 @@ nullGuardDetector: true,
     credentialExposureDetector: true,
     illusoryValidationDetector: true,
     iterationStrippingDetector: true,
+      securityParadoxDetector: true,
     };
 
     const result = await runSwarmReview("diff content", "valid positions", mockConfig);

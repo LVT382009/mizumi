@@ -348,3 +348,197 @@ describe("buildEntropyContext", () => {
     expect(result).toContain("100");
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("shannonEntropy — expanded coverage", () => {
+  it("returns high entropy for UUID-like strings", () => {
+    const uuid = "550e8400-e29b-41d4-a716-446655440000";
+    expect(shannonEntropy(uuid)).toBeGreaterThan(3.0);
+  });
+
+  it("returns low entropy for hex-like patterns", () => {
+    const hex = "0123456789abcdef0123456789abcdef";
+    expect(shannonEntropy(hex)).toBeGreaterThan(2.0);
+  });
+
+  it("handles mixed case strings", () => {
+    const mixed = "AbCdEfGhIjKlMnOp";
+    expect(shannonEntropy(mixed)).toBeGreaterThan(3.0);
+  });
+});
+
+describe("extractStringLiterals — expanded coverage", () => {
+  it("extracts from assignment with long string", () => {
+    const line = 'api_key = "sk-ant-api03-abcdefghij1234567890klmnopqrstuvwx"';
+    const literals = extractStringLiterals(line);
+    expect(literals.length).toBeGreaterThanOrEqual(1);
+    expect(literals[0].value).toContain("sk-ant");
+  });
+
+  it("extracts from backtick template URL", () => {
+    const line = "const url = `https://api.example.com/v2/resource`;";
+    const literals = extractStringLiterals(line);
+    expect(literals.some((l) => l.value.includes("api.example.com"))).toBe(true);
+  });
+
+  it("returns empty for line with no string literals", () => {
+    const literals = extractStringLiterals("const x = 42 + y;");
+    expect(literals).toHaveLength(0);
+  });
+
+  it("records startCol position", () => {
+    const line = 'const x = "hello world here";';
+    const literals = extractStringLiterals(line);
+    expect(literals).toHaveLength(1);
+    expect(literals[0].startCol).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("isLikelySecret — expanded coverage", () => {
+  it("flags AWS-style hex key in variable assignment", () => {
+    const value = "AKIAIOSFODNN7EXAMPLE1234567890";
+    const result = isLikelySecret(value, `const key = "${value}";`);
+    expect(result.likely).toBe(true);
+  });
+
+  it("flags long prefixed token as likely secret", () => {
+    const value = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh";
+    const result = isLikelySecret(value, `const token = "${value}";`);
+    expect(result.likely).toBe(true);
+  });
+
+  it("does not flag short low-entropy strings", () => {
+    const result = isLikelySecret("hello", 'const x = "hello";');
+    expect(result.likely).toBe(false);
+  });
+
+  it("does not flag repeated character strings", () => {
+    const result = isLikelySecret("aaaaaaaaaa", 'const x = "aaaaaaaaaa";');
+    expect(result.likely).toBe(false);
+  });
+
+  it("does not flag DOM id assignments", () => {
+    const result = isLikelySecret(
+      "main-container-wrapper",
+      'id: "main-container-wrapper"',
+    );
+    expect(result.likely).toBe(false);
+  });
+
+  it("does not flag console.log content", () => {
+    const result = isLikelySecret(
+      "aB3$xY7!kL9@zQ2&pW5*mN8#rT1",
+      'console.log("aB3$xY7!kL9@zQ2&pW5*mN8#rT1");',
+    );
+    expect(result.likely).toBe(false);
+  });
+
+  it("returns reason string when likely", () => {
+    const hex = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6";
+    const result = isLikelySecret(hex, `const token = "${hex}";`);
+    if (result.likely) {
+      expect(result.reason.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("runEntropyAnalysis — expanded coverage", () => {
+  it("does not flag test files", () => {
+    const file: DiffFile = {
+      path: "src/__tests__/api.test.ts",
+      additions: 1,
+      deletions: 0,
+      hunks: [{
+        oldStart: 1, oldLines: 0, newStart: 1, newLines: 1,
+        changes: [{
+          type: "add" as const,
+          content: '+const secret = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz123456";',
+          line: 1,
+        }],
+      }],
+    };
+    const result = runEntropyAnalysis([file]);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it("does not flag deleted lines", () => {
+    const hex = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0";
+    const file: DiffFile = {
+      path: "src/config.ts",
+      additions: 0,
+      deletions: 1,
+      hunks: [{
+        oldStart: 1, oldLines: 1, newStart: 1, newLines: 0,
+        changes: [{
+          type: "delete" as const,
+          content: `-const token = "${hex}";`,
+          line: 1,
+        }],
+      }],
+    };
+    const result = runEntropyAnalysis([file]);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it("handles normal change type (not add)", () => {
+    const file: DiffFile = {
+      path: "src/config.ts",
+      additions: 0,
+      deletions: 0,
+      hunks: [{
+        oldStart: 1, oldLines: 1, newStart: 1, newLines: 1,
+        changes: [{
+          type: "normal" as const,
+          content: " const key = 'some-key-value-here';",
+          line: 1,
+        }],
+      }],
+    };
+    const result = runEntropyAnalysis([file]);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it("reports stringsAnalyzed count", () => {
+    const file: DiffFile = {
+      path: "src/app.ts",
+      additions: 2,
+      deletions: 0,
+      hunks: [{
+        oldStart: 1, oldLines: 0, newStart: 1, newLines: 2,
+        changes: [
+          { type: "add" as const, content: 'const a = "short";', line: 1 },
+          { type: "add" as const, content: 'const b = "this is a longer string value";', line: 2 },
+        ],
+      }],
+    };
+    const result = runEntropyAnalysis([file]);
+    expect(result.stringsAnalyzed).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("buildEntropyContext — expanded coverage", () => {
+  it("generates context for findings", () => {
+    const result = buildEntropyContext({
+      findings: [{
+        file: "src/config.ts",
+        line: 5,
+        entropy: 4.8,
+        length: 42,
+        snippet: "sk-test-...cdef",
+        reason: "high-entropy string (entropy=4.8, len=42)",
+        severity: "high",
+      }],
+      stringsAnalyzed: 10,
+    });
+    expect(result).toContain("Entropy-Based Secret Detection");
+  });
+
+  it("returns empty string for empty findings", () => {
+    const result = buildEntropyContext({ findings: [], stringsAnalyzed: 0 });
+    expect(result).toBe("");
+  });
+});

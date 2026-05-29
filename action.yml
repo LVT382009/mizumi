@@ -484,6 +484,10 @@ default: 'true'
 iteration_stripping_detector:
   description: "Detect LLM refactoring that strips security controls: auth decorators, validation guards, parameterized queries, specific error handling"
   required: false
+security_paradox_detector:
+  description: "Detect LLM security prompting paradox: custom crypto replacing stdlib, overengineered encryption, training-era drift toward MD5/SHA1/DES/ECB"
+  required: false
+  default: "true"
   default: 'true'
   description: "Jira instance base URL (e.g. https://myorg.atlassian.net). Also set via MIZUMI_JIRA_BASE_URL env var."
   required: false

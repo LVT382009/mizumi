@@ -117,6 +117,7 @@ import { detectIaCVulnerabilities } from "./iac-vulnerability-detector.js";
 import { detectCredentialExposure } from "./credential-exposure-detector.js";
 import { detectIllusoryValidation } from "./illusory-validation-detector.js";
 import { detectIterationStripping } from "./iteration-stripping-detector.js";
+import { detectSecurityParadox } from "./security-paradox-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -869,6 +870,15 @@ if (config.iterationStrippingDetector) {
     core.info("Iteration stripping detection: " + iterStrippingResult.issues.length + " issue(s)");
   }
 }
+
+// 4a3zo. Security paradox detector — detect security prompting that degrades security
+let secParadoxResult: import("./security-paradox-detector.js").SecurityParadoxResult | null = null;
+if (config.securityParadoxDetector) {
+  secParadoxResult = detectSecurityParadox(diff.files);
+  if (secParadoxResult.issues.length > 0) {
+    core.info("Security paradox detection: " + secParadoxResult.issues.length + " issue(s)");
+  }
+}
 // 4a4. Review-to-review learning — auto-suppress dismissed patterns
  let learningResult: import("./review-learning.js").LearningResult | null = null;
  if (config.reviewLearning) {
@@ -1349,6 +1359,10 @@ if (illusoryResult && illusoryResult.contextText) {
 
 if (iterStrippingResult && iterStrippingResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + iterStrippingResult.contextText;
+}
+
+if (secParadoxResult && secParadoxResult.contextText) {
+  context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + secParadoxResult.contextText;
 }if (credExposureResult && credExposureResult.contextText) {
   context.rulesContent += String.fromCharCode(10) + String.fromCharCode(10) + credExposureResult.contextText;
 }
@@ -2458,6 +2472,18 @@ if (iterStrippingResult && iterStrippingResult.bodySummary) {
     core.warning("Failed to post iteration stripping summary: " + (e instanceof Error ? e.message : String(e)));
   }
 }
+if (secParadoxResult && secParadoxResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: secParadoxResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post security paradox summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+}
 if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2656,6 +2682,7 @@ if (config.iacVulnerabilityDetector) auditBuilder.logStage("iac-vulnerability-de
 if (config.credentialExposureDetector) auditBuilder.logStage("credential-exposure-detect", 0, true);
 if (config.illusoryValidationDetector) auditBuilder.logStage("illusory-validation-detect", 0, true);
 if (config.iterationStrippingDetector) auditBuilder.logStage("iteration-stripping-detect", 0, true);
+if (config.securityParadoxDetector) auditBuilder.logStage("security-paradox-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }
