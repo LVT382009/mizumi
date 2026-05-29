@@ -1009,3 +1009,14 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Test expansion batch**: +63 tests across 4 modules (agent-safety-bypass 39→55, agency-escalation 33→53, ai-config-integrity 31→44, magic-number 38→52)
 - **Action.yml fix**: added missing agent_safety_bypass_detector, agency_escalation_detector, taint_path_detector inputs; fixed duplicate default key
 - **7078 tests** passing, 131 files, 0 TS errors, bundle rebuilt
+
+### Symbol-Level Impact Detector (2026-05-29)
+- **src/symbol-impact-detector.ts** — 23 tests, zero LLM cost
+- **Competitive gap**: Zero competitors trace which exported symbols changed and which callers need retesting. CodeRabbit shows file groups; Copilot shows flat prose; DeepSource flags issues but doesn't trace impact.
+- **Algorithm**: Extract exported symbols from changed files → build per-file import map (relative paths only) → classify consumers (API handler ×4, caller ×2, test-file ×1) → compute impact score 0-10 (≥7 = critical)
+- **5 symbol kinds**: function (export function/async), class, interface, type alias, constant
+- **4 consumer classifications**: api-handler, caller, test-file, type-import
+- **Full pipeline integration**: config.ts, main.ts (4a3zu), action.yml, 8 test stubs, context injection, body summary, audit trail
+- **Context injection fix**: Added missing context.rulesContent injections for agent-safety-bypass, agency-escalation, and taint-path detectors
+- **Test expansion batch**: +99 tests across 3 modules (taint-path 26→57, paradigm-clash 39→64, velocity-risk 42→59)
+- **7174 tests** passing, 132 files, 0 TS errors, bundle rebuilt
