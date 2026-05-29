@@ -933,3 +933,22 @@ Research identified 5 highest-impact remaining detector gaps:
 - **4 detection categories**: auth-decorator-stripped (analyzes REMOVED lines for @login_required, @require_auth, @UseGuards, @preAuthorize, @app.before_request, app.use(authenticate)), validation-guard-stripped (removed if-checks with isValid, validateInput() calls, status 400/401/403 returns, throw ValidationError, sanitizeInput), parameterization-loss (removed parameterized query + added string concatenation = critical; removed parameterization without replacement = warning), error-handling-weakened (removed specific catch + added broad empty catch/pass)
 - **Key features**: unique REMOVED diff line analysis (type=delete), cross-reference removed parameterized queries with added string concat queries, cross-reference removed specific catches with added broad catch/pass, test file exclusion, comment skipping, severity sorting, deduplication
 - **Full pipeline integration**: config.ts, main.ts (4a3zn), action.yml, 8 test stubs, audit trail
+
+### Test Coverage Expansion Fixes (2026-05-29)
+- Fixed secret-entropy.test.ts expanded tests: rewrote to use correct API signatures
+  - `extractStringLiterals(line: string)` not DiffFile
+  - `isLikelySecret(value, lineContent): {likely, reason}` not boolean+threshold
+  - `runEntropyAnalysis(files): EntropyResult` not array
+  - `buildEntropyContext(result: EntropyResult)` not ad-hoc array
+- **58 tests** passing in secret-entropy (was 35 original + 23 corrected expanded)
+
+### Security Paradox Detector (2026-05-29)
+- **src/security-paradox-detector.ts** — 49 tests, zero LLM cost
+- **Competitive gap**: No AI code reviewer detects the *causal link* between security prompting and worse security. IEEE-ISTAS 2506.11022v2 Section IV-C documents three paradox patterns. SAST flags individual crypto misuse but misses the *paradox pattern* of overengineering and custom implementations triggered by security requests.
+- **3 detection categories**:
+  1. **custom-crypto**: Hand-rolled XOR encryption, rot13/btoa as encryption, Math.random() for tokens, custom RSA/modpow/deriveKey implementations, custom MAC
+  2. **overengineered-encryption**: Double/nested encrypt(), re-encrypt, KeyEncryptingKey, extra encryption rounds, cascaded cipher chains
+  3. **training-era-drift**: MD5, SHA1, DES, ECB, RC4, Blowfish, PBKDF1, RSA-PKCS1v1.5, Math.random(), hardcoded IV/nonce/salt
+- **Key features**: security PR intent detection via title/body, whitelist for migration/deprecation context, test file exclusion, comment skipping, severity sorting (custom-crypto + training-era-drift = critical, overengineered = warning), deduplication
+- **Full pipeline integration**: config.ts, main.ts (4a3zo), action.yml, 8 test stubs, audit trail
+- **6740 tests** passing, 0 TS errors, bundle rebuilt
