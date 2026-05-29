@@ -902,3 +902,11 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer scans IaC in PR diffs. IOActive 2026 found 70-97% vulnerability rates in AI-generated infrastructure code. Checkov/tfsec exist as separate tools. Integrating IaC checks into the PR diff review is a defensible, differentiated capability.
 - **4 detection categories**: docker-insecurity (root user, latest tags, privileged, no-auth, chmod 777, missing USER/HEALTHCHECK, apt-get without --no-install-recommends), tf-insecurity (0.0.0.0/0 cidr, encrypt=false, hardcoded keys, public_access, ssl=false), cicd-insecurity (write-all permissions, checkout@v1, pull_request_target, PR body script injection, missing permissions block), cloudformation-insecurity (IAM Allow *, Resource *, open CidrIp, encryption disabled)
 - **Key features**: structural Dockerfile analysis (no USER directive, no HEALTHCHECK), file type detection (Dockerfile, .tf/.tfvars, .github/workflows/*.yml, CloudFormation YAML), negative lookahead for apt-get --no-install-recommends, cross-file CI/CD pattern detection
+
+### Credential Exposure Accelerator Detector (2026-05-29)
+- **+33 tests** in `src/__tests__/credential-exposure-detector.test.ts`
+- **6435 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: CSA 2026 found AI-assisted devs expose Azure Service Principals and Storage Access Keys at 2x rate. Escape.tech found 400+ leaked secrets across 1,400 vibe-coded apps. No AI code reviewer detects AI-scaffolded credential patterns specifically.
+- **4 detection categories**: scaffold-with-inline-secret (env var || high-entropy fallback), config-object-literal-secret (apiKey/secretKey/password/token with literal high-entropy values), constructor-hardcoded-credential (SDK Client/Service/Connection constructors with inline credentials), example-placeholder-secret ("replace with your" comments near literal secrets)
+- **Key features**: Shannon entropy (4.5 threshold, 20-char minimum), cloud key prefix detection (AKIA/ASI/AGPA/AIDA/AROA/yopatterns), API key patterns (sk-, sk_live_, ghp_, gho_, glpat-, xoxb-, Bearer), test file exclusion, severity sorting (critical before warning)
+- **Full pipeline integration**: config.ts, main.ts (4a3zl), action.yml, 8 test stubs, audit trail
