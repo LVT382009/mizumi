@@ -887,3 +887,10 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Competitive gap**: No AI code reviewer protects its own configuration from tampering. LLMs may modify review rules to silence their own findings — disabling detectors, lowering thresholds, removing security paths, expanding exclusions. This is the AI equivalent of a criminal altering the alarm system before a break-in.
 - **4 detection categories**: rule-softening (disabling core review features, changing profile to chill), security-exclusion (emptying security_paths, removing auth/crypto/sql paths), threshold-manipulation (lowering confidence below 80, max_comments below 15, disabling gate), exclude-expansion (wildcard exclusions, excluding test/security dirs)
 - **Key features**: 15 rules file types monitored, removed-line analysis for security path removal, removed-line detection for auth/crypto/sql path deletion
+
+### Spec Drift Detector (2026-05-29)
+- **+29 tests** in `src/__tests__/spec-drift-detector.test.ts`
+- **6326 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects implementation-spec divergence. LLMs implement code that appears to satisfy a spec but actually drifts — TODO/FIXME stubs where the spec requires implementation, async functions returning without await, exported symbols with no consumers, contracts weakened by widened types or swallowed errors.
+- **4 detection categories**: unimplemented-spec (TODO/FIXME/HACK/stub patterns matching interface declarations), spec-implementation-mismatch (async function returning without await), orphaned-spec (exported symbols never referenced in other PR files), contract-erosion (widened types to any, optional chaining on required methods, empty catch blocks, non-null assertions)
+- **Key features**: SKIP_LINE_RE + TODO_LINE_RE whitelist (skip comments BUT flag TODO lines), brace-depth tracking for async function return detection across lines, cross-file symbol reference checking (skips index/main/mod files, default exports, type exports), global regex support for contract erosion patterns
