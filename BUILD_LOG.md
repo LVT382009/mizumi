@@ -997,3 +997,15 @@ Research identified 5 highest-impact remaining detector gaps:
   3. **dangerous-sink-from-llm-output**: eval(), new Function(), child_process.exec, vm module, dynamic import from LLM taint paths
 - **Full pipeline integration**: config.ts, main.ts (4a3zs), action.yml, 8 test stubs, audit trail
 - **6989 tests** passing, 0 TS errors, bundle rebuilt
+
+### Taint Path Detector (2026-05-29)
+- **src/taint-path-detector.ts** — 26 original tests, zero LLM cost
+- **Competitive gap**: Zero competitors detect cross-file taint paths in PR diff analysis. arxiv 2601.17548: 73% of AI platforms fail trust boundaries. Microsoft CVE-2026-25592: AI-controlled parameters reach child_process without path validation.
+- **3 detection categories**:
+1. **pr-content-to-exec**: PR title/body, req.body, agent output, process.env reaching eval/exec/spawn without validation (critical)
+2. **unvalidated-redirect**: User-controlled URL in fetch/redirect/window.location without allowlisting (warning)
+3. **taint-across-files**: Variable assigned from untrusted source in one file, used in dangerous operation in another (critical)
+- **Full pipeline integration**: config.ts, main.ts (4a3zt), action.yml, 8 test stubs, audit trail
+- **Test expansion batch**: +63 tests across 4 modules (agent-safety-bypass 39→55, agency-escalation 33→53, ai-config-integrity 31→44, magic-number 38→52)
+- **Action.yml fix**: added missing agent_safety_bypass_detector, agency_escalation_detector, taint_path_detector inputs; fixed duplicate default key
+- **7078 tests** passing, 131 files, 0 TS errors, bundle rebuilt
