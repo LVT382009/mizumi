@@ -1020,3 +1020,15 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Context injection fix**: Added missing context.rulesContent injections for agent-safety-bypass, agency-escalation, and taint-path detectors
 - **Test expansion batch**: +99 tests across 3 modules (taint-path 26→57, paradigm-clash 39→64, velocity-risk 42→59)
 - **7174 tests** passing, 132 files, 0 TS errors, bundle rebuilt
+
+### Dependency Risk Detector (2026-05-29)
+- **src/dependency-risk-detector.ts** — 24 tests, zero LLM cost
+- **Competitive gap**: Dependabot/Snyk flag known CVEs, but no AI code reviewer detects major version bumps, unused new dependencies, downgrades, or typosquatting suspects in PR review.
+- **4 detection categories**:
+1. **major-version-bump**: SemVer major bumps (^1→^2) may break API contracts (critical)
+2. **unused-new-dependency**: Package added to package.json but not imported anywhere (warning) — catches LLM "completeness" additions
+3. **dependency-downgrade**: Version number decreased, may reintroduce fixed CVEs (critical)
+4. **typosquatting-suspect**: Package name within edit distance ≤2 of 50 popular packages — supply chain attack vector (critical)
+- **Typosquatting**: Levenshtein distance against react, lodash, express, axios, moment, next, prisma, jest, vitest, etc.
+- **Full pipeline integration**: config.ts, main.ts (4a3zv), action.yml, 8 test stubs, context injection, body summary, audit trail
+- **7198 tests** passing, 133 files, 0 TS errors, bundle rebuilt
