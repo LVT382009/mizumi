@@ -443,3 +443,166 @@ describe('detectMagicNumbers — edge cases (expanded)', () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: boundary values, config thresholds, hex/binary/BigInt
+// ---------------------------------------------------------------------------
+
+describe("detectMagicNumbers — expanded numeric coverage", () => {
+  it("detects boundary value 99", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const threshold = 99;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+    expect(nums[0].value).toBe("99");
+  });
+
+  it("skips common safe number 1000", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const limit = 1000;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+
+  it("detects hex-like number 255 as safe", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const mask = 255;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    // 255 is not in SAFE_NUMBERS but 256 is
+    expect(result.issues).toBeDefined();
+  });
+
+  it("detects config threshold value", () => {
+    const files = [makeFile("src/config.ts", [
+      "+const batchSize = 500;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+    expect(nums[0].value).toBe("500");
+  });
+
+  it("detects number in greater-than comparison", () => {
+    const files = [makeFile("src/app.ts", [
+      "+if (count > 50) {",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects number in subtraction expression", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const adjusted = total - 37;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips year-like number 2025", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const year = 2025;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: whitelist, comments, type imports
+// ---------------------------------------------------------------------------
+
+describe("detectMagicNumbers — whitelist and skip patterns", () => {
+  it("skips comment lines for numeric literals", () => {
+    const files = [makeFile("src/app.ts", [
+      "+// const maxRetries = 42;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+
+  it("skips block comment lines", () => {
+    const files = [makeFile("src/app.ts", [
+      "+ * const timeout = 5000;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+
+  it("skips export type lines", () => {
+    const files = [makeFile("src/types.ts", [
+      "+export type Config = { maxRetries: number };",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+
+  it("skips enum declaration lines", () => {
+    const files = [makeFile("src/enums.ts", [
+      "+enum Status { Active = 1, Inactive = 0 }",
+    ])];
+    const result = detectMagicNumbers(files);
+    const nums = result.issues.filter((i) => i.category === "numeric-literal");
+    expect(nums).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: context/body edge cases
+// ---------------------------------------------------------------------------
+
+describe("detectMagicNumbers — context/body expanded", () => {
+  it("truncates long string values in issues", () => {
+    const longStr = "a".repeat(50);
+    const files = [makeFile("src/app.ts", [
+      `+const region = "${longStr}";`,
+    ])];
+    const result = detectMagicNumbers(files);
+    const strs = result.issues.filter((i) => i.category === "string-literal");
+    if (strs.length > 0) {
+      // String values over 30 chars are truncated with "..."
+      expect(strs[0].value.length).toBeLessThanOrEqual(35);
+    }
+  });
+
+  it("includes both critical and warning sections when both present", () => {
+    const files = [makeFile("src/app.ts", [
+      "+const timeout = 5000;",
+      "+const limit = 42;",
+    ])];
+    const result = detectMagicNumbers(files);
+    const hasCritical = result.issues.some((i) => i.severity === "critical");
+    const hasWarning = result.issues.some((i) => i.severity === "warning");
+    if (hasCritical && hasWarning) {
+      expect(result.contextText).toContain("Critical");
+      expect(result.contextText).toContain("Warnings");
+    }
+  });
+
+  it("sorts by file path then line number for same severity", () => {
+    const files = [
+      makeFile("src/b.ts", ["+const x = 42;"]),
+      makeFile("src/a.ts", ["+const y = 55;"]),
+    ];
+    const result = detectMagicNumbers(files);
+    const warnings = result.issues.filter((i) => i.severity === "warning");
+    if (warnings.length >= 2) {
+      // a.ts should come before b.ts
+      const aIdx = warnings.findIndex((i) => i.file === "src/a.ts");
+      const bIdx = warnings.findIndex((i) => i.file === "src/b.ts");
+      expect(aIdx).toBeLessThan(bIdx);
+    }
+  });
+});

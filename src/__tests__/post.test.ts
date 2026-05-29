@@ -133,6 +133,7 @@ nullGuardDetector: true,
       aiConfigIntegrityDetector: true,
     agentSafetyBypassDetector: true,
     agencyEscalationDetector: true,
+    taintPathDetector: true,
     ...overrides,
   };
 }

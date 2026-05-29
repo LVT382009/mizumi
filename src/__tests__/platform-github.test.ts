@@ -207,6 +207,7 @@ nullGuardDetector: true,
       aiConfigIntegrityDetector: true,
     agentSafetyBypassDetector: true,
     agencyEscalationDetector: true,
+    taintPathDetector: true,
   })),
   requireApiKey: vi.fn(() => "test-key"),
 }));

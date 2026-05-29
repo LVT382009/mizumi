@@ -291,3 +291,175 @@ describe("detectAgencyEscalation — combined scenarios", () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: unrestricted-tool-parameter
+// ---------------------------------------------------------------------------
+
+describe("detectAgencyEscalation — unrestricted-tool-parameter expanded", () => {
+  it("detects dest from request args", () => {
+    const file = makeDiffFile("src/writer.ts", ["const dest = request.args.destination;"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "unrestricted-tool-parameter");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("critical");
+  });
+
+  it("detects outputPath from input ctx", () => {
+    const file = makeDiffFile("src/output.ts", ["const outputPath = input.ctx.path;"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "unrestricted-tool-parameter");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects script param from params", () => {
+    const file = makeDiffFile("src/runner.ts", ["const script = params.script;"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "unrestricted-tool-parameter");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects function signature with filePath param", () => {
+    const file = makeDiffFile("src/processor.ts", ["function processFile(filePath: string) {"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "unrestricted-tool-parameter");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: excessive-autonomy
+// ---------------------------------------------------------------------------
+
+describe("detectAgencyEscalation — excessive-autonomy expanded", () => {
+  it("detects unattended: true", () => {
+    const file = makeDiffFile("src/agent.ts", ["unattended: true"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects headless: true", () => {
+    const file = makeDiffFile("src/browser.ts", ["headless: true"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects no_human_in_loop flag", () => {
+    const file = makeDiffFile("src/deploy.ts", ["no_human_in_loop: true"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects force: true", () => {
+    const file = makeDiffFile("src/deploy.ts", ["force: true"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects updateFile with rules path", () => {
+    const file = makeDiffFile("src/modifier.ts", ["updateFile(config/rules.json)"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects cron: @daily", () => {
+    const file = makeDiffFile("src/scheduler.ts", ["cron: '@daily'"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "excessive-autonomy");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: dangerous-sink-from-llm-output
+// ---------------------------------------------------------------------------
+
+describe("detectAgencyEscalation — dangerous-sink-from-llm-output expanded", () => {
+  it("detects exec with model variable", () => {
+    const file = makeDiffFile("src/exec.ts", ["exec(modelCommand);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("critical");
+  });
+
+  it("detects exec with prompt variable", () => {
+    const file = makeDiffFile("src/run.ts", ["exec(promptResult);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("critical");
+  });
+
+  it("detects fs.writeFile with variable path", () => {
+    const file = makeDiffFile("src/writer.ts", ["fs.writeFile(userPath, data);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects fs.appendFile with variable", () => {
+    const file = makeDiffFile("src/log.ts", ["fs.appendFile(logPath, content);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects spawn with template literal", () => {
+    const file = makeDiffFile("src/spawn.ts", ["spawn(`${binPath}`, args);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects import(completion) as dynamic import with LLM source", () => {
+    const file = makeDiffFile("src/loader.ts", ["import(completion);"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter((i) => i.category === "dangerous-sink-from-llm-output");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: combined scenarios
+// ---------------------------------------------------------------------------
+
+describe("detectAgencyEscalation — combined expanded", () => {
+  it("detects all 3 categories across multiple files", () => {
+    const file1 = makeDiffFile("src/handler.ts", ["const dest = request.args.dest;"]);
+    const file2 = makeDiffFile("src/agent.ts", ["unattended: true"]);
+    const file3 = makeDiffFile("src/exec.ts", ["exec(modelOutput);"]);
+    const result = detectAgencyEscalation([file1, file2, file3]);
+    const categories = new Set(result.issues.map((i) => i.category));
+    expect(categories.size).toBe(3);
+  });
+
+  it("returns empty for clean file with no issues", () => {
+    const file = makeDiffFile("src/clean.ts", ["const x = compute(y);"]);
+    const result = detectAgencyEscalation([file]);
+    expect(result.issues).toHaveLength(0);
+    expect(result.contextText).toBe("");
+    expect(result.bodySummary).toBe("");
+  });
+
+  it("handles deleted files gracefully", () => {
+    const file: DiffFile = { path: "src/eval.ts", status: "deleted", hunks: [] };
+    const result = detectAgencyEscalation([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("deduplicates same category/file/line", () => {
+    const file = makeDiffFile("src/handler.ts", ["const filePath = req.body.path;"]);
+    const result = detectAgencyEscalation([file]);
+    const issues = result.issues.filter(
+      (i) => i.category === "unrestricted-tool-parameter" && i.line === 1
+    );
+    expect(issues.length).toBeLessThanOrEqual(1);
+  });
+});

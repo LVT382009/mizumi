@@ -353,3 +353,154 @@ describe("detectAgentSafetyBypass — combined scenarios", () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: governance-config-modification
+// ---------------------------------------------------------------------------
+
+describe("detectAgentSafetyBypass — governance-config-modification expanded", () => {
+  it("detects AGENTS.md + source code as self-referential", () => {
+    const govFile = makeDiffFile("AGENTS.md", ["# Agent instructions updated"]);
+    const srcFile = makeDiffFile("src/agent.ts", ["function run() {}"]);
+    const result = detectAgentSafetyBypass([govFile, srcFile]);
+    const issues = result.issues.filter((i) => i.category === "governance-config-modification");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects claude_desktop_config.json + source code", () => {
+    const govFile = makeDiffFile("claude_desktop_config.json", ['"mcpServers": {}']);
+    const srcFile = makeDiffFile("src/app.ts", ["console.log('hello');"]);
+    const result = detectAgentSafetyBypass([govFile, srcFile]);
+    const issues = result.issues.filter((i) => i.category === "governance-config-modification");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects .continue/ + source code as self-referential", () => {
+    const govFile = makeDiffFile(".continue/config.json", ['"allow": true']);
+    const srcFile = makeDiffFile("src/app.py", ["def main():"]);
+    const result = detectAgentSafetyBypass([govFile, srcFile]);
+    const issues = result.issues.filter((i) => i.category === "governance-config-modification");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects .github/copilot + source code", () => {
+    const govFile = makeDiffFile(".github/copilot-instructions.md", ["Use TypeScript"]);
+    const srcFile = makeDiffFile("src/page.tsx", ["export default function Page() {}"]);
+    const result = detectAgentSafetyBypass([govFile, srcFile]);
+    const issues = result.issues.filter((i) => i.category === "governance-config-modification");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects multiple governance files + source produces multiple governance issues", () => {
+    const gov1 = makeDiffFile("CLAUDE.md", ["# Updated instructions"]);
+    const gov2 = makeDiffFile(".mcp.json", ['"mcpServers": {}']);
+    const srcFile = makeDiffFile("src/app.ts", ["console.log('hello');"]);
+    const result = detectAgentSafetyBypass([gov1, gov2, srcFile]);
+    const issues = result.issues.filter((i) => i.category === "governance-config-modification");
+    // Each governance file produces its own issue
+    expect(issues.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: safety-hook-disabling
+// ---------------------------------------------------------------------------
+
+describe("detectAgentSafetyBypass — safety-hook-disabling expanded", () => {
+  it('detects "auto_approve": true with JSON quotes', () => {
+    const file = makeDiffFile(".claude/settings.json", ['"auto_approve": true']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "safety-hook-disabling");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects required_status_checks: [] in JSON config", () => {
+    const file = makeDiffFile(".github/workflows/protection.yml", ['"required_status_checks": []']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "safety-hook-disabling");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects deletion of husky config", () => {
+    const file = makeDiffFile(".husky/pre-commit", [], ["npx husky install"]);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "safety-hook-disabling");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects deletion of lint-staged", () => {
+    const file = makeDiffFile(".husky/pre-commit", [], ["npx lint-staged"]);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "safety-hook-disabling");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects allowed_all: true", () => {
+    const file = makeDiffFile(".claude/settings.json", ['"allowed_all": true']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "safety-hook-disabling");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: agent-permission-expansion
+// ---------------------------------------------------------------------------
+
+describe("detectAgentSafetyBypass — agent-permission-expansion expanded", () => {
+  it("detects mcpServers in YAML config", () => {
+    const file = makeDiffFile(".mcp.json", ["mcpServers: {"]);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "agent-permission-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects allowedTools pattern", () => {
+    const file = makeDiffFile(".claude/settings.json", ['"allowedTools": [']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "agent-permission-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].severity).toBe("warning");
+  });
+
+  it('detects command with dangerous value', () => {
+    const file = makeDiffFile(".mcp.json", ['"command": "rm -rf /"']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "agent-permission-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects read access to /etc", () => {
+    const file = makeDiffFile(".mcp.json", ['read: "/etc/passwd"']);
+    const result = detectAgentSafetyBypass([file]);
+    const issues = result.issues.filter((i) => i.category === "agent-permission-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: combined scenarios
+// ---------------------------------------------------------------------------
+
+describe("detectAgentSafetyBypass — combined expanded", () => {
+  it("deduplicates at same line", () => {
+    const file = makeDiffFile(".claude/settings.json", ['"autoApprove": true']);
+    const srcFile = makeDiffFile("src/app.ts", ["console.log('hello');"]);
+    const result = detectAgentSafetyBypass([file, srcFile]);
+    // governance-config-modification + safety-hook-disabling may both match,
+    // but same category+file+line should dedup
+    const safetyIssues = result.issues.filter(
+      (i) => i.category === "safety-hook-disabling" && i.file === ".claude/settings.json" && i.line === 1
+    );
+    expect(safetyIssues.length).toBeLessThanOrEqual(1);
+  });
+
+  it("clean source-only PR with no governance produces no governance issues", () => {
+    const src1 = makeDiffFile("src/main.rs", ["fn main() {"]);
+    const src2 = makeDiffFile("src/lib.go", ["func Hello() {}"]);
+    const result = detectAgentSafetyBypass([src1, src2]);
+    const govIssues = result.issues.filter((i) => i.category === "governance-config-modification");
+    expect(govIssues).toHaveLength(0);
+  });
+});

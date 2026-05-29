@@ -122,6 +122,7 @@ import { detectTrustBoundaryErosion } from "./trust-boundary-detector.js";
 import { detectAIConfigIntegrity } from "./ai-config-integrity-detector.js";
 import { detectAgentSafetyBypass } from "./agent-safety-bypass-detector.js";
 import { detectAgencyEscalation } from "./agency-escalation-detector.js";
+import { detectTaintPaths } from "./taint-path-detector.js";
 
 const RetryingOctokit = Octokit.plugin(retry);
 
@@ -917,6 +918,15 @@ if (config.agencyEscalationDetector) {
   agencyEscalationResult = detectAgencyEscalation(diff.files);
   if (agencyEscalationResult.issues.length > 0) {
     core.info("Agency escalation detection: " + agencyEscalationResult.issues.length + " issue(s)");
+  }
+}
+
+// 4a3zt. Taint path detector — cross-file taint flows from untrusted sources to dangerous sinks
+let taintPathResult: import("./taint-path-detector.js").TaintPathResult | null = null;
+if (config.taintPathDetector) {
+  taintPathResult = detectTaintPaths(diff.files);
+  if (taintPathResult.issues.length > 0) {
+    core.info("Taint path detection: " + taintPathResult.issues.length + " issue(s)");
   }
 }
 
@@ -2581,6 +2591,18 @@ if (agentSafetyBypassResult && agentSafetyBypassResult.bodySummary) {
     core.warning("Failed to post agency escalation summary: " + (e instanceof Error ? e.message : String(e)));
   }
  }
+ if (taintPathResult && taintPathResult.bodySummary) {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: taintPathResult.bodySummary,
+    });
+  } catch (e) {
+    core.warning("Failed to post taint path summary: " + (e instanceof Error ? e.message : String(e)));
+  }
+ }
  if (credExposureResult && credExposureResult.bodySummary) {
   try {
     await octokit.rest.issues.createComment({
@@ -2784,6 +2806,7 @@ if (config.trustBoundaryDetector) auditBuilder.logStage("trust-boundary-detect",
 if (config.aiConfigIntegrityDetector) auditBuilder.logStage("ai-config-integrity-detect", 0, true);
 if (config.agentSafetyBypassDetector) auditBuilder.logStage("agent-safety-bypass-detect", 0, true);
 if (config.agencyEscalationDetector) auditBuilder.logStage("agency-escalation-detect", 0, true);
+if (config.taintPathDetector) auditBuilder.logStage("taint-path-detect", 0, true);
     for (const c of mergedReview.comments) {
       auditBuilder.logFinding({ fingerprint: (c as any).fingerprint || c.file+":"+c.line+":"+c.category, file: c.file, line: c.line, severity: c.severity, category: c.category, message: c.message, source: (c as any).source || "llm", modifications: (c as any).modifications || [], finalConfidence: c.confidence || 0 });
     }

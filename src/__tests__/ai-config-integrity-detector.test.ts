@@ -30,11 +30,11 @@ function makeDiffFile(
   };
 }
 
-const ZWSP = "​";       // ZERO-WIDTH SPACE
+const ZWSP = "\u200B"; // ZERO-WIDTH SPACE
 const RLO = "‮";        // RIGHT-TO-LEFT OVERRIDE
 const LRE = "‪";        // LEFT-TO-RIGHT EMBEDDING
-const BOM = "﻿";        // BYTE ORDER MARK
-const SOFT_HYPHEN = "­"; // SOFT HYPHEN
+const BOM = "\uFEFF"; // BYTE ORDER MARK
+const SOFT_HYPHEN = "\u00AD"; // SOFT HYPHEN
 const RLM = "‏";        // RIGHT-TO-LEFT MARK
 const ZWNJ = "‌";       // ZERO-WIDTH NON-JOINER
 
@@ -347,5 +347,160 @@ describe("detectAIConfigIntegrity — context and summary", () => {
     if (result.issues.length > 0) {
       expect(result.bodySummary).toContain("| Category |");
     }
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: hidden-unicode-control
+// ---------------------------------------------------------------------------
+
+const LRM = "‎";   // LEFT-TO-RIGHT MARK
+const WJ = "⁠";    // WORD JOINER
+
+describe("detectAIConfigIntegrity — hidden-unicode-control expanded", () => {
+  it("detects LEFT-TO-RIGHT MARK (U+200E)", () => {
+    const file = makeDiffFile(".cursorrules", [
+      `Use strict${LRM}mode always`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].code).toContain("U+200E");
+    expect(issues[0].severity).toBe("warning");
+  });
+
+  it("detects RIGHT-TO-LEFT MARK (U+200F)", () => {
+    const file = makeDiffFile("CLAUDE.md", [
+      `Follow rules${RLM}strictly`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].code).toContain("U+200F");
+  });
+
+  it("detects WORD JOINER (U+2060)", () => {
+    const file = makeDiffFile(".cursorrules", [
+      `Never${WJ}delete files`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].code).toContain("U+2060");
+    expect(issues[0].severity).toBe("warning");
+  });
+
+  it("detects SOFT HYPHEN (U+00AD)", () => {
+    const file = makeDiffFile("AGENT.md", [
+      `Use auto${SOFT_HYPHEN}matic testing`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].code).toContain("U+00AD");
+  });
+
+  it("detects BOM (U+FEFF) at line start", () => {
+    const file = makeDiffFile(".mcp.json", [
+      `${BOM}{"servers": {}}`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].code).toContain("U+FEFF");
+  });
+
+  it("reports one finding per line with multiple control chars", () => {
+    const file = makeDiffFile(".cursorrules", [
+      `Rule${ZWSP}1${RLM}hidden`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "hidden-unicode-control" && i.line === 1);
+    // Dedup: only one issue per category+file+line
+    expect(issues.length).toBeLessThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: malicious-mcp-redirect
+// ---------------------------------------------------------------------------
+
+describe("detectAIConfigIntegrity — malicious-mcp-redirect expanded", () => {
+  it("detects bit.ly URL shortener", () => {
+    const file = makeDiffFile("CLAUDE.md", [
+      "MCP endpoint: https://bit.ly/abc123",
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "malicious-mcp-redirect");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects ngrok-free.app URL", () => {
+    const file = makeDiffFile(".mcp.json", [
+      '{"url": "https://mytunnel.ngrok-free.app/mcp"}',
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "malicious-mcp-redirect");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects 192.168.1.1 IP address", () => {
+    const file = makeDiffFile(".mcp.json", [
+      '{"url": "https://192.168.1.1:8080/api"}',
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "malicious-mcp-redirect");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects localhost:3000 in prod config", () => {
+    const file = makeDiffFile(".mcp.json", [
+      '{"url": "http://localhost:3000/sse"}',
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "malicious-mcp-redirect");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Expanded coverage: combined and edge cases
+// ---------------------------------------------------------------------------
+
+describe("detectAIConfigIntegrity — combined expanded", () => {
+  it("deduplicates same file/line across categories", () => {
+    // A single line can trigger both unicode + redirect — dedup is per category+file+line
+    const file = makeDiffFile(".mcp.json", [
+      `{"url": "https://evil.xyz/mcp"${ZWSP}}`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    // Both categories should be present since dedup key includes category
+    const categories = new Set(result.issues.map((i) => i.category));
+    expect(categories.size).toBeGreaterThanOrEqual(2);
+    // But each category+file+line combo should appear at most once
+    const keys = result.issues.map((i) => `${i.category}:${i.file}:${i.line}`);
+    const uniqueKeys = new Set(keys);
+    expect(keys.length).toBe(uniqueKeys.size);
+  });
+
+  it("returns empty for empty diff with no changes", () => {
+    const file: DiffFile = {
+      path: ".cursorrules",
+      status: "modified",
+      hunks: [{ header: "@@ -0 +0 @@@@", changes: [] }],
+    };
+    const result = detectAIConfigIntegrity([file]);
+    expect(result.issues).toHaveLength(0);
+    expect(result.contextText).toBe("");
+    expect(result.bodySummary).toBe("");
+  });
+
+  it("skips non-AI-config file with Unicode control chars", () => {
+    const file = makeDiffFile("src/app.ts", [
+      `const x = "${ZWSP}hidden";`,
+    ]);
+    const result = detectAIConfigIntegrity([file]);
+    expect(result.issues).toHaveLength(0);
   });
 });
