@@ -426,3 +426,243 @@ describe("detectRulesFileIntegrity — context and summary", () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("detectRulesFileIntegrity — additional rule-softening", () => {
+  it("detects disabling compliance_check", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " compliance_check: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling linter_scan", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " linter_scan: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling auto_labels", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " auto_labels: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling rule_engine", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " rule_engine: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling secret_entropy", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " secret_entropy: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling safety_score", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " safety_score: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling swarm_review", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " swarm_review: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling chunk_review", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " chunk_review: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling ast_contract_analysis", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " ast_contract_analysis: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects disabling behavioral_summary", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " behavioral_summary: false",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectRulesFileIntegrity — additional threshold-manipulation", () => {
+  it("detects confidence_threshold at 50", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " confidence_threshold: 50",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "threshold-manipulation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects max_comments at 10", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " max_comments: 10",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "threshold-manipulation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects spend_threshold at 0 (disabled)", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " spend_threshold: 0",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "threshold-manipulation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects auto_pause_after at 60", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " auto_pause_after: 60",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "threshold-manipulation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag confidence_threshold at 90", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " confidence_threshold: 90",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "threshold-manipulation");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectRulesFileIntegrity — additional exclude-expansion", () => {
+  it("detects excluding credential directories", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "exclude:",
+      " - '**/credential**'",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "exclude-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects excluding auth directories from review", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "exclude:",
+      " - '**/auth**'",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "exclude-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects src/** wildcard exclusion", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "exclude:",
+      " - 'src/**'",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "exclude-expansion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectRulesFileIntegrity — additional security-exclusion", () => {
+  it("detects removing secret path from security monitoring", () => {
+    const file = makeFileWithRemoved(".github/mizumi.yml", [], [" - '**/secret**'"]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "security-exclusion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects removing password path from security monitoring", () => {
+    const file = makeFileWithRemoved(".github/mizumi.yml", [], [" - '**/password**'"]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "security-exclusion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectRulesFileIntegrity — additional edge cases", () => {
+  it("detects issues in CLAUDE.md", () => {
+    const file = makeFile("CLAUDE.md", [
+      "no review needed for this project",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    const issues = result.issues.filter((i) => i.category === "rule-softening");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("ignores random source files", () => {
+    const file = makeFile("src/feature.ts", [
+      "self_critique: false",
+      "taint_analysis: false",
+      "confidence_threshold: 10",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("handles multiple categories in one file", () => {
+    const file = makeFile(".github/mizumi.yml", [
+      "review:",
+      " self_critique: false",
+      " confidence_threshold: 30",
+      " max_comments: 5",
+      " gate_threshold: none",
+    ]);
+    const result = detectRulesFileIntegrity([file]);
+    expect(result.issues.length).toBeGreaterThanOrEqual(3);
+  });
+});

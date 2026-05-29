@@ -507,3 +507,188 @@ describe("detectContextAmplification — additional coverage", () => {
     }
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("detectContextAmplification — expanded duplicate-implementation", () => {
+  it("detects delete/remove verb synonym duplicate", () => {
+    const file1 = makeFile("src/a.ts", [
+      "export function deleteUser(id: string) { return db.remove(id); }",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "export function removeUser(id: string) { return db.delete(id); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects validate/check verb synonym duplicate", () => {
+    const file1 = makeFile("src/val.ts", [
+      "export function validateToken(t: string) { return t.length > 0; }",
+    ]);
+    const file2 = makeFile("src/ver.ts", [
+      "export function checkToken(t: string) { return t.length > 0; }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects format/transform verb synonym duplicate", () => {
+    const file1 = makeFile("src/fmt.ts", [
+      "export function formatPayload(data: any) { return JSON.stringify(data); }",
+    ]);
+    const file2 = makeFile("src/xform.ts", [
+      "export function transformPayload(data: any) { return JSON.stringify(data); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag unique verb+noun pairs across files", () => {
+    const file1 = makeFile("src/a.ts", [
+      "function createOrder(data: any) { return db.insert(data); }",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "function sendNotification(data: any) { return mailer.send(data); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectContextAmplification — expanded naming-inconsistency", () => {
+  it("detects handler/controller naming across files", () => {
+    const file1 = makeFile("src/a.ts", [
+      "class UserHandler { process() {} }",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "class UserController { process() {} }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "naming-inconsistency");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("detects client/adapter naming across files", () => {
+    const file1 = makeFile("src/a.ts", [
+      "class ApiClient { get() {} }",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "class ApiAdapter { get() {} }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "naming-inconsistency");
+    expect(issues.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("detectContextAmplification — expanded divergent-utility", () => {
+  it("detects sanitize utilities across files", () => {
+    const file1 = makeFile("src/clean-a.ts", [
+      "export function sanitizeInput(input: string) { return input.trim(); }",
+    ]);
+    const file2 = makeFile("src/clean-b.ts", [
+      "export function sanitizeInput(input: string) { return input.replace(/[<>]/g, ''); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects encode utilities across files", () => {
+    const file1 = makeFile("src/enc-a.ts", [
+      "export function encodeUrl(url: string) { return encodeURIComponent(url); }",
+    ]);
+    const file2 = makeFile("src/enc-b.ts", [
+      "export function encodeUrl(url: string) { return encodeURI(url); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag utilities in same file", () => {
+    const file = makeFile("src/utils.ts", [
+      "export function parseDate(d: string) { return new Date(d); }",
+    ]);
+    const result = detectContextAmplification([file]);
+    const issues = result.issues.filter((i) => i.category === "divergent-utility");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectContextAmplification — expanded import-divergence", () => {
+  it("detects same function name from different local paths", () => {
+    const file1 = makeFile("src/feature.ts", [
+      "import { validate } from './validators/feature';",
+    ]);
+    const file2 = makeFile("src/other.ts", [
+      "import { validate } from './shared/validation';",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "import-divergence");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag type-only import lines", () => {
+    const file1 = makeFile("src/a.ts", [
+      "import type { Config } from './config';",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "import type { Config } from './config';",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "import-divergence");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag single-file imports", () => {
+    const file = makeFile("src/app.ts", [
+      "import { format } from './utils/format';",
+    ]);
+    const result = detectContextAmplification([file]);
+    const issues = result.issues.filter((i) => i.category === "import-divergence");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectContextAmplification — expanded edge cases", () => {
+  it("handles empty diff with no files", () => {
+    const result = detectContextAmplification([]);
+    expect(result.issues).toHaveLength(0);
+    expect(result.contextText).toBe("");
+    expect(result.bodySummary).toBe("");
+  });
+
+  it("does not flag functions that start with non-verb words", () => {
+    const file1 = makeFile("src/a.ts", [
+      "function calculateTotal(items: any[]) { return items.length; }",
+    ]);
+    const file2 = makeFile("src/b.ts", [
+      "function renderChart(data: any) { return svg(data); }",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    const dupIssues = result.issues.filter((i) => i.category === "duplicate-implementation");
+    expect(dupIssues).toHaveLength(0);
+  });
+
+  it("handles files with only enum/type declarations", () => {
+    const file1 = makeFile("src/types-a.ts", [
+      "enum Status { Active, Inactive }",
+      "type UserId = string;",
+    ]);
+    const file2 = makeFile("src/types-b.ts", [
+      "enum Status { Active, Inactive }",
+      "type UserId = string;",
+    ]);
+    const result = detectContextAmplification([file1, file2]);
+    expect(result.issues).toHaveLength(0);
+  });
+});

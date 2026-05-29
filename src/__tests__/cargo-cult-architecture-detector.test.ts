@@ -530,3 +530,185 @@ describe("detectCargoCultArchitecture — additional coverage", () => {
     expect(issues).toHaveLength(0);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional coverage expansion
+// ---------------------------------------------------------------------------
+
+describe("detectCargoCultArchitecture — expanded enterprise-facade", () => {
+  it("detects facade with this.delegator delegation pattern", () => {
+    const file = makeFile("src/proxy-service.ts", [
+      "export class ProxyService {",
+      " process(data: any) { return this.handler.process(data); }",
+      " transform(data: any) { return this.handler.transform(data); }",
+      "}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag class with 4 methods where only 1 delegates", () => {
+    const file = makeFile("src/rich.ts", [
+      "export class RichService {",
+      " process(data: any) { return this.worker.process(data); }",
+      " validate(data: any) { if (!data) throw new Error(); return true; }",
+      " transform(data: any) { const r = complexLogic(data); return r; }",
+      " save(data: any) { const serialized = JSON.stringify(data); store.insert(serialized); }",
+      "}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects multiple facades in same file", () => {
+    const file = makeFile("src/wrappers.ts", [
+      "export class WrapperA {",
+      " doWork(x: string) { return this.impl.doWork(x); }",
+      " process(x: string) { return this.impl.process(x); }",
+      "}",
+      "export class WrapperB {",
+      " run(data: any) { return this.svc.run(data); }",
+      " handle(data: any) { return this.svc.handle(data); }",
+      "}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "enterprise-facade");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectCargoCultArchitecture — expanded interface-for-single-impl", () => {
+  it("skips Error interface with exact name", () => {
+    const file1 = makeFile("src/errors.ts", [
+      "export interface Error { code: number; message: string; }",
+    ]);
+    const file2 = makeFile("src/app-error.ts", [
+      "export class HttpError implements Error { code = 500; message = 'error'; }",
+    ]);
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "interface-for-single-impl" && i.description.includes("Error"));
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips Event interface with exact name", () => {
+    const file1 = makeFile("src/events.ts", [
+      "export interface Event { x: number; y: number; }",
+    ]);
+    const file2 = makeFile("src/click.ts", [
+      "export class MouseClick implements Event { x = 0; y = 0; }",
+    ]);
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "interface-for-single-impl" && i.description.includes("Event"));
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips State interface with exact name", () => {
+    const file1 = makeFile("src/state.ts", [
+      "export interface State { loading: boolean; }",
+    ]);
+    const file2 = makeFile("src/app-state.ts", [
+      "export class DefaultState implements State { loading = false; }",
+    ]);
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "interface-for-single-impl" && i.description.includes("State"));
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects non-skip interface with single implementation", () => {
+    const file1 = makeFile("src/payment.ts", [
+      "export interface IPaymentGateway { charge(amount: number): boolean; }",
+    ]);
+    const file2 = makeFile("src/stripe.ts", [
+      "export class StripeGateway implements IPaymentGateway { charge(amount: number) { return true; } }",
+    ]);
+    const result = detectCargoCultArchitecture([file1, file2]);
+    const issues = result.issues.filter((i) => i.category === "interface-for-single-impl");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("detectCargoCultArchitecture — expanded deep-inheritance", () => {
+  it("detects 5-level inheritance chain", () => {
+    const files = [
+      makeFile("src/a.ts", ["export class Root { id: string; }"]),
+      makeFile("src/b.ts", ["export class Level1 extends Root { x: number; }"]),
+      makeFile("src/c.ts", ["export class Level2 extends Level1 { y: number; }"]),
+      makeFile("src/d.ts", ["export class Level3 extends Level2 { z: number; }"]),
+      makeFile("src/e.ts", ["export class Level4 extends Level3 { w: number; }"]),
+    ];
+    const result = detectCargoCultArchitecture(files);
+    const issues = result.issues.filter((i) => i.category === "deep-inheritance");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues.some((i) => i.description.includes("5-level"))).toBe(true);
+  });
+
+  it("handles inheritance with no extends chain in diff", () => {
+    const files = [
+      makeFile("src/a.ts", ["export class Service { run() {} }"]),
+      makeFile("src/b.ts", ["export class Handler { process() {} }"]),
+    ];
+    const result = detectCargoCultArchitecture(files);
+    const issues = result.issues.filter((i) => i.category === "deep-inheritance");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectCargoCultArchitecture — expanded singleton-misuse", () => {
+  it("detects singleton with getInstance method", () => {
+    const file = makeFile("src/cache.ts", [
+      "export class Cache {",
+      " private static inst: Cache;",
+      " private constructor() {}",
+      " static getInstance() { return this.inst; }",
+      "}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "singleton-misuse");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag class with only private constructor", () => {
+    const file = makeFile("src/factory.ts", [
+      "export class Factory {",
+      " private constructor() {}",
+      " static create() { return new Factory(); }",
+      "}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "singleton-misuse");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe("detectCargoCultArchitecture — expanded decorator-stack", () => {
+  it("detects 5 consecutive decorators", () => {
+    const file = makeFile("src/mega-dec.ts", [
+      "@Module()",
+      "@Global()",
+      "@Dynamic()",
+      "@Injectable()",
+      "@Optional()",
+      "export class MegaModule {}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "decorator-stack");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("5 decorators");
+  });
+
+  it("resets decorator count between stacks", () => {
+    const file = makeFile("src/multi.ts", [
+      "@Injectable()",
+      "export class ServiceA {}",
+      "@Controller()",
+      "@UseGuards()",
+      "export class ControllerA {}",
+    ]);
+    const result = detectCargoCultArchitecture([file]);
+    const issues = result.issues.filter((i) => i.category === "decorator-stack");
+    expect(issues).toHaveLength(0);
+  });
+});
