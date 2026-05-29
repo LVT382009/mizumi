@@ -369,3 +369,223 @@ describe("detectCredentialExposure — context and summary", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended scaffold-with-inline-secret tests
+// ---------------------------------------------------------------------------
+
+describe("detectCredentialExposure — scaffold extended", () => {
+  it("detects OpenAI API key as inline fallback", () => {
+    const file = makeFile("src/openai.ts", [
+      'const apiKey = process.env.OPENAI_API_KEY || "sk-proj-abcdefghijklmnopqrstuvwx";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "scaffold-with-inline-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects generic token_ prefix as inline fallback", () => {
+    const file = makeFile("src/api.ts", [
+      'const token = process.env.API_TOKEN || "token_abc123def456ghi789jkl012mno345";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "scaffold-with-inline-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects key_ prefix as inline fallback", () => {
+    const file = makeFile("src/api.ts", [
+      'const key = process.env.API_KEY || "key_abc123def456ghi789jkl012mno345pqr";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "scaffold-with-inline-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag env var with empty string fallback", () => {
+    const file = makeFile("src/config.ts", [
+      'const key = process.env.API_KEY || "";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "scaffold-with-inline-secret");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag env var with descriptive fallback", () => {
+    const file = makeFile("src/config.ts", [
+      'const region = process.env.AWS_REGION || "us-east-1-development";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "scaffold-with-inline-secret");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended config-object-literal-secret tests
+// ---------------------------------------------------------------------------
+
+describe("detectCredentialExposure — config-object extended", () => {
+  it("detects secretKey with high-entropy value", () => {
+    const file = makeFile("src/aws.ts", [
+      'const config = { secretKey: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6" };',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "config-object-literal-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects privateKey with high-entropy value", () => {
+    const file = makeFile("src/jwt.ts", [
+      'const config = { privateKey: "sk-ant-api03-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6" };',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "config-object-literal-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects authToken with Bearer prefix", () => {
+    const file = makeFile("src/api.ts", [
+      'const config = { authToken: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" };',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "config-object-literal-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag authToken with env var reference", () => {
+    const file = makeFile("src/api.ts", [
+      "const config = { authToken: process.env.AUTH_TOKEN };",
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "config-object-literal-secret");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag short password in config", () => {
+    const file = makeFile("src/config.ts", [
+      'const config = { password: "test" };',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "config-object-literal-secret");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended constructor-hardcoded-credential tests
+// ---------------------------------------------------------------------------
+
+describe("detectCredentialExposure — constructor extended", () => {
+  it("detects Connection constructor with inline secret", () => {
+    const file = makeFile("src/db.ts", [
+      'const conn = new Connection({ secret: "aB3dE7fG9hJ1kL5mN8oP2qR4sT6uV0wX" });',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "constructor-hardcoded-credential");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects Provider constructor with inline password", () => {
+    const file = makeFile("src/provider.ts", [
+      'const p = new Provider({ password: "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4" });',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "constructor-hardcoded-credential");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag constructor with env var reference", () => {
+    const file = makeFile("src/sdk.ts", [
+      "const client = new Client({ key: process.env.API_KEY });",
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "constructor-hardcoded-credential");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended example-placeholder-secret tests
+// ---------------------------------------------------------------------------
+
+describe("detectCredentialExposure — placeholder extended", () => {
+  it("detects 'fill with your' comment near high-entropy string", () => {
+    const file = makeFile("src/config.ts", [
+      'const key = "sk-ant-api03-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"; // Fill with your real key',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "example-placeholder-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects 'change the' comment near high-entropy string", () => {
+    const file = makeFile("src/config.ts", [
+      'const key = "AKIAIOSFODNN7EXAMPLE"; // Change the access key before deploying',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "example-placeholder-secret");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag placeholder comment with low-entropy nearby value", () => {
+    const file = makeFile("src/config.ts", [
+      '// Replace with your actual host',
+      'const host = "dev.local";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "example-placeholder-secret");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag test files with placeholder comments near secrets", () => {
+    const file = makeFile("src/__tests__/config.test.ts", [
+      'const key = "sk-ant-api03-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"; // Replace with your actual API key',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const issues = result.issues.filter((i) => i.category === "example-placeholder-secret");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-category and dedup tests
+// ---------------------------------------------------------------------------
+
+describe("detectCredentialExposure — multi-category and dedup", () => {
+  it("handles multiple issues in same file", () => {
+    const file = makeFile("src/config.ts", [
+      'const apiKey = process.env.API_KEY || "sk-ant-api03-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6";',
+      'const config = { secretKey: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6" };',
+    ]);
+    const result = detectCredentialExposure([file]);
+    expect(result.issues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("dedupes same category at same file:line", () => {
+    const file = makeFile("src/config.ts", [
+      'const apiKey = process.env.API_KEY || "sk-ant-api03-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6";',
+    ]);
+    const result = detectCredentialExposure([file]);
+    const sameKeyIssues = result.issues.filter(
+      (i) => i.category === "scaffold-with-inline-secret" && i.line === 1
+    );
+    expect(sameKeyIssues.length).toBeLessThanOrEqual(1);
+  });
+
+  it("handles clean code with no credential patterns", () => {
+    const file = makeFile("src/utils.ts", [
+      "function add(a: number, b: number): number { return a + b; }",
+    ]);
+    const result = detectCredentialExposure([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("generates empty body summary when no issues", () => {
+    const file = makeFile("src/clean.ts", [
+      "const x = 1;",
+    ]);
+    const result = detectCredentialExposure([file]);
+    expect(result.bodySummary).toBe("");
+  });
+});

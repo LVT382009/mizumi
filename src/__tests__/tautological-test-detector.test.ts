@@ -331,3 +331,330 @@ describe("detectTautologicalTests — context and summary", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional tautological-assertion tests
+// ---------------------------------------------------------------------------
+
+describe("detectTautologicalTests — tautological-assertion expanded", () => {
+  it("detects expect(fn(x)).toBe(x * y) with binary arithmetic", () => {
+    const file = makeFile("src/calc.test.ts", [
+      "it('computes', () => {",
+      "  expect(calc(2, 3)).toBe(2 * 3);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects expect(fn(x)).toBe(x % 10)", () => {
+    const file = makeFile("src/mod.test.ts", [
+      "it('modulo', () => {",
+      "  expect(mod(val)).toBe(val % 10);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects expected = parseInput(data) self-reference", () => {
+    const file = makeFile("src/parse.test.ts", [
+      "it('parses', () => {",
+      "  const expected = parseInput(data);",
+      "  expect(result).toBe(expected);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects expected = convertValue(input)", () => {
+    const file = makeFile("src/convert.test.ts", [
+      "it('converts', () => {",
+      "  const expected = convertValue(input);",
+      "  expect(convert(input)).toBe(expected);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects expect with large hex constant 0xFFFF0000", () => {
+    const file = makeFile("src/mask.test.ts", [
+      "it('mask', () => {",
+      "  expect(applyMask(val)).toBe(0xFFFF0000);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects expect with large decimal constant", () => {
+    const file = makeFile("src/hash.test.ts", [
+      "it('hash', () => {",
+      "  expect(hashCode(str)).toBe(123456);",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag expect(fn()).toBe('fixed string') in tests", () => {
+    const file = makeFile("src/greet.test.ts", [
+      "it('greet', () => {",
+      "  expect(greet('Alice')).toBe('Hello, Alice');",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const mathIssues = result.issues.filter(
+      (i) => i.category === "tautological-assertion" && i.description.includes("arithmetic")
+    );
+    expect(mathIssues).toHaveLength(0);
+  });
+
+  it("does not flag expect(fn()).toBeFalsy()", () => {
+    const file = makeFile("src/bool.test.ts", [
+      "it('returns false', () => {",
+      "  expect(isValid('')).toBeFalsy();",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "tautological-assertion");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional fixture-mirror-constant tests
+// ---------------------------------------------------------------------------
+
+describe("detectTautologicalTests — fixture-mirror-constant expanded", () => {
+  it("detects very high numeric constant in test file", () => {
+    const file = makeFile("src/api.test.ts", [
+      "const TIMEOUT_MS = 60000;",
+      "it('respects timeout', () => { expect(wait()).toBeLessThan(TIMEOUT_MS); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "fixture-mirror-constant");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects const with hyphenated string value", () => {
+    const file = makeFile("src/config.test.ts", [
+      "const DEFAULT_ROLE = 'service-account-role-name';",
+      "it('uses default role', () => { expect(getRole()).toBe(DEFAULT_ROLE); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "fixture-mirror-constant");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag short string constants", () => {
+    const file = makeFile("src/short.test.ts", [
+      "const LABEL = 'ok';",
+      "it('matches label', () => { expect(label()).toBe(LABEL); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "fixture-mirror-constant");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag boolean constants", () => {
+    const file = makeFile("src/bool.test.ts", [
+      "const ENABLED = true;",
+      "it('is enabled', () => { expect(isEnabled()).toBe(ENABLED); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "fixture-mirror-constant");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional happy-path-only tests
+// ---------------------------------------------------------------------------
+
+describe("detectTautologicalTests — happy-path-only expanded", () => {
+  it("flags 4 happy-path tests without any error coverage", () => {
+    const file = makeFile("src/user.test.ts", [
+      "it('creates user', () => {});",
+      "it('updates user', () => {});",
+      "it('fetches user', () => {});",
+      "it('lists users', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "happy-path-only");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues[0].description).toContain("4 case");
+  });
+
+  it("does not flag when describes contain error test names", () => {
+    const file = makeFile("src/api.test.ts", [
+      "describe('success', () => {});",
+      "describe('failure', () => {});",
+      "it('returns data on success', () => {});",
+      "it('should not accept invalid input', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "happy-path-only");
+    // has a "should not" error-pattern test, so should not be flagged
+    expect(issues).toHaveLength(0);
+  });
+
+  it("recognizes 'throws' as error test pattern", () => {
+    const file = makeFile("src/err.test.ts", [
+      "it('works normally', () => {});",
+      "it('handles pagination', () => {});",
+      "it('throws on invalid input', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "happy-path-only");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("recognizes 'rejects' as error test pattern", () => {
+    const file = makeFile("src/reject.test.ts", [
+      "it('resolves with data', () => {});",
+      "it('handles pagination', () => {});",
+      "it('rejects on network failure', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "happy-path-only");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("recognizes 'bad' as error test pattern", () => {
+    const file = makeFile("src/bad.test.ts", [
+      "it('works with valid data', () => {});",
+      "it('handles pagination', () => {});",
+      "it('handles bad input', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "happy-path-only");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional private-helper-in-test tests
+// ---------------------------------------------------------------------------
+
+describe("detectTautologicalTests — private-helper-in-test expanded", () => {
+  it("detects import from internal/utils", () => {
+    const file = makeFile("src/app.test.ts", [
+      "import { computeHash } from '../src/internal/utils';",
+      "it('hashes correctly', () => { expect(hash(x)).toBe(computeHash(x)); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "private-helper-in-test");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects import from private/helpers", () => {
+    const file = makeFile("src/app.test.ts", [
+      "import { helper } from '../src/private/helpers';",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "private-helper-in-test");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("detects multiple underscore-prefixed function calls", () => {
+    const file = makeFile("src/app.test.ts", [
+      "it('works', () => {",
+      "  expect(_computeInternal(a, b)).toBe(_formatInternal(result));",
+      "});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "private-helper-in-test");
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag normal utility imports from test utilities", () => {
+    const file = makeFile("src/app.test.ts", [
+      "import { render, fireEvent } from '@testing-library/react';",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "private-helper-in-test");
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not flag imports from public src modules", () => {
+    const file = makeFile("src/app.test.ts", [
+      "import { publicApi } from '../src/app';",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const issues = result.issues.filter((i) => i.category === "private-helper-in-test");
+    expect(issues).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-file and dedup tests
+// ---------------------------------------------------------------------------
+
+describe("detectTautologicalTests — multi-file and dedup", () => {
+  it("detects issues across multiple test files", () => {
+    const file1 = makeFile("src/a.test.ts", [
+      "it('x', () => {});",
+      "it('y', () => {});",
+      "it('z', () => {});",
+    ]);
+    const file2 = makeFile("src/b.test.ts", [
+      "it('p', () => {});",
+      "it('q', () => {});",
+      "it('r', () => {});",
+    ]);
+    const result = detectTautologicalTests([file1, file2]);
+    expect(result.issues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("deduplicates issues at same file and line", () => {
+    const file = makeFile("src/dup.test.ts", [
+      "const BIG_CONSTANT = 99999;",
+      "it('works', () => { expect(fn()).toBe(BIG_CONSTANT); });",
+    ]);
+    const result = detectTautologicalTests([file]);
+    const sameLineIssues = result.issues.filter(
+      (i) => i.file === "src/dup.test.ts" && i.line === 1
+    );
+    // Should not have duplicate category+file+line
+    const keys = new Set(sameLineIssues.map((i) => i.category));
+    expect(sameLineIssues.length).toBe(keys.size);
+  });
+
+  it("handles clean non-test files", () => {
+    const file = makeFile("src/production.ts", [
+      "const API_KEY = 'sk-prod-key-1234567890abcdef';",
+      "function add(a: number, b: number): number { return a + b; }",
+    ]);
+    const result = detectTautologicalTests([file]);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("body summary includes table headers", () => {
+    const file = makeFile("src/table.test.ts", [
+      "it('a', () => {}); it('b', () => {}); it('c', () => {});",
+    ]);
+    const result = detectTautologicalTests([file]);
+    if (result.issues.length > 0) {
+      expect(result.bodySummary).toContain("| Category |");
+    }
+  });
+
+  it("generates empty body summary when no issues", () => {
+    const file = makeFile("src/clean.test.ts", [
+      "import { fn } from './app';",
+    ]);
+    const result = detectTautologicalTests([file]);
+    if (result.issues.length === 0) {
+      expect(result.bodySummary).toBe("");
+    }
+  });
+});
