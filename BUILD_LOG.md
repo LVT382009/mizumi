@@ -910,3 +910,17 @@ Research identified 5 highest-impact remaining detector gaps:
 - **4 detection categories**: scaffold-with-inline-secret (env var || high-entropy fallback), config-object-literal-secret (apiKey/secretKey/password/token with literal high-entropy values), constructor-hardcoded-credential (SDK Client/Service/Connection constructors with inline credentials), example-placeholder-secret ("replace with your" comments near literal secrets)
 - **Key features**: Shannon entropy (4.5 threshold, 20-char minimum), cloud key prefix detection (AKIA/ASI/AGPA/AIDA/AROA/yopatterns), API key patterns (sk-, sk_live_, ghp_, gho_, glpat-, xoxb-, Bearer), test file exclusion, severity sorting (critical before warning)
 - **Full pipeline integration**: config.ts, main.ts (4a3zl), action.yml, 8 test stubs, audit trail
+
+### Illusory Validation Detector (2026-05-29)
+- **+43 tests** in `src/__tests__/illusory-validation-detector.test.ts`
+- **6550 tests** passing, 0 TS errors, bundle rebuilt
+- **Competitive gap**: No AI code reviewer detects security-shaped code that doesn't actually protect. AppSecSanta 2026 found 86% XSS failure rate — LLMs write validation code that looks correct but fails to prevent attacks. IEEE-ISTAS found 37.6% critical vulnerability increase after just 5 LLM iterations. Veracode 2025: 45% of AI-generated code introduces OWASP Top 10 vulnerabilities.
+- **4 detection categories**: dead-validation (validation check that logs but doesn't gate the dangerous operation), sanitizer-sink-mismatch (HTML escaping before SQL, SQL escaping before HTML, HTML escaping before shell), crypto-voided-parameters (bcrypt cost<10, AES ECB, MD5/SHA1 for passwords, HMAC-MD5, JWT none algorithm, DES/RC4/Blowfish, PBKDF2 low iterations), decorative-security-import (flask_cors/helmet/express-rate-limit imported but never initialized)
+- **Key features**: control-flow pattern analysis for dead validation, sanitizer-type to sink-type cross-referencing, comprehensive crypto parameter audit (10 patterns), decorative import-without-init detection across same-file added lines
+- **Full pipeline integration**: config.ts, main.ts (4a3zm), action.yml, 8 test stubs, audit trail
+
+### Expanded Test Coverage (2026-05-29)
+- Tautological test detector: 24→47 tests
+- Spec drift detector: 29→53 tests
+- Credential exposure detector: 33→54 tests
+- **+72 new tests** across 3 detectors
