@@ -1032,3 +1032,14 @@ Research identified 5 highest-impact remaining detector gaps:
 - **Typosquatting**: Levenshtein distance against react, lodash, express, axios, moment, next, prisma, jest, vitest, etc.
 - **Full pipeline integration**: config.ts, main.ts (4a3zv), action.yml, 8 test stubs, context injection, body summary, audit trail
 - **7198 tests** passing, 133 files, 0 TS errors, bundle rebuilt
+
+### Lockfile Integrity Detector (2026-05-29)
+- **src/lockfile-integrity-detector.ts** — 17 tests, zero LLM cost
+- **Competitive gap**: No AI code reviewer checks lockfile consistency. Dependabot/Snyk check CVEs, but miss missing lockfile updates (deps added to package.json without lockfile sync) and orphan lockfile changes.
+- **3 detection categories**:
+1. **missing-lockfile-update**: Dependencies added but lockfile not updated — causes CI failures (critical)
+2. **orphan-lockfile-change**: Lockfile modified without package.json change — version pinning or stale lockfile (warning)
+3. **lockfile-version-drift**: LockfileVersion 1 in npm v7+ projects — npm version mismatch (warning)
+- **Multi-lockfile support**: package-lock.json, yarn.lock, pnpm-lock.yaml
+- **Full pipeline integration**: config.ts, main.ts (4a3zw), action.yml, 8 test stubs
+- **7215 tests** passing, 134 files, 0 TS errors, bundle rebuilt
